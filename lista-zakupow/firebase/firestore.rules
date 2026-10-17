@@ -1,5 +1,9 @@
 rules_version = '2';
 
+// UWAGA: Firestore ma jeden zestaw reguł na bazę. Od czasu Sklepu rodzinnego PUBLIKUJ
+// App_storage/firebase/firestore.rules (ten plik + bloki sklepu, z testami na emulatorze).
+// Zmiany reguł Zakupów/Powrotu wprowadzaj tam, inaczej publikacja tego pliku wyłączy sklep.
+
 // Lista zakupów:
 //   lists/{listId}                 listy (members = uid osób z dostępem, ownerId = właściciel)
 //   lists/{listId}/items/{itemId}  produkty
