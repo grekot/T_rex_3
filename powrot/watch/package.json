@@ -1,0 +1,17 @@
+{
+  "name": "powrot",
+  "version": "1.1.0",
+  "description": "Powrot - zapisz miejsce i wroc do niego ze strzalka kompasu (Amazfit T-Rex 3)",
+  "main": "app.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node test/geo.test.mjs && node test/points.test.mjs && node test/places.test.mjs && node test/firestore.test.mjs"
+  },
+  "devDependencies": {
+    "@zeppos/device-types": "^3.0.0"
+  },
+  "dependencies": {
+    "@zeppos/zml": "^0.0.9"
+  }
+}

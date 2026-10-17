@@ -1,0 +1,10 @@
+{
+  "name": "grekot",
+  "version": "1.0.0",
+  "description": "GREKOT - aplikacja Zepp OS na Amazfit T-Rex 3",
+  "main": "app.js",
+  "private": true,
+  "devDependencies": {
+    "@zeppos/device-types": "^3.0.0"
+  }
+}

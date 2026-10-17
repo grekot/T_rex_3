@@ -1,0 +1,17 @@
+{
+  "name": "youtube-subs",
+  "version": "1.0.0",
+  "description": "Liczba subskrybentow kanalu YouTube - aplikacja Zepp OS na Amazfit T-Rex 3",
+  "main": "app.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node test/format.test.mjs && node test/youtube.test.mjs"
+  },
+  "devDependencies": {
+    "@zeppos/device-types": "^3.0.0"
+  },
+  "dependencies": {
+    "@zeppos/zml": "^0.0.9"
+  }
+}

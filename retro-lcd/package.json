@@ -1,0 +1,11 @@
+{
+  "name": "retro-lcd",
+  "version": "1.0.0",
+  "description": "Retro LCD - tarcza Zepp OS w stylu starego zegarka cyfrowego na Amazfit T-Rex 3",
+  "main": "app.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "assets": "python tools/gen_assets.py"
+  }
+}

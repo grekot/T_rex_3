@@ -1,0 +1,41 @@
+name: Release Powrót
+
+# Tag `powrot-vX.Y.Z` → APK release aplikacji Powrót (powrot/phone) przez wspólny workflow sklepu
+# rodzinnego (grekot/App_storage): podpis wspólnym kluczem, APK arm64-v8a,
+# stała nazwa powrot.apk + app.json w GitHub Release tego repo.
+# Wersja = tag bez prefiksu `powrot-v`. versionCode = (run_number + 10), a przy
+# --split-per-abi Flutter dodaje 2000 dla arm64 – więcej niż lokalne buildy 1.0.0+1.
+on:
+  push:
+    tags: ['powrot-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        run: echo "version=${GITHUB_REF_NAME#powrot-v}" >> "$GITHUB_OUTPUT"
+
+  android:
+    needs: meta
+    uses: grekot/App_storage/.github/workflows/flutter-android-release.yml@main
+    with:
+      app_dir: powrot/phone
+      asset_name: powrot
+      version: ${{ needs.meta.outputs.version }}
+      tag: ${{ github.ref_name }}
+      release_name: Powrót ${{ needs.meta.outputs.version }}
+      target_abi: arm64
+      version_code_offset: 10
+      firebase_options_path: powrot/phone/lib/firebase_options.dart
+    secrets:
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      FIREBASE_OPTIONS_DART_B64: ${{ secrets.FIREBASE_OPTIONS_POWROT_B64 }}

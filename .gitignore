@@ -1,0 +1,44 @@
+node_modules/
+dist/
+# konfiguracja Firebase z kluczem API - nie publikować
+lista-zakupow/phone/android/app/google-services.json
+lista-zakupow/phone/lib/firebase_options.dart
+lista-zakupow/watch/utils/firebase-config.js
+powrot/watch/utils/firebase-config.js
+powrot/phone/android/app/google-services.json
+powrot/phone/lib/firebase_options.dart
+
+# Flutter / Dart
+build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+*.iml
+.idea/
+.vscode/
+*.log
+
+# Android / Gradle
+.gradle/
+.kotlin/
+.cxx/
+local.properties
+captures/
+
+# Podpis release (wspólny klucz poza repo; CI zapisuje z sekretów)
+key.properties
+*.jks
+*.keystore
+
+# Artefakty
+*.apk
+*.aab
+*.zab
+*.zip
+
+# Systemowe
+.DS_Store
+Thumbs.db
