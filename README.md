@@ -6,6 +6,7 @@ Każda aplikacja ma własny folder i buduje się niezależnie.
 |-------------------------------------|-----------------------------------|
 | [grekot](grekot/README.md)          | GREKOT – napis z efektem 3D        |
 | [kolko-krzyzyk](kolko-krzyzyk/README.md) | Kółko i krzyżyk – gra z zegarkiem |
+| [saper](saper/README.md)            | Saper – klasyczna gra na okrągłej planszy, 3 poziomy, rekordy |
 | [youtube-subs](youtube-subs/README.md) | YouTube Subs – licznik subskrybentów (zegarek + telefon) |
 | [retro-lcd](retro-lcd/README.md)    | Retro LCD – tarcza w stylu starego zegarka cyfrowego |
 | [retro-lcd-negatyw](retro-lcd-negatyw/README.md) | Retro LCD Negatyw – ta sama tarcza w negatywie (folder generowany z retro-lcd) |
