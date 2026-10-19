@@ -34,8 +34,8 @@ Dlatego źródłem jest galeria telefonu (te same zdjęcia, które Google Photos
 
 **Telefon**
 
-1. Zainstaluj `phone/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk`
-   (budowanie: `phone/build_apk.cmd`).
+1. Zainstaluj „Zdjęcia” ze **Sklepu rodzinnego** albo ręcznie
+   `phone/build/app/outputs/flutter-apk/app-arm64-v8a-release.apk` (budowanie: `phone/build_apk.cmd`).
 2. Otwórz „Zdjęcia” → **Weź ostatnie** (domyślnie 3) → zezwól na dostęp do zdjęć.
    Przy każdym zdjęciu widać rozmiar PNG.
 3. Włącz **Udostępnij zegarkowi** → **Sprawdź serwer** powinno pokazać „OK”.
@@ -63,6 +63,13 @@ i czy w aplikacji na telefonie w „Zapytania z aplikacji Zepp” pojawiły się
 | Na telefonie jest `GET /manifest.json`, ale nie ma `GET /p/...` | lista działa (fetch), a pobieranie plików (downloader) nie |
 | „Test sieci” też kończy się błędem | problem z pobieraniem/konwersją/przesyłem w Zepp, nie z mostem |
 | Zdjęcia doszły, ale żadna „ścieżka” ich nie pokazuje | IMG nie czyta plików z `data://download` – trzeba innego sposobu wyświetlania |
+
+## Wydanie do Sklepu rodzinnego
+
+Tag `zdjecia-vX.Y.Z` uruchamia [release-zdjecia.yml](../.github/workflows/release-zdjecia.yml)
+(wspólny workflow z `grekot/App_storage`): APK arm64 podpisany wspólnym kluczem trafia do GitHub Release
+jako `zdjecia.apk`, a wersja do biblioteki sklepu. Do grup przypisuje administrator:
+`sklep przypisz zdjecia --grupa Ja`.
 
 ## Testy
 
