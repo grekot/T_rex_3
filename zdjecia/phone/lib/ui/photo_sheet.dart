@@ -23,7 +23,10 @@ Future<void> showPhotoSheet(BuildContext context, PoolController pool, PoolItem 
               ClipOval(child: Image.memory(item.png, width: size, height: size, fit: BoxFit.cover)),
               const SizedBox(height: 12),
               Text(formatDateTime(item.taken), style: Theme.of(sheetContext).textTheme.titleMedium),
-              if (s.tags.isNotEmpty) Text(s.tags.join(' · ')),
+              if (s.tags.isNotEmpty) Text(s.tags.join(' · '), textAlign: TextAlign.center),
+              if (item.rating != null)
+                Text('AI: ${item.rating!.score}/10 – ${item.rating!.reason}',
+                    textAlign: TextAlign.center, style: Theme.of(sheetContext).textTheme.bodySmall),
               Text(
                 'Punkty: ${s.score.toStringAsFixed(2)}${item.manualCrop ? ' · kadr poprawiony ręcznie' : ''}',
                 style: Theme.of(sheetContext).textTheme.bodySmall,

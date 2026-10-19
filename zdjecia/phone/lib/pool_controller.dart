@@ -1,11 +1,16 @@
-// Sterowanie pulą: szuka zdjęć z aparatu, analizuje tylko nowe, punktuje, układa pulę 20 zdjęć,
-// kadruje i podaje gotowe PNG serwerowi mostu (zegarek pobiera je pod 127.0.0.1).
+// Sterowanie pulą: szuka zdjęć z aparatu, analizuje tylko nowe, daje je do oceny Gemini (gdy jest klucz),
+// układa pulę 20 zdjęć, kadruje i podaje gotowe PNG serwerowi mostu (zegarek pobiera je pod 127.0.0.1).
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:photo_manager/photo_manager.dart';
 
+import 'ai/ai_errors.dart';
+import 'ai/gemini_client.dart';
+import 'ai/key_store.dart';
+import 'ai/photo_rating.dart';
+import 'ai/rater.dart';
 import 'bridge/bridge_server.dart';
 import 'media/analyzer.dart';
 import 'media/gallery.dart';
@@ -16,7 +21,13 @@ import 'select/pool.dart';
 import 'select/scoring.dart';
 import 'select/store.dart';
 
-enum PoolPhase { starting, scanning, analyzing, preparing, ready, noAccess, failed }
+enum PoolPhase { starting, scanning, analyzing, rating, preparing, ready, noAccess, failed }
+
+/// Najwięcej zdjęć wysyłanych do oceny w jednym odświeżeniu (reszta przy następnym)
+const int maxRatingsPerRefresh = 400;
+
+/// Przerwa między zapytaniami do Gemini - darmowy klucz ma limit zapytań na minutę
+const Duration ratingPause = Duration(seconds: 4);
 
 class PoolItem {
   const PoolItem({required this.scored, required this.crop, required this.manualCrop, required this.png});
@@ -29,6 +40,7 @@ class PoolItem {
   String get id => scored.id;
   String get watchId => watchPhotoId(scored.id, crop);
   DateTime get taken => scored.taken;
+  PhotoRating? get rating => scored.rating;
 }
 
 class PoolController extends ChangeNotifier {
@@ -39,13 +51,23 @@ class PoolController extends ChangeNotifier {
   late Directory _tempDir;
   PoolPrefs prefs = PoolPrefs();
   Map<String, PhotoAnalysis> _analyses = {};
+  Map<String, PhotoRating> _ratings = {};
   Map<String, AssetEntity> _assets = {};
+  final _keys = KeyStore();
+  String _apiKey = '';
 
   PoolPhase phase = PoolPhase.starting;
   int done = 0;
   int total = 0;
   String? error;
   bool limited = false;
+
+  /// Ostatni problem z oceną AI (limit, zły klucz) - pula i tak powstaje
+  String? aiError;
+
+  bool get hasApiKey => _apiKey.isNotEmpty;
+  bool get aiActive => prefs.aiEnabled && hasApiKey;
+  int get ratedCount => scored.where((s) => s.rating != null).length;
 
   /// Wszystkie zdjęcia z okresu z punktami
   List<ScoredPhoto> scored = const [];
@@ -55,10 +77,14 @@ class PoolController extends ChangeNotifier {
   bool get busy => _busy;
   Set<String> get pinned => prefs.pinned;
 
+  /// Powody odrzucenia z liczbą zdjęć (powody AI zebrane razem)
   Map<String, int> get rejectedCounts {
     final out = <String, int>{};
     for (final s in scored) {
-      if (s.rejected != null) out[s.rejected!] = (out[s.rejected!] ?? 0) + 1;
+      final r = s.rejected;
+      if (r == null) continue;
+      final key = r.startsWith('AI:') ? 'nieciekawe wg AI' : r;
+      out[key] = (out[key] ?? 0) + 1;
     }
     return out;
   }
@@ -69,6 +95,8 @@ class PoolController extends ChangeNotifier {
     _tempDir = await getTemporaryDirectory();
     prefs = await _store.loadPrefs();
     _analyses = await _store.loadAnalyses();
+    _ratings = await _store.loadRatings();
+    _apiKey = await _keys.gemini();
     await refresh();
   }
 
@@ -92,6 +120,7 @@ class PoolController extends ChangeNotifier {
         await _analyzeMissing();
         _forgetOld();
         await _store.saveAnalyses(_analyses);
+        await _rateMissing();
         _rescore();
         await _preparePool();
       });
@@ -123,11 +152,64 @@ class PoolController extends ChangeNotifier {
   // Wyniki zdjęć, których już nie ma w okresie ani w przypiętych, nie są potrzebne
   void _forgetOld() {
     _analyses.removeWhere((id, _) => !_assets.containsKey(id));
+    _ratings.removeWhere((id, _) => !_assets.containsKey(id));
   }
 
   void _rescore() {
     final present = [for (final id in _assets.keys) ?_analyses[id]];
-    scored = scoreAll(present, now: DateTime.now(), days: prefs.days);
+    scored = scoreAll(present, now: DateTime.now(), days: prefs.days, ratings: _ratings);
+  }
+
+  /// Gemini ocenia zdjęcia bez aktualnej oceny: po odsianiu przez telefon (nieostre, dokumenty,
+  /// serie) i najlepsze najpierw, żeby przy limicie klucza ocenione były te najbardziej obiecujące.
+  Future<void> _rateMissing() async {
+    aiError = null;
+    if (!aiActive) return;
+    final hash = prefsHash(prefs.preferences);
+    final local = scoreAll([for (final id in _assets.keys) ?_analyses[id]], now: DateTime.now(), days: prefs.days);
+    final winners = [
+      for (final group in groupBursts(local.where((s) => s.accepted || prefs.pinned.contains(s.id)).toList()))
+        group.first,
+      ...local.where((s) => prefs.pinned.contains(s.id)),
+    ]..sort((a, b) => b.score.compareTo(a.score));
+    final seen = <String>{};
+    final todo = [
+      for (final s in winners)
+        if (seen.add(s.id) && _ratings[s.id]?.prefsHash != hash) s,
+    ].take(maxRatingsPerRefresh).toList();
+    if (todo.isEmpty) return;
+
+    _set(PoolPhase.rating, total: todo.length);
+    final rater = PhotoRater(client: GeminiClient(apiKey: _apiKey, model: prefs.aiModel), preferences: prefs.preferences);
+    const fatal = [AiErrorKind.rateLimited, AiErrorKind.unauthorized, AiErrorKind.noApiKey, AiErrorKind.badRequest];
+    for (var start = 0; start < todo.length; start += ratingBatchSize) {
+      final batch = todo.skip(start).take(ratingBatchSize).toList();
+      final inputs = <RatingInput>[];
+      final ids = <String>[];
+      for (final s in batch) {
+        final asset = _assets[s.id];
+        final jpeg = asset == null ? null : await imageBytes(asset, 512, quality: 80);
+        if (jpeg == null) continue;
+        inputs.add(RatingInput(jpeg: jpeg, taken: s.taken));
+        ids.add(s.id);
+      }
+      try {
+        if (inputs.isNotEmpty) {
+          final ratings = await rater.rateBatch(inputs);
+          for (var i = 0; i < ids.length; i++) {
+            final r = ratings[i];
+            if (r != null) _ratings[ids[i]] = r;
+          }
+          await _store.saveRatings(_ratings);
+        }
+      } on AiException catch (e) {
+        aiError = e.userMessage;
+        if (fatal.contains(e.kind)) break;
+      }
+      done += batch.length;
+      notifyListeners();
+      if (start + ratingBatchSize < todo.length) await Future<void>.delayed(ratingPause);
+    }
   }
 
   Future<void> _preparePool() async {
@@ -139,7 +221,7 @@ class PoolController extends ChangeNotifier {
     final items = <PoolItem>[];
     for (final s in chosen) {
       final manual = prefs.crops[s.id];
-      final crop = manual ?? autoCrop(s.analysis);
+      final crop = manual ?? autoCrop(s.analysis, subject: s.rating?.subject);
       try {
         items.add(PoolItem(scored: s, crop: crop, manualCrop: manual != null, png: await _png(s, crop)));
       } catch (err) {
@@ -149,7 +231,9 @@ class PoolController extends ChangeNotifier {
       notifyListeners();
     }
     pool = items;
-    server.photos = [for (final i in items) BridgePhoto(id: i.watchId, png: i.png, taken: i.taken)];
+    server.photos = [
+      for (final i in items) BridgePhoto(id: i.watchId, png: i.png, taken: i.taken, caption: i.rating?.caption ?? ''),
+    ];
     await _store.prunePngs({for (final i in items) _store.pngFile(i.id, i.crop).path});
     _set(PoolPhase.ready);
   }
@@ -221,6 +305,34 @@ class PoolController extends ChangeNotifier {
       });
 
   AssetEntity? assetOf(String id) => _assets[id];
+
+  // --- AI ---
+
+  Future<String> apiKey() => _keys.gemini();
+
+  /// null = klucz i model działają, inaczej komunikat do pokazania
+  Future<String?> testAi(String key, String model) async {
+    try {
+      await GeminiClient(apiKey: key.trim(), model: model).ping();
+      return null;
+    } on AiException catch (e) {
+      return e.userMessage;
+    }
+  }
+
+  Future<List<String>> aiModels(String key) => GeminiClient(apiKey: key.trim()).listModels();
+
+  /// Zapis ustawień AI; zmiana preferencji albo modelu = ponowna ocena przy odświeżeniu
+  Future<void> setAi({required bool enabled, required String key, required String model, required String preferences}) async {
+    await _keys.setGemini(key);
+    _apiKey = key.trim();
+    if (model != prefs.aiModel) _ratings.clear();
+    prefs.aiEnabled = enabled;
+    prefs.aiModel = model;
+    prefs.preferences = preferences.trim();
+    await _store.savePrefs(prefs);
+    await refresh();
+  }
 
   Future<void> _change(void Function() update) => _run(() async {
         update();

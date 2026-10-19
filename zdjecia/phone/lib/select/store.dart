@@ -3,6 +3,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../ai/gemini_client.dart';
+import '../ai/photo_rating.dart';
 import 'analysis.dart';
 import 'crop.dart';
 
@@ -14,6 +16,9 @@ class PoolPrefs {
     Set<String>? removed,
     Map<String, CropBox>? crops,
     Map<String, String>? pinnedAssets,
+    this.aiEnabled = true,
+    this.aiModel = defaultGeminiModel,
+    this.preferences = '',
   })  : pinned = pinned ?? {},
         removed = removed ?? {},
         crops = crops ?? {},
@@ -33,6 +38,13 @@ class PoolPrefs {
   /// Przypięte zdjęcia spoza okresu (np. dodane ręcznie): id zdjęcia -> id w galerii
   final Map<String, String> pinnedAssets;
 
+  /// Ocena przez Gemini (gdy jest klucz); bez niej - sama punktacja na telefonie
+  bool aiEnabled;
+  String aiModel;
+
+  /// Co właściciel lubi / czego nie chce - dopisywane do polecenia dla AI
+  String preferences;
+
   Map<String, Object> toJson() => {
         'days': days,
         'size': size,
@@ -40,6 +52,9 @@ class PoolPrefs {
         'removed': removed.toList(),
         'crops': {for (final e in crops.entries) e.key: e.value.toJson()},
         'pinnedAssets': pinnedAssets,
+        'ai': aiEnabled,
+        'aiModel': aiModel,
+        'preferences': preferences,
       };
 
   factory PoolPrefs.fromJson(Map<String, dynamic> j) => PoolPrefs(
@@ -52,6 +67,9 @@ class PoolPrefs {
             e.key as String: CropBox.fromJson((e.value as Map).cast<String, dynamic>()),
         },
         pinnedAssets: ((j['pinnedAssets'] as Map?) ?? const {}).cast<String, String>(),
+        aiEnabled: j['ai'] as bool? ?? true,
+        aiModel: j['aiModel'] as String? ?? defaultGeminiModel,
+        preferences: j['preferences'] as String? ?? '',
       );
 }
 
@@ -62,6 +80,7 @@ class SelectStore {
 
   File get _prefsFile => File('${dir.path}/prefs.json');
   File get _analysisFile => File('${dir.path}/analysis.json');
+  File get _ratingsFile => File('${dir.path}/ratings.json');
   Directory get pngDir => Directory('${dir.path}/png');
 
   Future<PoolPrefs> loadPrefs() async {
@@ -84,6 +103,19 @@ class SelectStore {
 
   Future<void> saveAnalyses(Map<String, PhotoAnalysis> items) =>
       _writeJson(_analysisFile, {'items': {for (final e in items.entries) e.key: e.value.toJson()}});
+
+  Future<Map<String, PhotoRating>> loadRatings() async {
+    final j = await _readJson(_ratingsFile);
+    final out = <String, PhotoRating>{};
+    for (final e in ((j?['items'] as Map?) ?? const {}).entries) {
+      final r = PhotoRating.fromJson((e.value as Map).cast<String, dynamic>());
+      if (r != null) out[e.key as String] = r;
+    }
+    return out;
+  }
+
+  Future<void> saveRatings(Map<String, PhotoRating> items) =>
+      _writeJson(_ratingsFile, {'items': {for (final e in items.entries) e.key: e.value.toJson()}});
 
   /// Gotowy PNG dla zegarka (zależy od kadru, więc kadr jest w nazwie)
   File pngFile(String id, CropBox crop) => File('${pngDir.path}/${id}_${crop.key}.png');

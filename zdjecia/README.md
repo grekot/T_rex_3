@@ -104,6 +104,17 @@ Wszystko na telefonie, bez internetu (`phone/lib/select/` – czysta logika z te
    pas zdjęcia; PNG z miniatury 1600 px, więc przybliżenie jest ostre. Kadr da się poprawić palcami.
 
 Wyniki analizy są zapamiętywane (`analysis.json`), więc kolejne odświeżenia analizują tylko nowe zdjęcia.
+
+**Ocena przez AI (od 0.3.0).** Sama punktacja z telefonu wybierała słabo (nie odróżnia wspomnień od zdjęć
+„praktycznych”), więc decyduje Gemini – tak jak w EscapeRoom: klucz z Google AI Studio wpisany w aplikacji
+(ikona ✨), trzymany w zaszyfrowanym magazynie Androida (`flutter_secure_storage`), zapytania wprost do
+`generativelanguage.googleapis.com` (`phone/lib/ai/`). Telefon najpierw odsiewa nieostre zdjęcia, dokumenty
+i serie, potem Gemini ocenia miniatury 512 px po 12 w zapytaniu (przerwa 4 s, ponawianie przy limicie)
+i zwraca ocenę 1–10, „nadaje się / nie”, kategorię, polski podpis i prostokąt głównego motywu (kadr).
+Preferencje właściciela („co lubię / czego nie chcę”) są dopisywane do polecenia; ich zmiana albo zmiana
+modelu = ocena od nowa. Oceny w `ratings.json`. Bez klucza zostaje punktacja z telefonu.
+Przy kluczu bez płatności w AI Studio obowiązują warunki darmowego Gemini API (Google może używać treści
+do ulepszania usług).
 Na ekranie: pula w okrągłych podglądach z powodem wyboru, przypinanie, usuwanie, poprawa kadru,
 ręczne dodawanie zdjęć z galerii i ustawienia (dni, wielkość puli).
 

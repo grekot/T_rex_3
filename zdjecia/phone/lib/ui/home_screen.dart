@@ -12,6 +12,7 @@ import '../bridge/bridge_server.dart';
 import '../bridge/format.dart';
 import '../media/gallery.dart';
 import '../pool_controller.dart';
+import 'ai_settings_screen.dart';
 import 'photo_sheet.dart';
 import 'pick_screen.dart';
 import 'settings_sheet.dart';
@@ -91,6 +92,11 @@ class _HomeScreenState extends State<HomeScreen> {
           title: Text('Zdjęcia ${widget.version}'),
           actions: [
             IconButton(
+              tooltip: 'Ocena przez AI',
+              icon: const Icon(Icons.auto_awesome),
+              onPressed: _pool.busy ? null : _openAi,
+            ),
+            IconButton(
               tooltip: 'Dodaj zdjęcie ręcznie',
               icon: const Icon(Icons.add_photo_alternate_outlined),
               onPressed: _pool.busy
@@ -117,6 +123,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _openAi() => Navigator.of(context).push(MaterialPageRoute(builder: (_) => AiSettingsScreen(pool: _pool)));
+
   Widget _statusCard(BuildContext context) {
     final p = _pool;
     final text = Theme.of(context).textTheme;
@@ -128,6 +136,8 @@ class _HomeScreenState extends State<HomeScreen> {
         line = 'Szukam zdjęć z aparatu z ostatnich ${p.prefs.days} dni...';
       case PoolPhase.analyzing:
         line = 'Analizuję nowe zdjęcia: ${p.done} z ${p.total}';
+      case PoolPhase.rating:
+        line = 'Gemini ocenia zdjęcia: ${p.done} z ${p.total}';
       case PoolPhase.preparing:
         line = 'Kadruję zdjęcia dla zegarka: ${p.done} z ${p.total}';
       case PoolPhase.noAccess:
@@ -152,8 +162,18 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 8),
               LinearProgressIndicator(value: p.total > 0 ? p.done / p.total : null),
             ],
+            if (!working && p.phase == PoolPhase.ready && p.aiActive)
+              Text('Ocenione przez AI: ${p.ratedCount} z ${p.scored.length}', style: text.bodySmall),
             if (!working && p.phase == PoolPhase.ready && rejected.isNotEmpty)
-              Text('Pominięte: $rejected', style: text.bodySmall),
+              Text('Pominięte: $rejected', style: text.bodySmall, maxLines: 4, overflow: TextOverflow.ellipsis),
+            if (p.aiError != null)
+              Text(p.aiError!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            if (!working && !p.aiActive)
+              TextButton.icon(
+                onPressed: _openAi,
+                icon: const Icon(Icons.auto_awesome),
+                label: Text(p.hasApiKey ? 'Ocena przez AI jest wyłączona' : 'Włącz ocenę przez AI (klucz Gemini)'),
+              ),
             if (p.limited && !working)
               TextButton(
                 onPressed: () async {

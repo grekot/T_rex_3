@@ -1,5 +1,6 @@
 // Kadr pod okrągły ekran: kwadrat, w którym bohaterowie zdjęcia mieszczą się w KOLE (narożniki kwadratu
-// zegarek obcina). Z twarzami - twarze z ramionami w środku koła, bez twarzy - najciekawszy pas zdjęcia.
+// zegarek obcina). Z twarzami - twarze z ramionami w środku koła; bez twarzy - główny motyw wskazany
+// przez AI, a bez niego najciekawszy pas zdjęcia.
 import 'dart:math' as math;
 
 import 'analysis.dart';
@@ -42,26 +43,38 @@ const double minSide = 0.45;
 /// Ułamek promienia koła, w którym mają się zmieścić twarze
 const double circleMargin = 0.9;
 
-CropBox autoCrop(PhotoAnalysis a) {
+/// [subject] - główny motyw od AI: left, top, width, height w ułamkach zdjęcia
+CropBox autoCrop(PhotoAnalysis a, {List<double>? subject}) {
   final faces = mainFaces(a.faces);
-  return faces.isEmpty ? _bestBand(a.quality, a.aspect) : _aroundFaces(faces, a.aspect);
+  if (faces.isNotEmpty) {
+    return _aroundBoxes([
+      for (final f in faces) [f.left, f.top, f.width, f.height],
+    ], a.aspect, side: 0.3, above: 0.35, below: 0.8); // ramiona
+  }
+  if (subject != null && subject.length == 4) {
+    return _aroundBoxes([subject], a.aspect, side: 0.06, above: 0.06, below: 0.06);
+  }
+  return _bestBand(a.quality, a.aspect);
 }
 
-CropBox _aroundFaces(List<FaceBox> faces, double aspect) {
+/// Kwadrat, w którego kole mieszczą się prostokąty (w ułamkach zdjęcia) z zapasem
+/// [side] / [above] / [below] (ułamki szerokości / wysokości prostokąta)
+CropBox _aroundBoxes(List<List<double>> boxes, double aspect,
+    {required double side, required double above, required double below}) {
   // Liczymy w pikselach zdjęcia o krótszym boku = 1
   final w = math.max(aspect, 1.0), h = math.max(1 / aspect, 1.0);
   var left = double.infinity, top = double.infinity, right = -double.infinity, bottom = -double.infinity;
-  for (final f in faces) {
-    final fw = f.width * w, fh = f.height * h;
-    left = math.min(left, f.left * w - 0.3 * fw);
-    right = math.max(right, (f.left + f.width) * w + 0.3 * fw);
-    top = math.min(top, f.top * h - 0.35 * fh);
-    bottom = math.max(bottom, (f.top + f.height) * h + 0.8 * fh); // ramiona
+  for (final b in boxes) {
+    final bw = b[2] * w, bh = b[3] * h;
+    left = math.min(left, b[0] * w - side * bw);
+    right = math.max(right, (b[0] + b[2]) * w + side * bw);
+    top = math.min(top, b[1] * h - above * bh);
+    bottom = math.max(bottom, (b[1] + b[3]) * h + below * bh);
   }
   final bw = right - left, bh = bottom - top;
   // Prostokąt w kole: połowa przekątnej <= promień * margines
-  final side = (math.sqrt(bw * bw + bh * bh) / circleMargin).clamp(minSide, 1.0);
-  return _clamped((left + right) / 2, (top + bottom) / 2, side, w, h);
+  final size = (math.sqrt(bw * bw + bh * bh) / circleMargin).clamp(minSide, 1.0);
+  return _clamped((left + right) / 2, (top + bottom) / 2, size, w, h);
 }
 
 CropBox _bestBand(QualityMetrics q, double aspect) {

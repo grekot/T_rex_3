@@ -8,11 +8,14 @@ import 'dart:typed_data';
 const int bridgePort = 8765;
 
 class BridgePhoto {
-  const BridgePhoto({required this.id, required this.png, required this.taken});
+  const BridgePhoto({required this.id, required this.png, required this.taken, this.caption = ''});
 
   final String id;
   final Uint8List png;
   final DateTime taken;
+
+  /// Podpis od AI (zegarek może go pokazać pod zdjęciem)
+  final String caption;
 }
 
 class BridgeRequest {
@@ -53,7 +56,12 @@ class BridgeServer {
         'version': 1,
         'photos': [
           for (final p in _photos)
-            {'id': p.id, 'size': p.png.length, 'taken': p.taken.millisecondsSinceEpoch},
+            {
+              'id': p.id,
+              'size': p.png.length,
+              'taken': p.taken.millisecondsSinceEpoch,
+              if (p.caption.isNotEmpty) 'caption': p.caption,
+            },
         ],
       };
 

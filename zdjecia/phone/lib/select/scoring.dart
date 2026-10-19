@@ -1,7 +1,9 @@
-// Punktacja „ciekawości” zdjęcia. Ostrość i kolorowość liczone względem pozostałych zdjęć
-// z tego samego okresu (centyl), bo każdy aparat daje inne wartości bezwzględne.
+// Punktacja „ciekawości” zdjęcia. Gdy zdjęcie ma ocenę Gemini (1-10), ona decyduje, a punkty z telefonu
+// tylko rozstrzygają remisy. Bez oceny AI: ostrość i kolorowość względem pozostałych zdjęć z okresu
+// (centyl, bo każdy aparat daje inne wartości bezwzględne), twarze, etykiety ML Kit, ulubione.
 import 'dart:math' as math;
 
+import '../ai/photo_rating.dart';
 import 'analysis.dart';
 import 'labels.dart';
 
@@ -11,9 +13,13 @@ class ScoredPhoto {
     required this.score,
     required this.tags,
     this.rejected,
+    this.rating,
   });
 
   final PhotoAnalysis analysis;
+
+  /// Ocena Gemini (null = nieoceniane)
+  final PhotoRating? rating;
   final double score;
 
   /// Powody wyboru (najważniejsze najpierw), np. ["ulubione", "2 twarze", "uśmiech"]
@@ -36,13 +42,48 @@ const double blurryShare = 0.12;
 /// Twarze mniejsze niż ten ułamek powierzchni to tło (przechodnie), nie bohaterowie zdjęcia
 const double minFaceArea = 0.005;
 
-List<ScoredPhoto> scoreAll(List<PhotoAnalysis> photos, {required DateTime now, required int days}) {
+/// Ocena AI od tej wartości w dół = odrzucone
+const int aiRejectScore = 3;
+
+List<ScoredPhoto> scoreAll(
+  List<PhotoAnalysis> photos, {
+  required DateTime now,
+  required int days,
+  Map<String, PhotoRating> ratings = const {},
+}) {
   final sharpRank = _percentiles([for (final p in photos) math.log(1 + p.quality.sharpness)]);
   final colorRank = _percentiles([for (final p in photos) p.quality.colorfulness]);
   return [
     for (var i = 0; i < photos.length; i++)
-      scorePhoto(photos[i], sharpRank: sharpRank[i], colorRank: colorRank[i], now: now, days: days),
+      withRating(
+        scorePhoto(photos[i], sharpRank: sharpRank[i], colorRank: colorRank[i], now: now, days: days),
+        ratings[photos[i].id],
+        now: now,
+        days: days,
+      ),
   ];
+}
+
+/// Ocena Gemini nadpisuje werdykt telefonu; punkty telefonu zostają jako drobna dogrywka
+ScoredPhoto withRating(ScoredPhoto local, PhotoRating? rating, {required DateTime now, required int days}) {
+  if (rating == null) return local;
+  final a = local.analysis;
+  final ageDays = now.difference(a.taken).inHours / 24;
+  final recency = 1 - (ageDays / math.max(days, 1)).clamp(0.0, 1.0);
+  final rejected = !a.favorite && (!rating.keep || rating.score <= aiRejectScore)
+      ? 'AI: ${rating.reason.isEmpty ? 'nieciekawe' : rating.reason}'
+      : null;
+  return ScoredPhoto(
+    analysis: a,
+    score: rating.score + (a.favorite ? 2 : 0) + 0.5 * recency + 0.1 * local.score,
+    tags: [
+      if (rating.caption.isNotEmpty) rating.caption,
+      if (a.favorite) 'ulubione',
+      rating.category,
+    ],
+    rejected: rejected,
+    rating: rating,
+  );
 }
 
 ScoredPhoto scorePhoto(
