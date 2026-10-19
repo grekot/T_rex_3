@@ -58,3 +58,15 @@ export function clearPhotos() {
   });
   writeJson(PHOTOS_KEY, []);
 }
+
+// Próba 0b: kiedy i którym sposobem otwarto ekran zdjęcia z powiadomienia
+const OPEN_LOG_KEY = "zd_open_log";
+
+export function loadOpenLog() {
+  return readJson(OPEN_LOG_KEY, []);
+}
+
+export function logOpen(method) {
+  const log = loadOpenLog().concat([{ m: method, at: Date.now() }]).slice(-20);
+  writeJson(OPEN_LOG_KEY, log);
+}

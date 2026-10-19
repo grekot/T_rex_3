@@ -1,12 +1,12 @@
 {
   "name": "zdjecia",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Zdjecia - najciekawsze zdjecia z galerii telefonu na zegarku (Amazfit T-Rex 3)",
   "main": "app.js",
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "node test/sync.test.mjs && node test/format.test.mjs && node test/photos.test.mjs"
+    "test": "node test/sync.test.mjs && node test/format.test.mjs && node test/photos.test.mjs && node test/notify.test.mjs"
   },
   "devDependencies": {
     "@zeppos/device-types": "^3.0.0"

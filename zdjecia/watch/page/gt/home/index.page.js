@@ -1,6 +1,7 @@
 // Etap próbny: pobranie zdjęć z telefonu (most 127.0.0.1) z pomiarem rozmiaru i czasu + podgląd zdjęć.
 import * as hmUI from "@zos/ui";
 import { px } from "@zos/utils";
+import { push } from "@zos/router";
 import { BasePage } from "@zeppos/zml/base-page";
 import { stayInApp, keepScreenOn, releaseScreen } from "../../../utils/screen";
 import { buttonProps } from "../../../utils/ui";
@@ -16,6 +17,7 @@ import {
   SHOW_RECT,
   TEST_RECT,
   CLEAR_RECT,
+  NOTIFY_RECT,
   PHOTO_PROPS,
   BACK_RECT,
   VARIANT_RECT,
@@ -24,7 +26,7 @@ import {
 } from "zosLoader:./index.page.[pf].layout.js";
 
 // Ile linii statusu mieści się nad przyciskami
-const MAX_LOG = 5;
+const MAX_LOG = 4;
 
 // Przebudowa ekranu poza obsługą kliknięcia (usuwanie widżetu w jego własnym zdarzeniu bywa ryzykowne)
 function later(fn) {
@@ -94,6 +96,10 @@ Page(
       );
       this.add(hmUI.widget.BUTTON, buttonProps(TEST_RECT, "Test sieci", "secondary", () => this.startTestNet(), px(20)));
       this.add(hmUI.widget.BUTTON, buttonProps(CLEAR_RECT, "Wyczyść", "danger", () => later(() => this.clearAll()), px(20)));
+      this.add(
+        hmUI.widget.BUTTON,
+        buttonProps(NOTIFY_RECT, "Powiadomienia", "secondary", () => push({ url: "page/gt/notify/index.page" }), px(20))
+      );
       this.renderStatus();
     },
 

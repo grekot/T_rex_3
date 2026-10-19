@@ -5,14 +5,20 @@
     "appName": "Zdjecia",
     "appType": "app",
     "version": {
-      "code": 1,
-      "name": "0.1.0"
+      "code": 3,
+      "name": "0.3.0"
     },
     "icon": "icon.png",
     "vender": "grekot",
     "description": "Najciekawsze zdjecia z galerii telefonu na zegarku (etap probny: przesyl i pomiary)"
   },
-  "permissions": ["data:os.device.info", "device:os.local_storage", "device:os.ble"],
+  "permissions": [
+    "data:os.device.info",
+    "device:os.local_storage",
+    "device:os.ble",
+    "device:os.notification",
+    "device:os.alarm"
+  ],
   "runtime": {
     "apiVersion": {
       "compatible": "3.0",
@@ -25,7 +31,18 @@
     "gt": {
       "module": {
         "page": {
-          "pages": ["page/gt/home/index.page"]
+          "pages": [
+            "page/gt/home/index.page",
+            "page/gt/notify/index.page",
+            "page/gt/photo/index.page"
+          ]
+        },
+        "app-service": {
+          "services": [
+            "app-service/notify",
+            "app-service/open_b",
+            "app-service/open_c"
+          ]
         },
         "app-side": {
           "path": "app-side/index"
