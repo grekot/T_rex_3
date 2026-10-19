@@ -1,0 +1,243 @@
+// Etap próbny: pobranie zdjęć z telefonu (most 127.0.0.1) z pomiarem rozmiaru i czasu + podgląd zdjęć.
+import * as hmUI from "@zos/ui";
+import { px } from "@zos/utils";
+import { BasePage } from "@zeppos/zml/base-page";
+import { stayInApp, keepScreenOn, releaseScreen } from "../../../utils/screen";
+import { buttonProps } from "../../../utils/ui";
+import { loadPhotos, savePhoto, loadVariant, saveVariant, downloadedFiles, clearPhotos } from "../../../utils/store";
+import { shownPhotos, haveIds, readParams } from "../../../utils/photos";
+import { srcVariants, pickSrc } from "../../../utils/paths";
+import { summaryLines, photoInfoLines } from "../../../utils/format";
+import { describeEvent, describeStart, errText } from "../../../utils/events";
+import {
+  TITLE_STYLE,
+  STATUS_STYLE,
+  SYNC_RECT,
+  SHOW_RECT,
+  TEST_RECT,
+  CLEAR_RECT,
+  PHOTO_PROPS,
+  BACK_RECT,
+  VARIANT_RECT,
+  INFO_BG_PROPS,
+  INFO_STYLE,
+} from "zosLoader:./index.page.[pf].layout.js";
+
+// Ile linii statusu mieści się nad przyciskami
+const MAX_LOG = 5;
+
+// Przebudowa ekranu poza obsługą kliknięcia (usuwanie widżetu w jego własnym zdarzeniu bywa ryzykowne)
+function later(fn) {
+  setTimeout(fn, 10);
+}
+
+Page(
+  BasePage({
+    state: {
+      widgets: [],
+      status: null,
+      mode: "panel",
+      index: 0,
+      log: [],
+      current: "",
+      busy: false,
+    },
+
+    build() {
+      stayInApp();
+      this.state.log = this.storedLines();
+      this.showPanel();
+    },
+
+    onDestroy() {
+      releaseScreen();
+    },
+
+    storedLines() {
+      const photos = loadPhotos();
+      const files = downloadedFiles();
+      return [
+        "Na zegarku: " + shownPhotos(photos).length + " zdj. (pliki: " + (files ? files.length : "?") + ")",
+      ].concat(summaryLines(photos));
+    },
+
+    // --- widżety ---
+
+    add(type, props) {
+      const w = hmUI.createWidget(type, props);
+      this.state.widgets.push(w);
+      return w;
+    },
+
+    clearScreen() {
+      const s = this.state;
+      s.widgets.forEach((w) => {
+        try {
+          hmUI.deleteWidget(w);
+        } catch (e) {}
+      });
+      s.widgets = [];
+      s.status = null;
+    },
+
+    showPanel() {
+      const s = this.state;
+      this.clearScreen();
+      s.mode = "panel";
+      const count = shownPhotos(loadPhotos()).length;
+      this.add(hmUI.widget.TEXT, TITLE_STYLE);
+      s.status = this.add(hmUI.widget.TEXT, STATUS_STYLE);
+      this.add(hmUI.widget.BUTTON, buttonProps(SYNC_RECT, "Pobierz z telefonu", "primary", () => this.startSync()));
+      this.add(
+        hmUI.widget.BUTTON,
+        buttonProps(SHOW_RECT, "Pokaż zdjęcia (" + count + ")", "secondary", () => later(() => this.showPhoto(0)))
+      );
+      this.add(hmUI.widget.BUTTON, buttonProps(TEST_RECT, "Test sieci", "secondary", () => this.startTestNet(), px(20)));
+      this.add(hmUI.widget.BUTTON, buttonProps(CLEAR_RECT, "Wyczyść", "danger", () => later(() => this.clearAll()), px(20)));
+      this.renderStatus();
+    },
+
+    showPhoto(index) {
+      const s = this.state;
+      const photos = shownPhotos(loadPhotos());
+      if (!photos.length) {
+        this.log("Brak zdjęć na zegarku");
+        return;
+      }
+      if (index >= photos.length) {
+        this.showPanel();
+        return;
+      }
+      s.index = index;
+      const p = photos[index];
+      const variant = loadVariant();
+      const variants = srcVariants(p);
+      const src = pickSrc(p, variant);
+      this.clearScreen();
+      s.mode = "photo";
+      const img = this.add(hmUI.widget.IMG, { ...PHOTO_PROPS, src });
+      img.addEventListener(hmUI.event.CLICK_UP, () => later(() => this.showPhoto(s.index + 1)));
+      this.add(hmUI.widget.FILL_RECT, INFO_BG_PROPS);
+      this.add(hmUI.widget.TEXT, {
+        ...INFO_STYLE,
+        text: photoInfoLines(p, index, photos.length).concat(["src: " + src]).join("\n"),
+      });
+      this.add(hmUI.widget.BUTTON, buttonProps(BACK_RECT, "Panel", "secondary", () => later(() => this.showPanel()), px(20)));
+      this.add(
+        hmUI.widget.BUTTON,
+        buttonProps(
+          VARIANT_RECT,
+          "ścieżka " + ((variant % variants.length) + 1) + "/" + variants.length,
+          "secondary",
+          () =>
+            later(() => {
+              saveVariant(loadVariant() + 1);
+              this.showPhoto(s.index);
+            }),
+          px(20)
+        )
+      );
+    },
+
+    // --- status ---
+
+    renderStatus() {
+      const s = this.state;
+      if (!s.status) return;
+      const lines = s.log.slice(-MAX_LOG);
+      if (s.current) lines.push(s.current);
+      s.status.setProperty(hmUI.prop.TEXT, lines.join("\n"));
+    },
+
+    log(line) {
+      const s = this.state;
+      s.log.push(line);
+      if (s.log.length > 20) s.log.shift();
+      this.renderStatus();
+    },
+
+    // --- przesyłanie ---
+
+    startSync() {
+      this.begin("Łączę z telefonem...", { method: "SYNC", params: { have: haveIds(loadPhotos()) } });
+    },
+
+    startTestNet() {
+      this.begin("Test: obrazek z internetu...", { method: "TEST_NET", params: {} });
+    },
+
+    begin(text, request) {
+      const s = this.state;
+      if (s.busy) return;
+      s.busy = true;
+      keepScreenOn();
+      s.log = [];
+      s.current = text;
+      this.renderStatus();
+      this.request(request)
+        .then((res) => {
+          s.current = "";
+          this.log(describeStart(res));
+          if (!res || !res.ok || !res.todo) this.finish();
+        })
+        .catch((e) => {
+          s.current = "";
+          this.log("Brak odpowiedzi z telefonu: " + errText(e));
+          this.finish();
+        });
+    },
+
+    finish() {
+      this.state.busy = false;
+      releaseScreen();
+    },
+
+    // Komunikaty z Side Service: kolejne kroki, postęp, wyniki pomiarów
+    onCall(ev) {
+      if (!ev || !ev.type) return;
+      const s = this.state;
+      const d = describeEvent(ev);
+      if (d.photo) savePhoto(d.photo);
+      if (d.current !== undefined) s.current = d.current;
+      if (d.log) this.log(d.log);
+      else this.renderStatus();
+      if (d.done) {
+        this.finish();
+        summaryLines(loadPhotos()).forEach((line) => this.log(line));
+        if (s.mode === "panel") this.showPanel();
+      }
+    },
+
+    // Plik przysłany przez Side Service (TransferFile)
+    onReceivedFile(file) {
+      const s = this.state;
+      const started = Date.now();
+      const params = readParams(file.params);
+      let handled = false;
+      const done = () => {
+        if (handled) return;
+        handled = true;
+        savePhoto({
+          ...params,
+          id: params.id || file.fileName,
+          fileName: file.fileName,
+          filePath: file.filePath,
+          rxMs: Date.now() - started,
+        });
+        if (s.mode === "panel") later(() => this.showPanel());
+      };
+      file.on("change", (ev) => {
+        const state = ev && ev.data ? ev.data.readyState : file.readyState;
+        if (state === "transferred") done();
+        else if (state === "error" || state === "canceled") this.log("Błąd odbioru " + (params.id || file.fileName) + ": " + state);
+      });
+      if (file.readyState === "transferred") done();
+    },
+
+    clearAll() {
+      clearPhotos();
+      this.state.log = ["Wyczyszczono."].concat(this.storedLines());
+      this.showPanel();
+    },
+  })
+);
