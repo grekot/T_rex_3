@@ -1,0 +1,48 @@
+{
+  "configVersion": "v3",
+  "app": {
+    "appId": 1087162,
+    "appName": "Labirynt",
+    "appType": "app",
+    "version": {
+      "code": 1,
+      "name": "1.0.0"
+    },
+    "icon": "icon.png",
+    "vender": "grekot",
+    "description": "Labirynt z kulka - przechylaj zegarek i omijaj dziury"
+  },
+  "permissions": ["data:os.device.info", "device:os.local_storage", "device:os.accelerometer"],
+  "runtime": {
+    "apiVersion": {
+      "compatible": "3.0",
+      "target": "3.0",
+      "minVersion": "3.0"
+    }
+  },
+  "debug": false,
+  "targets": {
+    "gt": {
+      "module": {
+        "page": {
+          "pages": ["page/gt/home/index.page", "page/gt/game/index.page", "page/gt/sensor/index.page"]
+        }
+      },
+      "platforms": [
+        {
+          "st": "r"
+        }
+      ],
+      "designWidth": 480
+    }
+  },
+  "i18n": {
+    "en-US": {
+      "appName": "Tilt Maze"
+    },
+    "pl-PL": {
+      "appName": "Labirynt"
+    }
+  },
+  "defaultLanguage": "en-US"
+}
