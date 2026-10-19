@@ -1,15 +1,20 @@
-// Ekran zdjęcia otwierany z powiadomienia „Zobacz to” (A/B/C) albo wprost przez budzik (D).
-// Zapisuje, którym sposobem go otwarto. Przy D: krótka wibracja i powrót do tarczy po AUTO_CLOSE_S,
-// chyba że ktoś stuknie (pierwsze stuknięcie = zostań, kolejne = następne losowe zdjęcie).
+// Ekran zdjęcia otwierany wprost przez budzik systemowy (sposób D). Zdjęcie bierze z worka (bez powtórek,
+// dopóki nie pokażą się wszystkie), krótko wibruje i po AUTO_CLOSE_S wraca do tarczy, chyba że ktoś stuknie
+// (pierwsze stuknięcie = zostań, kolejne = następne zdjęcie z worka). Od razu uzupełnia plan budzików.
 import * as hmUI from "@zos/ui";
 import { home } from "@zos/router";
 import { Vibrator, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { setPageBrightTime } from "@zos/display";
-import { loadPhotos, loadVariant, logOpen } from "../../../utils/store";
+import { loadPhotos, loadVariant, loadBag, saveBag, noteShown } from "../../../utils/store";
 import { shownPhotos, readParams } from "../../../utils/photos";
 import { pickSrc } from "../../../utils/paths";
-import { pickPhoto, takenText, DIRECT, AUTO_CLOSE_S } from "../../../utils/notify";
+import { takenText } from "../../../utils/format";
+import { drawFromBag, AUTO_CLOSE_S } from "../../../utils/schedule";
+import { refreshPlan } from "../../../utils/alarms";
 import { PHOTO_PROPS, INFO_BG_PROPS, INFO_STYLE, EMPTY_STYLE } from "zosLoader:./index.page.[pf].layout.js";
+
+// Plan uzupełniamy chwilę po otwarciu, żeby zdjęcie pojawiło się bez czekania na budziki
+const PLAN_DELAY_MS = 300;
 
 function appLaunchParams() {
   try {
@@ -19,6 +24,15 @@ function appLaunchParams() {
   }
 }
 
+// Następne zdjęcie z worka (worek od razu zapisany); null, gdy na zegarku nie ma zdjęć
+function nextPhoto(wanted) {
+  const photos = shownPhotos(loadPhotos());
+  const pick = drawFromBag(loadBag(), photos.map((p) => p.id), Math.random, wanted);
+  if (!pick.id) return null;
+  saveBag(pick.bag);
+  return photos.filter((p) => p.id === pick.id)[0] || null;
+}
+
 Page({
   state: {
     launch: {},
@@ -26,6 +40,7 @@ Page({
     info: null,
     current: null,
     closeTimer: null,
+    planTimer: null,
   },
 
   onInit(params) {
@@ -34,55 +49,65 @@ Page({
 
   build() {
     const s = this.state;
-    // Parametr przychodzi do strony albo do app.js (zależnie od sposobu otwarcia)
-    const fromApp = appLaunchParams();
-    const launch = s.launch.m ? s.launch : fromApp;
-    const method = launch.m || "?";
-    logOpen(method);
+    // Parametr budzika przychodzi do strony albo do app.js (zależnie od tego, czy aplikacja już działała)
+    const launch = s.launch.m ? s.launch : appLaunchParams();
+    const photo = nextPhoto(launch.id);
+    noteShown({ id: photo ? photo.id : "", m: launch.m || "?" });
+    s.planTimer = setTimeout(() => this.updatePlan(), PLAN_DELAY_MS);
 
-    const photos = shownPhotos(loadPhotos());
-    const photo = pickPhoto(photos, launch.id, Math.random);
     if (!photo) {
       hmUI.createWidget(hmUI.widget.TEXT, {
         ...EMPTY_STYLE,
-        text: "Otwarto sposobem " + method + ".\nNa zegarku nie ma jeszcze zdjęć - pobierz je z telefonu.",
+        text: "Na zegarku nie ma jeszcze zdjęć - pobierz je z telefonu.",
       });
+      this.autoClose();
       return;
     }
+    s.current = photo;
     s.img = hmUI.createWidget(hmUI.widget.IMG, { ...PHOTO_PROPS, src: pickSrc(photo, loadVariant()) });
     s.img.addEventListener(hmUI.event.CLICK_UP, () => this.next());
     hmUI.createWidget(hmUI.widget.FILL_RECT, INFO_BG_PROPS);
-    s.info = hmUI.createWidget(hmUI.widget.TEXT, INFO_STYLE);
-    s.current = photo;
-    const when = takenText(photo.taken);
-    if (method === DIRECT) {
-      this.popUp();
-      s.info.setProperty(hmUI.prop.TEXT, "Stuknij, by zostać");
-    } else {
-      s.info.setProperty(hmUI.prop.TEXT, "Sposób " + method + (when ? " · " + when : ""));
-    }
-  },
-
-  // Zdjęcie samo wyskoczyło: delikatna wibracja, ekran świeci do zamknięcia, potem tarcza
-  popUp() {
-    const s = this.state;
-    try {
-      setPageBrightTime({ brightTime: (AUTO_CLOSE_S + 2) * 1000 });
-    } catch (e) {}
-    try {
-      const v = new Vibrator();
-      v.setMode(VIBRATOR_SCENE_NOTIFICATION);
-      v.start();
-    } catch (e) {}
-    s.closeTimer = setTimeout(() => {
-      s.closeTimer = null;
-      home();
-    }, AUTO_CLOSE_S * 1000);
+    s.info = hmUI.createWidget(hmUI.widget.TEXT, { ...INFO_STYLE, text: "Stuknij, by zostać" });
+    this.vibrate();
+    this.autoClose();
   },
 
   onDestroy() {
     const s = this.state;
     if (s.closeTimer) clearTimeout(s.closeTimer);
+    // Zamknięte, zanim plan się uzupełnił - robimy to teraz
+    if (s.planTimer) {
+      clearTimeout(s.planTimer);
+      this.updatePlan();
+    }
+  },
+
+  updatePlan() {
+    this.state.planTimer = null;
+    try {
+      refreshPlan();
+    } catch (e) {}
+  },
+
+  // Zdjęcie samo wyskoczyło: delikatna wibracja
+  vibrate() {
+    try {
+      const v = new Vibrator();
+      v.setMode(VIBRATOR_SCENE_NOTIFICATION);
+      v.start();
+    } catch (e) {}
+  },
+
+  // Ekran świeci do zamknięcia, potem tarcza
+  autoClose() {
+    const s = this.state;
+    try {
+      setPageBrightTime({ brightTime: (AUTO_CLOSE_S + 2) * 1000 });
+    } catch (e) {}
+    s.closeTimer = setTimeout(() => {
+      s.closeTimer = null;
+      home();
+    }, AUTO_CLOSE_S * 1000);
   },
 
   next() {
@@ -94,17 +119,13 @@ Page({
       try {
         setPageBrightTime({ brightTime: 60000 });
       } catch (e) {}
-      const when = takenText(s.current.taken);
-      s.info.setProperty(hmUI.prop.TEXT, "Sposób D" + (when ? " · " + when : ""));
+      s.info.setProperty(hmUI.prop.TEXT, takenText(s.current.taken) || " ");
       return;
     }
-    const photos = shownPhotos(loadPhotos());
-    if (photos.length < 2) return;
-    let photo = s.current;
-    while (photo.id === s.current.id) photo = pickPhoto(photos, "", Math.random);
+    const photo = nextPhoto();
+    if (!photo || photo.id === s.current.id) return;
     s.current = photo;
     s.img.setProperty(hmUI.prop.SRC, pickSrc(photo, loadVariant()));
-    const when = takenText(photo.taken);
-    s.info.setProperty(hmUI.prop.TEXT, when || " ");
+    s.info.setProperty(hmUI.prop.TEXT, takenText(photo.taken) || " ");
   },
 });

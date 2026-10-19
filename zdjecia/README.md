@@ -2,7 +2,11 @@
 
 Najciekawsze zdjęcia z galerii telefonu losowo pokazywane na zegarku.
 
-Teraz jest tu **etap 0 – próba**. Sprawdza dwie rzeczy, od których zależy cały pomysł:
+Stan: przesył przez most lokalny działa (etap 0), telefon wybiera najciekawsze zdjęcia (etap 1),
+a zegarek sam pokazuje je w losowych chwilach ([zegarek 0.4.0](#losowe-zdjęcia-na-zegarku-zegarek-040)).
+Dalej: etap 2 – synchronizacja przyrostowa i kasowanie starych zdjęć.
+
+**Etap 0 – próba** sprawdzał dwie rzeczy, od których zależy cały pomysł:
 
 1. czy aplikacja Zepp na telefonie może pobierać pliki z **mostu lokalnego** (`http://127.0.0.1:8765`),
    czyli z aplikacji „Zdjęcia” na tym samym telefonie – bez chmury i bez konta,
@@ -55,28 +59,63 @@ Dlatego źródłem jest galeria telefonu (te same zdjęcia, które Google Photos
 **Co zgłosić**: linie z panelu zegarka (średni rozmiar i czas BT), która „ścieżka” zadziałała,
 i czy w aplikacji na telefonie w „Zapytania z aplikacji Zepp” pojawiły się wpisy.
 
-## Próba 0b: powiadomienie „Zobacz to”
+## Losowe zdjęcia na zegarku (zegarek 0.4.0)
 
-Docelowo zegarek sam, o losowych porach, pokazuje powiadomienie, a „Pokaż” otwiera ciekawe zdjęcie.
-Łańcuch: budzik systemowy (`@zos/alarm`) → usługa w tle `app-service/notify` (600 ms, bez ekranu)
-→ powiadomienie (`@zos/notification`) z przyciskiem „Pokaż” → ekran `page/gt/photo`.
-Dokumentacja mówi, że przycisk powiadomienia uruchamia usługę, a nie ekran, więc próbujemy trzech sposobów:
+Zegarek sam, w losowych chwilach, pokazuje ciekawe zdjęcie – bez powiadomienia i bez wyboru „Pokaż/Usuń”
+(**sposób D**, sprawdzony na T-Rex 3):
 
-| Sposób | Przycisk „Pokaż” uruchamia | Ekran zdjęcia otwiera |
-|--------|----------------------------|-----------------------|
-| A | wprost ekran `page/gt/photo/index.page` | system (o ile pozwoli) |
-| B | usługę `app-service/open_b` | `launchApp` z usługi |
-| C | usługę `app-service/open_c` | budzik za 1 s z adresem ekranu (opisana w dokumentacji droga) |
+```
+budzik systemowy (@zos/alarm, store: true – przetrwa restart zegarka)
+  → wprost ekran page/gt/photo (param {"m":"D","at":…})
+  → zdjęcie z worka, krótka wibracja, po 15 s powrót do tarczy
+  → od razu uzupełnienie planu budzików
+```
 
-Na zegarku: **Powiadomienia** → **Sposób A (za 30 s)** → wyjdź z aplikacji (przesunięcie w prawo) →
-po 30 s powiadomienie → **Pokaż**. Ekran zdjęcia pokazuje na dole „Sposób A”, jeśli zadziałało.
-To samo dla B i C. Po wejściu w Powiadomienia widać wyniki: „A: otwarto 13:05:09” albo „jeszcze nie”.
-**Od razu (C)** wysyła powiadomienie bez budzika – oddziela problem z budzikiem od problemu z powiadomieniem.
-Błędy usług przychodzą jako osobne powiadomienia „Zdjęcia: …”.
+Na ekranie zdjęcia **pierwsze stuknięcie** zatrzymuje zamykanie (na dole pojawia się data zdjęcia),
+**kolejne** pokazują następne zdjęcia z worka.
 
-**Wynik 0b:** działają wszystkie trzy sposoby (przed zdjęciem na chwilę mignie tarcza). Bez powiadomienia
-ma działać **sposób D**: budzik otwiera wprost ekran zdjęcia, zegarek krótko wibruje, a po 15 s sam
-wraca do tarczy. Pierwsze stuknięcie zatrzymuje zamykanie, kolejne pokazują następne zdjęcia.
+**Losowanie** (`watch/utils/schedule.js`, testy `watch/test/schedule.test.mjs`):
+
+- okno godzin (domyślnie 9:00–21:00) dzielone na tyle równych przedziałów, ile zdjęć dziennie
+  (domyślnie 3: 9–13, 13–17, 17–21); w każdym przedziale losowa minuta, ale nie bliżej poprzedniej niż **2 h**
+  (gdy okno jest za krótkie na 2 h – połowa przedziału),
+- **plan na dziś i 2 kolejne dni**; dziś tylko później niż za 2 min i proporcjonalnie mniej zdjęć
+  (ustawienie o 15:00 przy 3 razy w 9–21 da dziś 2 zdjęcia),
+- **worek**: zdjęcie losowane w chwili budzika spośród tych, których w tej rundzie jeszcze nie było; gdy były
+  wszystkie – nowa runda (bez powtórzenia ostatniego). Nowe zdjęcia od razu trafiają do worka, usunięte z niego znikają.
+
+**Uzupełnianie planu** (`watch/utils/alarms.js`) przy każdym starcie aplikacji i każdym otwarciu ekranu zdjęcia:
+budziki aplikacji z systemu (`getAllAlarms`) porównywane z planem w pamięci zegarka – przeterminowane i obce
+(np. próby z wersji 0.3) są anulowane, zgubione ustawiane jeszcze raz, brakujące dni dopisywane.
+Łańcuch sam się podtrzymuje: każdy budzik otwiera ekran zdjęcia, a ten dokłada kolejne dni.
+Godziny okna liczone są w czasie lokalnym z zegara systemowego (`Time` z `@zos/sensor`).
+
+**Ustawienia** – panel **Ustawienia**:
+
+| Pole | Domyślnie | Zakres |
+|------|-----------|--------|
+| Włączone / Wyłączone (stuknięcie w przycisk) | włączone | wyłączenie anuluje wszystkie budziki |
+| Ile razy dziennie | 3 | 1–6 |
+| Od godziny | 9:00 | 0:00–23:00 |
+| Do godziny | 21:00 | 1:00–24:00, zawsze co najmniej 1 h po „od” |
+
+Chwilę po ostatniej zmianie plan liczy się od nowa (stare budziki anulowane, nowe ustawione). Pod spodem:
+najbliższe zdjęcia po dniach, kiedy zegarek ostatnio sam pokazał zdjęcie i przycisk **Próba za 1 min**
+(jeden budzik za 60 s, działa też przy wyłączonym losowaniu). Panel domowy pokazuje „Następne zdjęcie: dziś 16:44”.
+
+### Test na zegarku
+
+1. Zainstaluj (`zeus preview` w `watch/`), otwórz **Zdjęcia** – na panelu powinno być „Następne zdjęcie: …”.
+2. **Ustawienia → Próba za 1 min** → wyjdź z aplikacji i opuść rękę. Po minucie zegarek wibruje, pokazuje zdjęcie,
+   a po 15 s sam wraca do tarczy.
+3. Krótkie okno zamiast czekania godzinami: **Od** = bieżąca godzina, **Do** = następna, **Ile razy** = 6
+   (np. o 14:20 ustaw 14:00–15:00 → zdjęcia mniej więcej co 10 min do 15:00; lista „Najbliższe zdjęcia” pokazuje godziny).
+4. Po próbie wróć do 3 razy, 9:00–21:00.
+
+Historia: w próbie 0b (zegarek 0.2.0) sprawdziliśmy powiadomienie „Zobacz to” z budzika i trzy sposoby otwarcia
+ekranu zdjęcia przyciskiem „Pokaż” (A – wprost ekran, B – `launchApp` z usługi, C – budzik z usługi). Działały
+wszystkie, ale użytkownik woli bez powiadomienia, więc od 0.4.0 zostaje tylko sposób D; usługi w tle
+i uprawnienie `device:os.notification` zostały usunięte.
 
 ## Diagnoza
 

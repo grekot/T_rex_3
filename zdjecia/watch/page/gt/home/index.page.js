@@ -1,15 +1,18 @@
-// Etap próbny: pobranie zdjęć z telefonu (most 127.0.0.1) z pomiarem rozmiaru i czasu + podgląd zdjęć.
+// Panel: pobranie zdjęć z telefonu (most 127.0.0.1) z pomiarem rozmiaru i czasu, podgląd zdjęć
+// i ustawienia losowego pokazywania. Każdy start aplikacji uzupełnia plan budzików.
 import * as hmUI from "@zos/ui";
 import { px } from "@zos/utils";
 import { push } from "@zos/router";
 import { BasePage } from "@zeppos/zml/base-page";
 import { stayInApp, keepScreenOn, releaseScreen } from "../../../utils/screen";
 import { buttonProps } from "../../../utils/ui";
-import { loadPhotos, savePhoto, loadVariant, saveVariant, downloadedFiles, clearPhotos } from "../../../utils/store";
+import { loadPhotos, savePhoto, loadVariant, saveVariant, downloadedFiles, clearPhotos, loadPlan } from "../../../utils/store";
 import { shownPhotos, haveIds, readParams } from "../../../utils/photos";
 import { srcVariants, pickSrc } from "../../../utils/paths";
 import { summaryLines, photoInfoLines } from "../../../utils/format";
 import { describeEvent, describeStart, errText } from "../../../utils/events";
+import { nextLine } from "../../../utils/schedule";
+import { refreshPlan, localOffsetMin } from "../../../utils/alarms";
 import {
   TITLE_STYLE,
   STATUS_STYLE,
@@ -17,7 +20,7 @@ import {
   SHOW_RECT,
   TEST_RECT,
   CLEAR_RECT,
-  NOTIFY_RECT,
+  SETTINGS_RECT,
   PHOTO_PROPS,
   BACK_RECT,
   VARIANT_RECT,
@@ -43,16 +46,31 @@ Page(
       log: [],
       current: "",
       busy: false,
+      planLine: "",
     },
 
     build() {
       stayInApp();
+      try {
+        refreshPlan();
+      } catch (e) {}
+      this.state.planLine = this.planLine();
       this.state.log = this.storedLines();
       this.showPanel();
     },
 
+    // Powrót z ustawień: świeża linia planu
+    onResume() {
+      this.state.planLine = this.planLine();
+      this.renderStatus();
+    },
+
     onDestroy() {
       releaseScreen();
+    },
+
+    planLine() {
+      return nextLine(loadPlan(), Date.now(), localOffsetMin());
     },
 
     storedLines() {
@@ -98,7 +116,7 @@ Page(
       this.add(hmUI.widget.BUTTON, buttonProps(CLEAR_RECT, "Wyczyść", "danger", () => later(() => this.clearAll()), px(20)));
       this.add(
         hmUI.widget.BUTTON,
-        buttonProps(NOTIFY_RECT, "Powiadomienia", "secondary", () => push({ url: "page/gt/notify/index.page" }), px(20))
+        buttonProps(SETTINGS_RECT, "Ustawienia", "secondary", () => push({ url: "page/gt/settings/index.page" }), px(20))
       );
       this.renderStatus();
     },
@@ -150,7 +168,8 @@ Page(
     renderStatus() {
       const s = this.state;
       if (!s.status) return;
-      const lines = s.log.slice(-MAX_LOG);
+      // Podczas przesyłania linia planu ustępuje miejsca postępowi
+      const lines = (s.planLine && !s.busy ? [s.planLine] : []).concat(s.log.slice(-MAX_LOG));
       if (s.current) lines.push(s.current);
       s.status.setProperty(hmUI.prop.TEXT, lines.join("\n"));
     },

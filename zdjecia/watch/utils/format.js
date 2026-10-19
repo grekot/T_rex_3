@@ -49,3 +49,14 @@ export function photoInfoLines(p, index, total) {
     "pobr. " + formatMs(p.dlMs) + " · konw. " + formatMs(p.cvMs) + " · BT " + formatMs(transferMs(p)),
   ];
 }
+
+function two(n) {
+  return (n < 10 ? "0" : "") + n;
+}
+
+// Kiedy zrobiono zdjęcie, np. "12.10 08:05"
+export function takenText(ms) {
+  if (!ms) return "";
+  const d = new Date(ms);
+  return two(d.getDate()) + "." + two(d.getMonth() + 1) + " " + two(d.getHours()) + ":" + two(d.getMinutes());
+}
