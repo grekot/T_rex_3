@@ -3,16 +3,18 @@
 // wpadnięciu do dziury albo wyjściu z gry wracasz do tego samego labiryntu.
 import { SIZES } from "./geometry.js";
 
-// Plansze rosną co dwa poziomy: 5x5, 5x5, 6x6, 6x6 ... od 9. poziomu 9x9
+// Rozmiar planszy na kolejnych poziomach; od 8. poziomu zawsze 11x11
+const GRID_BY_LEVEL = [7, 7, 8, 9, 9, 10, 10, 11];
+
 export function sizeForLevel(level) {
-  const n = Math.min(5 + Math.floor((Math.max(1, level) - 1) / 2), 9);
+  const n = GRID_BY_LEVEL[Math.min(Math.max(1, level), GRID_BY_LEVEL.length) - 1];
   for (const s of SIZES) if (s.n === n) return s;
   return SIZES[SIZES.length - 1];
 }
 
-// Dziur przybywa co dwa poziomy (pierwszy poziom bez dziur), ale nie więcej niż 1 na 8 pól
+// Na poziomie N jest N + 1 dziur, ale nie więcej niż 1 na 5 pól
 export function holesForLevel(level, cellCount) {
-  return Math.min(Math.floor(Math.max(1, level) / 2), Math.floor(cellCount / 8));
+  return Math.min(Math.max(1, level) + 1, Math.floor(cellCount / 5));
 }
 
 // Mały generator liczb pseudolosowych (mulberry32) - ten sam wynik dla tego samego ziarna
@@ -205,14 +207,40 @@ export function buildLevel(level) {
   const path = [];
   for (let i = goal; i !== -1; i = parent[i]) path.unshift(i);
 
-  // dziury: najpierw w odnogach wychodzących prosto z właściwej drogi (tam kulka łatwo wjedzie),
-  // potem w pozostałych ślepych zaułkach; nigdy na drodze, przy starcie ani na mecie
+  // Dziury nigdy nie leżą na drodze, przy starcie ani na mecie. Kolejność wyboru:
+  // 1. pułapki na zakrętach - pole na wprost za zakrętem drogi. Jeśli dzieli je od zakrętu
+  //    ściana, otwieramy ją: rozpędzona kulka, która nie wyhamuje, wjeżdża prosto do dziury.
+  //    Dziura praktycznie zamyka swoje pole, więc nowe przejście nie skraca drogi do mety.
+  // 2. pozostałe odnogi odchodzące od drogi,
+  // 3. reszta ślepych zaułków.
   const onPath = {};
   path.forEach((i) => (onPath[i] = true));
-  const allowed = cells.filter((i) => !onPath[i] && dist[i] > 1);
-  const nearPath = shuffle(allowed.filter((i) => links[i].some((j) => onPath[j])), rnd);
-  const rest = shuffle(allowed.filter((i) => !links[i].some((j) => onPath[j])), rnd);
-  const holes = nearPath.concat(rest).slice(0, holesForLevel(level, cells.length));
+  const allowed = {};
+  cells.forEach((i) => (allowed[i] = !onPath[i] && dist[i] > 1));
+  const want = holesForLevel(level, cells.length);
+  const holes = [];
+  const opened = [];
+  const take = (i) => {
+    if (holes.length < want && allowed[i] && holes.indexOf(i) === -1) holes.push(i);
+  };
+  const turns = [];
+  for (let k = 1; k < path.length - 1; k++) {
+    const b = path[k];
+    const straight = b + (b - path[k - 1]);
+    if (path[k + 1] !== straight && gridNeighbors(size, b).indexOf(straight) !== -1) turns.push([b, straight]);
+  }
+  shuffle(turns, rnd).forEach(([b, d]) => {
+    if (holes.length >= want || !allowed[d] || holes.indexOf(d) !== -1) return;
+    if (links[b].indexOf(d) === -1) {
+      links[b].push(d);
+      links[d].push(b);
+      opened.push([b, d]);
+    }
+    holes.push(d);
+  });
+  const traps = holes.slice();
+  shuffle(cells.filter((i) => links[i].some((j) => onPath[j])), rnd).forEach(take);
+  shuffle(cells.slice(), rnd).forEach(take);
 
   const walls = wallRects(size, links);
   return {
@@ -225,6 +253,8 @@ export function buildLevel(level) {
     goal,
     path,
     holes,
+    traps,
+    opened,
     startPoint: cellCenter(size, start),
     goalPoint: cellCenter(size, goal),
     holePoints: holes.map((i) => cellCenter(size, i)),
@@ -241,6 +271,24 @@ export function holeUnder(lv, ball) {
     if (dx * dx + dy * dy < limit * limit) return k;
   }
   return -1;
+}
+
+// Dziura ściąga kulkę, która najechała na jej brzeg - tym mocniej, im bliżej środka.
+// Zwraca dodatkowe przyspieszenie (px/s^2).
+export function holePull(lv, ball, strength) {
+  const reach = lv.size.hole + lv.size.ball * 0.6;
+  let ax = 0;
+  let ay = 0;
+  for (const p of lv.holePoints) {
+    const dx = p.x - ball.x;
+    const dy = p.y - ball.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+    if (d >= reach || d < 1e-6) continue;
+    const k = strength * (1 - d / reach);
+    ax += (dx / d) * k;
+    ay += (dy / d) * k;
+  }
+  return { ax, ay };
 }
 
 export function atGoal(lv, ball) {

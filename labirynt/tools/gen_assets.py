@@ -32,7 +32,7 @@ BOARD = 360
 BOARD_X = BOARD_Y = (SCREEN - BOARD) // 2
 MASK_RADIUS = 236
 FLOOR_RADIUS = 238  # ciemne „drewno” pod labiryntem
-GRID_SIZES = [5, 6, 7, 8, 9]
+GRID_SIZES = [7, 8, 9, 10, 11]
 
 UI = {
     "title": {"x": 120, "y": 12, "w": 240, "h": 44},
@@ -111,8 +111,10 @@ def ball(r):
 def hole(r):
     size = 2 * r
     img, d = canvas(size, size)
-    # brzeg dziury jaśniejszy u dołu, środek czarny - wygląda jak zagłębienie
-    radial(d, r, r, r, (0, 0, 0), (92, 70, 48), offset=(0, -r * 0.2))
+    # jasny brzeg odcina dziurę od ciemnej podłogi, w środku czarne zagłębienie
+    d.ellipse([0, 0, S(size), S(size)], fill=(168, 128, 84, 255))
+    inner = r - max(1.6, r * 0.13)
+    radial(d, r, r, inner, (0, 0, 0), (70, 52, 36), offset=(0, -r * 0.2))
     return finish(img, size, size)
 
 
@@ -250,7 +252,7 @@ def main():
     save(ball(22), "ui", "ball_arena.png")
     save(app_icon(), "icon.png")
     os.makedirs(DOCS, exist_ok=True)
-    preview_game(6).convert("RGB").save(os.path.join(DOCS, "podglad.png"))
+    preview_game(5).convert("RGB").save(os.path.join(DOCS, "podglad.png"))
     preview_menu().convert("RGB").save(os.path.join(DOCS, "podglad-menu.png"))
     for s in SIZES:
         print("%dx%d  pole %d px  kulka r=%d  dziura r=%d  sciana %d  pol %d" % (

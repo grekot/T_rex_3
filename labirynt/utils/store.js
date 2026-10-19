@@ -2,8 +2,9 @@
 import { LocalStorage } from "@zos/storage";
 
 const storage = new LocalStorage();
-const LEVEL_KEY = "labirynt_level";
-const BEST_KEY = "labirynt_best";
+// v2: od wersji 1.1 poziomy są inne (trudniejsze), więc postęp i rekordy liczymy od nowa
+const LEVEL_KEY = "labirynt_level_v2";
+const BEST_KEY = "labirynt_best_v2";
 const FLIP_KEY = "labirynt_flip";
 
 function readJson(key, fallback) {

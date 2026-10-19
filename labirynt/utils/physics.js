@@ -6,13 +6,31 @@
 // (ekran jest wtedy zwrócony do gracza). Gdyby i tak coś było odwrócone, ekran
 // „Czujnik” pozwala odwrócić osie ręcznie.
 
+// Parametry pierwszego poziomu (i ekranu „Czujnik”)
 export const PHYS = {
   gain: 0.8, // px/s^2 na każdy cm/s^2 pochylenia (pochylenie o 20° ≈ 270 px/s^2)
   deadZone: 25, // cm/s^2 - drżenie ręki nie rusza kulki
   friction: 1.1, // tłumienie toczenia na sekundę
   maxSpeed: 380, // px/s
   restitution: 0.35, // ile prędkości zostaje po odbiciu od ściany
+  pull: 500, // px/s^2 - z taką siłą dziura ściąga kulkę, która najechała na jej brzeg
 };
+
+// Im dalszy poziom, tym kulka bardziej śliska: mniejsze tarcie, większa czułość
+// i prędkość, mocniejsze odbicia i wciąganie przez dziury. Pełna trudność od 20. poziomu.
+export const HARDEST_LEVEL = 20;
+
+export function physicsFor(level) {
+  const t = Math.min(1, Math.max(0, (level - 1) / (HARDEST_LEVEL - 1)));
+  return {
+    gain: PHYS.gain + 0.3 * t,
+    deadZone: PHYS.deadZone,
+    friction: PHYS.friction - 0.65 * t,
+    maxSpeed: PHYS.maxSpeed + 120 * t,
+    restitution: PHYS.restitution + 0.15 * t,
+    pull: PHYS.pull + 500 * t,
+  };
+}
 
 // Punkt zerowy = średnia z odczytów zebranych, gdy gracz trzyma zegarek „poziomo”.
 // Pierwszą połowę pomijamy: zegarek jeszcze drga po stuknięciu, a wygładzone
@@ -31,8 +49,7 @@ export function calibrate(all) {
   return { x: x / n, y: y / n, zSign: z < 0 ? -1 : 1 };
 }
 
-function dead(v) {
-  const d = PHYS.deadZone;
+function dead(v, d) {
   if (v > d) return v - d;
   if (v < -d) return v + d;
   return 0;
@@ -41,17 +58,17 @@ function dead(v) {
 // Odczyt akcelerometru -> przyspieszenie kulki na ekranie (px/s^2, y w dół ekranu).
 // Odczyt wskazuje „w górę” (przeciwnie do grawitacji), gdy z > 0 dla ekranu do góry -
 // wtedy kulka toczy się w stronę -x i +y; przy odwrotnej konwencji znaki się zamieniają.
-export function tiltToAccel(reading, cal, flip) {
+export function tiltToAccel(reading, cal, flip, params = PHYS) {
   const s = cal.zSign;
-  let gx = dead(-s * (reading.x - cal.x));
-  let gy = dead(s * (reading.y - cal.y));
+  let gx = dead(-s * (reading.x - cal.x), params.deadZone);
+  let gy = dead(s * (reading.y - cal.y), params.deadZone);
   if (flip && flip.x) gx = -gx;
   if (flip && flip.y) gy = -gy;
-  return { ax: gx * PHYS.gain, ay: gy * PHYS.gain };
+  return { ax: gx * params.gain, ay: gy * params.gain };
 }
 
 // Odpycha kulkę od prostokątów ścian. Zwraca największą prędkość uderzenia (px/s).
-export function collideRects(ball, r, rects, ids) {
+export function collideRects(ball, r, rects, ids, restitution = PHYS.restitution) {
   let impact = 0;
   for (let k = 0; k < ids.length; k++) {
     const w = rects[ids[k]];
@@ -84,8 +101,8 @@ export function collideRects(ball, r, rects, ids) {
     }
     const vn = ball.vx * nx + ball.vy * ny;
     if (vn < 0) {
-      ball.vx -= (1 + PHYS.restitution) * vn * nx;
-      ball.vy -= (1 + PHYS.restitution) * vn * ny;
+      ball.vx -= (1 + restitution) * vn * nx;
+      ball.vy -= (1 + restitution) * vn * ny;
       if (-vn > impact) impact = -vn;
     }
   }
@@ -93,7 +110,7 @@ export function collideRects(ball, r, rects, ids) {
 }
 
 // Trzyma kulkę wewnątrz okręgu (ekran testu czujnika)
-export function collideCircle(ball, r, cx, cy, R) {
+export function collideCircle(ball, r, cx, cy, R, restitution = PHYS.restitution) {
   const dx = ball.x - cx;
   const dy = ball.y - cy;
   const d = Math.sqrt(dx * dx + dy * dy);
@@ -105,24 +122,24 @@ export function collideCircle(ball, r, cx, cy, R) {
   ball.y = cy + ny * limit;
   const vn = ball.vx * nx + ball.vy * ny;
   if (vn <= 0) return 0;
-  ball.vx -= (1 + PHYS.restitution) * vn * nx;
-  ball.vy -= (1 + PHYS.restitution) * vn * ny;
+  ball.vx -= (1 + restitution) * vn * nx;
+  ball.vy -= (1 + restitution) * vn * ny;
   return vn;
 }
 
 // Jeden krok symulacji. Ruch dzielimy na kawałki nie dłuższe niż pół promienia kulki,
 // żeby szybka kulka nie przeskoczyła przez cienką ścianę. collide(ball) -> prędkość uderzenia.
-export function step(ball, acc, dt, r, collide) {
+export function step(ball, acc, dt, r, collide, params = PHYS) {
   ball.vx += acc.ax * dt;
   ball.vy += acc.ay * dt;
-  const damp = Math.exp(-PHYS.friction * dt);
+  const damp = Math.exp(-params.friction * dt);
   ball.vx *= damp;
   ball.vy *= damp;
   let speed = Math.sqrt(ball.vx * ball.vx + ball.vy * ball.vy);
-  if (speed > PHYS.maxSpeed) {
-    ball.vx *= PHYS.maxSpeed / speed;
-    ball.vy *= PHYS.maxSpeed / speed;
-    speed = PHYS.maxSpeed;
+  if (speed > params.maxSpeed) {
+    ball.vx *= params.maxSpeed / speed;
+    ball.vy *= params.maxSpeed / speed;
+    speed = params.maxSpeed;
   }
   const parts = Math.max(1, Math.ceil((speed * dt) / (r * 0.5)));
   let impact = 0;

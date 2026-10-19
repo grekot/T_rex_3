@@ -12,16 +12,27 @@ import {
   distances,
   buildLevel,
   holeUnder,
+  holePull,
   atGoal,
   formatClock,
 } from "../utils/maze.js";
-import { PHYS, calibrate, tiltToAccel, collideRects, collideCircle, step } from "../utils/physics.js";
+import { PHYS, HARDEST_LEVEL, physicsFor, calibrate, tiltToAccel, collideRects, collideCircle, step } from "../utils/physics.js";
 
 // --- rozmiary i postęp poziomów ----------------------------------------------------
-assert.deepEqual([1, 2, 3, 4, 5, 8, 9, 30].map((l) => sizeForLevel(l).n), [5, 5, 6, 6, 7, 8, 9, 9]);
-assert.equal(holesForLevel(1, 21), 0);
-assert.equal(holesForLevel(2, 21), 1);
-assert.equal(holesForLevel(30, 21), 2); // limit 1 dziura na 8 pól
+assert.deepEqual([1, 2, 3, 4, 5, 6, 7, 8, 30].map((l) => sizeForLevel(l).n), [7, 7, 8, 9, 9, 10, 10, 11, 11]);
+assert.equal(holesForLevel(1, 45), 2);
+assert.equal(holesForLevel(2, 45), 3);
+assert.equal(holesForLevel(30, 45), 9); // limit 1 dziura na 5 pól
+
+// kulka coraz bardziej śliska aż do HARDEST_LEVEL, potem bez zmian
+assert.deepEqual(physicsFor(1), PHYS);
+assert.deepEqual(physicsFor(HARDEST_LEVEL), physicsFor(HARDEST_LEVEL + 30));
+for (let l = 2; l <= HARDEST_LEVEL; l++) {
+  const prev = physicsFor(l - 1);
+  const cur = physicsFor(l);
+  assert.ok(cur.friction < prev.friction && cur.gain > prev.gain && cur.pull > prev.pull);
+}
+assert.ok(physicsFor(HARDEST_LEVEL).friction > 0.3, "kulka musi dać się zatrzymać");
 for (const s of SIZES) {
   const n = s.n;
   for (const corner of [0, n - 1, n * n - n, n * n - 1]) assert.equal(s.active[corner], "0", n + ": róg w grze");
@@ -33,7 +44,7 @@ const a = rng(5);
 const b = rng(5);
 for (let k = 0; k < 10; k++) assert.equal(a(), b());
 
-// --- labirynty: spójne, bez pętli, dziury poza drogą -------------------------------------
+// --- labirynty: spójne, dziury poza drogą, pułapki na zakrętach -------------------------------------
 function pointInRect(p, w) {
   return p.x >= w.x && p.x <= w.x + w.w && p.y >= w.y && p.y <= w.y + w.h;
 }
@@ -52,15 +63,33 @@ for (let level = 1; level <= 40; level++) {
   const s = lv.size;
   const cells = [];
   for (let i = 0; i < s.n * s.n; i++) if (isActive(s, i)) cells.push(i);
+  // drzewo + przejścia otwarte do pułapek na zakrętach
   const edges = lv.links.reduce((sum, l) => sum + l.length, 0) / 2;
-  assert.equal(edges, cells.length - 1, "labirynt powinien być drzewem (bez pętli)");
+  assert.equal(edges, cells.length - 1 + lv.opened.length);
+  assert.ok(lv.traps.length >= Math.min(2, lv.holes.length), "za mało pułapek na zakrętach, poziom " + level);
+  for (const t of lv.traps) {
+    const k = lv.path.findIndex((i) => lv.links[i].indexOf(t) !== -1 && lv.links[t].indexOf(i) !== -1);
+    assert.ok(k > 0, "pułapka nie przylega do drogi");
+  }
+  // da się dojechać do mety, omijając pola z dziurami - i to tą samą drogą
+  const blocked = {};
+  lv.holes.forEach((h) => (blocked[h] = true));
+  const safe = { [lv.start]: 0 };
+  const queue = [lv.start];
+  for (let q = 0; q < queue.length; q++) {
+    for (const j of lv.links[queue[q]]) {
+      if (blocked[j] || safe[j] !== undefined) continue;
+      safe[j] = safe[queue[q]] + 1;
+      queue.push(j);
+    }
+  }
+  assert.equal(safe[lv.goal], lv.path.length - 1, "droga do mety zablokowana albo skrócona, poziom " + level);
   const { dist } = distances(lv.links, lv.start);
   for (const i of cells) assert.ok(dist[i] >= 0, "pole " + i + " nieosiągalne");
   assert.equal(lv.path[0], lv.start);
   assert.equal(lv.path[lv.path.length - 1], lv.goal);
   assert.ok(lv.path.length >= s.n, "za krótka droga do mety: " + lv.path.length);
-  assert.equal(lv.holes.length, Math.min(holesForLevel(level, cells.length), lv.holes.length));
-  if (level >= 2) assert.ok(lv.holes.length >= 1, "poziom " + level + " bez dziur");
+  assert.equal(lv.holes.length, holesForLevel(level, cells.length), "za mało miejsca na dziury, poziom " + level);
   for (const h of lv.holes) {
     assert.ok(lv.path.indexOf(h) === -1, "dziura na drodze do mety");
     assert.ok(dist[h] > 1, "dziura przy starcie");
@@ -129,8 +158,9 @@ function autopilot(level) {
   const lv = buildLevel(level);
   const s = lv.size;
   const r = s.ball;
+  const phys = physicsFor(level);
   const ball = { x: lv.startPoint.x, y: lv.startPoint.y, vx: 0, vy: 0 };
-  const collide = (bb) => collideRects(bb, r, lv.walls, lv.index[cellAt(s, bb.x, bb.y)]);
+  const collide = (bb) => collideRects(bb, r, lv.walls, lv.index[cellAt(s, bb.x, bb.y)], phys.restitution);
   let target = 1;
   const dt = 1 / 30;
   for (let t = 0; t < 30 * 120; t++) {
@@ -139,7 +169,8 @@ function autopilot(level) {
     const max = 600; // tyle daje mocne pochylenie zegarka
     const len = Math.hypot(want.x, want.y);
     const acc = len > max ? { ax: (want.x / len) * max, ay: (want.y / len) * max } : { ax: want.x, ay: want.y };
-    step(ball, acc, dt, r, collide);
+    const pull = holePull(lv, ball, phys.pull);
+    step(ball, { ax: acc.ax + pull.ax, ay: acc.ay + pull.ay }, dt, r, collide, phys);
     for (const w of lv.walls) {
       assert.ok(clearance(ball, [w]) > r - 0.01, "kulka weszła w ścianę na poziomie " + level);
     }
@@ -151,22 +182,24 @@ function autopilot(level) {
   assert.fail("autopilot nie dojechał do mety na poziomie " + level);
 }
 const times = [];
-for (let level = 1; level <= 20; level++) times.push(autopilot(level).toFixed(1));
-console.log("autopilot - czas przejazdu poziomów 1-20 [s]:", times.join(" "));
+for (let level = 1; level <= 25; level++) times.push(autopilot(level).toFixed(1));
+console.log("autopilot - czas przejazdu poziomów 1-25 [s]:", times.join(" "));
 
 // --- chaos: losowe pochylenia nie wyrzucą kulki z labiryntu ---------------------------------
-for (const level of [1, 5, 9, 12]) {
+for (const level of [1, 5, 9, 12, 25]) {
   const lv = buildLevel(level);
   const s = lv.size;
   const r = s.ball;
+  const phys = physicsFor(level);
   const ball = { x: lv.startPoint.x, y: lv.startPoint.y, vx: 0, vy: 0 };
   const rnd = rng(level);
   let acc = { ax: 0, ay: 0 };
   for (let t = 0; t < 30 * 60; t++) {
     if (t % 15 === 0) acc = { ax: (rnd() - 0.5) * 1600, ay: (rnd() - 0.5) * 1600 };
-    step(ball, acc, 1 / 30, r, (bb) => collideRects(bb, r, lv.walls, lv.index[cellAt(s, bb.x, bb.y)]));
+    const collide = (bb) => collideRects(bb, r, lv.walls, lv.index[cellAt(s, bb.x, bb.y)], phys.restitution);
+    step(ball, acc, 1 / 30, r, collide, phys);
     assert.ok(isActive(s, cellAt(s, ball.x, ball.y)), "kulka uciekła z labiryntu (poziom " + level + ")");
-    assert.ok(Math.hypot(ball.vx, ball.vy) <= PHYS.maxSpeed + 1e-6);
+    assert.ok(Math.hypot(ball.vx, ball.vy) <= phys.maxSpeed + 1e-6);
   }
 }
 
@@ -176,6 +209,20 @@ for (const level of [1, 5, 9, 12]) {
   const h = lv.holePoints[0];
   assert.equal(holeUnder(lv, { x: h.x + 3, y: h.y - 2 }), 0);
   assert.equal(holeUnder(lv, { x: h.x + lv.size.hole, y: h.y }), -1);
+  // wciąganie: na brzegu dziury kulka jest ściągana do środka, z daleka nie
+  const near = { x: h.x + lv.size.hole + 2, y: h.y };
+  const pull = holePull(lv, near, 1000);
+  assert.ok(pull.ax < -10 && Math.abs(pull.ay) < 1e-9, "brzeg dziury powinien ciągnąć do środka");
+  assert.deepEqual(holePull(lv, { x: h.x + lv.size.cell, y: h.y }, 1000), { ax: 0, ay: 0 });
+  // kulka stojąca na brzegu dziury sama do niej wpada
+  const ball = { ...near, vx: 0, vy: 0 };
+  let fell = false;
+  for (let t = 0; t < 60 && !fell; t++) {
+    const p = holePull(lv, ball, physicsFor(4).pull);
+    step(ball, p, 1 / 30, lv.size.ball, () => 0, physicsFor(4));
+    fell = holeUnder(lv, ball) === 0;
+  }
+  assert.ok(fell, "kulka na brzegu dziury powinna wpaść");
   assert.ok(atGoal(lv, lv.goalPoint));
   assert.ok(!atGoal(lv, lv.startPoint));
 }

@@ -14,13 +14,16 @@ pochylenia, a Ty prowadzisz ją do zielonej mety, omijając dziury.
 | przechylenie zegarka                 | kulka toczy się w stronę pochylenia                         |
 | stuknięcie w ekran                   | **wyzeruj pochylenie** – tak trzymany zegarek to od teraz „poziomo” |
 | przyciski góra/dół                   | to samo co stuknięcie                                       |
-| dziura                               | kulka wpada, zegarek wibruje, kulka wraca na start          |
+| dziura                               | wciąga kulkę, która najedzie na brzeg; po wpadnięciu wibracja i powrót na start |
 | zielona meta                         | koniec poziomu, po 1,5 s następny                           |
 | przycisk wstecz / przesunięcie w prawo | powrót do menu                                            |
 
 Na początku każdego poziomu zegarek przez pół sekundy zapamiętuje, jak go trzymasz –
 to jest „poziomo”. Nie trzeba więc trzymać ręki płasko; wystarczy patrzeć na ekran
-i trzymać nadgarstek nieruchomo. Uderzenie kulki w ścianę czuć jako lekką wibrację.
+i trzymać nadgarstek nieruchomo.
+
+Wibracje: dłuższa – kulka wpadła do dziury, podwójna krótka – meta. Uderzenia
+w ściany nie wibrują (na zegarku wibracja przychodziła z wyraźnym opóźnieniem).
 
 W trakcie gry ekran nie gaśnie ani po czasie, ani po opuszczeniu nadgarstka
 (wraca do normy po wyjściu z gry).
@@ -29,20 +32,30 @@ W trakcie gry ekran nie gaśnie ani po czasie, ani po opuszczeniu nadgarstka
 
 Każdy poziom ma zawsze ten sam labirynt (numer poziomu jest ziarnem losowania),
 więc po wpadnięciu do dziury albo wyjściu z gry wracasz do tego samego układu.
-Plansza rośnie co dwa poziomy, a dziur przybywa:
+Poziomów jest nieskończenie wiele, a trudność rośnie mniej więcej do 20.:
 
-| Poziom | Plansza | Dziury |
-|--------|---------|--------|
-| 1–2    | 5 × 5   | 0–1    |
-| 3–4    | 6 × 6   | 1–2    |
-| 5–6    | 7 × 7   | 2–3    |
-| 7–8    | 8 × 8   | 3–4    |
-| 9+     | 9 × 9   | 4–9    |
+| Poziom | Plansza  | Dziury |
+|--------|----------|--------|
+| 1–2    | 7 × 7    | 2–3    |
+| 3      | 8 × 8    | 4      |
+| 4–5    | 9 × 9    | 5–6    |
+| 6–7    | 10 × 10  | 7–8    |
+| 8+     | 11 × 11  | 9 i więcej (najwyżej 23) |
 
-Meta jest zawsze na polu najdalszym od startu (po korytarzach). Dziury leżą tylko
-poza właściwą drogą – najchętniej w odnogach, w które kulka łatwo wjedzie rozpędzona.
-Gra zapamiętuje poziom, na którym skończyłeś, najwyższy ukończony poziom i najlepszy
-czas każdego poziomu.
+Co jeszcze utrudnia grę:
+
+- **Pułapki na zakrętach.** Dziury stoją przede wszystkim na wprost za zakrętem
+  drogi – w razie potrzeby gra otwiera tam ścianę. Kulka, która nie wyhamuje przed
+  zakrętem, wjeżdża prosto do dziury. Właściwa droga do mety jest zawsze wolna.
+- **Dziury wciągają.** Kulka, która najedzie na brzeg dziury, jest ściągana do środka,
+  więc trzeba prowadzić ją środkiem korytarza.
+- **Kulka coraz bardziej śliska.** Na kolejnych poziomach maleje tarcie, a rośnie
+  czułość na pochylenie, maksymalna prędkość, odbicia od ścian i siła wciągania
+  dziur (pełna trudność od 20. poziomu).
+
+Meta jest zawsze na polu najdalszym od startu (po korytarzach). Gra zapamiętuje
+poziom, na którym skończyłeś, najwyższy ukończony poziom i najlepszy czas każdego
+poziomu. Wersja 1.1 ma inne poziomy niż 1.0, więc postęp i rekordy liczą się od nowa.
 
 ## Ekran „Czujnik”
 
@@ -58,8 +71,8 @@ na wypadek, gdyby osie x/y na zegarku były skierowane inaczej, niż mówi dokum
 
 | Plik                                    | Zawartość                                              |
 |-----------------------------------------|--------------------------------------------------------|
-| [utils/maze.js](utils/maze.js)          | labirynt bez UI: generowanie (wędrówka z cofaniem), meta, dziury, ściany jako prostokąty |
-| [utils/physics.js](utils/physics.js)    | fizyka kulki: pochylenie → przyspieszenie, tarcie, odbicia od ścian, kalibracja |
+| [utils/maze.js](utils/maze.js)          | labirynt bez UI: generowanie (wędrówka z cofaniem), meta, pułapki i dziury, wciąganie, ściany jako prostokąty |
+| [utils/physics.js](utils/physics.js)    | fizyka kulki: pochylenie → przyspieszenie, tarcie, odbicia od ścian, kalibracja, parametry rosnące z poziomem |
 | [utils/device.js](utils/device.js)      | akcelerometr, utrzymanie włączonego ekranu, wibracje   |
 | [utils/geometry.js](utils/geometry.js)  | rozmiary plansz i położenie napisów – **generowany**   |
 | [utils/store.js](utils/store.js)        | zapis poziomu, rekordów i odwrócenia osi               |
@@ -80,10 +93,11 @@ Testy (wymagają tylko Node.js, nie zegarka):
 node test/maze.test.mjs
 ```
 
-Sprawdzają m.in. 40 pierwszych poziomów (labirynt bez pętli, każde pole osiągalne,
-dziury poza drogą, przejścia wolne dla kulki) i puszczają autopilota, który
-przechylając wirtualny zegarek przejeżdża poziomy 1–20 prawdziwą fizyką – bez
-wjechania w ścianę i bez wpadnięcia do dziury.
+Sprawdzają m.in. 40 pierwszych poziomów (każde pole osiągalne, dziury poza drogą,
+droga do mety wolna od dziur, pułapki na zakrętach, przejścia wolne dla kulki)
+i puszczają autopilota, który przechylając wirtualny zegarek przejeżdża poziomy
+1–25 prawdziwą fizyką danego poziomu, z wciąganiem przez dziury – bez wjechania
+w ścianę i bez wpadnięcia do dziury. Każdy poziom da się więc przejść.
 
 ## Budowanie i instalacja
 

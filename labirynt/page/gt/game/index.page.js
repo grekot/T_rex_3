@@ -1,15 +1,11 @@
 // Gra: przechylaj zegarek i doprowadź kulkę do zielonej mety, omijając dziury.
 // Stuknięcie w ekran (albo przycisk góra/dół) ustawia aktualne trzymanie zegarka jako „poziomo”.
 import * as hmUI from "@zos/ui";
-import {
-  VIBRATOR_SCENE_SHORT_LIGHT,
-  VIBRATOR_SCENE_DURATION,
-  VIBRATOR_SCENE_NOTIFICATION,
-} from "@zos/sensor";
+import { VIBRATOR_SCENE_DURATION, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { onKey, offKey, KEY_UP, KEY_DOWN, KEY_EVENT_CLICK, showToast } from "@zos/interaction";
 import { log as Logger } from "@zos/utils";
-import { buildLevel, cellAt, holeUnder, atGoal, formatClock } from "../../../utils/maze";
-import { calibrate, tiltToAccel, collideRects, step } from "../../../utils/physics";
+import { buildLevel, cellAt, holeUnder, holePull, atGoal, formatClock } from "../../../utils/maze";
+import { calibrate, physicsFor, tiltToAccel, collideRects, step } from "../../../utils/physics";
 import { CALIB_MS, createTilt, readTilt, stopTilt, keepScreenOn, releaseScreen, createBuzzer } from "../../../utils/device";
 import { loadLevel, saveLevel, recordLevel, loadFlip } from "../../../utils/store";
 import {
@@ -29,8 +25,6 @@ const FRAME_MS = 40; // 25 klatek na sekundę
 const MAX_DT = 0.06; // po przycince (np. wygaszony ekran) fizyka nie skacze
 const FALL_MS = 600; // tyle kulki nie widać po wpadnięciu do dziury
 const NEXT_LEVEL_MS = 1500;
-const BUMP_SPEED = 140; // od tej prędkości uderzenia w ścianę czuć je na nadgarstku
-const BUMP_GAP_MS = 150;
 
 // Etapy jednego poziomu
 const CALIB = "calib";
@@ -59,7 +53,6 @@ Page({
       cal: null,
       elapsed: 0,
       lastFrame: 0,
-      lastBump: 0,
       shownTime: "",
       shownBall: "",
       timer: null,
@@ -130,6 +123,7 @@ Page({
     const size = lv.size;
     s.level = level;
     s.lv = lv;
+    s.phys = physicsFor(level);
     s.elapsed = 0;
     saveLevel(level);
 
@@ -219,12 +213,14 @@ Page({
     const s = this.state;
     const lv = s.lv;
     const r = lv.size.ball;
-    const acc = tiltToAccel(reading, s.cal, s.flip);
-    const impact = step(s.pos, acc, dt, r, (b) => collideRects(b, r, lv.walls, lv.index[cellAt(lv.size, b.x, b.y)]));
-    if (impact > BUMP_SPEED && now - s.lastBump > BUMP_GAP_MS) {
-      s.lastBump = now;
-      s.buzzer.buzz(VIBRATOR_SCENE_SHORT_LIGHT);
-    }
+    const phys = s.phys;
+    const acc = tiltToAccel(reading, s.cal, s.flip, phys);
+    const pull = holePull(lv, s.pos, phys.pull);
+    acc.ax += pull.ax;
+    acc.ay += pull.ay;
+    const collide = (b) => collideRects(b, r, lv.walls, lv.index[cellAt(lv.size, b.x, b.y)], phys.restitution);
+    // Uderzeń w ściany nie sygnalizujemy wibracją: na zegarku przychodziła z wyraźnym opóźnieniem
+    step(s.pos, acc, dt, r, collide, phys);
     this.drawBall();
 
     if (holeUnder(lv, s.pos) >= 0) {
