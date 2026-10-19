@@ -11,6 +11,9 @@ import 'bridge/bridge_server.dart';
 import 'bridge/format.dart';
 import 'bridge/gallery.dart';
 
+// Wersję ustawia CI z tagu (--dart-define=APP_VERSION), lokalny build pokazuje „dev”
+const _version = String.fromEnvironment('APP_VERSION', defaultValue: 'dev');
+
 void main() => runApp(const ZdjeciaApp());
 
 class ZdjeciaApp extends StatelessWidget {
@@ -40,10 +43,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final _server = BridgeServer();
   late final StreamSubscription<BridgeRequest> _requestsSub;
   final List<BridgeRequest> _requests = [];
-  List<PreparedPhoto> _photos = const [];
+  GalleryLoad? _load;
   int _count = 3;
   bool _loading = false;
-  bool _noAccess = false;
   String? _error;
   String? _selfCheck;
 
@@ -51,7 +53,11 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _requestsSub = _server.requests.listen((r) => setState(() => _requests.insert(0, r)));
+    // Od razu po otwarciu: zdjęcia gotowe, wystarczy włączyć udostępnianie
+    WidgetsBinding.instance.addPostFrameCallback((_) => _loadPhotos());
   }
+
+  List<PreparedPhoto> get _photos => _load?.photos ?? const [];
 
   @override
   void dispose() {
@@ -62,19 +68,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadPhotos() async {
+    if (_loading) return;
     setState(() {
       _loading = true;
       _error = null;
-      _noAccess = false;
     });
     try {
-      if (!await requestGalleryAccess()) {
-        setState(() => _noAccess = true);
-        return;
-      }
-      final photos = await latestPhotos(_count);
-      _server.photos = [for (final p in photos) p.photo];
-      setState(() => _photos = photos);
+      final load = await loadLatestPhotos(_count);
+      _server.photos = [for (final p in load.photos) p.photo];
+      setState(() => _load = load);
     } catch (e) {
       setState(() => _error = 'Nie udało się przygotować zdjęć: $e');
     } finally {
@@ -85,6 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _toggleServer(bool on) async {
     setState(() => _error = null);
     if (on) {
+      if (_photos.isEmpty) await _loadPhotos();
       try {
         await _server.start();
         // Telefon nie może zasnąć - Android zamraża aplikacje w tle i serwer przestałby odpowiadać
@@ -120,7 +123,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Zdjęcia na zegarek – próba')),
+      appBar: AppBar(title: const Text('Zdjęcia na zegarek – próba $_version')),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: [
@@ -167,10 +170,21 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-            if (_noAccess) ...[
+            if (_load != null) ...[
               const SizedBox(height: 8),
-              const Text('Brak dostępu do zdjęć. Zezwól w ustawieniach aplikacji.'),
-              TextButton(onPressed: PhotoManager.openSetting, child: const Text('Otwórz ustawienia')),
+              Text(accessSummary(_load!)),
+              if (!_load!.hasAccess)
+                TextButton(onPressed: PhotoManager.openSetting, child: const Text('Otwórz ustawienia')),
+              if (_load!.limited)
+                TextButton(
+                  onPressed: () async {
+                    await pickMorePhotos();
+                    await _loadPhotos();
+                  },
+                  child: const Text('Wybierz więcej zdjęć'),
+                ),
+              for (final problem in _load!.problems)
+                Text(problem, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
             for (final p in _photos)
               ListTile(
@@ -178,7 +192,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 leading: ClipOval(child: Image.memory(p.photo.png, width: 56, height: 56)),
                 title: Text(formatDateTime(p.photo.taken)),
                 subtitle: Text(
-                  'PNG ${formatBytes(p.photo.png.length)} · z miniatury ${formatBytes(p.sourceBytes)}'
+                  'PNG ${formatBytes(p.photo.png.length)} · ${p.source} ${formatBytes(p.sourceBytes)}'
                   ' · ${formatDuration(p.took)}',
                 ),
               ),
@@ -204,6 +218,11 @@ class _HomeScreenState extends State<HomeScreen> {
               value: _server.running,
               onChanged: _toggleServer,
             ),
+            if (_server.running && _photos.isEmpty)
+              Text(
+                'Lista zdjęć jest pusta – zegarek nic nie dostanie. Sprawdź punkt 1.',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
             if (_server.running) ...[
               const Text(
                 'Teraz na zegarku otwórz Zdjęcia i naciśnij „Pobierz z telefonu”. '
