@@ -1,21 +1,35 @@
-// Przygotowanie zdjęcia dla zegarka: kwadrat ze środka kadru, 480×480, czarne narożniki
+// Przygotowanie zdjęcia dla zegarka: kwadratowy kadr (CropBox), 480×480, czarne narożniki
 // (okrągły ekran i tak ich nie pokaże, a jednolity kolor lepiej się kompresuje), PNG.
 // Zegarek (image.convert w aplikacji Zepp) przyjmuje tylko PNG i nie zmienia rozmiaru.
 import 'dart:typed_data';
 
 import 'package:image/image.dart' as img;
 
+import '../select/crop.dart';
+
 const int watchSize = 480;
 
-/// Funkcja najwyższego poziomu, żeby dało się ją wywołać przez `compute` w osobnym wątku.
-Uint8List preparePng(Uint8List source) {
+class PrepJob {
+  const PrepJob(this.source, this.crop);
+
+  final Uint8List source;
+  final CropBox crop;
+}
+
+/// Dla `compute` (osobny wątek) - jeden argument.
+Uint8List preparePngJob(PrepJob job) => preparePng(job.source, crop: job.crop);
+
+Uint8List preparePng(Uint8List source, {CropBox crop = CropBox.full}) {
   final decoded = img.decodeImage(source);
   if (decoded == null) {
     throw const FormatException('Nie udało się odczytać zdjęcia');
   }
-  var square = img.copyResizeCropSquare(
-    img.bakeOrientation(decoded),
-    size: watchSize,
+  final upright = img.bakeOrientation(decoded);
+  final r = cropRect(crop, upright.width, upright.height, outputSize: watchSize);
+  var square = img.copyResize(
+    img.copyCrop(upright, x: r.x, y: r.y, width: r.size, height: r.size),
+    width: watchSize,
+    height: watchSize,
     interpolation: img.Interpolation.average,
   );
   if (square.numChannels != 3) square = square.convert(numChannels: 3);

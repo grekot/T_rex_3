@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
 import 'package:zdjecia/bridge/photo_prep.dart';
+import 'package:zdjecia/select/crop.dart';
 
 void main() {
   test('zdjęcie poziome staje się PNG 480×480 z czarnymi narożnikami', () {
@@ -19,6 +20,18 @@ void main() {
     final center = out.getPixel(240, 240);
     expect(center.r, closeTo(200, 6));
     expect(center.g, closeTo(120, 6));
+  });
+
+  test('kadr wycina wskazaną część zdjęcia', () {
+    final src = img.Image(width: 1600, height: 1200);
+    img.fill(src, color: img.ColorRgb8(0, 0, 255));
+    img.fillRect(src, x1: 1200, y1: 0, x2: 1599, y2: 1199, color: img.ColorRgb8(255, 0, 0));
+    final bytes = Uint8List.fromList(img.encodeJpg(src, quality: 95));
+    // kadr przy prawej krawędzi: środek zdjęcia na zegarku ma być czerwony
+    final right = img.decodePng(preparePng(bytes, crop: const CropBox(cx: 0.875, cy: 0.5, side: 0.3)))!;
+    expect(right.getPixel(240, 240).r, greaterThan(200));
+    final left = img.decodePng(preparePng(bytes, crop: const CropBox(cx: 0.2, cy: 0.5, side: 0.3)))!;
+    expect(left.getPixel(240, 240).b, greaterThan(200));
   });
 
   test('nieczytelne dane to błąd', () {

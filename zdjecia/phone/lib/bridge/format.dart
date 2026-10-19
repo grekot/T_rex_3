@@ -19,3 +19,5 @@ String formatDateTime(DateTime t) =>
     '${_two(t.day)}.${_two(t.month)}.${t.year} ${_two(t.hour)}:${_two(t.minute)}';
 
 String formatClock(DateTime t) => '${_two(t.hour)}:${_two(t.minute)}:${_two(t.second)}';
+
+String formatDay(DateTime t) => '${_two(t.day)}.${_two(t.month)}.${t.year}';
