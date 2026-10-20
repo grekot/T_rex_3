@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:zdjecia/ai/photo_rating.dart';
 import 'package:zdjecia/pool_controller.dart';
 import 'package:zdjecia/select/analysis.dart';
+import 'package:zdjecia/select/candidates.dart';
 import 'package:zdjecia/select/crop.dart';
 import 'package:zdjecia/select/memories.dart';
 import 'package:zdjecia/select/quality.dart';
@@ -77,6 +78,10 @@ void main() {
         await store.saveMemories([m('a', 1)]);
         final back = await SelectStore(dir).loadMemories();
         expect((back.single.photoId, back.single.taken), ('a', DateTime(2018)));
+        // Lista z wersji < 0.6.1 (bez numeru formatu) jest pomijana - wspomnienia losują się od nowa
+        File('${dir.path}/memories.json').writeAsStringSync(
+            '{"items":[{"id":"stare","asset":"1","added":0,"taken":0}]}');
+        expect(await store.loadMemories(), isEmpty);
         expect((await store.loadPrefs()).memoryShare, 50);
       } finally {
         await dir.delete(recursive: true);
@@ -141,5 +146,32 @@ void main() {
     expect(item('Nad jeziorem', true).watchCaption, 'Nad jeziorem · 2019');
     expect(item('', true).watchCaption, '2019');
     expect(item('Nad jeziorem', false).watchCaption, 'Nad jeziorem');
+  });
+
+  group('data zrobienia zdjęcia (zdjęcia przeniesione ze starego telefonu)', () {
+    test('warunek SQL po datetaken z zapasem na zdjęcia bez daty, tylko zdjęcia', () {
+      final start = DateTime.utc(2019, 7, 1), end = DateTime.utc(2019, 7, 8);
+      final sql = takenBetweenSql(start: start, end: end);
+      expect(sql, startsWith('media_type = 1 AND'));
+      expect(sql, contains('datetaken >= ${start.millisecondsSinceEpoch}'));
+      expect(sql, contains('datetaken < ${end.millisecondsSinceEpoch}'));
+      expect(sql, contains('date_added >= ${start.millisecondsSinceEpoch ~/ 1000}'));
+      expect(sql, contains('(datetaken IS NULL OR datetaken = 0)'));
+      expect(takenBetweenSql(start: start), isNot(contains('datetaken <')));
+      expect(takenBetweenSql(), 'media_type = 1');
+    });
+
+    test('wspomnienia rozkładają się na różne lata', () {
+      final random = math.Random(5);
+      final oldest = DateTime(2012, 1, 1);
+      var repeats = 0;
+      for (var i = 0; i < 200; i++) {
+        final avoid = {2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020};
+        final p = randomPeriodSpread(oldest, now, 30, random, avoid)!;
+        if (avoid.contains(p.start.year)) repeats++;
+      }
+      // Bez omijania byłoby to ~55% (8 z ~14,5 lat); po 4 próbach rzadko
+      expect(repeats, lessThan(40));
+    });
   });
 }

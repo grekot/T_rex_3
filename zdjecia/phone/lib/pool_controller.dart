@@ -208,11 +208,14 @@ class PoolController extends ChangeNotifier {
     final analyzer = PhotoAnalyzer(_tempDir);
     final periodIds = <String>{};
     var found = 0;
+    var periods = 0;
     try {
-      for (var i = 0; i < maxPeriodsPerRefresh && found < need; i++) {
-        done = i;
+      // Puste okresy (np. lata z małą liczbą zdjęć) nie liczą się do limitu zapytań AI
+      for (var attempt = 0; attempt < maxPeriodAttempts && periods < maxPeriodsPerRefresh && found < need; attempt++) {
+        done = periods;
         notifyListeners();
-        final period = randomPeriod(oldest, now, prefs.days, _random);
+        final years = {for (final m in _memories) m.taken.year};
+        final period = randomPeriodSpread(oldest, now, prefs.days, _random, years);
         if (period == null) break;
         final taken = {for (final m in _memories) m.photoId};
         final inPeriod = [
@@ -220,6 +223,7 @@ class PoolController extends ChangeNotifier {
             if (!taken.contains(photoIdOf(a)) && !prefs.removed.contains(photoIdOf(a))) a,
         ];
         if (inPeriod.isEmpty) continue;
+        periods++;
 
         // Kandydaci: rozłożeni w czasie (bez serii), przeanalizowani, odsiani przez telefon
         final analyses = <PhotoAnalysis>[];
@@ -460,6 +464,9 @@ class PoolController extends ChangeNotifier {
   Future<void> pin(String id) => _change(() {
         prefs.pinned.add(id);
         prefs.removed.remove(id);
+        // Zapamiętane, żeby zostało w puli także po wypadnięciu z okresu czy z wspomnień
+        final asset = _assets[id];
+        if (asset != null) prefs.pinnedAssets[id] = asset.id;
       });
 
   Future<void> unpin(String id) => _change(() {

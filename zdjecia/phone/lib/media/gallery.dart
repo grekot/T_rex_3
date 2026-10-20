@@ -20,16 +20,13 @@ Future<PermissionState> requestGalleryAccess() =>
 /// Android 14+: systemowy wybór zdjęć, gdy aplikacja ma dostęp tylko do części galerii
 Future<void> pickMorePhotos() => PhotoManager.presentLimited(type: RequestType.image);
 
-// Bez domyślnego filtra rozmiaru: zdjęcia bez wpisanej szerokości w MediaStore inaczej by znikały
-FilterOptionGroup _filter({DateTime? since}) => FilterOptionGroup(
-      imageOption: const FilterOption(sizeConstraint: SizeConstraint(ignoreSize: true)),
-      createTimeCond: since == null
-          ? DateTimeCond.def().copyWith(ignore: true)
-          : DateTimeCond(min: since, max: DateTime.now().add(const Duration(days: 1))),
-      orders: [const OrderOption(type: OrderOptionType.createDate, asc: false)],
+// Po dacie ZROBIENIA zdjęcia (datetaken), nie dodania pliku - patrz takenBetweenSql
+CustomFilter _taken({DateTime? start, DateTime? end, required bool oldestFirst}) => CustomFilter.sql(
+      where: takenBetweenSql(start: start, end: end),
+      orderBy: [OrderByItem('datetaken', oldestFirst)],
     );
 
-Future<List<AssetEntity>> _images(FilterOptionGroup filter, int limit) async {
+Future<List<AssetEntity>> _images(PMFilter filter, int limit) async {
   final count = await PhotoManager.getAssetCount(type: RequestType.image, filterOption: filter);
   if (count == 0) return const [];
   return PhotoManager.getAssetListRange(
@@ -40,45 +37,39 @@ Future<List<AssetEntity>> _images(FilterOptionGroup filter, int limit) async {
   );
 }
 
-/// Zdjęcia z aparatu z ostatnich [days] dni (plus ulubione z innych folderów)
+/// Zdjęcia z aparatu zrobione w ostatnich [days] dniach (plus ulubione z innych folderów)
 Future<List<AssetEntity>> cameraPhotos(int days) async {
   final since = DateTime.now().subtract(Duration(days: days));
-  final all = await _images(_filter(since: since), maxCandidates);
+  final all = await _images(_taken(start: since, oldestFirst: false), maxCandidates);
   return [
     for (final a in all)
       if (isCameraPath(a.relativePath) || a.isFavorite) a,
   ];
 }
 
-/// Data najstarszego zdjęcia z aparatu (początek historii dla wspomnień); null = pusta galeria
+/// Data zrobienia najstarszego zdjęcia z aparatu (początek historii dla wspomnień); null = pusta galeria
 Future<DateTime?> oldestCameraPhoto() async {
-  final filter = FilterOptionGroup(
-    imageOption: const FilterOption(sizeConstraint: SizeConstraint(ignoreSize: true)),
-    createTimeCond: DateTimeCond.def().copyWith(ignore: true),
-    orders: [const OrderOption(type: OrderOptionType.createDate, asc: true)],
+  final filter = CustomFilter.sql(
+    where: 'media_type = 1 AND datetaken > 0',
+    orderBy: [const OrderByItem.asc('datetaken')],
   );
-  // Kilkadziesiąt najstarszych, bo pierwsze bywają zrzutami ekranu albo zdjęciami z komunikatorów
-  for (final a in await _images(filter, 50)) {
+  // Kilkaset najstarszych, bo pierwsze bywają zrzutami ekranu albo zdjęciami z komunikatorów
+  for (final a in await _images(filter, 300)) {
     if (isCameraPath(a.relativePath)) return a.createDateTime;
   }
   return null;
 }
 
-/// Zdjęcia z aparatu z okresu [start, end) - kandydaci na wspomnienia
+/// Zdjęcia z aparatu zrobione w okresie [start, end) - kandydaci na wspomnienia
 Future<List<AssetEntity>> cameraPhotosBetween(DateTime start, DateTime end) async {
-  final filter = FilterOptionGroup(
-    imageOption: const FilterOption(sizeConstraint: SizeConstraint(ignoreSize: true)),
-    createTimeCond: DateTimeCond(min: start, max: end),
-    orders: [const OrderOption(type: OrderOptionType.createDate, asc: true)],
-  );
   return [
-    for (final a in await _images(filter, 2000))
+    for (final a in await _images(_taken(start: start, end: end, oldestFirst: true), 2000))
       if (isCameraPath(a.relativePath) || a.isFavorite) a,
   ];
 }
 
 /// Najnowsze zdjęcia z całej galerii - do ręcznego dodawania
-Future<List<AssetEntity>> recentPhotos(int limit) => _images(_filter(), limit);
+Future<List<AssetEntity>> recentPhotos(int limit) => _images(_taken(oldestFirst: false), limit);
 
 String photoIdOf(AssetEntity a) => photoId(a.id, a.modifiedDateSecond ?? 0);
 

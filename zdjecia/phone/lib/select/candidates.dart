@@ -15,6 +15,26 @@ bool isCameraPath(String? relativePath) {
   return path.startsWith('dcim/');
 }
 
+/// Warunek SQL dla MediaStore: zdjęcia ZROBIONE w [start, end) (kolumna datetaken w ms).
+/// Filtry biblioteki galerii działają na dacie DODANIA pliku (date_added) - po przeniesieniu zdjęć
+/// ze starego telefonu wszystkie wyglądałyby na nowe. Bez daty zrobienia (0/NULL) - data dodania (s).
+/// Własny warunek wyłącza filtr typu, więc „tylko zdjęcia” (media_type = 1) jest dopisane tu.
+String takenBetweenSql({DateTime? start, DateTime? end}) {
+  final taken = <String>[];
+  final added = <String>[];
+  if (start != null) {
+    taken.add('datetaken >= ${start.millisecondsSinceEpoch}');
+    added.add('date_added >= ${start.millisecondsSinceEpoch ~/ 1000}');
+  }
+  if (end != null) {
+    taken.add('datetaken < ${end.millisecondsSinceEpoch}');
+    added.add('date_added < ${end.millisecondsSinceEpoch ~/ 1000}');
+  }
+  if (taken.isEmpty) return 'media_type = 1';
+  return 'media_type = 1 AND ((${taken.join(' AND ')}) OR '
+      '((datetaken IS NULL OR datetaken = 0) AND ${added.join(' AND ')}))';
+}
+
 /// Krótki, stały skrót kadru (FNV-1a), żeby zmiana kadru dała zegarkowi nowe zdjęcie
 String cropHash(CropBox crop) {
   var h = 0x811c9dc5;

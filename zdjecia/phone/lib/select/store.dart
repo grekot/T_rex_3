@@ -197,7 +197,7 @@ class SelectStore {
     final j = await _readJson(_memoriesFile);
     return [
       for (final m in (j?['items'] as List? ?? const []))
-        if (m is Map) MemoryItem.fromJson(m.cast<String, dynamic>()),
+        if (m is Map && m['v'] == memoryFormat) MemoryItem.fromJson(m.cast<String, dynamic>()),
     ];
   }
 

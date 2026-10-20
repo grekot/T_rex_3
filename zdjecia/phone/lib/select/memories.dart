@@ -23,6 +23,10 @@ const int minMemoryScore = 6;
 /// Szansa, że okres to ten sam tydzień w którymś z poprzednich lat (rocznica)
 const double anniversaryChance = 0.35;
 
+/// Wersja listy wspomnień: wspomnienia z wcześniejszych wersji (losowane po dacie dodania pliku,
+/// więc tylko z ostatnich miesięcy) są pomijane i od razu zastępowane nowymi
+const int memoryFormat = 2;
+
 class MemoryItem {
   const MemoryItem({required this.photoId, required this.assetId, required this.addedAt, required this.taken});
 
@@ -32,6 +36,7 @@ class MemoryItem {
   final DateTime taken;
 
   Map<String, Object> toJson() => {
+        'v': memoryFormat,
         'id': photoId,
         'asset': assetId,
         'added': addedAt.millisecondsSinceEpoch,
@@ -52,6 +57,22 @@ class Period {
   final DateTime start;
   final DateTime end;
   final bool anniversary;
+}
+
+/// Ile prób losowania, żeby trafić w rok, którego wśród wspomnień jeszcze nie ma
+const int yearAttempts = 4;
+
+/// Puste okresy (bez zdjęć) nie liczą się do limitu, ale wszystkich prób jest najwyżej tyle
+const int maxPeriodAttempts = 30;
+
+/// Losowy okres, w miarę możliwości z roku spoza [avoidYears] - wspomnienia rozłożone na różne lata
+Period? randomPeriodSpread(DateTime oldest, DateTime now, int recentDays, math.Random random, Set<int> avoidYears) {
+  Period? last;
+  for (var i = 0; i < yearAttempts; i++) {
+    last = randomPeriod(oldest, now, recentDays, random);
+    if (last == null || !avoidYears.contains(last.start.year)) return last;
+  }
+  return last;
 }
 
 /// Losowy okres z historii [oldest .. now - recentDays]; null, gdy starszych zdjęć jeszcze nie ma.
