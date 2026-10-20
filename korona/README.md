@@ -136,6 +136,15 @@ T-Rex 3, zeskanuj kod QR w aplikacji Zepp (Tryb dewelopera → „+” → Skanu
 Uprawnienia: lokalizacja, kompas, pamięć zegarka, informacje o urządzeniu. API 3.0
 (Zepp OS 3 i nowsze).
 
+## Telefon
+
+Aplikacja na Androida w [`phone/`](phone/README.md) (Flutter, `pl.grekot.korona`) pokazuje
+zdobycia z zegarka: postęp każdej listy („12 / 28” z paskiem), listy szczytów z datami,
+szczegóły szczytu, mapę (OpenTopoMap / OpenStreetMap, zdobyte na zielono) i historię wejść
+po latach, także własne szczyty. Logowanie tym samym kontem co Zakupy i Powrót; dane czyta z
+Firestore (`korona/{uid}`, patrz [SYNC.md](SYNC.md)) – zapisuje je zegarek. Bez zegarka
+można obejrzeć przykładowe dane (menu ⋮).
+
 ## Pamięć
 
 Zdobycia są w LocalStorage zegarka pod kluczem `korona_climbs`:

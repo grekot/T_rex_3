@@ -1,0 +1,5 @@
+package pl.grekot.korona
+
+import io.flutter.embedding.android.FlutterActivity
+
+class MainActivity : FlutterActivity()
