@@ -43,18 +43,94 @@ const double minSide = 0.45;
 /// Ułamek promienia koła, w którym mają się zmieścić twarze
 const double circleMargin = 0.9;
 
-/// [subject] - główny motyw od AI: left, top, width, height w ułamkach zdjęcia
-CropBox autoCrop(PhotoAnalysis a, {List<double>? subject}) {
+/// Najmocniejsze przybliżenie przy fragmencie wybranym przez AI (detal może być ciaśniej)
+const double minFocusSide = 0.4;
+
+enum CropSource { manual, ai, faces, subject, band }
+
+const cropSourceNames = {
+  CropSource.manual: 'ręczny',
+  CropSource.ai: 'AI – najciekawszy fragment',
+  CropSource.faces: 'twarze',
+  CropSource.subject: 'główny motyw (AI)',
+  CropSource.band: 'najciekawszy pas (telefon)',
+};
+
+/// Kadr automatyczny i skąd się wziął. Kolejność: fragment od AI ([focus]) - o ile nie ucina twarzy
+/// (wtedy obejmuje i fragment, i twarze), twarze, główny motyw od AI ([subject]), najciekawszy pas.
+/// Prostokąty w ułamkach zdjęcia: left, top, width, height.
+({CropBox box, CropSource source}) autoCropWithSource(PhotoAnalysis a, {List<double>? subject, List<double>? focus}) {
   final faces = mainFaces(a.faces);
+  final faceBoxes = [for (final f in faces) _faceWithShoulders(f)];
+  if (focus != null && focus.length == 4) {
+    final box = _filling(focus, a.aspect);
+    if (faceBoxes.every((f) => _insideCircle(f, box, a.aspect))) return (box: box, source: CropSource.ai);
+    // Fragment ucina twarz: kadr obejmie jedno i drugie, o ile zmieści się w kwadracie
+    if (_requiredSide([focus, ...faceBoxes], a.aspect) <= 1.0) {
+      return (box: _aroundBoxes([focus, ...faceBoxes], a.aspect, side: 0, above: 0, below: 0), source: CropSource.ai);
+    }
+    // Nie zmieści się: wyraźna twarz wygrywa, malutka w tle nie przeszkadza wyborowi AI
+    if (!faces.any((f) => f.area >= majorFaceArea)) return (box: box, source: CropSource.ai);
+  }
   if (faces.isNotEmpty) {
-    return _aroundBoxes([
-      for (final f in faces) [f.left, f.top, f.width, f.height],
-    ], a.aspect, side: 0.3, above: 0.35, below: 0.8); // ramiona
+    return (box: _aroundBoxes(faceBoxes, a.aspect, side: 0, above: 0, below: 0), source: CropSource.faces);
   }
   if (subject != null && subject.length == 4) {
-    return _aroundBoxes([subject], a.aspect, side: 0.06, above: 0.06, below: 0.06);
+    return (
+      box: _aroundBoxes([subject], a.aspect, side: 0.06, above: 0.06, below: 0.06),
+      source: CropSource.subject,
+    );
   }
-  return _bestBand(a.quality, a.aspect);
+  return (box: _bestBand(a.quality, a.aspect), source: CropSource.band);
+}
+
+CropBox autoCrop(PhotoAnalysis a, {List<double>? subject, List<double>? focus}) =>
+    autoCropWithSource(a, subject: subject, focus: focus).box;
+
+/// Twarz od tej powierzchni (ułamek zdjęcia) jest ważniejsza niż fragment od AI, gdy nie da się objąć obu
+const double majorFaceArea = 0.01;
+
+/// Bok kwadratu (ułamek krótszego boku), w którego kole zmieściłyby się prostokąty - bez obcinania do 1
+double _requiredSide(List<List<double>> boxes, double aspect) {
+  final w = math.max(aspect, 1.0), h = math.max(1 / aspect, 1.0);
+  var left = double.infinity, top = double.infinity, right = -double.infinity, bottom = -double.infinity;
+  for (final b in boxes) {
+    left = math.min(left, b[0] * w);
+    right = math.max(right, (b[0] + b[2]) * w);
+    top = math.min(top, b[1] * h);
+    bottom = math.max(bottom, (b[1] + b[3]) * h);
+  }
+  final bw = right - left, bh = bottom - top;
+  return math.sqrt(bw * bw + bh * bh) / circleMargin;
+}
+
+/// Twarz z zapasem na włosy i ramiona (w ułamkach zdjęcia)
+List<double> _faceWithShoulders(FaceBox f) {
+  final left = f.left - 0.3 * f.width, right = f.left + f.width * 1.3;
+  final top = f.top - 0.35 * f.height, bottom = f.top + f.height * 1.8;
+  return [left, top, right - left, bottom - top];
+}
+
+/// Kwadrat wypełniony fragmentem: bok = dłuższy bok fragmentu z małym zapasem (fragment AI wybiera
+/// już pod koło, więc nie oddalamy aż do zmieszczenia całych narożników w kole)
+CropBox _filling(List<double> b, double aspect) {
+  final w = math.max(aspect, 1.0), h = math.max(1 / aspect, 1.0);
+  final bw = b[2] * w, bh = b[3] * h;
+  final size = (math.max(bw, bh) * 1.08).clamp(minFocusSide, 1.0);
+  return _clamped((b[0] + b[2] / 2) * w, (b[1] + b[3] / 2) * h, size, w, h);
+}
+
+/// Czy narożniki prostokąta mieszczą się w kole kadru
+bool _insideCircle(List<double> b, CropBox box, double aspect) {
+  final w = math.max(aspect, 1.0), h = math.max(1 / aspect, 1.0);
+  final cx = box.cx * w, cy = box.cy * h, r = box.side / 2;
+  for (final x in [b[0], b[0] + b[2]]) {
+    for (final y in [b[1], b[1] + b[3]]) {
+      final dx = x * w - cx, dy = y * h - cy;
+      if (dx * dx + dy * dy > r * r * 1.0001) return false;
+    }
+  }
+  return true;
 }
 
 /// Kwadrat, w którego kole mieszczą się prostokąty (w ułamkach zdjęcia) z zapasem

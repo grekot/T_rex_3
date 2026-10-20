@@ -101,9 +101,13 @@ class PublishedPhoto {
     required this.size,
     required this.taken,
     this.caption = '',
+    this.photoId = '',
   });
 
   final String id;
+
+  /// Zdjęcie w galerii (id bez kadru) - do sprawdzenia, które zdjęcia są w puli
+  final String photoId;
   final String path;
   final int size;
   final DateTime taken;
@@ -115,6 +119,7 @@ class PublishedPhoto {
         'size': size,
         'taken': taken.millisecondsSinceEpoch,
         if (caption.isNotEmpty) 'caption': caption,
+        if (photoId.isNotEmpty) 'photo': photoId,
       };
 
   factory PublishedPhoto.fromJson(Map<String, dynamic> j) => PublishedPhoto(
@@ -123,7 +128,11 @@ class PublishedPhoto {
         size: j['size'] as int? ?? 0,
         taken: DateTime.fromMillisecondsSinceEpoch(j['taken'] as int? ?? 0),
         caption: j['caption'] as String? ?? '',
+        // Pule z wersji < 0.6.0 nie mają tego pola: id na zegarku = id zdjęcia + "_" + 7 znaków kadru
+        photoId: j['photo'] as String? ?? _photoIdFromWatchId(j['id'] as String),
       );
+
+  static String _photoIdFromWatchId(String id) => id.length > 8 ? id.substring(0, id.length - 8) : id;
 }
 
 /// Stan automatycznego odświeżania w tle

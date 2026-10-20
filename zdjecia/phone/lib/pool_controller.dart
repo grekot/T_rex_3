@@ -39,6 +39,7 @@ class PoolItem {
     required this.manualCrop,
     required this.png,
     this.isMemory = false,
+    this.cropSource = CropSource.band,
   });
 
   final ScoredPhoto scored;
@@ -48,6 +49,9 @@ class PoolItem {
 
   /// Starsze zdjęcie z losowego okresu (wspomnienie)
   final bool isMemory;
+
+  /// Skąd kadr: ręczny, AI, twarze...
+  final CropSource cropSource;
 
   /// Podpis dla zegarka; przy wspomnieniu z rokiem, np. „Nad jeziorem · 2019”
   String get watchCaption {
@@ -243,7 +247,7 @@ class PoolController extends ChangeNotifier {
         if (rater == null) {
           chosen = candidates.take(1).toList(); // bez AI: najlepsze według telefonu
         } else {
-          final toRate = [for (final s in candidates) if (_ratings[s.id]?.prefsHash != hash) s];
+          final toRate = [for (final s in candidates) if (needsRating(_ratings[s.id], hash)) s];
           if (toRate.isNotEmpty) {
             final inputs = <RatingInput>[];
             final ids = <String>[];
@@ -335,6 +339,7 @@ class PoolController extends ChangeNotifier {
     aiError = null;
     if (!aiActive) return;
     final hash = prefsHash(prefs.preferences);
+    final inPool = {for (final p in await _store.loadPublished()) p.photoId};
     final local = scoreAll([for (final id in _assets.keys) ?_analyses[id]], now: DateTime.now(), days: prefs.days);
     final winners = [
       for (final group in groupBursts(local.where((s) => s.accepted || prefs.pinned.contains(s.id)).toList()))
@@ -344,7 +349,7 @@ class PoolController extends ChangeNotifier {
     final seen = <String>{};
     final todo = [
       for (final s in winners)
-        if (seen.add(s.id) && _ratings[s.id]?.prefsHash != hash) s,
+        if (seen.add(s.id) && needsRating(_ratings[s.id], hash, inPool: inPool.contains(s.id))) s,
     ].take(maxRatingsPerRefresh).toList();
     if (todo.isEmpty) return;
 
@@ -404,7 +409,8 @@ class PoolController extends ChangeNotifier {
     final items = <PoolItem>[];
     for (final s in chosen) {
       final manual = prefs.crops[s.id];
-      final crop = manual ?? autoCrop(s.analysis, subject: s.rating?.subject);
+      final auto = autoCropWithSource(s.analysis, subject: s.rating?.subject, focus: s.rating?.focus);
+      final crop = manual ?? auto.box;
       try {
         items.add(PoolItem(
           scored: s,
@@ -412,6 +418,7 @@ class PoolController extends ChangeNotifier {
           manualCrop: manual != null,
           png: await _png(s, crop),
           isMemory: memoryIds.contains(s.id),
+          cropSource: manual != null ? CropSource.manual : auto.source,
         ));
       } catch (err) {
         debugPrint('PNG ${s.id}: $err');
@@ -426,6 +433,7 @@ class PoolController extends ChangeNotifier {
       for (final i in items)
         PublishedPhoto(
           id: i.watchId,
+          photoId: i.id,
           path: _store.pngFile(i.id, i.crop).path,
           size: i.png.length,
           taken: i.taken,

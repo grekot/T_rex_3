@@ -183,6 +183,16 @@ okres to ten sam tydzień w którymś z poprzednich lat). Z okresu bierze do 20 
 najwyżej 2 z oceną ≥ 6. Wspomnienie zostaje w puli 3,5–7 dni (losowo, żeby wymieniały się po trochu),
 przypięte – na stałe. Na zegarku podpis z rokiem, np. „Nad jeziorem · 2019”.
 
+## Kadr od AI (telefon 0.6.0)
+
+Gemini przy ocenie zwraca też `focus` – najciekawszy fragment zdjęcia pod okrągły ekran (cała scena
+albo ciaśniejszy detal, bez ucinania ludzi). Kolejność kadrowania (`autoCropWithSource` w
+`phone/lib/select/crop.dart`): ręczny → fragment od AI wypełniający kadr (bok = dłuższy bok fragmentu
++8%, najmocniej 0,4 krótszego boku zdjęcia) → gdy ucina twarz, kadr obejmuje fragment i twarz; gdy obu
+nie da się zmieścić, wyraźna twarz (≥ 1% zdjęcia) wygrywa → twarze → główny motyw → najciekawszy pas.
+Zdjęcia z puli ocenione przed 0.6.0 są oceniane ponownie, żeby dostały kadr od AI; nowy kadr = nowe
+zdjęcie dla zegarka (dociągane po trochu). Skąd kadr, widać na karcie zdjęcia.
+
 ## Wydanie do Sklepu rodzinnego
 
 Tag `zdjecia-vX.Y.Z` uruchamia [release-zdjecia.yml](../.github/workflows/release-zdjecia.yml)

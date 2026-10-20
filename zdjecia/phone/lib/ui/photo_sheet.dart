@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../bridge/format.dart';
 import '../pool_controller.dart';
+import '../select/crop.dart';
 import 'crop_screen.dart';
 
 Future<void> showPhotoSheet(BuildContext context, PoolController pool, PoolItem item) {
@@ -31,7 +32,7 @@ Future<void> showPhotoSheet(BuildContext context, PoolController pool, PoolItem 
                 Text('AI: ${item.rating!.score}/10 – ${item.rating!.reason}',
                     textAlign: TextAlign.center, style: Theme.of(sheetContext).textTheme.bodySmall),
               Text(
-                'Punkty: ${s.score.toStringAsFixed(2)}${item.manualCrop ? ' · kadr poprawiony ręcznie' : ''}',
+                'Punkty: ${s.score.toStringAsFixed(2)} · kadr: ${cropSourceNames[item.cropSource]}',
                 style: Theme.of(sheetContext).textTheme.bodySmall,
               ),
               if (s.rejected != null)

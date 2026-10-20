@@ -36,7 +36,11 @@ Dla każdego zdjęcia zwróć:
 - category: jedna z kategorii ze schematu,
 - caption: krótki, ciepły podpis po polsku, najwyżej 30 znaków, bez imion (np. „Huśtawka w ogrodzie”),
 - reason: kilka słów uzasadnienia po polsku,
-- subject: prostokąt głównego motywu [ymin, xmin, ymax, xmax] w skali 0-1000.
+- subject: prostokąt głównego motywu [ymin, xmin, ymax, xmax] w skali 0-1000,
+- focus: najciekawszy fragment zdjęcia do pokazania na małym OKRĄGŁYM ekranie, [ymin, xmin, ymax, xmax]
+  w skali 0-1000. Może to być cała scena albo ciaśniejszy fragment (np. dziecko z zabawką, szczyt góry,
+  pies na łące), byle wyglądał dobrze w kole: najważniejsze rzeczy blisko środka, nie ucinaj ludzi
+  ani głów, unikaj pustego nieba i nudnych brzegów.
 ''';
 
 final Map<String, Object> ratingSchema = {
@@ -57,8 +61,12 @@ final Map<String, Object> ratingSchema = {
             'type': 'array',
             'items': {'type': 'number'},
           },
+          'focus': {
+            'type': 'array',
+            'items': {'type': 'number'},
+          },
         },
-        'required': ['n', 'score', 'keep', 'category', 'caption', 'reason', 'subject'],
+        'required': ['n', 'score', 'keep', 'category', 'caption', 'reason', 'subject', 'focus'],
       },
     },
   },
@@ -73,6 +81,7 @@ class PhotoRating {
     required this.caption,
     required this.reason,
     this.subject,
+    this.focus,
     required this.prefsHash,
   });
 
@@ -85,6 +94,9 @@ class PhotoRating {
   /// Główny motyw: left, top, width, height w ułamkach zdjęcia (0..1)
   final List<double>? subject;
 
+  /// Najciekawszy fragment do kadru pod okrągły ekran (jak [subject]); null = oceniono bez kadru
+  final List<double>? focus;
+
   /// Skrót preferencji, z którymi oceniono (zmiana preferencji = ocena od nowa)
   final String prefsHash;
 
@@ -96,6 +108,7 @@ class PhotoRating {
         'caption': caption,
         'reason': reason,
         if (subject != null) 'subject': subject,
+        if (focus != null) 'focus': focus,
         'prefs': prefsHash,
       };
 
@@ -108,6 +121,7 @@ class PhotoRating {
       caption: j['caption'] as String? ?? '',
       reason: j['reason'] as String? ?? '',
       subject: (j['subject'] as List?)?.map((v) => (v as num).toDouble()).toList(),
+      focus: (j['focus'] as List?)?.map((v) => (v as num).toDouble()).toList(),
       prefsHash: j['prefs'] as String? ?? '',
     );
   }
@@ -119,6 +133,11 @@ class RatingInput {
   final Uint8List jpeg;
   final DateTime taken;
 }
+
+/// Czy zdjęcie trzeba (ponownie) ocenić: brak oceny, inne preferencje, a zdjęcie z puli -
+/// także gdy ocena nie ma jeszcze kadru od AI (oceny sprzed wersji z kadrowaniem)
+bool needsRating(PhotoRating? r, String hash, {bool inPool = false}) =>
+    r == null || r.prefsHash != hash || (inPool && r.focus == null);
 
 /// Skrót preferencji użytkownika (FNV-1a), żeby wiedzieć, które oceny są nieaktualne
 String prefsHash(String preferences) {
@@ -168,6 +187,7 @@ List<PhotoRating?> parseRatings(Map<String, dynamic> response, int count, String
       caption: caption.length <= 40 ? caption : '${caption.substring(0, 39)}…',
       reason: (item['reason'] as String? ?? '').trim(),
       subject: _subjectBox(item['subject']),
+      focus: _subjectBox(item['focus']),
       prefsHash: prefsHash,
     );
   }
