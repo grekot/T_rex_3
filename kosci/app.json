@@ -1,0 +1,48 @@
+{
+  "configVersion": "v3",
+  "app": {
+    "appId": 1087164,
+    "appName": "Kości",
+    "appType": "app",
+    "version": {
+      "code": 1,
+      "name": "1.0.0"
+    },
+    "icon": "icon.png",
+    "vender": "grekot",
+    "description": "Kosci do planszowek - rzut przyciskiem albo potrzasnieciem"
+  },
+  "permissions": ["data:os.device.info", "device:os.local_storage", "device:os.accelerometer"],
+  "runtime": {
+    "apiVersion": {
+      "compatible": "3.0",
+      "target": "3.0",
+      "minVersion": "3.0"
+    }
+  },
+  "debug": false,
+  "targets": {
+    "gt": {
+      "module": {
+        "page": {
+          "pages": ["page/gt/home/index.page", "page/gt/setup/index.page"]
+        }
+      },
+      "platforms": [
+        {
+          "st": "r"
+        }
+      ],
+      "designWidth": 480
+    }
+  },
+  "i18n": {
+    "en-US": {
+      "appName": "Dice"
+    },
+    "pl-PL": {
+      "appName": "Kości"
+    }
+  },
+  "defaultLanguage": "en-US"
+}
