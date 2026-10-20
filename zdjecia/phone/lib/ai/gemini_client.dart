@@ -29,8 +29,9 @@ class GeminiClient {
     required String system,
     required List<Map<String, Object>> parts,
     required Map<String, Object> schema,
-    int maxTokens = 8192,
-    Duration timeout = const Duration(seconds: 120),
+    // Duży zapas: modele Gemini 3 najpierw „myślą”, a myśli wliczają się do limitu odpowiedzi
+    int maxTokens = 32768,
+    Duration timeout = const Duration(seconds: 180),
   }) async {
     final body = {
       'systemInstruction': {
@@ -51,7 +52,8 @@ class GeminiClient {
     return parseJsonObject(await _generate(body, timeout));
   }
 
-  /// Krótkie zapytanie sprawdzające klucz i model
+  /// Krótkie zapytanie sprawdzające klucz i model. Ucięta odpowiedź też jest sukcesem:
+  /// serwer przyjął klucz i model, a cała odpowiedź nie jest tu potrzebna.
   Future<void> ping() async {
     await _generate({
       'contents': [
@@ -62,8 +64,8 @@ class GeminiClient {
           ],
         },
       ],
-      'generationConfig': {'maxOutputTokens': 8},
-    }, const Duration(seconds: 30));
+      'generationConfig': {'maxOutputTokens': 1024},
+    }, const Duration(seconds: 60), allowTruncated: true);
   }
 
   /// Modele Gemini obsługujące generateContent (bez obrazkowych, TTS i embeddingów)
@@ -94,7 +96,7 @@ class GeminiClient {
     if (apiKey.trim().isEmpty) throw AiException(AiErrorKind.noApiKey, 'Brak klucza Gemini.');
   }
 
-  Future<String> _generate(Map<String, Object> body, Duration timeout) async {
+  Future<String> _generate(Map<String, Object> body, Duration timeout, {bool allowTruncated = false}) async {
     _requireKey();
     final res = await _send(
       () => _client.post(Uri.parse('$baseUrl/models/$model:generateContent'), headers: _headers, body: jsonEncode(body)),
@@ -126,7 +128,7 @@ class GeminiClient {
     if (const ['SAFETY', 'PROHIBITED_CONTENT', 'BLOCKLIST', 'SPII'].contains(finish)) {
       throw AiException(AiErrorKind.refusal, 'Zablokowano: $finish');
     }
-    if (finish == 'MAX_TOKENS') {
+    if (finish == 'MAX_TOKENS' && !allowTruncated) {
       throw AiException(AiErrorKind.truncated, 'Odpowiedź ucięta (MAX_TOKENS).', body: text.toString());
     }
     return text.toString();

@@ -229,6 +229,29 @@ void main() {
     });
   });
 
+  test('sprawdzenie klucza: ucięta odpowiedź (model „myślał”) to też sukces', () async {
+    late Map body;
+    final client = GeminiClient(
+      apiKey: 'k',
+      client: MockClient((req) async {
+        body = jsonDecode(req.body) as Map;
+        return ok(jsonEncode({
+          'candidates': [
+            {'content': {'parts': []}, 'finishReason': 'MAX_TOKENS'},
+          ],
+        }));
+      }),
+    );
+    await client.ping();
+    expect((body['generationConfig'] as Map)['maxOutputTokens'], greaterThanOrEqualTo(1024));
+    // przy ocenie zdjęć ucięta odpowiedź nadal jest błędem, ale limit ma duży zapas
+    await expectLater(
+      client.generateJson(system: 's', parts: const [], schema: const {}),
+      throwsA(isA<AiException>().having((e) => e.kind, 'kind', AiErrorKind.truncated)),
+    );
+    expect((body['generationConfig'] as Map)['maxOutputTokens'], 32768);
+  });
+
   test('pamięć: ustawienia AI i oceny przetrwają ponowne uruchomienie', () async {
     final dir = await Directory.systemTemp.createTemp('zdjecia_ai_test');
     try {
