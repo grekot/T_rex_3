@@ -68,11 +68,31 @@ jest nieaktualna.
 
    Bez pliku skrypt zapisze zaślepkę `lib/firebase_options.dart` – aplikacja się zbuduje i
    pokaże „Brak konfiguracji” z przyciskiem przykładowych danych.
-4. **APK** – [`build_apk.cmd`](build_apk.cmd) (uruchom z Eksploratora albo z własnego okna
-   cmd), wynik: `build\app\outputs\flutter-apk\app-arm64-v8a-release.apk`. Skopiuj na
-   telefon i zainstaluj (zgoda na instalację z nieznanych źródeł).
+4. **Instalacja** – ze **Sklepu rodzinnego** (niżej) albo ręcznie: [`build_apk.cmd`](build_apk.cmd)
+   (uruchom z Eksploratora albo z własnego okna cmd), wynik:
+   `build\app\outputs\flutter-apk\app-arm64-v8a-release.apk`. Lokalny `android/key.properties`
+   (kopia z Powrotu, poza gitem) podpisuje go wspólnym kluczem sklepu, więc sklep potem go
+   zaktualizuje.
 5. **Logowanie** – tym samym kontem co Zakupy / Powrót; na zegarku w aplikacji Zepp
    (Urządzenie → Korona → ustawienia), gdy synchronizacja zegarka będzie gotowa.
+
+## Wydanie do Sklepu rodzinnego
+
+Tag `korona-vX.Y.Z` uruchamia [release-korona.yml](../../.github/workflows/release-korona.yml)
+(wspólny workflow z `grekot/App_storage`): APK arm64 podpisany wspólnym kluczem trafia do GitHub
+Release jako `korona.apk`, a wersja do biblioteki sklepu. Konfigurację Firebase CI odtwarza z
+sekretu repozytorium **`FIREBASE_OPTIONS_KORONA_B64`** (base64 pliku `lib/firebase_options.dart`
+po `node tools/configure.mjs`; bez niego wydanie ma zaślepkę i pokazuje tylko przykładowe dane):
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\TMP\My_GIT\T_rex_3\korona\phone\libirebase_options.dart")) | Set-Clipboard
+```
+
+Do grup przypisuje administrator (w folderze `App_storage`):
+
+```bash
+sklep przypisz korona --grupa Rodzina
+```
 
 ## Dla programisty
 
