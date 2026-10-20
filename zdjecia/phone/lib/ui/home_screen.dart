@@ -33,16 +33,19 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<BridgeRequest> _requests = [];
   String? _serverError;
   String? _selfCheck;
+  bool _screenKeptOn = false;
 
   @override
   void initState() {
     super.initState();
     _requestsSub = _server.requests.listen((r) => setState(() => _requests.insert(0, r)));
+    _pool.addListener(_keepScreenWhileWorking);
     WidgetsBinding.instance.addPostFrameCallback((_) => _pool.init());
   }
 
   @override
   void dispose() {
+    _pool.removeListener(_keepScreenWhileWorking);
     _requestsSub.cancel();
     _pool.dispose();
     _server.dispose();
@@ -50,20 +53,27 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  // Ekran nie gaśnie, dopóki aplikacja pracuje (analiza, ocena AI, kadrowanie) albo udostępnia zdjęcia:
+  // Android zamraża aplikacje w tle, więc praca stanęłaby, a serwer przestałby odpowiadać
+  void _keepScreenWhileWorking() {
+    final needed = _pool.busy || _server.running;
+    if (needed == _screenKeptOn) return;
+    _screenKeptOn = needed;
+    WakelockPlus.toggle(enable: needed);
+  }
+
   Future<void> _toggleServer(bool on) async {
     setState(() => _serverError = null);
     if (on) {
       try {
         await _server.start();
-        // Telefon nie może zasnąć - Android zamraża aplikacje w tle i serwer przestałby odpowiadać
-        await WakelockPlus.enable();
       } on SocketException catch (e) {
         _serverError = 'Nie mogę otworzyć portu $bridgePort: ${e.message}';
       }
     } else {
       await _server.stop();
-      await WakelockPlus.disable();
     }
+    _keepScreenWhileWorking();
     setState(() {});
   }
 
@@ -161,6 +171,8 @@ class _HomeScreenState extends State<HomeScreen> {
             if (working) ...[
               const SizedBox(height: 8),
               LinearProgressIndicator(value: p.total > 0 ? p.done / p.total : null),
+              const SizedBox(height: 4),
+              Text('Ekran nie zgaśnie, dopóki trwa praca – zostaw aplikację otwartą.', style: text.bodySmall),
             ],
             if (!working && p.phase == PoolPhase.ready && p.aiActive)
               Text('Ocenione przez AI: ${p.ratedCount} z ${p.scored.length}', style: text.bodySmall),
