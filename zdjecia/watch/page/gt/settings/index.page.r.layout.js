@@ -35,7 +35,7 @@ export function toggleText(on) {
 }
 
 // Wiersze ustawień: podpis, pod nim  [-]  wartość  [+]
-const ROW_Y = [146, 244, 342];
+const ROW_Y = [146, 244, 342, 440];
 
 export function rowLabel(index, text) {
   return { ...CENTERED, x: px(60), y: px(ROW_Y[index]), w: DEVICE_WIDTH - px(120), h: px(30), text, text_size: px(20), color: COLOR_GREY };
@@ -65,7 +65,7 @@ export function rowValue(index, text, on) {
 // Najbliższe pokazy (przewijane pod wierszami ustawień)
 export const STATUS_STYLE = {
   x: px(60),
-  y: px(446),
+  y: px(544),
   w: DEVICE_WIDTH - px(120),
   h: px(250),
   text: "",
@@ -76,7 +76,7 @@ export const STATUS_STYLE = {
   text_style: hmUI.text_style.WRAP,
 };
 
-export const TEST_RECT = { x: px(110), y: px(704), w: DEVICE_WIDTH - px(220), h: px(54) };
+export const TEST_RECT = { x: px(110), y: px(802), w: DEVICE_WIDTH - px(220), h: px(54) };
 
 // Pod spodem pusty pas, żeby ostatni przycisk dało się przewinąć na środek okrągłego ekranu
-export const BOTTOM_SPACER = { x: 0, y: px(764), w: DEVICE_WIDTH, h: px(140), color: 0x000000 };
+export const BOTTOM_SPACER = { x: 0, y: px(862), w: DEVICE_WIDTH, h: px(140), color: 0x000000 };

@@ -199,6 +199,17 @@ nie da się zmieścić, wyraźna twarz (≥ 1% zdjęcia) wygrywa → twarze → 
 Zdjęcia z puli ocenione przed 0.6.0 są oceniane ponownie, żeby dostały kadr od AI; nowy kadr = nowe
 zdjęcie dla zegarka (dociągane po trochu). Skąd kadr, widać na karcie zdjęcia.
 
+## Jaśniej i żywiej (telefon 0.7.0, zegarek 0.6.0)
+
+- **Zegarek** podczas pokazu zdjęcia (samoczynnego i w podglądzie) wyłącza na chwilę jasność automatyczną
+  i ustawia jasność z ustawień („Jasność przy zdjęciu”: bez zmian / 60 / 80 / 100%, domyślnie 100%).
+  Poprzednie ustawienia systemu są zapamiętane (`zd_bright_restore`) i przywracane przy zamknięciu zdjęcia,
+  a gdyby aplikacja zamknęła się wcześniej – przy następnym starcie.
+- **Telefon** przygotowuje PNG z żywszymi kolorami (`vivid` w `photo_prep.dart`: nasycenie ×1,25 względem
+  jasności piksela, kontrast ×1,08, gamma 0,94, każdy krok przycięty do 0..255 – `img.adjustColor` zawijał
+  kanały przy nasyconych barwach). Wersja obróbki jest w nazwie PNG i w id na zegarku, więc zegarek
+  wymieni zdjęcia na nowe.
+
 ## Wydanie do Sklepu rodzinnego
 
 Tag `zdjecia-vX.Y.Z` uruchamia [release-zdjecia.yml](../.github/workflows/release-zdjecia.yml)

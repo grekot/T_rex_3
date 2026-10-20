@@ -1,4 +1,5 @@
 // Które zdjęcia w ogóle brać pod uwagę i jak je nazywać dla zegarka.
+import '../bridge/photo_prep.dart';
 import 'crop.dart';
 
 /// Foldery aplikacji i zrzutów ekranu - to nie są „moje zdjęcia”
@@ -35,10 +36,11 @@ String takenBetweenSql({DateTime? start, DateTime? end}) {
       '((datetaken IS NULL OR datetaken = 0) AND ${added.join(' AND ')}))';
 }
 
-/// Krótki, stały skrót kadru (FNV-1a), żeby zmiana kadru dała zegarkowi nowe zdjęcie
+/// Krótki, stały skrót kadru i wersji obróbki kolorów (FNV-1a) - zmiana jednego albo drugiego
+/// daje zegarkowi nowe zdjęcie
 String cropHash(CropBox crop) {
   var h = 0x811c9dc5;
-  for (final c in crop.key.codeUnits) {
+  for (final c in '${crop.key}|s$pngStyleVersion'.codeUnits) {
     h ^= c;
     h = (h * 0x01000193) & 0xffffffff;
   }

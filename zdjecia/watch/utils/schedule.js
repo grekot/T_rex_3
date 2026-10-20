@@ -13,7 +13,9 @@ export const AUTO_CLOSE_S = 15;
 // Próba z ekranu ustawień: budzik za tyle sekund
 export const TEST_DELAY_S = 60;
 
-export const DEFAULT_SETTINGS = { on: true, perDay: 3, from: 9, to: 21 };
+export const DEFAULT_SETTINGS = { on: true, perDay: 3, from: 9, to: 21, bright: 100 };
+// Jasność ekranu podczas pokazu zdjęcia (0 = bez zmian, zostaje systemowa)
+export const BRIGHT_STEPS = [0, 60, 80, 100];
 export const PER_DAY_MIN = 1;
 export const PER_DAY_MAX = 24;
 // Kolejne wartości przyciskami +/- (powyżej 6 większymi krokami - dużo pokazów przydaje się do testów)
@@ -66,7 +68,21 @@ export function normalizeSettings(settings) {
     perDay: clampInt(s.perDay, PER_DAY_MIN, PER_DAY_MAX, d.perDay),
     from,
     to,
+    bright: clampInt(s.bright, 0, 100, d.bright),
   };
+}
+
+export function brightText(bright) {
+  return bright ? bright + "%" : "bez zmian";
+}
+
+function stepBright(bright, delta) {
+  if (delta > 0) {
+    const up = BRIGHT_STEPS.filter((v) => v > bright);
+    return up.length ? up[0] : BRIGHT_STEPS[BRIGHT_STEPS.length - 1];
+  }
+  const down = BRIGHT_STEPS.filter((v) => v < bright);
+  return down.length ? down[down.length - 1] : 0;
 }
 
 // Zmiana jednego pola na ekranie ustawień; „od” i „do” przesuwają się nawzajem (okno co najmniej 1 h)
@@ -74,6 +90,7 @@ export function adjust(settings, field, delta) {
   const s = normalizeSettings(settings);
   if (field === "on") return { ...s, on: !s.on };
   if (field === "perDay") return { ...s, perDay: stepPerDay(s.perDay, delta) };
+  if (field === "bright") return { ...s, bright: stepBright(s.bright, delta) };
   if (field === "from") {
     const from = clampInt(s.from + delta, 0, 23, s.from);
     return { ...s, from, to: Math.max(s.to, from + 1) };

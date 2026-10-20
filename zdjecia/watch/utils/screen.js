@@ -6,7 +6,12 @@ import {
   resetPageBrightTime,
   pauseDropWristScreenOff,
   resetDropWristScreenOff,
+  getBrightness,
+  setBrightness,
+  getAutoBrightness,
+  setAutoBrightness,
 } from "@zos/display";
+import { loadBrightRestore, saveBrightRestore } from "./store.js";
 
 export function stayInApp() {
   try {
@@ -31,4 +36,29 @@ export function releaseScreen() {
   try {
     resetPageBrightTime();
   } catch (e) {}
+}
+
+// Zdjęcie jaśniej (AMOLED przy niskiej jasności gasi kolory): jasność automatyczna na chwilę wyłączona,
+// bo inaczej setBrightness nic nie zmienia. Ustawienia systemu zapamiętane do przywrócenia.
+// level 0 = bez zmian.
+export function boostBrightness(level) {
+  if (!level) return;
+  try {
+    if (!loadBrightRestore()) {
+      saveBrightRestore({ b: Number(getBrightness()) || 50, auto: !!getAutoBrightness() });
+    }
+    setAutoBrightness({ autoBright: false });
+    setBrightness({ brightness: level });
+  } catch (e) {}
+}
+
+// Przywrócenie jasności sprzed podbicia (bezpieczne do wołania zawsze, także na starcie)
+export function restoreBrightness() {
+  const saved = loadBrightRestore();
+  if (!saved) return;
+  try {
+    setBrightness({ brightness: saved.b });
+    if (saved.auto) setAutoBrightness({ autoBright: true });
+  } catch (e) {}
+  saveBrightRestore(null);
 }

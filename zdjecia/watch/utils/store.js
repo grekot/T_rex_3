@@ -79,6 +79,18 @@ export function clearPhotos() {
   writeJson(PHOTOS_KEY, []);
 }
 
+// Jasność sprzed podbicia na czas zdjęcia: { b, auto } - przywracana przy wyjściu albo przy następnym
+// starcie (gdyby aplikacja zamknęła się, zanim zdążyła przywrócić)
+const BRIGHT_KEY = "zd_bright_restore";
+
+export function loadBrightRestore() {
+  return readJson(BRIGHT_KEY, null);
+}
+
+export function saveBrightRestore(value) {
+  writeJson(BRIGHT_KEY, value);
+}
+
 // Losowe pokazywanie: ustawienia, plan budzików ({ key, until, items: [{ alarm, at }] }) i worek
 const SETTINGS_KEY = "zd_settings";
 const PLAN_KEY = "zd_plan";

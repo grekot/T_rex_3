@@ -5,9 +5,9 @@ import * as hmUI from "@zos/ui";
 import { px } from "@zos/utils";
 import { push } from "@zos/router";
 import { BasePage } from "@zeppos/zml/base-page";
-import { stayInApp, keepScreenOn, releaseScreen } from "../../../utils/screen";
+import { stayInApp, keepScreenOn, releaseScreen, boostBrightness, restoreBrightness } from "../../../utils/screen";
 import { buttonProps } from "../../../utils/ui";
-import { loadPhotos, savePhoto, loadVariant, saveVariant, downloadedFiles, clearPhotos, loadPlan } from "../../../utils/store";
+import { loadPhotos, savePhoto, loadVariant, saveVariant, downloadedFiles, clearPhotos, loadPlan, loadSettings } from "../../../utils/store";
 import { shownPhotos, haveIds } from "../../../utils/photos";
 import { srcVariants, pickSrc } from "../../../utils/paths";
 import { summaryLines, photoInfoLines } from "../../../utils/format";
@@ -56,6 +56,7 @@ Page(
 
     build() {
       stayInApp();
+      restoreBrightness();
       try {
         refreshPlan();
       } catch (e) {}
@@ -73,6 +74,7 @@ Page(
 
     onDestroy() {
       releaseScreen();
+      restoreBrightness();
     },
 
     planLine() {
@@ -108,6 +110,7 @@ Page(
 
     showPanel() {
       const s = this.state;
+      restoreBrightness();
       this.clearScreen();
       s.mode = "panel";
       const count = shownPhotos(loadPhotos()).length;
@@ -145,6 +148,7 @@ Page(
       const src = pickSrc(p, variant);
       this.clearScreen();
       s.mode = "photo";
+      boostBrightness(loadSettings().bright);
       const img = this.add(hmUI.widget.IMG, { ...PHOTO_PROPS, src });
       img.addEventListener(hmUI.event.CLICK_UP, () => later(() => this.showPhoto(s.index + 1)));
       this.add(hmUI.widget.FILL_RECT, INFO_BG_PROPS);

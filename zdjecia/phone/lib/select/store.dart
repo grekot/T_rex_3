@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 
 import '../ai/gemini_client.dart';
+import '../bridge/photo_prep.dart';
 import '../ai/photo_rating.dart';
 import 'analysis.dart';
 import 'crop.dart';
@@ -290,7 +291,7 @@ class SelectStore {
       _writeJson(_ratingsFile, {'items': {for (final e in items.entries) e.key: e.value.toJson()}});
 
   /// Gotowy PNG dla zegarka (zależy od kadru, więc kadr jest w nazwie)
-  File pngFile(String id, CropBox crop) => File('${pngDir.path}/${id}_${crop.key}.png');
+  File pngFile(String id, CropBox crop) => File('${pngDir.path}/${id}_${crop.key}_s$pngStyleVersion.png');
 
   /// Usuwa PNG zdjęć, których nie ma już w puli
   Future<void> prunePngs(Set<String> keepPaths) async {

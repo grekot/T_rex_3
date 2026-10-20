@@ -8,14 +8,14 @@ import { home } from "@zos/router";
 import { Vibrator, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { setPageBrightTime } from "@zos/display";
 import { BasePage } from "@zeppos/zml/base-page";
-import { loadPhotos, loadVariant, loadBag, saveBag, noteShown } from "../../../utils/store";
+import { loadPhotos, loadVariant, loadBag, saveBag, noteShown, loadSettings } from "../../../utils/store";
 import { shownPhotos, readParams, haveIds, freshPick } from "../../../utils/photos";
 import { pickSrc } from "../../../utils/paths";
 import { takenText } from "../../../utils/format";
 import { drawFromBag, AUTO_CLOSE_S } from "../../../utils/schedule";
 import { refreshPlan } from "../../../utils/alarms";
 import { receiveFile, cleanupAfterSync } from "../../../utils/syncflow";
-import { keepScreenOn, releaseScreen } from "../../../utils/screen";
+import { keepScreenOn, releaseScreen, boostBrightness, restoreBrightness } from "../../../utils/screen";
 import { PHOTO_PROPS, INFO_BG_PROPS, INFO_STYLE, EMPTY_STYLE } from "zosLoader:./index.page.[pf].layout.js";
 
 // Plan uzupełniamy chwilę po otwarciu, żeby zdjęcie pojawiło się bez czekania na budziki
@@ -75,6 +75,9 @@ Page(
       const launch = s.launch.m ? s.launch : appLaunchParams();
       const photo = nextPhoto(launch.id);
       noteShown({ id: photo ? photo.id : "", m: launch.m || "?" });
+      // Gdyby poprzednie zdjęcie nie przywróciło jasności - najpierw przywrócić, potem podbić
+      restoreBrightness();
+      if (photo) boostBrightness(loadSettings().bright);
       s.planTimer = setTimeout(() => this.updatePlan(), PLAN_DELAY_MS);
       s.syncTimer = setTimeout(() => this.dripSync(), SYNC_DELAY_MS);
 
@@ -103,6 +106,7 @@ Page(
       if (s.closeTimer) clearTimeout(s.closeTimer);
       if (s.syncTimer) clearTimeout(s.syncTimer);
       if (s.syncing) releaseScreen();
+      restoreBrightness();
       // Zamknięte, zanim plan się uzupełnił - robimy to teraz
       if (s.planTimer) {
         clearTimeout(s.planTimer);

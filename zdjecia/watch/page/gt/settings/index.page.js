@@ -5,7 +5,7 @@ import * as hmUI from "@zos/ui";
 import { px } from "@zos/utils";
 import { buttonProps } from "../../../utils/ui";
 import { loadSettings, saveSettings, loadPlan, loadShown } from "../../../utils/store";
-import { adjust, hourText, planLines, whenText, clockText, TEST_DELAY_S } from "../../../utils/schedule";
+import { adjust, hourText, brightText, planLines, whenText, clockText, TEST_DELAY_S } from "../../../utils/schedule";
 import { refreshPlan, scheduleTest, localOffsetMin } from "../../../utils/alarms";
 import {
   TITLE_STYLE,
@@ -27,6 +27,7 @@ const ROWS = [
   { field: "perDay", label: "Ile razy dziennie", text: (s) => String(s.perDay) },
   { field: "from", label: "Od godziny", text: (s) => hourText(s.from) },
   { field: "to", label: "Do godziny", text: (s) => hourText(s.to) },
+  { field: "bright", label: "Jasność przy zdjęciu", text: (s) => brightText(s.bright), always: true },
 ];
 
 function errText(e) {
@@ -59,7 +60,7 @@ Page({
     ROWS.forEach((row, i) => {
       hmUI.createWidget(hmUI.widget.TEXT, rowLabel(i, row.label));
       hmUI.createWidget(hmUI.widget.BUTTON, buttonProps(minusRect(i), "-", "secondary", () => this.change(row.field, -1), px(40)));
-      s.values.push(hmUI.createWidget(hmUI.widget.TEXT, rowValue(i, row.text(s.settings), s.settings.on)));
+      s.values.push(hmUI.createWidget(hmUI.widget.TEXT, rowValue(i, row.text(s.settings), row.always || s.settings.on)));
       hmUI.createWidget(hmUI.widget.BUTTON, buttonProps(plusRect(i), "+", "secondary", () => this.change(row.field, 1), px(40)));
     });
 
@@ -86,6 +87,8 @@ Page({
     s.settings = adjust(s.settings, field, delta);
     saveSettings(s.settings);
     this.renderSettings();
+    // Jasność nie zmienia planu pokazów
+    if (field === "bright") return;
     s.note = "";
     if (s.timer) clearTimeout(s.timer);
     s.timer = setTimeout(() => this.apply(true), APPLY_DELAY_MS);
@@ -123,7 +126,7 @@ Page({
     const on = s.settings.on;
     s.toggle.bg.setProperty(hmUI.prop.MORE, toggleBg(on));
     s.toggle.text.setProperty(hmUI.prop.MORE, toggleText(on));
-    ROWS.forEach((row, i) => s.values[i].setProperty(hmUI.prop.MORE, rowValue(i, row.text(s.settings), on)));
+    ROWS.forEach((row, i) => s.values[i].setProperty(hmUI.prop.MORE, rowValue(i, row.text(s.settings), row.always || on)));
   },
 
   renderStatus(pending) {

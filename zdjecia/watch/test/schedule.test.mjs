@@ -56,10 +56,10 @@ function minuteOfDay(ms) {
 // --- ustawienia ---
 
 assert.deepEqual(normalizeSettings(undefined), DEFAULT_SETTINGS);
-assert.deepEqual(DEFAULT_SETTINGS, { on: true, perDay: 3, from: 9, to: 21 });
-assert.deepEqual(normalizeSettings({ on: false, perDay: 30, from: -3, to: 30 }), { on: false, perDay: 24, from: 0, to: 24 });
+assert.deepEqual(DEFAULT_SETTINGS, { on: true, perDay: 3, from: 9, to: 21, bright: 100 });
+assert.deepEqual(normalizeSettings({ on: false, perDay: 30, from: -3, to: 30 }), { on: false, perDay: 24, from: 0, to: 24, bright: 100 });
 assert.equal(normalizeSettings({ perDay: 9 }).perDay, 9);
-assert.deepEqual(normalizeSettings({ perDay: 0, from: 22, to: 8 }), { on: true, perDay: 1, from: 22, to: 23 });
+assert.deepEqual(normalizeSettings({ perDay: 0, from: 22, to: 8 }), { on: true, perDay: 1, from: 22, to: 23, bright: 100 });
 assert.deepEqual(normalizeSettings({ perDay: "x", from: null }), DEFAULT_SETTINGS);
 
 assert.equal(adjust(DEFAULT_SETTINGS, "on").on, false);
@@ -73,8 +73,8 @@ assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 7 }, "perDay", 1).perDay, 8);
 assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 7 }, "perDay", -1).perDay, 6);
 assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 1 }, "perDay", -1).perDay, 1);
 // „od” dosuwa „do” i odwrotnie
-assert.deepEqual(adjust({ ...DEFAULT_SETTINGS, from: 20, to: 21 }, "from", 1), { on: true, perDay: 3, from: 21, to: 22 });
-assert.deepEqual(adjust({ ...DEFAULT_SETTINGS, from: 9, to: 10 }, "to", -1), { on: true, perDay: 3, from: 8, to: 9 });
+assert.deepEqual(adjust({ ...DEFAULT_SETTINGS, from: 20, to: 21 }, "from", 1), { on: true, perDay: 3, from: 21, to: 22, bright: 100 });
+assert.deepEqual(adjust({ ...DEFAULT_SETTINGS, from: 9, to: 10 }, "to", -1), { on: true, perDay: 3, from: 8, to: 9, bright: 100 });
 assert.equal(adjust({ ...DEFAULT_SETTINGS, from: 0 }, "from", -1).from, 0);
 assert.equal(adjust({ ...DEFAULT_SETTINGS, to: 24 }, "to", 1).to, 24);
 assert.equal(adjust({ ...DEFAULT_SETTINGS, from: 23, to: 24 }, "from", 1).from, 23);
@@ -384,4 +384,20 @@ import { horizonDays } from "../utils/schedule.js";
   assert.equal(many.add.length, 48);
   assert.ok(many.add.every((t, i) => i === 0 || t > many.add[i - 1]), "rosnąco, bez powtórek");
   console.log("schedule many OK");
+}
+
+// --- jasność przy zdjęciu (0 = bez zmian) ---
+import { brightText } from "../utils/schedule.js";
+{
+  assert.equal(adjust(DEFAULT_SETTINGS, "bright", -1).bright, 80);
+  assert.equal(adjust({ ...DEFAULT_SETTINGS, bright: 60 }, "bright", -1).bright, 0);
+  assert.equal(adjust({ ...DEFAULT_SETTINGS, bright: 0 }, "bright", -1).bright, 0);
+  assert.equal(adjust({ ...DEFAULT_SETTINGS, bright: 0 }, "bright", 1).bright, 60);
+  assert.equal(adjust(DEFAULT_SETTINGS, "bright", 1).bright, 100);
+  assert.equal(normalizeSettings({ bright: 250 }).bright, 100);
+  assert.equal(brightText(0), "bez zmian");
+  assert.equal(brightText(80), "80%");
+  // Jasność nie zmienia planu pokazów
+  assert.equal(settingsKey({ ...DEFAULT_SETTINGS, bright: 60 }), settingsKey(DEFAULT_SETTINGS));
+  console.log("schedule bright OK");
 }
