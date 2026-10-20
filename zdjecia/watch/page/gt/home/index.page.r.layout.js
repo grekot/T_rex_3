@@ -38,7 +38,7 @@ export const SYNC_RECT = { x: px(60), y: px(206), w: DEVICE_WIDTH - px(120), h: 
 export const SHOW_RECT = { x: px(70), y: px(274), w: DEVICE_WIDTH - px(140), h: px(56) };
 export const TEST_RECT = { x: px(98), y: px(338), w: px(137), h: px(50) };
 export const CLEAR_RECT = { x: px(245), y: px(338), w: px(137), h: px(50) };
-export const NOTIFY_RECT = { x: px(130), y: px(396), w: DEVICE_WIDTH - px(260), h: px(50) };
+export const SETTINGS_RECT = { x: px(130), y: px(396), w: DEVICE_WIDTH - px(260), h: px(50) };
 
 // --- Podgląd zdjęcia: pełny ekran + pasek z pomiarami ---
 

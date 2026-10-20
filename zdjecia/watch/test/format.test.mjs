@@ -1,6 +1,6 @@
 // `node test/format.test.mjs` - teksty pomiarów
 import assert from "node:assert/strict";
-import { formatBytes, formatMs, summaryLines, photoInfoLines, transferMs } from "../utils/format.js";
+import { formatBytes, formatMs, summaryLines, photoInfoLines, transferMs, takenText } from "../utils/format.js";
 import { describeEvent, describeStart } from "../utils/events.js";
 
 assert.equal(formatBytes(512), "512 B");
@@ -38,5 +38,8 @@ assert.deepEqual(describeEvent({ type: "?" }), {});
 assert.match(describeStart({ ok: false, step: "manifest", error: "timeout" }), /Most niedostępny/);
 assert.match(describeStart({ ok: true, todo: 0, total: 3 }), /brak nowych/);
 assert.match(describeStart({ ok: true, todo: 2, total: 3, manifestMs: 120 }), /nowe: 2 z 3/);
+
+assert.equal(takenText(0), "");
+assert.equal(takenText(new Date(2026, 9, 12, 8, 5).getTime()), "12.10 08:05");
 
 console.log("format OK");

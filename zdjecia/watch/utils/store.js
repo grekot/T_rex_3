@@ -1,7 +1,9 @@
-// Pamięć zegarka: lista odebranych zdjęć z pomiarami i wybrany zapis ścieżki dla IMG.
+// Pamięć zegarka: lista odebranych zdjęć z pomiarami, wybrany zapis ścieżki dla IMG,
+// ustawienia losowania, plan budzików i worek zdjęć.
 import { LocalStorage } from "@zos/storage";
 import { rmSync, readdirSync } from "@zos/fs";
 import { mergePhoto } from "./photos.js";
+import { normalizeSettings } from "./schedule.js";
 
 const storage = new LocalStorage();
 const PHOTOS_KEY = "zd_photos";
@@ -59,14 +61,41 @@ export function clearPhotos() {
   writeJson(PHOTOS_KEY, []);
 }
 
-// Próba 0b: kiedy i którym sposobem otwarto ekran zdjęcia z powiadomienia
-const OPEN_LOG_KEY = "zd_open_log";
+// Losowe pokazywanie: ustawienia, plan budzików ({ key, until, items: [{ alarm, at }] }) i worek
+const SETTINGS_KEY = "zd_settings";
+const PLAN_KEY = "zd_plan";
+const BAG_KEY = "zd_bag";
+const SHOWN_KEY = "zd_shown";
 
-export function loadOpenLog() {
-  return readJson(OPEN_LOG_KEY, []);
+export function loadSettings() {
+  return normalizeSettings(readJson(SETTINGS_KEY, null));
 }
 
-export function logOpen(method) {
-  const log = loadOpenLog().concat([{ m: method, at: Date.now() }]).slice(-20);
-  writeJson(OPEN_LOG_KEY, log);
+export function saveSettings(settings) {
+  writeJson(SETTINGS_KEY, normalizeSettings(settings));
+}
+
+export function loadPlan() {
+  return readJson(PLAN_KEY, {});
+}
+
+export function savePlan(plan) {
+  writeJson(PLAN_KEY, plan);
+}
+
+export function loadBag() {
+  return readJson(BAG_KEY, {});
+}
+
+export function saveBag(bag) {
+  writeJson(BAG_KEY, bag);
+}
+
+// Kiedy zegarek ostatnio sam pokazał zdjęcie (do sprawdzenia, czy budziki działają)
+export function loadShown() {
+  return readJson(SHOWN_KEY, []);
+}
+
+export function noteShown(entry) {
+  writeJson(SHOWN_KEY, loadShown().concat([{ ...entry, at: Date.now() }]).slice(-10));
 }
