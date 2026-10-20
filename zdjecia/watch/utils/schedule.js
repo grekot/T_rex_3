@@ -15,11 +15,32 @@ export const TEST_DELAY_S = 60;
 
 export const DEFAULT_SETTINGS = { on: true, perDay: 3, from: 9, to: 21 };
 export const PER_DAY_MIN = 1;
-export const PER_DAY_MAX = 6;
+export const PER_DAY_MAX = 24;
+// Kolejne wartości przyciskami +/- (powyżej 6 większymi krokami - dużo pokazów przydaje się do testów)
+export const PER_DAY_STEPS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 16, 20, 24];
 // Najmniejszy odstęp między zdjęciami; gdy okno jest za krótkie - połowa przedziału
 export const MIN_GAP_MIN = 120;
 // Plan obejmuje dziś i tyle kolejnych dni (czyli zawsze co najmniej 2 dni naprzód)
 export const HORIZON_DAYS = 2;
+
+// Przy wielu pokazach dziennie plan tylko na dziś i jutro, żeby nie zakładać dziesiątek budzików naraz
+// (każde wyskoczenie i tak uzupełnia plan, więc łańcuch się nie urywa)
+export function horizonDays(perDay) {
+  return perDay > 6 ? 1 : HORIZON_DAYS;
+}
+
+// Następna / poprzednia wartość z PER_DAY_STEPS (także gdy obecna jest spoza listy)
+export function stepPerDay(perDay, delta) {
+  if (delta > 0) {
+    const up = PER_DAY_STEPS.filter((v) => v > perDay);
+    return up.length ? up[0] : PER_DAY_MAX;
+  }
+  if (delta < 0) {
+    const down = PER_DAY_STEPS.filter((v) => v < perDay);
+    return down.length ? down[down.length - 1] : PER_DAY_MIN;
+  }
+  return perDay;
+}
 // Najbliższy budzik nie wcześniej niż za tyle minut (żeby nie wyskoczył zaraz po zmianie ustawień)
 export const LEAD_MIN = 2;
 
@@ -52,7 +73,7 @@ export function normalizeSettings(settings) {
 export function adjust(settings, field, delta) {
   const s = normalizeSettings(settings);
   if (field === "on") return { ...s, on: !s.on };
-  if (field === "perDay") return { ...s, perDay: clampInt(s.perDay + delta, PER_DAY_MIN, PER_DAY_MAX, s.perDay) };
+  if (field === "perDay") return { ...s, perDay: stepPerDay(s.perDay, delta) };
   if (field === "from") {
     const from = clampInt(s.from + delta, 0, 23, s.from);
     return { ...s, from, to: Math.max(s.to, from + 1) };
@@ -151,7 +172,7 @@ export function topUp(plan, alarms, settings, now, tzMin, random) {
   if (!s.on) return { key, until: null, cancel, keep, add: [] };
 
   const today = localDay(now, tzMin);
-  const last = today + HORIZON_DAYS;
+  const last = today + horizonDays(s.perDay);
   const until = same && typeof p.until === "number" ? p.until : null;
   const first = until === null ? today : Math.max(until + 1, today);
   for (let day = first; day <= last; day++) {

@@ -57,13 +57,20 @@ function minuteOfDay(ms) {
 
 assert.deepEqual(normalizeSettings(undefined), DEFAULT_SETTINGS);
 assert.deepEqual(DEFAULT_SETTINGS, { on: true, perDay: 3, from: 9, to: 21 });
-assert.deepEqual(normalizeSettings({ on: false, perDay: 9, from: -3, to: 30 }), { on: false, perDay: 6, from: 0, to: 24 });
+assert.deepEqual(normalizeSettings({ on: false, perDay: 30, from: -3, to: 30 }), { on: false, perDay: 24, from: 0, to: 24 });
+assert.equal(normalizeSettings({ perDay: 9 }).perDay, 9);
 assert.deepEqual(normalizeSettings({ perDay: 0, from: 22, to: 8 }), { on: true, perDay: 1, from: 22, to: 23 });
 assert.deepEqual(normalizeSettings({ perDay: "x", from: null }), DEFAULT_SETTINGS);
 
 assert.equal(adjust(DEFAULT_SETTINGS, "on").on, false);
 assert.equal(adjust(DEFAULT_SETTINGS, "perDay", 1).perDay, 4);
-assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 6 }, "perDay", 1).perDay, 6);
+// Powyżej 6 większe kroki, do 24 dziennie (testy pierwszych dni)
+assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 6 }, "perDay", 1).perDay, 8);
+assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 8 }, "perDay", -1).perDay, 6);
+assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 20 }, "perDay", 1).perDay, 24);
+assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 24 }, "perDay", 1).perDay, 24);
+assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 7 }, "perDay", 1).perDay, 8);
+assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 7 }, "perDay", -1).perDay, 6);
 assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 1 }, "perDay", -1).perDay, 1);
 // „od” dosuwa „do” i odwrotnie
 assert.deepEqual(adjust({ ...DEFAULT_SETTINGS, from: 20, to: 21 }, "from", 1), { on: true, perDay: 3, from: 21, to: 22 });
@@ -125,6 +132,9 @@ const settingsCases = [
   { on: true, perDay: 6, from: 14, to: 15 },
   { on: true, perDay: 4, from: 0, to: 24 },
   { on: true, perDay: 5, from: 7, to: 10 },
+  { on: true, perDay: 24, from: 9, to: 21 },
+  { on: true, perDay: 24, from: 14, to: 15 },
+  { on: true, perDay: 12, from: 0, to: 24 },
 ];
 for (const s of settingsCases) {
   for (let seed = 1; seed <= 300; seed++) {
@@ -362,3 +372,16 @@ assert.equal(drawFromBag({ used: ["a"], last: "a" }, [], Math.random).id, "");
 }
 
 console.log("schedule OK");
+
+// --- dużo pokazów dziennie: plan tylko na dziś i jutro ---
+import { horizonDays } from "../utils/schedule.js";
+{
+  assert.equal(horizonDays(6), HORIZON_DAYS);
+  assert.equal(horizonDays(8), 1);
+  const nowMany = at(2026, 10, 19, 8, 0);
+  const many = topUp({}, [], { on: true, perDay: 24, from: 9, to: 21 }, nowMany, TZ, seeded(3));
+  assert.equal(many.until, localDay(nowMany, TZ) + 1);
+  assert.equal(many.add.length, 48);
+  assert.ok(many.add.every((t, i) => i === 0 || t > many.add[i - 1]), "rosnąco, bez powtórek");
+  console.log("schedule many OK");
+}

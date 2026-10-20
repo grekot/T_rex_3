@@ -5,8 +5,8 @@
     "appName": "Zdjecia",
     "appType": "app",
     "version": {
-      "code": 5,
-      "name": "0.5.0"
+      "code": 6,
+      "name": "0.5.1"
     },
     "icon": "icon.png",
     "vender": "grekot",
