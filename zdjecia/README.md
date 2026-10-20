@@ -173,6 +173,16 @@ Bez udziału właściciela:
   przy następnej okazji jako pierwsze; pod zdjęciem podpis od AI.
 - **Ręczne otwarcie aplikacji na zegarku** od razu pobiera wszystkie nowe zdjęcia i robi porządek.
 
+## Wspomnienia (telefon 0.5.0)
+
+Starsze zdjęcia bywają ciekawsze, więc część puli (domyślnie 50%, w ustawieniach 0/25/50/75%) to
+wspomnienia (`phone/lib/select/memories.dart`). Przy odświeżeniu, gdy wspomnień brakuje, telefon losuje
+do 6 tygodniowych okresów z historii galerii (od najstarszego zdjęcia z aparatu do 30 dni wstecz; co trzeci
+okres to ten sam tydzień w którymś z poprzednich lat). Z okresu bierze do 20 zdjęć rozłożonych w czasie
+(bez serii), analizuje je, 10 najlepszych wg telefonu ocenia Gemini (jedno zapytanie), a do puli trafiają
+najwyżej 2 z oceną ≥ 6. Wspomnienie zostaje w puli 3,5–7 dni (losowo, żeby wymieniały się po trochu),
+przypięte – na stałe. Na zegarku podpis z rokiem, np. „Nad jeziorem · 2019”.
+
 ## Wydanie do Sklepu rodzinnego
 
 Tag `zdjecia-vX.Y.Z` uruchamia [release-zdjecia.yml](../.github/workflows/release-zdjecia.yml)

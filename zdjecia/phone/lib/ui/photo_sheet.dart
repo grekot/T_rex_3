@@ -23,6 +23,9 @@ Future<void> showPhotoSheet(BuildContext context, PoolController pool, PoolItem 
               ClipOval(child: Image.memory(item.png, width: size, height: size, fit: BoxFit.cover)),
               const SizedBox(height: 12),
               Text(formatDateTime(item.taken), style: Theme.of(sheetContext).textTheme.titleMedium),
+              if (item.isMemory)
+                Text('Wspomnienie – zostanie w puli kilka dni, potem ustąpi innemu (przypięte zostaje)',
+                    textAlign: TextAlign.center, style: Theme.of(sheetContext).textTheme.bodySmall),
               if (s.tags.isNotEmpty) Text(s.tags.join(' · '), textAlign: TextAlign.center),
               if (item.rating != null)
                 Text('AI: ${item.rating!.score}/10 – ${item.rating!.reason}',

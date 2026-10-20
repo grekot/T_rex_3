@@ -1,14 +1,17 @@
-// Ustawienia puli: z ilu dni brać zdjęcia, ile zdjęć dla zegarka, przywracanie usuniętych.
+// Ustawienia puli: z ilu dni brać świeże zdjęcia, ile zdjęć dla zegarka, jaka część to wspomnienia
+// (starsze zdjęcia z losowych okresów), przywracanie usuniętych.
 import 'package:flutter/material.dart';
 
 import '../pool_controller.dart';
 
 const _dayOptions = [7, 14, 30, 60, 90];
 const _sizeOptions = [10, 20, 30, 50];
+const _memoryOptions = [0, 25, 50, 75];
 
 Future<void> showSettingsSheet(BuildContext context, PoolController pool) {
   var days = pool.prefs.days;
   var size = pool.prefs.size;
+  var memoryShare = pool.prefs.memoryShare;
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -20,7 +23,7 @@ Future<void> showSettingsSheet(BuildContext context, PoolController pool) {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Zdjęcia z ostatnich dni'),
+              const Text('Świeże zdjęcia z ostatnich dni'),
               const SizedBox(height: 6),
               SegmentedButton<int>(
                 segments: [for (final d in _dayOptions) ButtonSegment(value: d, label: Text('$d'))],
@@ -34,6 +37,14 @@ Future<void> showSettingsSheet(BuildContext context, PoolController pool) {
                 segments: [for (final n in _sizeOptions) ButtonSegment(value: n, label: Text('$n'))],
                 selected: {size},
                 onSelectionChanged: (s) => setState(() => size = s.first),
+              ),
+              const SizedBox(height: 16),
+              const Text('Wspomnienia (starsze zdjęcia z losowych okresów) – część puli w %'),
+              const SizedBox(height: 6),
+              SegmentedButton<int>(
+                segments: [for (final m in _memoryOptions) ButtonSegment(value: m, label: Text('$m'))],
+                selected: {memoryShare},
+                onSelectionChanged: (s) => setState(() => memoryShare = s.first),
               ),
               if (pool.prefs.removed.isNotEmpty) ...[
                 const SizedBox(height: 12),
@@ -52,7 +63,7 @@ Future<void> showSettingsSheet(BuildContext context, PoolController pool) {
                 child: FilledButton(
                   onPressed: () {
                     Navigator.pop(sheetContext);
-                    pool.updateSettings(days: days, size: size);
+                    pool.updateSettings(days: days, size: size, memoryShare: memoryShare);
                   },
                   child: const Text('Zastosuj'),
                 ),

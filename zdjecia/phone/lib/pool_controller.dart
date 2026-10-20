@@ -3,6 +3,7 @@
 // w tle podaje je zegarkowi. Ten sam kod działa w aplikacji i bez ekranu w usłudze w tle (headless);
 // blokada w plikach pilnuje, żeby nie odświeżały naraz.
 import 'dart:io';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
@@ -18,11 +19,12 @@ import 'media/gallery.dart';
 import 'select/analysis.dart';
 import 'select/candidates.dart';
 import 'select/crop.dart';
+import 'select/memories.dart';
 import 'select/pool.dart';
 import 'select/scoring.dart';
 import 'select/store.dart';
 
-enum PoolPhase { starting, scanning, analyzing, rating, preparing, ready, noAccess, failed }
+enum PoolPhase { starting, scanning, analyzing, rating, memories, preparing, ready, noAccess, failed }
 
 /// Najwięcej zdjęć wysyłanych do oceny w jednym odświeżeniu (reszta przy następnym)
 const int maxRatingsPerRefresh = 400;
@@ -31,12 +33,28 @@ const int maxRatingsPerRefresh = 400;
 const Duration ratingPause = Duration(seconds: 4);
 
 class PoolItem {
-  const PoolItem({required this.scored, required this.crop, required this.manualCrop, required this.png});
+  const PoolItem({
+    required this.scored,
+    required this.crop,
+    required this.manualCrop,
+    required this.png,
+    this.isMemory = false,
+  });
 
   final ScoredPhoto scored;
   final CropBox crop;
   final bool manualCrop;
   final Uint8List png;
+
+  /// Starsze zdjęcie z losowego okresu (wspomnienie)
+  final bool isMemory;
+
+  /// Podpis dla zegarka; przy wspomnieniu z rokiem, np. „Nad jeziorem · 2019”
+  String get watchCaption {
+    final caption = rating?.caption ?? '';
+    if (!isMemory) return caption;
+    return caption.isEmpty ? '${taken.year}' : '$caption · ${taken.year}';
+  }
 
   String get id => scored.id;
   String get watchId => watchPhotoId(scored.id, crop);
@@ -55,6 +73,8 @@ class PoolController extends ChangeNotifier {
   Map<String, PhotoAnalysis> _analyses = {};
   Map<String, PhotoRating> _ratings = {};
   Map<String, AssetEntity> _assets = {};
+  List<MemoryItem> _memories = [];
+  final _random = math.Random();
   final _keys = KeyStore();
   String _apiKey = '';
 
@@ -114,7 +134,11 @@ class PoolController extends ChangeNotifier {
   }
 
   /// Pełne odświeżenie: nowe zdjęcia z galerii, analiza nowych, pula od nowa
-  Future<void> refresh() => _run(() async {
+  Future<void> refresh() => _run(_fullRefresh);
+
+  // Cały przebieg na świeżym stanie z plików (usługa w tle mogła zmienić wspomnienia czy oceny);
+  // gdy nie ma nic nowego, trwa krótko: analizy, oceny i PNG są zapamiętane.
+  Future<void> _fullRefresh() async {
         _set(PoolPhase.scanning);
         if (headless) {
           // Bez aktywności nie da się pytać o zgodę - korzystamy z tej nadanej w aplikacji
@@ -134,14 +158,141 @@ class PoolController extends ChangeNotifier {
           final a = await AssetEntity.fromId(e.value);
           if (a != null) assets[photoIdOf(a)] = a;
         }
+        // Wspomnienia, które jeszcze nie wygasły, zostają w puli
+        _memories = [];
+        for (final m in activeMemories(await _store.loadMemories(), DateTime.now(),
+            pinned: prefs.pinned, removed: prefs.removed)) {
+          final a = assets[m.photoId] ?? await AssetEntity.fromId(m.assetId);
+          if (a == null) continue;
+          assets[photoIdOf(a)] = a;
+          _memories.add(m);
+        }
         _assets = assets;
         await _analyzeMissing();
         _forgetOld();
         await _store.saveAnalyses(_analyses);
         await _rateMissing();
+        await _refreshMemories();
         _rescore();
         await _preparePool();
-      });
+  }
+
+  /// Uzupełnia wspomnienia do udziału z ustawień: losuje okresy z historii galerii, z każdego
+  /// najlepszych kandydatów (telefon odsiewa, AI wybiera), najwyżej [maxPeriodsPerRefresh] okresów naraz.
+  Future<void> _refreshMemories() async {
+    final target = memoryTarget(prefs.size, prefs.memoryShare);
+    if (target == 0) {
+      _memories = [for (final m in _memories) if (prefs.pinned.contains(m.photoId)) m];
+      await _store.saveMemories(_memories);
+      return;
+    }
+    final need = target - _memories.length;
+    if (need <= 0) {
+      await _store.saveMemories(_memories);
+      return;
+    }
+    final oldest = await oldestCameraPhoto();
+    if (oldest == null) return;
+
+    _set(PoolPhase.memories, total: maxPeriodsPerRefresh);
+    final now = DateTime.now();
+    final hash = prefsHash(prefs.preferences);
+    final rater = aiActive
+        ? PhotoRater(client: GeminiClient(apiKey: _apiKey, model: prefs.aiModel), preferences: prefs.preferences)
+        : null;
+    const fatal = [AiErrorKind.rateLimited, AiErrorKind.unauthorized, AiErrorKind.noApiKey, AiErrorKind.badRequest];
+    final analyzer = PhotoAnalyzer(_tempDir);
+    final periodIds = <String>{};
+    var found = 0;
+    try {
+      for (var i = 0; i < maxPeriodsPerRefresh && found < need; i++) {
+        done = i;
+        notifyListeners();
+        final period = randomPeriod(oldest, now, prefs.days, _random);
+        if (period == null) break;
+        final taken = {for (final m in _memories) m.photoId};
+        final inPeriod = [
+          for (final a in await cameraPhotosBetween(period.start, period.end))
+            if (!taken.contains(photoIdOf(a)) && !prefs.removed.contains(photoIdOf(a))) a,
+        ];
+        if (inPeriod.isEmpty) continue;
+
+        // Kandydaci: rozłożeni w czasie (bez serii), przeanalizowani, odsiani przez telefon
+        final analyses = <PhotoAnalysis>[];
+        for (final a in spreadInTime(inPeriod, (a) => a.createDateTime, candidatesPerPeriod * 2)) {
+          final id = photoIdOf(a);
+          var an = _analyses[id];
+          if (an == null) {
+            try {
+              an = await analyzer.analyze(a);
+            } catch (err) {
+              debugPrint('Wspomnienie $id: $err');
+            }
+          }
+          if (an == null) continue;
+          _analyses[id] = an;
+          _assets[id] = a;
+          periodIds.add(id);
+          analyses.add(an);
+        }
+        final local = scoreAll(analyses, now: now, days: prefs.days);
+        final candidates = bestOf(local.where((s) => s.accepted).toList(), (s) => s.score, candidatesPerPeriod);
+        if (candidates.isEmpty) continue;
+
+        var chosen = <ScoredPhoto>[];
+        if (rater == null) {
+          chosen = candidates.take(1).toList(); // bez AI: najlepsze według telefonu
+        } else {
+          final toRate = [for (final s in candidates) if (_ratings[s.id]?.prefsHash != hash) s];
+          if (toRate.isNotEmpty) {
+            final inputs = <RatingInput>[];
+            final ids = <String>[];
+            for (final s in toRate) {
+              final jpeg = await imageBytes(_assets[s.id]!, 512, quality: 80);
+              if (jpeg == null) continue;
+              inputs.add(RatingInput(jpeg: jpeg, taken: s.taken));
+              ids.add(s.id);
+            }
+            try {
+              final ratings = await rater.rateBatch(inputs);
+              for (var k = 0; k < ids.length; k++) {
+                final r = ratings[k];
+                if (r != null) _ratings[ids[k]] = r;
+              }
+            } on AiException catch (e) {
+              aiError = e.userMessage;
+              if (fatal.contains(e.kind)) break;
+              continue;
+            }
+            await Future<void>.delayed(ratingPause);
+          }
+          chosen = bestOf(candidates, (s) {
+            final r = _ratings[s.id];
+            return r != null && r.keep && r.score >= minMemoryScore ? r.score + 0.01 * s.score : null;
+          }, keepPerPeriod);
+        }
+        for (final s in chosen.take(need - found)) {
+          // Ważność rozłożona losowo (3,5-7 dni), żeby wspomnienia wymieniały się po trochu,
+          // a nie wszystkie naraz - zegarek dociąga tylko 1-2 zdjęcia przy każdym wyskoczeniu
+          final age = Duration(minutes: _random.nextInt(memoryLifetime.inMinutes ~/ 2));
+          _memories.add(MemoryItem(photoId: s.id, assetId: s.analysis.assetId, addedAt: now.subtract(age), taken: s.taken));
+          found++;
+        }
+      }
+    } finally {
+      await analyzer.close();
+    }
+    // Kandydaci, którzy nie zostali wspomnieniami, nie są już potrzebni
+    final memoryIds = {for (final m in _memories) m.photoId};
+    for (final id in periodIds) {
+      if (memoryIds.contains(id)) continue;
+      _assets.remove(id);
+      _analyses.remove(id);
+    }
+    await _store.saveAnalyses(_analyses);
+    await _store.saveRatings(_ratings);
+    await _store.saveMemories(_memories);
+  }
 
   Future<void> _analyzeMissing() async {
     final todo = _assets.entries.where((e) => !_analyses.containsKey(e.key)).toList();
@@ -231,17 +382,37 @@ class PoolController extends ChangeNotifier {
   }
 
   Future<void> _preparePool() async {
-    final chosen = choosePool(
-      scored,
-      PoolRules(size: prefs.size, pinned: prefs.pinned, removed: prefs.removed),
+    // Pula = wspomnienia (najlepsze najpierw) + świeże zdjęcia na pozostałe miejsca, wg zasad puli
+    final memoryIds = {for (final m in _memories) m.photoId};
+    final memories = [
+      for (final s in scored)
+        if (memoryIds.contains(s.id) && !prefs.removed.contains(s.id)) s,
+    ]..sort((a, b) => b.score.compareTo(a.score));
+    // Przypięte wspomnienia najpierw; po zmniejszeniu udziału nadmiar odpada
+    memories.sort((a, b) => (prefs.pinned.contains(b.id) ? 1 : 0) - (prefs.pinned.contains(a.id) ? 1 : 0));
+    final pinnedMemories = memories.where((s) => prefs.pinned.contains(s.id)).length;
+    final memorySlots = math.min(
+      memories.length,
+      math.min(prefs.size, math.max(memoryTarget(prefs.size, prefs.memoryShare), pinnedMemories)),
     );
+    final recent = choosePool(
+      [for (final s in scored) if (!memoryIds.contains(s.id)) s],
+      PoolRules(size: prefs.size - memorySlots, pinned: prefs.pinned, removed: prefs.removed),
+    );
+    final chosen = [...recent, ...memories.take(memorySlots)];
     _set(PoolPhase.preparing, total: chosen.length);
     final items = <PoolItem>[];
     for (final s in chosen) {
       final manual = prefs.crops[s.id];
       final crop = manual ?? autoCrop(s.analysis, subject: s.rating?.subject);
       try {
-        items.add(PoolItem(scored: s, crop: crop, manualCrop: manual != null, png: await _png(s, crop)));
+        items.add(PoolItem(
+          scored: s,
+          crop: crop,
+          manualCrop: manual != null,
+          png: await _png(s, crop),
+          isMemory: memoryIds.contains(s.id),
+        ));
       } catch (err) {
         debugPrint('PNG ${s.id}: $err');
       }
@@ -258,7 +429,7 @@ class PoolController extends ChangeNotifier {
           path: _store.pngFile(i.id, i.crop).path,
           size: i.png.length,
           taken: i.taken,
-          caption: i.rating?.caption ?? '',
+          caption: i.watchCaption,
         ),
     ]);
     await _store.prunePngs({for (final i in items) _store.pngFile(i.id, i.crop).path});
@@ -305,16 +476,12 @@ class PoolController extends ChangeNotifier {
         }
       });
 
-  Future<void> updateSettings({required int days, required int size}) async {
-    final daysChanged = days != prefs.days;
+  Future<void> updateSettings({required int days, required int size, required int memoryShare}) async {
     prefs.days = days;
     prefs.size = size;
+    prefs.memoryShare = memoryShare;
     await _store.savePrefs(prefs);
-    if (daysChanged) {
-      await refresh();
-    } else {
-      await _run(_preparePool);
-    }
+    await refresh();
   }
 
   /// Zdjęcie wybrane ręcznie z galerii: przypięte, analizowane, jeśli trzeba
@@ -324,11 +491,7 @@ class PoolController extends ChangeNotifier {
         prefs.removed.remove(id);
         prefs.pinnedAssets[id] = asset.id;
         await _store.savePrefs(prefs);
-        _assets[id] = asset;
-        await _analyzeMissing();
-        await _store.saveAnalyses(_analyses);
-        _rescore();
-        await _preparePool();
+        await _fullRefresh();
       });
 
   AssetEntity? assetOf(String id) => _assets[id];
@@ -375,8 +538,7 @@ class PoolController extends ChangeNotifier {
   Future<void> _change(void Function() update) => _run(() async {
         update();
         await _store.savePrefs(prefs);
-        _rescore();
-        await _preparePool();
+        await _fullRefresh();
       });
 
   Future<void> _run(Future<void> Function() job) async {

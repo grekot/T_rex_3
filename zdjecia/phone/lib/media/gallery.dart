@@ -50,6 +50,33 @@ Future<List<AssetEntity>> cameraPhotos(int days) async {
   ];
 }
 
+/// Data najstarszego zdjęcia z aparatu (początek historii dla wspomnień); null = pusta galeria
+Future<DateTime?> oldestCameraPhoto() async {
+  final filter = FilterOptionGroup(
+    imageOption: const FilterOption(sizeConstraint: SizeConstraint(ignoreSize: true)),
+    createTimeCond: DateTimeCond.def().copyWith(ignore: true),
+    orders: [const OrderOption(type: OrderOptionType.createDate, asc: true)],
+  );
+  // Kilkadziesiąt najstarszych, bo pierwsze bywają zrzutami ekranu albo zdjęciami z komunikatorów
+  for (final a in await _images(filter, 50)) {
+    if (isCameraPath(a.relativePath)) return a.createDateTime;
+  }
+  return null;
+}
+
+/// Zdjęcia z aparatu z okresu [start, end) - kandydaci na wspomnienia
+Future<List<AssetEntity>> cameraPhotosBetween(DateTime start, DateTime end) async {
+  final filter = FilterOptionGroup(
+    imageOption: const FilterOption(sizeConstraint: SizeConstraint(ignoreSize: true)),
+    createTimeCond: DateTimeCond(min: start, max: end),
+    orders: [const OrderOption(type: OrderOptionType.createDate, asc: true)],
+  );
+  return [
+    for (final a in await _images(filter, 2000))
+      if (isCameraPath(a.relativePath) || a.isFavorite) a,
+  ];
+}
+
 /// Najnowsze zdjęcia z całej galerii - do ręcznego dodawania
 Future<List<AssetEntity>> recentPhotos(int limit) => _images(_filter(), limit);
 

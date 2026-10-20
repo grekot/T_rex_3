@@ -193,6 +193,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         line = 'Analizuję nowe zdjęcia: ${p.done} z ${p.total}';
       case PoolPhase.rating:
         line = 'Gemini ocenia zdjęcia: ${p.done} z ${p.total}';
+      case PoolPhase.memories:
+        line = 'Szukam wspomnień w starszych zdjęciach: okres ${p.done + 1} z ${p.total}';
       case PoolPhase.preparing:
         line = 'Kadruję zdjęcia dla zegarka: ${p.done} z ${p.total}';
       case PoolPhase.noAccess:
@@ -200,8 +202,9 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
       case PoolPhase.failed:
         line = 'Błąd: ${p.error}';
       case PoolPhase.ready:
-        line = 'Pula: ${p.pool.length} zdjęć wybranych z ${p.scored.length} '
-            '(ostatnie ${p.prefs.days} dni)';
+        final memories = p.pool.where((i) => i.isMemory).length;
+        line = 'Pula: ${p.pool.length} zdjęć – ${p.pool.length - memories} świeżych '
+            '(ostatnie ${p.prefs.days} dni) i $memories wspomnień';
     }
     final rejected = p.rejectedCounts.entries.map((e) => '${e.key} ${e.value}').join(', ');
     return Card(
@@ -282,6 +285,16 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                           Positioned.fill(child: ClipOval(child: Image.memory(item.png, fit: BoxFit.cover))),
                           if (_pool.pinned.contains(item.id))
                             const Positioned(right: 0, top: 0, child: Icon(Icons.push_pin, size: 20, color: Colors.orange)),
+                          if (item.isMemory)
+                            Positioned(
+                              left: 0,
+                              top: 0,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(8)),
+                                child: Text('${item.taken.year}', style: const TextStyle(fontSize: 11, color: Colors.orange)),
+                              ),
+                            ),
                         ],
                       ),
                     ),

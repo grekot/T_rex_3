@@ -9,6 +9,7 @@ import '../ai/gemini_client.dart';
 import '../ai/photo_rating.dart';
 import 'analysis.dart';
 import 'crop.dart';
+import 'memories.dart';
 
 class PoolPrefs {
   PoolPrefs({
@@ -22,6 +23,7 @@ class PoolPrefs {
     this.aiModel = defaultGeminiModel,
     this.preferences = '',
     this.autoEnabled = true,
+    this.memoryShare = 50,
   })  : pinned = pinned ?? {},
         removed = removed ?? {},
         crops = crops ?? {},
@@ -51,6 +53,9 @@ class PoolPrefs {
   /// Usługa w tle: most dla zegarka i odświeżanie puli bez otwierania aplikacji
   bool autoEnabled;
 
+  /// Jaka część puli (procent) to wspomnienia - starsze zdjęcia z losowych okresów
+  int memoryShare;
+
   Map<String, Object> toJson() => {
         'days': days,
         'size': size,
@@ -62,6 +67,7 @@ class PoolPrefs {
         'aiModel': aiModel,
         'preferences': preferences,
         'auto': autoEnabled,
+        'memoryShare': memoryShare,
       };
 
   factory PoolPrefs.fromJson(Map<String, dynamic> j) => PoolPrefs(
@@ -78,6 +84,7 @@ class PoolPrefs {
         aiModel: j['aiModel'] as String? ?? defaultGeminiModel,
         preferences: j['preferences'] as String? ?? '',
         autoEnabled: j['auto'] as bool? ?? true,
+        memoryShare: j['memoryShare'] as int? ?? 50,
       );
 }
 
@@ -175,6 +182,18 @@ class SelectStore {
   File get _publishedFile => File('${dir.path}/published.json');
   File get _autoFile => File('${dir.path}/auto.json');
   File get _lockFile => File('${dir.path}/refresh.lock');
+  File get _memoriesFile => File('${dir.path}/memories.json');
+
+  Future<List<MemoryItem>> loadMemories() async {
+    final j = await _readJson(_memoriesFile);
+    return [
+      for (final m in (j?['items'] as List? ?? const []))
+        if (m is Map) MemoryItem.fromJson(m.cast<String, dynamic>()),
+    ];
+  }
+
+  Future<void> saveMemories(List<MemoryItem> items) =>
+      _writeJson(_memoriesFile, {'items': [for (final m in items) m.toJson()]});
   Directory get pngDir => Directory('${dir.path}/png');
 
   /// Pula dla zegarka (most w usłudze w tle czyta ją przy każdym zapytaniu zegarka)
