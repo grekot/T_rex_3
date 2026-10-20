@@ -1,13 +1,14 @@
 // Najbliższe niezdobyte szczyty ze strzałką kompasu (jak w aplikacji Powrót).
-// Bez parametrów: kolejne szczyty po odległości (‹ ›). Z { id }: prowadzi do jednego szczytu.
+// Bez parametrów: ze wszystkich list, { g }: z jednej listy - kolejne po odległości (‹ ›).
+// Z { id }: prowadzi do jednego szczytu.
 import * as hmUI from "@zos/ui";
 import { push } from "@zos/router";
 import { showToast } from "@zos/interaction";
 import { px } from "@zos/utils";
-import { findPeak } from "../../../utils/peaks";
+import { findPeak, findGroup, allPeaks } from "../../../utils/peaks";
 import { distance, bearing, relativeAngle, smoothAngle, formatDistance, cardinal } from "../../../utils/geo";
-import { nearestUnclimbed, createSummitWatcher, todayKey, peakLine } from "../../../utils/korona";
-import { loadClimbs, climbsStamp, saveClimb } from "../../../utils/store";
+import { nearestUnclimbed, createSummitWatcher, climbOf, todayKey, peakLine } from "../../../utils/korona";
+import { loadClimbs, loadCustom, stamp, saveClimb } from "../../../utils/store";
 import { startGps, startCompass } from "../../../utils/sensors";
 import { setupScreen, vibrate } from "../../../utils/device";
 import { button, setText, parseParams, COLOR_WHITE, COLOR_GREY, COLOR_GREEN, COLOR_ORANGE } from "../../../utils/ui";
@@ -33,7 +34,9 @@ Page({
   state: {},
 
   onInit(params) {
-    this.state.fixedId = parseParams(params).id || "";
+    const p = parseParams(params);
+    this.state.fixedId = p.id || "";
+    this.state.groupId = findGroup(p.g) ? p.g : null;
   },
 
   build() {
@@ -62,14 +65,14 @@ Page({
 
     this.reload();
     s.stampTimer = setInterval(() => {
-      if (climbsStamp() !== s.stamp) this.reload();
+      if (stamp() !== s.stamp) this.reload();
     }, STAMP_POLL_MS);
 
     s.gps = startGps((fix) => {
       s.fix = fix || s.fix;
-      const r = s.watcher.update(fix);
+      const r = s.watcher.update(fix, s.peaks);
       s.summit = r.peak;
-      if (r.entered && !s.climbs[r.peak.id]) vibrate();
+      if (r.entered && !climbOf(r.peak.id, s.climbs, s.custom)) vibrate();
       this.update();
     });
     s.compass = startCompass((angle) => {
@@ -87,8 +90,10 @@ Page({
 
   reload() {
     const s = this.state;
-    s.stamp = climbsStamp();
+    s.stamp = stamp();
     s.climbs = loadClimbs();
+    s.custom = loadCustom();
+    s.peaks = allPeaks(s.custom);
     this.update();
   },
 
@@ -96,18 +101,19 @@ Page({
   targets() {
     const s = this.state;
     if (s.fixedId) {
-      const p = findPeak(s.fixedId);
+      const p = findPeak(s.fixedId, s.custom);
       return p ? [{ peak: p, distance: s.fix ? distance(s.fix.lat, s.fix.lon, p.lat, p.lon) : null }] : [];
     }
-    return nearestUnclimbed(s.fix, s.climbs, 0);
+    return nearestUnclimbed(s.fix, s.climbs, s.groupId, 0);
   },
 
   // Wybrany cel z kolejki policzonej przy ostatniej pozycji GPS
   target() {
     const s = this.state;
     const list = s.list || [];
+    // Dopóki nie przełączono ‹ ›, celem jest zawsze najbliższy (zmienia się, gdy idziesz)
     let i = 0;
-    for (let k = 0; k < list.length; k++) if (list[k].peak.id === s.selectedId) i = k;
+    if (s.picked) for (let k = 0; k < list.length; k++) if (list[k].peak.id === s.selectedId) i = k;
     const t = list[i] || null;
     s.selectedId = t ? t.peak.id : "";
     return { t, i, n: list.length };
@@ -118,7 +124,9 @@ Page({
     const list = s.list || [];
     if (!list.length) return;
     const { i } = this.target();
-    s.selectedId = list[(i + delta + list.length) % list.length].peak.id;
+    const next = (i + delta + list.length) % list.length;
+    s.selectedId = list[next].peak.id;
+    s.picked = next !== 0;
     this.update();
   },
 
@@ -128,10 +136,11 @@ Page({
     s.list = this.targets();
     const { t, i, n } = this.target();
     if (s.index) setText(s.index, INDEX_STYLE, n ? i + 1 + " / " + n : "");
+    if (s.groupLabel === undefined) s.groupLabel = s.groupId ? findGroup(s.groupId).short : "";
 
     if (!t) {
       setText(s.name, NAME_STYLE, s.fix ? "Wszystko zdobyte!" : "Najbliższe szczyty", s.fix ? COLOR_GREEN : COLOR_WHITE);
-      setText(s.line, LINE_STYLE, "");
+      setText(s.line, LINE_STYLE, s.groupLabel);
       setText(s.distance, DISTANCE_STYLE, "--", COLOR_GREY);
       setText(s.direction, DIRECTION_STYLE, "");
     } else {
@@ -153,7 +162,7 @@ Page({
     } else if (s.summit) {
       setText(s.hint, HINT_STYLE, "Jesteś na szczycie " + s.summit.name + "!", COLOR_GREEN);
     }
-    this.setAction(s.summit && !s.climbs[s.summit.id] ? "climb" : t ? "details" : "none");
+    this.setAction(s.summit && !climbOf(s.summit.id, s.climbs, s.custom) ? "climb" : t ? "details" : "none");
     this.updateArrow();
   },
 

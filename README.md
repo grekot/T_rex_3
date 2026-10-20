@@ -14,7 +14,7 @@ Każda aplikacja ma własny folder i buduje się niezależnie.
 | [retro-lcd-negatyw](retro-lcd-negatyw/README.md) | Retro LCD Negatyw – ta sama tarcza w negatywie (folder generowany z retro-lcd) |
 | [lista-zakupow](lista-zakupow/README.md) | Zakupy – lista zakupów: aplikacja Flutter na telefon + odhaczanie na zegarku (Firebase) |
 | [powrot](powrot/README.md)          | Powrót – zapisz miejsce (np. parking) i wróć do niego ze strzałką kompasu (GPS, offline) + aplikacja na telefon (Google Maps, trasa GPX) |
-| [korona](korona/README.md)          | Korona – Korona Gór Polski: zegarek rozpoznaje szczyt po GPS i zapisuje zdobycie z datą, postęp 12/28, najbliższe niezdobyte ze strzałką |
+| [korona](korona/README.md)          | Korona – zdobyte szczyty: Korona Gór Polski, Beskid Wyspowy, Sądecki, Gorce, Tatry (652); zegarek rozpoznaje szczyt po GPS i zapisuje datę, własne szczyty, najbliższe ze strzałką + aplikacja na telefon |
 | [zdjecia](zdjecia/README.md)        | Zdjęcia – najciekawsze zdjęcia z galerii telefonu na zegarku (etap próbny: most 127.0.0.1, pomiar przesyłu) |
 | [wspolne](wspolne/README.md)        | kod Fluttera wspólny dla Zakupów i Powrotu (konto, znajomi, udostępnianie) – nie jest osobną aplikacją |
 

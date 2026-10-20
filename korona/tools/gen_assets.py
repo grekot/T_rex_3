@@ -107,47 +107,72 @@ def mask_round(im):
 
 def preview_home(at_summit=False):
     im, d = screen()
-    d.text((240, 46), "KORONA GÓR POLSKI", font=font(22), fill=ORANGE, anchor="mm")
-    d.text((240, 100), "12 / 28", font=font(64), fill=WHITE, anchor="mm")
-    d.rounded_rectangle([120, 144, 360, 154], 5, fill=TRACK)
-    d.rounded_rectangle([120, 144, 120 + 240 * 12 // 28, 154], 5, fill=ORANGE)
-    d.rounded_rectangle([50, 170, 430, 288], 26, fill=ROW)
+    d.text((240, 44), "KORONA", font=font(22), fill=ORANGE, anchor="mm")
+    d.text((240, 96), "41", font=font(64), fill=WHITE, anchor="mm")
+    d.text((240, 144), "zdobytych szczytów", font=font(20), fill=GREY, anchor="mm")
+    d.rounded_rectangle([50, 168, 430, 286], 26, fill=ROW)
     if at_summit:
-        d.text((240, 202), "Jesteś na szczycie!", font=font(28), fill=GREEN, anchor="mm")
-        d.text((240, 248), "Ślęża · 718 m", font=font(20), fill=WHITE, anchor="mm")
-        pill(d, (110, 300, 260, 62), GREEN_BTN, "Zaliczam", 30)
+        d.text((240, 200), "Jesteś na szczycie!", font=font(28), fill=GREEN, anchor="mm")
+        d.text((240, 246), "Ćwilin · 1072 m · Beskid Wyspowy", font=font(20), fill=WHITE, anchor="mm")
+        pill(d, (110, 298, 260, 62), GREEN_BTN, "Zaliczam", 30)
     else:
-        d.text((240, 202), "Najbliższy: Ślęża", font=font(28), fill=WHITE, anchor="mm")
-        d.text((240, 248), "23,4 km · Pd-Zach · Masyw Ślęży", font=font(20), fill=GREY, anchor="mm")
-        pill(d, (110, 300, 260, 62), BUTTON, "Najbliższe ›", 26)
-    d.text((240, 398), "Szczyty · stuknij po szczegóły", font=font(20), fill=GREY, anchor="mm")
-    rows = [("Rysy", "15.07.2024", True), ("Babia Góra", "1725 m", False)]
-    for i, (name, right, done) in enumerate(rows):
-        y = 424 + i * 78
-        d.rounded_rectangle([46, y, 434, y + 70], 20, fill=ROW)
-        d.ellipse([74 - 9, y + 35 - 9, 74 + 9, y + 35 + 9], fill=GREEN if done else TRACK)
-        d.text((94, y + 35), name, font=font(26), fill=WHITE if done else GREY, anchor="lm")
-        d.text((418, y + 35), right, font=font(20), fill=GREEN if done else GREY, anchor="rm")
+        d.text((240, 200), "Najbliższy: Śnieżnica", font=font(28), fill=WHITE, anchor="mm")
+        d.text((240, 246), "2,35 km · Pd-Wsch · Beskid Wyspowy", font=font(20), fill=GREY, anchor="mm")
+        pill(d, (110, 298, 260, 62), BUTTON, "Najbliższe ›", 26)
+    group_rows(d, [("Korona Gór Polski", 12, 28), ("Beskid Wyspowy", 23, 145)], 384)
     return mask_round(im)
 
 
+def group_rows(d, rows, top):
+    for i, (name, done, total) in enumerate(rows):
+        y = top + i * 80
+        d.rounded_rectangle([46, y, 434, y + 72], 20, fill=ROW)
+        d.text((70, y + 29), name, font=font(26), fill=WHITE, anchor="lm")
+        d.text((412, y + 29), "%d / %d" % (done, total) if total else str(done), font=font(24), fill=GREY, anchor="rm")
+        if total:
+            d.rounded_rectangle([70, y + 56, 410, y + 62], 3, fill=TRACK)
+            d.rounded_rectangle([70, y + 56, 70 + 340 * done // total, y + 62], 3, fill=ORANGE)
+
+
 def preview_list():
-    """Środek przewiniętej listy."""
+    """Ekran główny przewinięty do list."""
     im, d = screen()
-    rows = [
-        ("Mogielica", "02.08.2023", True),
-        ("Wysoka Kopa", "1126 m", False),
-        ("Rudawiec", "1106 m", False),
-        ("Orlica", "14.10.2025", True),
-        ("Wysoka", "1050 m", False),
-        ("Wielka Sowa", "01.05.2022", True),
-    ]
+    group_rows(
+        d,
+        [("Korona Gór Polski", 12, 28), ("Beskid Wyspowy", 23, 145), ("Beskid Sądecki", 9, 156),
+         ("Gorce", 17, 126), ("Tatry polskie", 31, 196), ("Moje szczyty", 3, 0)],
+        8,
+    )
+    return mask_round(im)
+
+
+def preview_group():
+    im, d = screen()
+    d.text((240, 38), "Beskid Wyspowy", font=font(22), fill=ORANGE, anchor="mm")
+    d.text((240, 80), "23 / 145", font=font(46), fill=WHITE, anchor="mm")
+    d.rounded_rectangle([130, 112, 350, 120], 4, fill=TRACK)
+    d.rounded_rectangle([130, 112, 130 + 220 * 23 // 145, 120], 4, fill=ORANGE)
+    pill(d, (145, 128, 190, 44), BUTTON, "Najbliższe ›", 22)
+    rows = [("Ćwilin", "20.10.2026", True), ("Mogielica", "06.06.2021", True), ("Luboń Wielki", "12.05.2019", True),
+            ("Kutrzyca", "1051 m", False)]
     for i, (name, right, done) in enumerate(rows):
-        y = 6 + i * 78
-        d.rounded_rectangle([46, y, 434, y + 70], 20, fill=ROW)
-        d.ellipse([74 - 9, y + 35 - 9, 74 + 9, y + 35 + 9], fill=GREEN if done else TRACK)
-        d.text((94, y + 35), name, font=font(26), fill=WHITE if done else GREY, anchor="lm")
-        d.text((418, y + 35), right, font=font(20), fill=GREEN if done else GREY, anchor="rm")
+        y = 184 + i * 74
+        d.rounded_rectangle([40, y, 440, y + 66], 18, fill=ROW)
+        d.text((60, y + 33), name, font=font(24), fill=WHITE if done else GREY, anchor="lm")
+        d.text((422, y + 33), right, font=font(19), fill=GREEN if done else GREY, anchor="rm")
+    return mask_round(im)
+
+
+def preview_add():
+    im, d = screen()
+    d.text((240, 50), "Nowy szczyt", font=font(22), fill=GREY, anchor="mm")
+    d.rounded_rectangle([70, 72, 410, 136], 20, fill=ROW)
+    d.text((240, 104), "Szczyt 4", font=font(30), fill=WHITE, anchor="mm")
+    d.text((240, 151), "stuknij, żeby wpisać nazwę", font=font(17), fill=GREY, anchor="mm")
+    d.text((240, 191), "49.71245 N, 20.30118 E", font=font(22), fill=WHITE, anchor="mm")
+    d.text((240, 238), "Szczyt trafi do listy „Moje szczyty”", font=font(19), fill=GREY, anchor="mm")
+    d.text((240, 262), "z dzisiejszą datą.", font=font(19), fill=GREY, anchor="mm")
+    pill(d, (90, 304, 300, 62), GREEN_BTN, "Zapisz szczyt", 26)
     return mask_round(im)
 
 
@@ -155,7 +180,7 @@ def preview_peak():
     im, d = screen()
     d.text((240, 59), "Śnieżka", font=font(36), fill=WHITE, anchor="mm")
     d.text((240, 100), "1603 m · Karkonosze", font=font(22), fill=GREY, anchor="mm")
-    d.text((240, 140), "wierzchołek graniczny", font=font(18), fill=GREY, anchor="mm")
+    d.text((240, 140), "KGP · wierzchołek graniczny", font=font(18), fill=GREY, anchor="mm")
     d.text((240, 193), "Zdobyty 15.07.2024", font=font(34), fill=GREEN, anchor="mm")
     d.text((240, 230), "zaliczony na szczycie (GPS)", font=font(18), fill=GREY, anchor="mm")
     d.text((240, 263), "214 km stąd · Zach", font=font(22), fill=WHITE, anchor="mm")
@@ -206,6 +231,8 @@ def main():
         "podglad.png": preview_home(),
         "podglad-szczyt-gps.png": preview_home(at_summit=True),
         "podglad-lista.png": preview_list(),
+        "podglad-pasmo.png": preview_group(),
+        "podglad-dodaj.png": preview_add(),
         "podglad-szczegoly.png": preview_peak(),
         "podglad-najblizsze.png": preview_nearest(),
         "podglad-data.png": preview_date(),

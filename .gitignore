@@ -7,6 +7,9 @@ lista-zakupow/watch/utils/firebase-config.js
 powrot/watch/utils/firebase-config.js
 powrot/phone/android/app/google-services.json
 powrot/phone/lib/firebase_options.dart
+korona/watch/utils/firebase-config.js
+korona/phone/android/app/google-services.json
+korona/phone/lib/firebase_options.dart
 
 # Flutter / Dart
 build/

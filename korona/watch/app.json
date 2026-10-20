@@ -5,12 +5,12 @@
     "appName": "Korona",
     "appType": "app",
     "version": {
-      "code": 1,
-      "name": "1.0.0"
+      "code": 2,
+      "name": "1.1.0"
     },
     "icon": "icon.png",
     "vender": "grekot",
-    "description": "Korona Gor Polski - zegarek rozpoznaje szczyt i zapisuje zdobycie z data"
+    "description": "Korona Gor Polski, Beskid Wyspowy, Sadecki, Gorce, Tatry - zegarek rozpoznaje szczyt i zapisuje zdobycie"
   },
   "permissions": [
     "data:os.device.info",
@@ -32,10 +32,18 @@
         "page": {
           "pages": [
             "page/gt/home/index.page",
+            "page/gt/group/index.page",
             "page/gt/peak/index.page",
             "page/gt/date/index.page",
-            "page/gt/nearest/index.page"
+            "page/gt/nearest/index.page",
+            "page/gt/add/index.page"
           ]
+        },
+        "app-side": {
+          "path": "app-side/index"
+        },
+        "setting": {
+          "path": "setting/index"
         }
       },
       "platforms": [

@@ -1,10 +1,10 @@
-App({
-  globalData: {},
-  onCreate(options) {
-    console.log("app on create invoke");
-  },
+import { BaseApp } from "@zeppos/zml/base-app";
 
-  onDestroy(options) {
-    console.log("app on destroy invoke");
-  },
-});
+// BaseApp z biblioteki zml uruchamia kanał komunikacji zegarek <-> telefon (synchronizacja zdobyć)
+App(
+  BaseApp({
+    globalData: {},
+    onCreate() {},
+    onDestroy() {},
+  })
+);

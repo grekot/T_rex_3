@@ -1,14 +1,15 @@
-// Szczegóły szczytu: wysokość, pasmo, data zdobycia, odległość. Zaliczenie na szczycie (GPS),
-// dodanie daty z przeszłości, zmiana daty i cofnięcie zdobycia.
+// Szczegóły szczytu: wysokość, pasmo, listy, data zdobycia, odległość. Zaliczenie na szczycie (GPS),
+// dodanie daty z przeszłości, zmiana daty i cofnięcie. Własny szczyt: zmiana nazwy i usunięcie.
 import * as hmUI from "@zos/ui";
-import { push } from "@zos/router";
+import { push, back } from "@zos/router";
 import { createModal, MODAL_CONFIRM, showToast } from "@zos/interaction";
-import { findPeak } from "../../../utils/peaks";
+import { findPeak, findGroup, allPeaks } from "../../../utils/peaks";
 import { distance, bearing, formatDistance, cardinal } from "../../../utils/geo";
-import { createSummitWatcher, todayKey, formatDate, peakLine, variantLine } from "../../../utils/korona";
-import { loadClimbs, climbsStamp, saveClimb, deleteClimb } from "../../../utils/store";
+import { createSummitWatcher, climbOf, todayKey, formatDate, peakLine, variantLine } from "../../../utils/korona";
+import { loadClimbs, loadCustom, stamp, saveClimb, deleteClimb, renameCustom } from "../../../utils/store";
 import { startGps } from "../../../utils/sensors";
 import { setupScreen, vibrate } from "../../../utils/device";
+import { canType, askText } from "../../../utils/input";
 import { button, setText, parseParams, COLOR_WHITE, COLOR_GREY, COLOR_GREEN, COLOR_ORANGE } from "../../../utils/ui";
 import {
   NAME_STYLE,
@@ -25,8 +26,11 @@ const DATE_PAGE = "page/gt/date/index.page";
 const NEAREST_PAGE = "page/gt/nearest/index.page";
 const STAMP_POLL_MS = 1000;
 
+// „KGP · Tatry · wierzchołek graniczny”
 function noteFor(peak) {
   const parts = [];
+  if (peak.custom) parts.push(canType() ? "własny szczyt · stuknij nazwę, by zmienić" : "własny szczyt");
+  else parts.push(peak.groups.map((g) => (findGroup(g) || { short: g }).short).join(" · "));
   if (peak.variantOf) parts.push(variantLine(peak));
   if (peak.note) parts.push(peak.note);
   if (peak.border) parts.push("wierzchołek graniczny");
@@ -42,19 +46,21 @@ Page({
 
   build() {
     const s = this.state;
-    s.peak = findPeak(s.id);
+    s.custom = loadCustom();
+    s.peak = findPeak(s.id, s.custom);
     s.fix = null;
     s.here = false;
     s.buttons = [];
     s.buttonsKey = "";
     setupScreen(30000);
 
-    const name = hmUI.createWidget(hmUI.widget.TEXT, NAME_STYLE);
+    s.name = hmUI.createWidget(hmUI.widget.TEXT, NAME_STYLE);
     if (!s.peak) {
-      setText(name, NAME_STYLE, "Nie ma szczytu");
+      setText(s.name, NAME_STYLE, "Nie ma szczytu");
       return;
     }
-    setText(name, NAME_STYLE, s.peak.name);
+    setText(s.name, NAME_STYLE, s.peak.name);
+    if (s.peak.custom && canType()) s.name.addEventListener(hmUI.event.CLICK_UP, () => this.rename());
     hmUI.createWidget(hmUI.widget.TEXT, { ...LINE_STYLE, text: peakLine(s.peak) });
     hmUI.createWidget(hmUI.widget.TEXT, { ...NOTE_STYLE, text: noteFor(s.peak) });
     s.status = hmUI.createWidget(hmUI.widget.TEXT, STATUS_STYLE);
@@ -63,14 +69,14 @@ Page({
 
     this.refresh();
     s.stampTimer = setInterval(() => {
-      if (climbsStamp() !== s.stamp) this.refresh();
+      if (stamp() !== s.stamp) this.refresh();
     }, STAMP_POLL_MS);
 
     // Rozpoznanie tylko tego szczytu - ten sam strażnik co na ekranie głównym
     const watcher = createSummitWatcher();
     s.gps = startGps((fix) => {
       s.fix = fix || s.fix;
-      const r = watcher.update(fix);
+      const r = watcher.update(fix, s.peaks);
       const here = !!(r.peak && r.peak.id === s.peak.id);
       if (here && r.entered && !s.climb) vibrate();
       s.here = here;
@@ -86,8 +92,19 @@ Page({
 
   refresh() {
     const s = this.state;
-    s.stamp = climbsStamp();
-    s.climb = loadClimbs()[s.peak.id] || null;
+    s.stamp = stamp();
+    s.custom = loadCustom();
+    s.peaks = allPeaks(s.custom);
+    // Własny szczyt usunięty - wracamy
+    if (s.peak.custom && !s.custom[s.peak.id]) {
+      back();
+      return;
+    }
+    if (s.peak.custom) {
+      s.peak = findPeak(s.peak.id, s.custom);
+      setText(s.name, NAME_STYLE, s.peak.name);
+    }
+    s.climb = climbOf(s.peak.id, loadClimbs(), s.custom);
     this.render();
   },
 
@@ -128,7 +145,7 @@ Page({
     const openDate = () => push({ url: DATE_PAGE, params: JSON.stringify({ id: s.peak.id }) });
     if (key === "climbed") {
       s.buttons.push(button(BUTTON1_RECT, "Zmień datę", "secondary", openDate));
-      s.buttons.push(button(BUTTON2_RECT, "Cofnij", "danger", () => this.undo()));
+      s.buttons.push(button(BUTTON2_RECT, s.peak.custom ? "Usuń" : "Cofnij", "danger", () => this.undo()));
     } else if (key === "here") {
       s.buttons.push(button(BUTTON1_RECT, "Zaliczam", "success", () => this.climbNow()));
       s.buttons.push(button(BUTTON2_RECT, "Inna data", "secondary", openDate));
@@ -154,7 +171,7 @@ Page({
   undo() {
     const s = this.state;
     const dialog = createModal({
-      content: "Cofnąć zdobycie: " + s.peak.name + "?",
+      content: (s.peak.custom ? "Usunąć szczyt: " : "Cofnąć zdobycie: ") + s.peak.name + "?",
       autoHide: true,
       onClick: (k) => {
         if (k && k.type === MODAL_CONFIRM) {
@@ -166,5 +183,13 @@ Page({
     try {
       dialog.show(true);
     } catch (e) {}
+  },
+
+  rename() {
+    const s = this.state;
+    askText((text) => {
+      renameCustom(s.peak.id, text);
+      this.refresh();
+    });
   },
 });

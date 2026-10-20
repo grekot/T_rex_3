@@ -8,10 +8,8 @@
 // Pola: id, name, h (m n.p.m.), range (pasmo), lat, lon, osm, border (wierzchołek graniczny),
 // variantOf (tylko warianty: id szczytu z listy, którego pasmo reprezentują), note.
 
-export const LIST_NAME = "Korona Gór Polski";
-export const LIST_SHORT = "KGP";
-
-export const PEAKS = [
+// Źródło dla tools/fetch_peaks.mjs (stąd trafia do data/peaks.json) - zegarek czyta peaks-data.js.
+export const KGP = [
   { id: "rysy", name: "Rysy", h: 2499, range: "Tatry", lat: 49.1795756, lon: 20.0881081, osm: 4366169405, border: true },
   { id: "babia", name: "Babia Góra", h: 1725, range: "Beskid Żywiecki", lat: 49.5730231, lon: 19.5293303, osm: 477984782, border: true, note: "Wierzchołek Diablak" },
   { id: "sniezka", name: "Śnieżka", h: 1603, range: "Karkonosze", lat: 50.7360326, lon: 15.7396072, osm: 1850303773, border: true },
@@ -49,11 +47,3 @@ export const PEAKS = [
   { id: "postawna", name: "Postawna", h: 1117, range: "Góry Złote", lat: 50.2217821, lon: 17.0111503, osm: 1890147175, variantOf: "rudawiec", note: "Na pierwszej liście z 1997 r." },
   { id: "trzykorony", name: "Trzy Korony", h: 982, range: "Pieniny", lat: 49.4138332, lon: 20.4142155, osm: 253737989, variantOf: "wysoka", note: "Na pierwszej liście z 1997 r." },
 ];
-
-export const OFFICIAL = PEAKS.filter((p) => !p.variantOf);
-export const VARIANTS = PEAKS.filter((p) => p.variantOf);
-
-export function findPeak(id) {
-  for (let i = 0; i < PEAKS.length; i++) if (PEAKS[i].id === id) return PEAKS[i];
-  return null;
-}

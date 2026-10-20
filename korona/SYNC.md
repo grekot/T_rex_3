@@ -6,8 +6,9 @@ aplikacjach naraz.
 
 ## 1. Lista szczytów: `data/peaks.json`
 
-Jedno źródło prawdy, generowane narzędziem w `tools/` (zegarek dostaje z niego
-`watch/utils/peaks.js`, telefon kopiuje plik do swoich assetów). Nie edytuj ręcznie.
+Jedno źródło prawdy, generowane przez `tools/fetch_peaks.mjs` (KGP z `watch/utils/kgp.js`
++ kategorie Wikipedii + współrzędne OSM). Zegarek dostaje z niego `watch/utils/peaks-data.js`
+(`tools/build_watch_data.mjs`), telefon kopiuje plik do swoich assetów. Nie edytuj ręcznie.
 
 ```json
 {
@@ -25,12 +26,16 @@ Jedno źródło prawdy, generowane narzędziem w `tools/` (zegarek dostaje z nie
 ```
 
 - `id` – stały identyfikator szczytu (klucz zdobycia). 34 szczyty KGP mają nazwy
-  (`rysy`, `babia`…), pozostałe `o<id węzła OSM>`, np. `o1236685520`.
+  (`rysy`, `babia`…), pozostałe `o<id węzła OSM>`, np. `o1843836472` (Ćwilin), a 57 bez
+  węzła OSM – `w<id strony Wikipedii>`.
 - `groups` – do których list należy szczyt (jeden szczyt może być w kilku, np. Turbacz:
-  `kgp` + `gorce`). Planowane grupy: `kgp`, `wyspowy`, `sadecki`, `gorce`, `tatry`.
+  `kgp` + `gorce`). Grupy: `kgp`, `wyspowy`, `sadecki`, `gorce`, `tatry`; na zegarku
+  dochodzi `moje` (własne szczyty z `custom`, nie ma ich w pliku).
 - `counted` w grupie – ile szczytów liczy się do „X / N” (dla KGP 28; warianty nie).
 - `variantOf` – tylko KGP: wariant szczytu z listy (rozpoznawany, nie liczy się do 28).
-- Opcjonalne: `border`, `note`, `osm`.
+- Opcjonalne: `border`, `note`, `osm` (id węzła OSM), `wiki` (tytuł strony w pl.wikipedii,
+  nawias rozróżnia powtarzające się nazwy, np. „Kiczora (806 m)”), `r` (promień rozpoznania
+  w metrach, gdy mniejszy niż domyślne 120 – tylko dla zegarka).
 - `h` – metry n.p.m. (liczba całkowita, może brakować przy szczytach bez wysokości w OSM).
 
 ## 2. Zdobycia: Firestore, dokument `korona/{uid}`

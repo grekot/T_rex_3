@@ -4,8 +4,8 @@ import { back } from "@zos/router";
 import { showToast } from "@zos/interaction";
 import { px } from "@zos/utils";
 import { findPeak } from "../../../utils/peaks";
-import { todayKey, parseKey, dateKey, stepDate, formatDate } from "../../../utils/korona";
-import { loadClimbs, saveClimb } from "../../../utils/store";
+import { todayKey, parseKey, dateKey, stepDate, formatDate, climbOf } from "../../../utils/korona";
+import { loadClimbs, loadCustom, saveClimb } from "../../../utils/store";
 import { setupScreen } from "../../../utils/device";
 import { button, setText, parseParams } from "../../../utils/ui";
 import {
@@ -32,19 +32,22 @@ Page({
 
   build() {
     const s = this.state;
-    s.peak = findPeak(s.id);
+    s.custom = loadCustom();
+    s.peak = findPeak(s.id, s.custom);
     setupScreen(60000);
     hmUI.createWidget(hmUI.widget.TEXT, TITLE_STYLE);
     hmUI.createWidget(hmUI.widget.TEXT, { ...NAME_STYLE, text: s.peak ? s.peak.name : "Nie ma szczytu" });
     if (!s.peak) return;
 
-    const climb = loadClimbs()[s.peak.id];
+    const climb = climbOf(s.peak.id, loadClimbs(), s.custom);
     s.date = parseKey(climb ? climb.d : todayKey(Date.now()));
     s.values = {};
     FIELDS.forEach((f) => {
       hmUI.createWidget(hmUI.widget.TEXT, labelStyle(f));
       button(plusRect(f), "+", "secondary", () => this.step(f, 1), px(36));
       s.values[f] = hmUI.createWidget(hmUI.widget.TEXT, valueStyle(f));
+      // Stuknięcie w rok cofa o 10 lat (szybciej do starych wyjść)
+      if (f === "y") s.values[f].addEventListener(hmUI.event.CLICK_UP, () => this.step("y", -10));
       button(minusRect(f), "−", "secondary", () => this.step(f, -1), px(36));
     });
     s.weekday = hmUI.createWidget(hmUI.widget.TEXT, WEEKDAY_STYLE);
@@ -64,13 +67,13 @@ Page({
     setText(s.values.m, valueStyle("m"), two(s.date.m));
     setText(s.values.y, valueStyle("y"), String(s.date.y));
     const wd = new Date(s.date.y, s.date.m - 1, s.date.d).getDay();
-    setText(s.weekday, WEEKDAY_STYLE, WEEKDAYS[wd]);
+    setText(s.weekday, WEEKDAY_STYLE, WEEKDAYS[wd] + " · stuknij rok: −10 lat");
   },
 
   save() {
     const s = this.state;
     const key = dateKey(s.date.y, s.date.m, s.date.d);
-    const old = loadClimbs()[s.peak.id];
+    const old = climbOf(s.peak.id, loadClimbs(), loadCustom());
     // „Zaliczony przez GPS” zostaje tylko, gdy data się nie zmieniła
     saveClimb(s.peak.id, key, !!(old && old.gps && old.d === key));
     try {
