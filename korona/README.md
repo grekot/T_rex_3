@@ -104,7 +104,7 @@ należy do osobnej odznaki *Korona Beskidu Śląskiego*. Dlatego ich nie dodałe
 - Współrzędne wierzchołków: [OpenStreetMap](https://www.openstreetmap.org/), węzły
   `natural=peak` (© współtwórcy OpenStreetMap, licencja ODbL), pobrane 20.10.2026 przez
   Overpass API i Nominatim. Id węzła każdego szczytu jest w polu `osm` w
-  [utils/peaks.js](utils/peaks.js) – można go podejrzeć pod adresem
+  [watch/utils/peaks.js](watch/utils/peaks.js) – można go podejrzeć pod adresem
   `https://www.openstreetmap.org/node/<id>`.
 
 ## Kiedy zegarek uznaje, że jesteś na szczycie
@@ -121,12 +121,12 @@ należy do osobnej odznaki *Korona Beskidu Śląskiego*. Dlatego ich nie dodałe
 
 Wyjście ze szczytu liczy się dopiero od 200 m (żeby komunikat nie migał), a dwa odczyty
 z rzędu chronią przed pojedynczym skokiem GPS. Wartości są w
-[utils/korona.js](utils/korona.js) (`SUMMIT_RADIUS_M`, `LEAVE_RADIUS_M`, `CONFIRM_FIXES`).
+[watch/utils/korona.js](watch/utils/korona.js) (`SUMMIT_RADIUS_M`, `LEAVE_RADIUS_M`, `CONFIRM_FIXES`).
 
 ## Instalacja
 
 ```bash
-cd korona
+cd korona/watch
 zeus preview
 ```
 
@@ -145,21 +145,26 @@ kasuje zapis.
 ## Dla programisty
 
 ```
-app.json                 appId 1087166, strony, uprawnienia
-page/gt/home/            ekran główny: postęp, karta GPS, lista
-page/gt/peak/            szczegóły szczytu, Zaliczam / Cofnij
-page/gt/date/            wybór daty zdobycia
-page/gt/nearest/         najbliższe niezdobyte + strzałka kompasu
-utils/peaks.js           lista 28 szczytów + warianty (współrzędne z OSM)
-utils/korona.js          rozpoznanie szczytu, najbliższe, postęp, daty (czyste funkcje)
-utils/geo.js             odległość, kierunek, formatowanie (z aplikacji Powrót)
-utils/sensors.js         GPS i kompas (z aplikacji Powrót)
-utils/store.js           zapis w LocalStorage
-test/*.test.mjs          testy Node: npm test
-tools/gen_assets.py      ikona, strzałka i podglądy (Pillow): npm run assets
+watch/                   aplikacja na zegarek (projekt zeus - tylko z tego folderu `zeus build`)
+  app.json               appId 1087166, strony, uprawnienia
+  page/gt/home/          ekran główny: postęp, karta GPS, lista
+  page/gt/peak/          szczegóły szczytu, Zaliczam / Cofnij
+  page/gt/date/          wybór daty zdobycia
+  page/gt/nearest/       najbliższe niezdobyte + strzałka kompasu
+  utils/peaks.js         lista szczytów (z data/peaks.json)
+  utils/korona.js        rozpoznanie szczytu, najbliższe, postęp, daty (czyste funkcje)
+  utils/geo.js           odległość, kierunek, formatowanie (z aplikacji Powrót)
+  utils/sensors.js       GPS i kompas (z aplikacji Powrót)
+  utils/store.js         zapis w LocalStorage
+  test/*.test.mjs        testy Node: npm test
+phone/                   aplikacja na telefon (Flutter) - wizualizacja zdobyć
+data/peaks.json          wspólna lista szczytów dla zegarka i telefonu
+SYNC.md                  kontrakt danych zegarek <-> telefon (peaks.json, Firestore)
+tools/gen_assets.py      ikona, strzałka i podglądy (Pillow)
+docs/                    podglądy ekranów
 ```
 
-Testy: `npm test` (dane listy, rozpoznanie z histerezą, najbliższe, postęp, daty).
+Testy (w `watch/`): `npm test` (dane listy, rozpoznanie z histerezą, najbliższe, postęp, daty).
 
 Pomysły na później: druga lista (Korona Sudetów, Korona Beskidów, Korona Tatr) –
 struktura `utils/peaks.js` to jedna tablica, wystarczy dodać drugą i przełącznik.

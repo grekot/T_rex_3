@@ -7,7 +7,7 @@
   "private": true,
   "scripts": {
     "test": "node test/peaks.test.mjs && node test/korona.test.mjs",
-    "assets": "python tools/gen_assets.py"
+    "assets": "python ../tools/gen_assets.py"
   },
   "devDependencies": {
     "@zeppos/device-types": "^3.0.0"

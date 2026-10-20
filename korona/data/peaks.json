@@ -1,0 +1,450 @@
+{
+ "version": 1,
+ "generated": "2026-10-20",
+ "sources": [
+  "Lista KGP: Wikipedia \"Korona Gór Polski\" (CC BY-SA 4.0)",
+  "Współrzędne: OpenStreetMap natural=peak (© współtwórcy OpenStreetMap, ODbL)"
+ ],
+ "groups": [
+  {
+   "id": "kgp",
+   "name": "Korona Gór Polski",
+   "short": "KGP",
+   "counted": 28
+  }
+ ],
+ "peaks": [
+  {
+   "id": "rysy",
+   "name": "Rysy",
+   "h": 2499,
+   "lat": 49.1795756,
+   "lon": 20.0881081,
+   "range": "Tatry",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 4366169405,
+   "border": true
+  },
+  {
+   "id": "babia",
+   "name": "Babia Góra",
+   "h": 1725,
+   "lat": 49.5730231,
+   "lon": 19.5293303,
+   "range": "Beskid Żywiecki",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 477984782,
+   "border": true,
+   "note": "Wierzchołek Diablak"
+  },
+  {
+   "id": "sniezka",
+   "name": "Śnieżka",
+   "h": 1603,
+   "lat": 50.7360326,
+   "lon": 15.7396072,
+   "range": "Karkonosze",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 1850303773,
+   "border": true
+  },
+  {
+   "id": "snieznik",
+   "name": "Śnieżnik",
+   "h": 1423,
+   "lat": 50.2074081,
+   "lon": 16.847424,
+   "range": "Masyw Śnieżnika",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 26863429,
+   "border": true
+  },
+  {
+   "id": "tarnica",
+   "name": "Tarnica",
+   "h": 1346,
+   "lat": 49.0747705,
+   "lon": 22.726323,
+   "range": "Bieszczady",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 1347929065
+  },
+  {
+   "id": "turbacz",
+   "name": "Turbacz",
+   "h": 1310,
+   "lat": 49.5428239,
+   "lon": 20.1113839,
+   "range": "Gorce",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 26864983
+  },
+  {
+   "id": "radziejowa",
+   "name": "Radziejowa",
+   "h": 1266,
+   "lat": 49.4493044,
+   "lon": 20.6041221,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 1198299196
+  },
+  {
+   "id": "skrzyczne",
+   "name": "Skrzyczne",
+   "h": 1257,
+   "lat": 49.6845736,
+   "lon": 19.0302741,
+   "range": "Beskid Śląski",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 26864701
+  },
+  {
+   "id": "mogielica",
+   "name": "Mogielica",
+   "h": 1171,
+   "lat": 49.6553199,
+   "lon": 20.2766736,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 1236685520
+  },
+  {
+   "id": "wysokakopa",
+   "name": "Wysoka Kopa",
+   "h": 1126,
+   "lat": 50.85,
+   "lon": 15.4202778,
+   "range": "Góry Izerskie",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 707906070
+  },
+  {
+   "id": "rudawiec",
+   "name": "Rudawiec",
+   "h": 1106,
+   "lat": 50.2448039,
+   "lon": 16.9768585,
+   "range": "Góry Bialskie",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 1793427200,
+   "border": true
+  },
+  {
+   "id": "orlica",
+   "name": "Orlica",
+   "h": 1084,
+   "lat": 50.3532494,
+   "lon": 16.3606287,
+   "range": "Góry Orlickie",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 2418877544,
+   "border": true
+  },
+  {
+   "id": "wysoka",
+   "name": "Wysoka",
+   "h": 1050,
+   "lat": 49.3802606,
+   "lon": 20.5555018,
+   "range": "Pieniny",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 615627232,
+   "border": true,
+   "note": "Wysokie Skałki"
+  },
+  {
+   "id": "wielkasowa",
+   "name": "Wielka Sowa",
+   "h": 1015,
+   "lat": 50.6802778,
+   "lon": 16.4855556,
+   "range": "Góry Sowie",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 458891184
+  },
+  {
+   "id": "lackowa",
+   "name": "Lackowa",
+   "h": 997,
+   "lat": 49.4265468,
+   "lon": 21.1024789,
+   "range": "Beskid Niski",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 4366115862,
+   "border": true
+  },
+  {
+   "id": "kowadlo",
+   "name": "Kowadło",
+   "h": 989,
+   "lat": 50.2644312,
+   "lon": 17.0132176,
+   "range": "Góry Złote",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 2421373077,
+   "border": true
+  },
+  {
+   "id": "jagodna",
+   "name": "Jagodna",
+   "h": 977,
+   "lat": 50.2524573,
+   "lon": 16.5644186,
+   "range": "Góry Bystrzyckie",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 2418865417
+  },
+  {
+   "id": "skalnik",
+   "name": "Skalnik",
+   "h": 945,
+   "lat": 50.8084793,
+   "lon": 15.9000581,
+   "range": "Rudawy Janowickie",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 1219704819
+  },
+  {
+   "id": "waligora",
+   "name": "Waligóra",
+   "h": 936,
+   "lat": 50.6808246,
+   "lon": 16.2780881,
+   "range": "Góry Kamienne",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 2470310941
+  },
+  {
+   "id": "czupel",
+   "name": "Czupel",
+   "h": 931,
+   "lat": 49.767881,
+   "lon": 19.1610286,
+   "range": "Beskid Mały",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 3046822323
+  },
+  {
+   "id": "szczeliniec",
+   "name": "Szczeliniec Wielki",
+   "h": 919,
+   "lat": 50.4848143,
+   "lon": 16.3410065,
+   "range": "Góry Stołowe",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 492775426
+  },
+  {
+   "id": "lubomir",
+   "name": "Lubomir",
+   "h": 904,
+   "lat": 49.7668805,
+   "lon": 20.0596718,
+   "range": "Beskid Makowski",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 2845608415
+  },
+  {
+   "id": "biskupia",
+   "name": "Biskupia Kopa",
+   "h": 889,
+   "lat": 50.2566949,
+   "lon": 17.4285752,
+   "range": "Góry Opawskie",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 991934327,
+   "border": true
+  },
+  {
+   "id": "chelmiec",
+   "name": "Chełmiec",
+   "h": 850,
+   "lat": 50.7795495,
+   "lon": 16.2109745,
+   "range": "Góry Wałbrzyskie",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 428725380
+  },
+  {
+   "id": "klodzka",
+   "name": "Kłodzka Góra",
+   "h": 765,
+   "lat": 50.45167,
+   "lon": 16.7532205,
+   "range": "Góry Bardzkie",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 529512640
+  },
+  {
+   "id": "skopiec",
+   "name": "Skopiec",
+   "h": 724,
+   "lat": 50.9439267,
+   "lon": 15.8847061,
+   "range": "Góry Kaczawskie",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 4593556759
+  },
+  {
+   "id": "sleza",
+   "name": "Ślęża",
+   "h": 718,
+   "lat": 50.8640875,
+   "lon": 16.7074963,
+   "range": "Masyw Ślęży",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 349062696
+  },
+  {
+   "id": "lysica",
+   "name": "Łysica",
+   "h": 614,
+   "lat": 50.8916162,
+   "lon": 20.8965979,
+   "range": "Góry Świętokrzyskie",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 1844240120
+  },
+  {
+   "id": "borowa",
+   "name": "Borowa",
+   "h": 853,
+   "lat": 50.7228665,
+   "lon": 16.3044645,
+   "range": "Góry Wałbrzyskie",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 2479069436,
+   "variantOf": "chelmiec",
+   "note": "Faktycznie najwyższa w Górach Wałbrzyskich"
+  },
+  {
+   "id": "szeroka",
+   "name": "Szeroka Góra",
+   "h": 766,
+   "lat": 50.4536637,
+   "lon": 16.7584602,
+   "range": "Góry Bardzkie",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 1997912845,
+   "variantOf": "klodzka",
+   "note": "Wg nowych pomiarów wyższa od Kłodzkiej Góry"
+  },
+  {
+   "id": "okole",
+   "name": "Okole",
+   "h": 725,
+   "lat": 50.9807356,
+   "lon": 15.8179415,
+   "range": "Góry Kaczawskie",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 2090686556,
+   "variantOf": "skopiec",
+   "note": "Wg pomiarów z 2021 r. wyższe od Skopca"
+  },
+  {
+   "id": "agata",
+   "name": "Agata",
+   "h": 614,
+   "lat": 50.8890736,
+   "lon": 20.905947,
+   "range": "Góry Świętokrzyskie",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 1844339192,
+   "variantOf": "lysica",
+   "note": "Wschodni, najwyższy wierzchołek Łysicy"
+  },
+  {
+   "id": "postawna",
+   "name": "Postawna",
+   "h": 1117,
+   "lat": 50.2217821,
+   "lon": 17.0111503,
+   "range": "Góry Złote",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 1890147175,
+   "variantOf": "rudawiec",
+   "note": "Na pierwszej liście z 1997 r."
+  },
+  {
+   "id": "trzykorony",
+   "name": "Trzy Korony",
+   "h": 982,
+   "lat": 49.4138332,
+   "lon": 20.4142155,
+   "range": "Pieniny",
+   "groups": [
+    "kgp"
+   ],
+   "osm": 253737989,
+   "variantOf": "wysoka",
+   "note": "Na pierwszej liście z 1997 r."
+  }
+ ]
+}

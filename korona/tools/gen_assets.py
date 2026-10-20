@@ -1,6 +1,6 @@
 """Ikona aplikacji Korona, strzałka kompasu i podglądy ekranów do README.
 
-Uruchom w folderze korona:  python tools/gen_assets.py
+Uruchom w folderze korona:  python tools/gen_assets.py  (ikona i strzałka -> watch/assets/gt.r)
 Wymaga: Pillow, font Segoe UI (jest w Windows 10/11 - tylko do podglądu,
 zegarek ma własny font).
 """
@@ -62,7 +62,7 @@ def make_icon():
         r = 6 * k
         d.ellipse([px_ - r, py_ - r, px_ + r, py_ + r], fill=GOLD)
     im = mask_round(im).resize((248, 248), Image.LANCZOS)
-    path = os.path.join(ROOT, "assets", "gt.r", "icon.png")
+    path = os.path.join(ROOT, "watch", "assets", "gt.r", "icon.png")
     im.save(path)
     print("zapisano", path)
 
@@ -79,7 +79,7 @@ def arrow_image(size=180):
 
 
 def make_arrow():
-    path = os.path.join(ROOT, "assets", "gt.r", "arrow.png")
+    path = os.path.join(ROOT, "watch", "assets", "gt.r", "arrow.png")
     arrow_image().save(path)
     print("zapisano", path)
 
