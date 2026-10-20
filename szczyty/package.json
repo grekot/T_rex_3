@@ -1,0 +1,16 @@
+{
+  "name": "szczyty",
+  "version": "1.0.0",
+  "description": "Szczyty - co to za szczyt? Aplikacja Zepp OS na Amazfit T-Rex 3 (offline, dane OSM)",
+  "main": "app.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "peaks": "node tools/build-peaks.mjs",
+    "assets": "python tools/gen_assets.py"
+  },
+  "devDependencies": {
+    "@zeppos/device-types": "^3.0.0"
+  }
+}
