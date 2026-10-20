@@ -1,5 +1,7 @@
 // Sterowanie pulą: szuka zdjęć z aparatu, analizuje tylko nowe, daje je do oceny Gemini (gdy jest klucz),
-// układa pulę 20 zdjęć, kadruje i podaje gotowe PNG serwerowi mostu (zegarek pobiera je pod 127.0.0.1).
+// układa pulę 20 zdjęć, kadruje i publikuje gotowe PNG w plikach (published.json), skąd most w usłudze
+// w tle podaje je zegarkowi. Ten sam kod działa w aplikacji i bez ekranu w usłudze w tle (headless);
+// blokada w plikach pilnuje, żeby nie odświeżały naraz.
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -11,7 +13,6 @@ import 'ai/gemini_client.dart';
 import 'ai/key_store.dart';
 import 'ai/photo_rating.dart';
 import 'ai/rater.dart';
-import 'bridge/bridge_server.dart';
 import 'media/analyzer.dart';
 import 'media/gallery.dart';
 import 'select/analysis.dart';
@@ -44,9 +45,10 @@ class PoolItem {
 }
 
 class PoolController extends ChangeNotifier {
-  PoolController(this.server);
+  PoolController({this.headless = false});
 
-  final BridgeServer server;
+  /// Bez ekranu (usługa w tle): bez okien systemowych, dostęp do galerii nadany wcześniej w aplikacji
+  final bool headless;
   late SelectStore _store;
   late Directory _tempDir;
   PoolPrefs prefs = PoolPrefs();
@@ -64,6 +66,12 @@ class PoolController extends ChangeNotifier {
 
   /// Ostatni problem z oceną AI (limit, zły klucz) - pula i tak powstaje
   String? aiError;
+
+  /// Odświeżanie trwało już gdzie indziej (usługa w tle) - ta próba została pominięta
+  bool lockedOut = false;
+
+  /// Ile zdjęć weszło do puli przy ostatnim przygotowaniu (nowe dla zegarka)
+  int lastNewPhotos = 0;
 
   bool get hasApiKey => _apiKey.isNotEmpty;
   bool get aiActive => prefs.aiEnabled && hasApiKey;
@@ -89,25 +97,35 @@ class PoolController extends ChangeNotifier {
     return out;
   }
 
-  Future<void> init() async {
-    final support = await getApplicationSupportDirectory();
-    _store = SelectStore(Directory('${support.path}/wybor'));
+  Future<void> init({bool refreshNow = true}) async {
+    _store = await openSelectStore();
     _tempDir = await getTemporaryDirectory();
+    await _reload();
+    notifyListeners();
+    if (refreshNow) await refresh();
+  }
+
+  // Stan z plików - druga strona (aplikacja / usługa w tle) mogła go zmienić
+  Future<void> _reload() async {
     prefs = await _store.loadPrefs();
     _analyses = await _store.loadAnalyses();
     _ratings = await _store.loadRatings();
     _apiKey = await _keys.gemini();
-    await refresh();
   }
 
   /// Pełne odświeżenie: nowe zdjęcia z galerii, analiza nowych, pula od nowa
   Future<void> refresh() => _run(() async {
         _set(PoolPhase.scanning);
-        final access = await requestGalleryAccess();
-        limited = access == PermissionState.limited;
-        if (!access.hasAccess) {
-          _set(PoolPhase.noAccess);
-          return;
+        if (headless) {
+          // Bez aktywności nie da się pytać o zgodę - korzystamy z tej nadanej w aplikacji
+          PhotoManager.setIgnorePermissionCheck(true);
+        } else {
+          final access = await requestGalleryAccess();
+          limited = access == PermissionState.limited;
+          if (!access.hasAccess) {
+            _set(PoolPhase.noAccess);
+            return;
+          }
         }
         final assets = <String, AssetEntity>{for (final a in await cameraPhotos(prefs.days)) photoIdOf(a): a};
         // Przypięte zdjęcia spoza okresu (dodane ręcznie) też biorą udział
@@ -231,9 +249,18 @@ class PoolController extends ChangeNotifier {
       notifyListeners();
     }
     pool = items;
-    server.photos = [
-      for (final i in items) BridgePhoto(id: i.watchId, png: i.png, taken: i.taken, caption: i.rating?.caption ?? ''),
-    ];
+    final before = {for (final p in await _store.loadPublished()) p.id};
+    lastNewPhotos = items.where((i) => !before.contains(i.watchId)).length;
+    await _store.publish([
+      for (final i in items)
+        PublishedPhoto(
+          id: i.watchId,
+          path: _store.pngFile(i.id, i.crop).path,
+          size: i.png.length,
+          taken: i.taken,
+          caption: i.rating?.caption ?? '',
+        ),
+    ]);
     await _store.prunePngs({for (final i in items) _store.pngFile(i.id, i.crop).path});
     _set(PoolPhase.ready);
   }
@@ -306,6 +333,17 @@ class PoolController extends ChangeNotifier {
 
   AssetEntity? assetOf(String id) => _assets[id];
 
+  Future<AutoState> autoState() => _store.loadAuto();
+
+  /// Zapamiętany wybór: czy usługa w tle ma działać (włączana też po restarcie aplikacji)
+  Future<void> setAutoEnabled(bool enabled) async {
+    final p = await _store.loadPrefs();
+    p.autoEnabled = enabled;
+    await _store.savePrefs(p);
+    prefs.autoEnabled = enabled;
+    notifyListeners();
+  }
+
   // --- AI ---
 
   Future<String> apiKey() => _keys.gemini();
@@ -326,7 +364,7 @@ class PoolController extends ChangeNotifier {
   Future<void> setAi({required bool enabled, required String key, required String model, required String preferences}) async {
     await _keys.setGemini(key);
     _apiKey = key.trim();
-    if (model != prefs.aiModel) _ratings.clear();
+    if (model != prefs.aiModel) await _store.saveRatings({});
     prefs.aiEnabled = enabled;
     prefs.aiModel = model;
     prefs.preferences = preferences.trim();
@@ -345,8 +383,18 @@ class PoolController extends ChangeNotifier {
     if (_busy) return;
     _busy = true;
     error = null;
+    lockedOut = false;
     try {
-      await job();
+      if (!await _store.tryLock()) {
+        lockedOut = true;
+        return;
+      }
+      try {
+        await _reload();
+        await job();
+      } finally {
+        await _store.unlock();
+      }
     } catch (e) {
       error = '$e';
       phase = PoolPhase.failed;

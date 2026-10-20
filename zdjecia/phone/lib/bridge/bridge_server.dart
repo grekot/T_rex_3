@@ -1,5 +1,7 @@
 // Most lokalny: serwer HTTP tylko pod 127.0.0.1 (niewidoczny w Wi-Fi). Side Service aplikacji Zepp
 // na tym samym telefonie pobiera z niego listę zdjęć (/manifest.json) i pliki PNG (/p/<id>.png).
+// Zdjęcia bierze przy każdym zapytaniu ze źródła - w usłudze w tle jest nim opublikowana pula w plikach,
+// więc nowa pula po odświeżeniu jest od razu widoczna dla zegarka.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -8,15 +10,24 @@ import 'dart:typed_data';
 const int bridgePort = 8765;
 
 class BridgePhoto {
-  const BridgePhoto({required this.id, required this.png, required this.taken, this.caption = ''});
+  BridgePhoto({required this.id, required Uint8List png, required this.taken, this.caption = ''})
+      : size = png.length,
+        read = (() async => png);
+
+  /// Zdjęcie czytane z pliku dopiero, gdy zegarek o nie poprosi
+  BridgePhoto.file({required this.id, required File file, required this.size, required this.taken, this.caption = ''})
+      : read = file.readAsBytes;
 
   final String id;
-  final Uint8List png;
+  final int size;
   final DateTime taken;
 
-  /// Podpis od AI (zegarek może go pokazać pod zdjęciem)
+  /// Podpis od AI (zegarek pokazuje go pod zdjęciem)
   final String caption;
+  final Future<List<int>> Function() read;
 }
+
+typedef PhotoSource = Future<List<BridgePhoto>> Function();
 
 class BridgeRequest {
   const BridgeRequest({
@@ -34,14 +45,45 @@ class BridgeRequest {
   final int status;
   final int bytes;
   final Duration took;
+
+  Map<String, Object> toJson() => {
+        'at': at.millisecondsSinceEpoch,
+        'method': method,
+        'path': path,
+        'status': status,
+        'bytes': bytes,
+        'took': took.inMilliseconds,
+      };
+
+  factory BridgeRequest.fromJson(Map<dynamic, dynamic> j) => BridgeRequest(
+        at: DateTime.fromMillisecondsSinceEpoch(j['at'] as int),
+        method: j['method'] as String,
+        path: j['path'] as String,
+        status: j['status'] as int,
+        bytes: j['bytes'] as int,
+        took: Duration(milliseconds: j['took'] as int),
+      );
 }
 
-class BridgeServer {
-  BridgeServer({this.port = bridgePort});
+Map<String, Object> manifestOf(List<BridgePhoto> photos) => {
+      'version': 1,
+      'photos': [
+        for (final p in photos)
+          {
+            'id': p.id,
+            'size': p.size,
+            'taken': p.taken.millisecondsSinceEpoch,
+            if (p.caption.isNotEmpty) 'caption': p.caption,
+          },
+      ],
+    };
 
+class BridgeServer {
+  BridgeServer({required this.source, this.port = bridgePort});
+
+  final PhotoSource source;
   final int port;
   HttpServer? _server;
-  List<BridgePhoto> _photos = const [];
   final _requests = StreamController<BridgeRequest>.broadcast();
 
   Stream<BridgeRequest> get requests => _requests.stream;
@@ -49,21 +91,6 @@ class BridgeServer {
 
   /// Port, na którym naprawdę słucha (w testach `port: 0` = dowolny wolny).
   int? get boundPort => _server?.port;
-
-  set photos(List<BridgePhoto> photos) => _photos = List.unmodifiable(photos);
-
-  Map<String, Object> manifest() => {
-        'version': 1,
-        'photos': [
-          for (final p in _photos)
-            {
-              'id': p.id,
-              'size': p.png.length,
-              'taken': p.taken.millisecondsSinceEpoch,
-              if (p.caption.isNotEmpty) 'caption': p.caption,
-            },
-        ],
-      };
 
   Future<void> start() async {
     if (_server != null) return;
@@ -91,22 +118,28 @@ class BridgeServer {
     List<int> body = const [];
     ContentType? type;
 
-    if (req.method != 'GET') {
-      status = HttpStatus.methodNotAllowed;
-    } else if (path == '/manifest.json') {
-      body = utf8.encode(jsonEncode(manifest()));
-      type = ContentType.json;
-    } else if (path.startsWith('/p/') && path.endsWith('.png')) {
-      final id = path.substring(3, path.length - 4);
-      final photo = _photos.where((p) => p.id == id).firstOrNull;
-      if (photo == null) {
-        status = HttpStatus.notFound;
+    try {
+      if (req.method != 'GET') {
+        status = HttpStatus.methodNotAllowed;
+      } else if (path == '/manifest.json') {
+        body = utf8.encode(jsonEncode(manifestOf(await source())));
+        type = ContentType.json;
+      } else if (path.startsWith('/p/') && path.endsWith('.png')) {
+        final id = path.substring(3, path.length - 4);
+        final photo = (await source()).where((p) => p.id == id).firstOrNull;
+        if (photo == null) {
+          status = HttpStatus.notFound;
+        } else {
+          body = await photo.read();
+          type = ContentType('image', 'png');
+        }
       } else {
-        body = photo.png;
-        type = ContentType('image', 'png');
+        status = HttpStatus.notFound;
       }
-    } else {
-      status = HttpStatus.notFound;
+    } catch (_) {
+      status = HttpStatus.internalServerError;
+      body = const [];
+      type = null;
     }
 
     try {

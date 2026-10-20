@@ -33,3 +33,36 @@ assert.equal(photoUrl("abc"), BRIDGE_URL + "/p/abc.png");
 assert.equal(BRIDGE_URL, "http://127.0.0.1:8765");
 
 console.log("sync OK");
+
+// --- dociąganie po trochu i porządki ---
+import { staleToDelete } from "../utils/sync.js";
+
+const pool = parseManifest({
+  photos: [
+    { id: "n1", size: 1, caption: "Las" },
+    { id: "n2", size: 1, caption: "x".repeat(60) },
+    { id: "n3", size: 1 },
+  ],
+});
+assert.equal(pool[0].caption, "Las");
+assert.equal(pool[1].caption.length, 40);
+assert.equal(pool[2].caption, "");
+assert.deepEqual(photosToFetch(pool, ["n1"], 1).map((p) => p.id), ["n2"]);
+assert.deepEqual(photosToFetch(pool, ["n1"], 0).map((p) => p.id), ["n2", "n3"]);
+
+// Na zegarku 4 zdjęcia, w puli telefonu 3: kasujemy 1 najstarsze spoza puli
+const onWatch = [
+  { id: "stare1", rx: 100 },
+  { id: "stare2", rx: 50 },
+  { id: "n1", rx: 300 },
+  { id: "n2", rx: 400 },
+];
+assert.deepEqual(staleToDelete(onWatch, ["n1", "n2", "n3"]), ["stare2"]);
+// Nic nie przybyło ponad wielkość puli - nic nie znika
+assert.deepEqual(staleToDelete(onWatch.slice(0, 3), ["n1", "n2", "n3"]), []);
+// Pusta pula telefonu (błąd) - nic nie kasujemy
+assert.deepEqual(staleToDelete(onWatch, []), []);
+// Stary nadmiar (bez znacznika odbioru) znika cały
+assert.deepEqual(staleToDelete([{ id: "a" }, { id: "b" }, { id: "n1", rx: 1 }], ["n1"]), ["a", "b"]);
+
+console.log("sync drip OK");

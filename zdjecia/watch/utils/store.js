@@ -51,6 +51,24 @@ export function downloadedFiles() {
   }
 }
 
+// Kasuje wskazane zdjęcia: pliki i wpisy na liście
+export function removePhotos(ids) {
+  if (!ids || !ids.length) return 0;
+  const drop = {};
+  ids.forEach((id) => (drop[id] = true));
+  const list = loadPhotos();
+  list.forEach((p) => {
+    if (!drop[p.id]) return;
+    const name = p.fileName || p.name;
+    if (!name) return;
+    try {
+      rmSync({ path: "download/" + name });
+    } catch (e) {}
+  });
+  writeJson(PHOTOS_KEY, list.filter((p) => !drop[p.id]));
+  return ids.length;
+}
+
 export function clearPhotos() {
   const files = downloadedFiles() || [];
   files.forEach((name) => {

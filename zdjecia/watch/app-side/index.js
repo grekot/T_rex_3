@@ -30,12 +30,14 @@ AppSideService(
     onDestroy() {},
 
     onRequest(req, res) {
-      if (req.method === "SYNC") return this.startSync((req.params && req.params.have) || [], res);
+      const p = req.params || {};
+      if (req.method === "SYNC") return this.startSync(p.have || [], Number(p.max) || 0, res);
       if (req.method === "TEST_NET") return this.startTestNet(res);
       res("nieznana metoda: " + req.method);
     },
 
-    async startSync(have, res) {
+    // max > 0: najwyżej tyle nowych zdjęć (zdjęcie wyskoczyło samo - krótko); 0: wszystkie nowe
+    async startSync(have, max, res) {
       if (busy) return res(null, { ok: false, step: "busy", error: "przesyłanie już trwa" });
       const t0 = Date.now();
       let photos;
@@ -46,9 +48,18 @@ AppSideService(
       } catch (e) {
         return res(null, { ok: false, step: "manifest", error: errText(e), url: BRIDGE_URL });
       }
-      const todo = photosToFetch(photos, have);
-      res(null, { ok: true, total: photos.length, todo: todo.length, manifestMs: Date.now() - t0 });
-      this.runQueue(todo.map((p) => ({ id: p.id, url: photoUrl(p.id), png: p.size, taken: p.taken })));
+      const todo = photosToFetch(photos, have, max);
+      // pool: cała pula telefonu - zegarek skasuje zdjęcia, które z niej wypadły
+      res(null, {
+        ok: true,
+        total: photos.length,
+        todo: todo.length,
+        manifestMs: Date.now() - t0,
+        pool: photos.map((p) => p.id),
+      });
+      this.runQueue(
+        todo.map((p) => ({ id: p.id, url: photoUrl(p.id), png: p.size, taken: p.taken, caption: p.caption }))
+      );
     },
 
     startTestNet(res) {
@@ -100,6 +111,7 @@ AppSideService(
           dlMs,
           cvMs,
           taken: item.taken,
+          caption: item.caption || "",
           test: !!item.test,
         });
         this.call({ type: "SENT", ...info, dlMs, cvMs, conv, txMs: Date.now() - t });

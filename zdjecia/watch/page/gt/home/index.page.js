@@ -1,5 +1,6 @@
 // Panel: pobranie zdjęć z telefonu (most 127.0.0.1) z pomiarem rozmiaru i czasu, podgląd zdjęć
-// i ustawienia losowego pokazywania. Każdy start aplikacji uzupełnia plan budzików.
+// i ustawienia losowego pokazywania. Każdy start aplikacji uzupełnia plan budzików i sam pobiera
+// wszystkie nowe zdjęcia z puli telefonu (stare, które z niej wypadły, kasuje).
 import * as hmUI from "@zos/ui";
 import { px } from "@zos/utils";
 import { push } from "@zos/router";
@@ -7,12 +8,13 @@ import { BasePage } from "@zeppos/zml/base-page";
 import { stayInApp, keepScreenOn, releaseScreen } from "../../../utils/screen";
 import { buttonProps } from "../../../utils/ui";
 import { loadPhotos, savePhoto, loadVariant, saveVariant, downloadedFiles, clearPhotos, loadPlan } from "../../../utils/store";
-import { shownPhotos, haveIds, readParams } from "../../../utils/photos";
+import { shownPhotos, haveIds } from "../../../utils/photos";
 import { srcVariants, pickSrc } from "../../../utils/paths";
 import { summaryLines, photoInfoLines } from "../../../utils/format";
 import { describeEvent, describeStart, errText } from "../../../utils/events";
 import { nextLine } from "../../../utils/schedule";
 import { refreshPlan, localOffsetMin } from "../../../utils/alarms";
+import { receiveFile, cleanupAfterSync } from "../../../utils/syncflow";
 import {
   TITLE_STYLE,
   STATUS_STYLE,
@@ -30,6 +32,8 @@ import {
 
 // Ile linii statusu mieści się nad przyciskami
 const MAX_LOG = 4;
+// Pobieranie zaczyna się samo chwilę po otwarciu (panel już widać)
+const AUTO_SYNC_MS = 800;
 
 // Przebudowa ekranu poza obsługą kliknięcia (usuwanie widżetu w jego własnym zdarzeniu bywa ryzykowne)
 function later(fn) {
@@ -47,6 +51,7 @@ Page(
       current: "",
       busy: false,
       planLine: "",
+      pool: [],
     },
 
     build() {
@@ -57,6 +62,7 @@ Page(
       this.state.planLine = this.planLine();
       this.state.log = this.storedLines();
       this.showPanel();
+      setTimeout(() => this.startSync(), AUTO_SYNC_MS);
     },
 
     // Powrót z ustawień: świeża linia planu
@@ -184,7 +190,7 @@ Page(
     // --- przesyłanie ---
 
     startSync() {
-      this.begin("Łączę z telefonem...", { method: "SYNC", params: { have: haveIds(loadPhotos()) } });
+      this.begin("Łączę z telefonem...", { method: "SYNC", params: { have: haveIds(loadPhotos()), max: 0 } });
     },
 
     startTestNet() {
@@ -203,6 +209,8 @@ Page(
         .then((res) => {
           s.current = "";
           this.log(describeStart(res));
+          if (res && res.ok) s.pool = res.pool || [];
+          if (res && res.ok && !res.todo) this.cleanup();
           if (!res || !res.ok || !res.todo) this.finish();
         })
         .catch((e) => {
@@ -227,36 +235,29 @@ Page(
       if (d.log) this.log(d.log);
       else this.renderStatus();
       if (d.done) {
+        this.cleanup();
         this.finish();
         summaryLines(loadPhotos()).forEach((line) => this.log(line));
         if (s.mode === "panel") this.showPanel();
       }
     },
 
+    // Zdjęcia, które wypadły z puli telefonu (tylko nadmiar ponad jej wielkość)
+    cleanup() {
+      const removed = cleanupAfterSync(this.state.pool);
+      if (removed) this.log("Usunięto starych zdjęć: " + removed);
+    },
+
     // Plik przysłany przez Side Service (TransferFile)
     onReceivedFile(file) {
       const s = this.state;
-      const started = Date.now();
-      const params = readParams(file.params);
-      let handled = false;
-      const done = () => {
-        if (handled) return;
-        handled = true;
-        savePhoto({
-          ...params,
-          id: params.id || file.fileName,
-          fileName: file.fileName,
-          filePath: file.filePath,
-          rxMs: Date.now() - started,
-        });
-        if (s.mode === "panel") later(() => this.showPanel());
-      };
-      file.on("change", (ev) => {
-        const state = ev && ev.data ? ev.data.readyState : file.readyState;
-        if (state === "transferred") done();
-        else if (state === "error" || state === "canceled") this.log("Błąd odbioru " + (params.id || file.fileName) + ": " + state);
-      });
-      if (file.readyState === "transferred") done();
+      receiveFile(
+        file,
+        () => {
+          if (s.mode === "panel") later(() => this.showPanel());
+        },
+        (id, state) => this.log("Błąd odbioru " + id + ": " + state)
+      );
     },
 
     clearAll() {

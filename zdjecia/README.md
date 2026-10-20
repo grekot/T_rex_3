@@ -157,6 +157,22 @@ do ulepszania usług).
 Na ekranie: pula w okrągłych podglądach z powodem wyboru, przypinanie, usuwanie, poprawa kadru,
 ręczne dodawanie zdjęć z galerii i ustawienia (dni, wielkość puli).
 
+## Pełna automatyka (telefon 0.4.0, zegarek 0.5.0)
+
+Bez udziału właściciela:
+
+- **Telefon – usługa w tle** (`phone/lib/background/auto_service.dart`, `flutter_foreground_task`,
+  typ `specialUse`: bez limitu czasu, start po restarcie telefonu i po aktualizacji). Most 127.0.0.1 działa
+  cały czas i czyta pulę z plików (`published.json` + PNG), a co 12 h (po błędzie po godzinie) usługa sama
+  odświeża pulę: nowe zdjęcia → analiza → Gemini → kadry. Ten sam `PoolController` działa w aplikacji
+  i w usłudze (headless); blokada `refresh.lock` pilnuje, żeby nie odświeżały naraz. Android wymaga
+  cichego stałego powiadomienia („Pula: 20 zdjęć · odświeżono …”).
+- **Zegarek – przy każdym samoczynnym wyskoczeniu** zdjęcia (losowo 3×/dzień, 9–21) w tle dociąga
+  najwyżej 2 nowe zdjęcia z puli telefonu (czeka na to najwyżej 60 s) i kasuje te, które z puli wypadły
+  (tylko nadmiar ponad wielkość puli, najstarsze najpierw). Świeżo dociągnięte zdjęcie wyskakuje
+  przy następnej okazji jako pierwsze; pod zdjęciem podpis od AI.
+- **Ręczne otwarcie aplikacji na zegarku** od razu pobiera wszystkie nowe zdjęcia i robi porządek.
+
 ## Wydanie do Sklepu rodzinnego
 
 Tag `zdjecia-vX.Y.Z` uruchamia [release-zdjecia.yml](../.github/workflows/release-zdjecia.yml)

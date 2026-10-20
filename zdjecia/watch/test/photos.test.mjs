@@ -25,3 +25,19 @@ assert.equal(pickSrc({ fileName: "zd_a.png" }, 5), "download/zd_a.png");
 assert.equal(pickSrc({ fileName: "zd_a.png" }, -1), "zd_a.png");
 
 console.log("photos OK");
+
+// --- świeże zdjęcie wyskakuje pierwsze ---
+import { freshPick, FRESH_MS } from "../utils/photos.js";
+
+const now = 10 * FRESH_MS;
+const listFresh = [
+  { id: "stare", fileName: "a.png", rx: now - FRESH_MS - 1 },
+  { id: "nowe1", fileName: "b.png", rx: now - 1000 },
+  { id: "nowe2", fileName: "c.png", rx: now - 500 },
+  { id: "bezpliku", rx: now },
+];
+assert.equal(freshPick(listFresh, [], now), "nowe2");
+assert.equal(freshPick(listFresh, ["nowe2"], now), "nowe1");
+assert.equal(freshPick(listFresh, ["nowe1", "nowe2"], now), "");
+
+console.log("photos fresh OK");

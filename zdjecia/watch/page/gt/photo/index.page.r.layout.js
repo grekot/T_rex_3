@@ -9,18 +9,18 @@ export const PHOTO_PROPS = { x: 0, y: 0, w: DEVICE_WIDTH, h: DEVICE_HEIGHT };
 
 export const INFO_BG_PROPS = {
   x: px(110),
-  y: px(392),
+  y: px(382),
   w: DEVICE_WIDTH - px(220),
-  h: px(52),
-  radius: px(26),
+  h: px(62),
+  radius: px(31),
   color: 0x000000,
 };
 
 export const INFO_STYLE = {
   x: px(110),
-  y: px(392),
+  y: px(382),
   w: DEVICE_WIDTH - px(220),
-  h: px(52),
+  h: px(62),
   text: "",
   text_size: px(19),
   color: COLOR_WHITE,

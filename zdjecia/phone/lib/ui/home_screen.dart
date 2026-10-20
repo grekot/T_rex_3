@@ -1,17 +1,20 @@
 // Ekran główny: stan przeglądania galerii, pula zdjęć dla zegarka (okrągłe podglądy jak na zegarku),
-// udostępnianie zegarkowi i dziennik zapytań z aplikacji Zepp.
+// automatyka w tle (most dla zegarka + odświeżanie puli) i dziennik zapytań z aplikacji Zepp.
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:photo_manager/photo_manager.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
 
+import '../background/auto_service.dart';
 import '../bridge/bridge_server.dart';
 import '../bridge/format.dart';
 import '../media/gallery.dart';
 import '../pool_controller.dart';
+import '../select/store.dart';
 import 'ai_settings_screen.dart';
 import 'photo_sheet.dart';
 import 'pick_screen.dart';
@@ -26,55 +29,97 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  final _server = BridgeServer();
-  late final PoolController _pool = PoolController(_server);
-  late final StreamSubscription<BridgeRequest> _requestsSub;
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  final _pool = PoolController();
   final List<BridgeRequest> _requests = [];
-  String? _serverError;
+  String? _autoError;
   String? _selfCheck;
+  bool _autoRunning = false;
+  bool _autoRefreshing = false;
+  AutoState _auto = const AutoState();
   bool _screenKeptOn = false;
 
   @override
   void initState() {
     super.initState();
-    _requestsSub = _server.requests.listen((r) => setState(() => _requests.insert(0, r)));
+    WidgetsBinding.instance.addObserver(this);
+    FlutterForegroundTask.addTaskDataCallback(_onTaskData);
     _pool.addListener(_keepScreenWhileWorking);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _pool.init());
+    WidgetsBinding.instance.addPostFrameCallback((_) => _start());
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    FlutterForegroundTask.removeTaskDataCallback(_onTaskData);
     _pool.removeListener(_keepScreenWhileWorking);
-    _requestsSub.cancel();
     _pool.dispose();
-    _server.dispose();
     WakelockPlus.disable();
     super.dispose();
   }
 
-  // Ekran nie gaśnie, dopóki aplikacja pracuje (analiza, ocena AI, kadrowanie) albo udostępnia zdjęcia:
-  // Android zamraża aplikacje w tle, więc praca stanęłaby, a serwer przestałby odpowiadać
+  Future<void> _start() async {
+    initAutoService();
+    await _pool.init(refreshNow: false);
+    if (_pool.prefs.autoEnabled) await _setAuto(true, remember: false);
+    await _readAuto();
+    await _pool.refresh();
+  }
+
+  // Powrót do aplikacji: usługa w tle mogła w tym czasie odświeżyć pulę
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _readAuto();
+      _pool.refresh();
+    }
+  }
+
+  void _onTaskData(Object data) {
+    if (data is! Map) return;
+    switch (data['type']) {
+      case 'request':
+        setState(() => _requests.insert(0, BridgeRequest.fromJson(data)));
+      case 'refreshing':
+        setState(() => _autoRefreshing = true);
+      case 'refreshed':
+        _autoRefreshing = false;
+        _readAuto();
+        _pool.refresh();
+      case 'error':
+        setState(() => _autoError = data['message'] as String?);
+    }
+  }
+
+  Future<void> _readAuto() async {
+    final running = await autoServiceRunning();
+    final state = await _pool.autoState();
+    if (!mounted) return;
+    setState(() {
+      _autoRunning = running;
+      _auto = state;
+    });
+  }
+
+  Future<void> _setAuto(bool on, {bool remember = true}) async {
+    setState(() => _autoError = null);
+    if (remember) await _pool.setAutoEnabled(on);
+    if (on) {
+      final error = await startAutoService();
+      if (error != null) _autoError = 'Nie udało się uruchomić usługi w tle: $error';
+    } else {
+      await stopAutoService();
+    }
+    await _readAuto();
+  }
+
+  // Ekran nie gaśnie, dopóki aplikacja pracuje na ekranie (analiza, ocena AI, kadrowanie) -
+  // Android zamraża aplikacje w tle, więc praca by stanęła
   void _keepScreenWhileWorking() {
-    final needed = _pool.busy || _server.running;
+    final needed = _pool.busy;
     if (needed == _screenKeptOn) return;
     _screenKeptOn = needed;
     WakelockPlus.toggle(enable: needed);
-  }
-
-  Future<void> _toggleServer(bool on) async {
-    setState(() => _serverError = null);
-    if (on) {
-      try {
-        await _server.start();
-      } on SocketException catch (e) {
-        _serverError = 'Nie mogę otworzyć portu $bridgePort: ${e.message}';
-      }
-    } else {
-      await _server.stop();
-    }
-    _keepScreenWhileWorking();
-    setState(() {});
   }
 
   Future<void> _checkServer() async {
@@ -125,7 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             _statusCard(context),
             if (_pool.pool.isNotEmpty) _poolGrid(context),
-            _serverCard(context),
+            _autoCard(context),
             _requestsCard(context),
           ],
         ),
@@ -168,6 +213,8 @@ class _HomeScreenState extends State<HomeScreen> {
             Text('Najciekawsze zdjęcia', style: text.titleMedium),
             const SizedBox(height: 6),
             Text(line),
+            if (p.lockedOut && !working)
+              Text('Pula odświeża się teraz w tle – wynik pojawi się sam.', style: text.bodySmall),
             if (working) ...[
               const SizedBox(height: 8),
               LinearProgressIndicator(value: p.total > 0 ? p.done / p.total : null),
@@ -254,8 +301,10 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _serverCard(BuildContext context) {
+  Widget _autoCard(BuildContext context) {
     final error = Theme.of(context).colorScheme.error;
+    final small = Theme.of(context).textTheme.bodySmall;
+    final last = _auto.lastRun;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -264,21 +313,39 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text('Udostępnij zegarkowi', style: Theme.of(context).textTheme.titleMedium),
-              subtitle: Text(_server.running ? 'Działa: http://127.0.0.1:$bridgePort (tylko ten telefon)' : 'Wyłączone'),
-              value: _server.running,
-              onChanged: _toggleServer,
+              title: Text('Automatyka w tle', style: Theme.of(context).textTheme.titleMedium),
+              subtitle: Text(_autoRunning
+                  ? 'Zegarek sam dostaje zdjęcia, pula odświeża się co ${autoRefreshEvery.inHours} h'
+                  : 'Wyłączona – zegarek nie dostanie nowych zdjęć'),
+              value: _autoRunning,
+              onChanged: (on) => _setAuto(on),
             ),
-            if (_serverError != null) Text(_serverError!, style: TextStyle(color: error)),
-            if (_server.running && _pool.pool.isEmpty)
-              Text('Pula jest pusta – zegarek nic nie dostanie.', style: TextStyle(color: error)),
-            if (_server.running) ...[
-              const Text(
-                'Teraz na zegarku otwórz Zdjęcia i naciśnij „Pobierz z telefonu”. '
-                'Nie zamykaj tej aplikacji – ekran telefonu nie zgaśnie, dopóki udostępnianie działa.',
+            if (_autoError != null) Text(_autoError!, style: TextStyle(color: error)),
+            if (_autoRefreshing) Text('Pula odświeża się teraz w tle...', style: small),
+            if (last != null)
+              Text(
+                'Ostatnio w tle: ${formatDateTime(last)} – '
+                '${_auto.ok ? 'pula ${_auto.poolSize} zdjęć, nowe: ${_auto.newPhotos}' : 'błąd: ${_auto.error}'}',
+                style: _auto.ok ? small : TextStyle(color: error),
+              ),
+            if (_autoRunning) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Most dla zegarka: http://127.0.0.1:$bridgePort (tylko ten telefon). '
+                'Android pokazuje przy tym ciche powiadomienie – można je zwinąć w ustawieniach powiadomień.',
+                style: small,
               ),
               const SizedBox(height: 8),
-              OutlinedButton(onPressed: _checkServer, child: const Text('Sprawdź serwer')),
+              Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton(onPressed: _checkServer, child: const Text('Sprawdź most')),
+                  OutlinedButton(
+                    onPressed: _autoRefreshing || _pool.busy ? null : requestAutoRefresh,
+                    child: const Text('Odśwież w tle teraz'),
+                  ),
+                ],
+              ),
               if (_selfCheck != null) Text(_selfCheck!),
             ],
           ],
