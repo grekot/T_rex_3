@@ -1,5 +1,5 @@
 // Side Service - działa w aplikacji Zepp na telefonie.
-// Loguje się do Firebase (to samo konto co w aplikacjach Korona, Powrót i Zakupy na telefonie) i zapisuje
+// Loguje się do Firebase (to samo konto co w aplikacjach Na szczycie, Powrót i Zakupy na telefonie) i zapisuje
 // zdobyte szczyty z zegarka w dokumencie korona/{uid} (format: korona/SYNC.md). Bez logowania zegarek
 // działa lokalnie.
 import { BaseSideService, settingsLib } from "@zeppos/zml/base-side";

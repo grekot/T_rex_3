@@ -1,4 +1,4 @@
-# Korona – kontrakt danych zegarek ↔ telefon
+# Na szczycie (folder korona) – kontrakt danych zegarek ↔ telefon
 
 Dwa elementy łączą aplikację na zegarek (`watch/`) z aplikacją na telefon (`phone/`):
 lista szczytów (plik w repo) i zdobycia (Firestore). Zmiany formatu tylko tu, w obu

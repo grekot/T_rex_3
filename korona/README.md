@@ -1,4 +1,6 @@
-# Korona – zdobyte szczyty
+# Na szczycie – zdobyte szczyty
+
+*(folder i nazwy wewnętrzne zostały `korona` – aplikacja nazywała się tak w wersji 1.0)*
 
 Aplikacja na zegarek (Zepp OS, Amazfit T-Rex 3 i inne okrągłe) do zbierania szczytów
 z kilku list: **Korona Gór Polski** (28), **Beskid Wyspowy**, **Beskid Sądecki**,
@@ -7,7 +9,7 @@ szczyty**, czyli wierzchołki spoza list dodane ręcznie. Gdy stoisz na szczycie
 rozpoznaje go po GPS, wibruje i pokazuje **„Jesteś na szczycie!”** z przyciskiem
 **Zaliczam**, który zapisuje dzisiejszą datę. Pokazuje też postęp każdej listy, szczyty
 z datami zdobycia i najbliższe niezdobyte ze strzałką kompasu. Działa bez telefonu
-i bez internetu. Po zalogowaniu zdobycia trafiają do aplikacji Korona na telefonie.
+i bez internetu. Po zalogowaniu zdobycia trafiają do aplikacji Na szczycie na telefonie.
 
 | Ekran główny | Na szczycie | Listy |
 |:---:|:---:|:---:|
@@ -193,10 +195,10 @@ Uprawnienia: lokalizacja, kompas, pamięć zegarka, informacje o urządzeniu. AP
 
 ## Telefon i konto
 
-Logowanie: aplikacja Zepp → zegarek → **Korona** → ustawienia. To samo konto co
-w aplikacjach Korona, Zakupy i Powrót na telefonie (e-mail i hasło). Po zalogowaniu
+Logowanie: aplikacja Zepp → zegarek → **Na szczycie** → ustawienia. To samo konto co
+w aplikacjach Na szczycie, Zakupy i Powrót na telefonie (e-mail i hasło). Po zalogowaniu
 zegarek wysyła cały zapis (zdobycia i własne szczyty) do Firestore, do dokumentu
-`korona/{uid}`, a aplikacja Korona na telefonie go pokazuje. Format opisuje
+`korona/{uid}`, a aplikacja Na szczycie na telefonie go pokazuje. Format opisuje
 [SYNC.md](SYNC.md).
 
 - Wysyłanie działa, gdy aplikacja jest otwarta na zegarku, a telefon połączony z zegarkiem.

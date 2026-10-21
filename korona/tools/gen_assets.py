@@ -1,4 +1,4 @@
-"""Ikona aplikacji Korona, strzałka kompasu i podglądy ekranów do README.
+"""Ikona aplikacji Na szczycie, strzałka kompasu i podglądy ekranów do README.
 
 Uruchom w folderze korona:  python tools/gen_assets.py  (ikona i strzałka -> watch/assets/gt.r)
 Wymaga: Pillow, font Segoe UI (jest w Windows 10/11 - tylko do podglądu,
@@ -107,7 +107,7 @@ def mask_round(im):
 
 def preview_home(at_summit=False):
     im, d = screen()
-    d.text((240, 44), "KORONA", font=font(22), fill=ORANGE, anchor="mm")
+    d.text((240, 44), "NA SZCZYCIE", font=font(22), fill=ORANGE, anchor="mm")
     d.text((240, 96), "41", font=font(64), fill=WHITE, anchor="mm")
     d.text((240, 144), "zdobytych szczytów", font=font(20), fill=GREY, anchor="mm")
     d.rounded_rectangle([50, 168, 430, 286], 26, fill=ROW)

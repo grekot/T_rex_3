@@ -163,7 +163,7 @@ Page(
         if (r.nothing && s.syncShown) return;
         s.syncShown = true;
         let msg = "Telefon: zapisano";
-        if (r.needsLogin) msg = "Telefon: zaloguj się w aplikacji Zepp → Korona → ustawienia";
+        if (r.needsLogin) msg = "Telefon: zaloguj się w aplikacji Zepp → Na szczycie → ustawienia";
         else if (r.offline) msg = "Telefon: brak połączenia, wyślę później";
         else if (!r.ok) msg = "Telefon: " + (r.error || "błąd");
         else if (r.nothing) msg = "Telefon: wszystko wysłane";

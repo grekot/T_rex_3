@@ -20,7 +20,7 @@ const text = (x, y, w, h, size, color, extra) => ({
 });
 
 export const TITLE_STYLE = text(px(90), px(28), DEVICE_WIDTH - px(180), px(32), px(22), COLOR_ORANGE, {
-  text: "KORONA",
+  text: "NA SZCZYCIE",
   char_space: px(2),
 });
 export const COUNT_STYLE = text(0, px(58), DEVICE_WIDTH, px(76), px(64), COLOR_WHITE);

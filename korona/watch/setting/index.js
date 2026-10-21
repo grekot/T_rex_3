@@ -1,5 +1,5 @@
-// Ustawienia w aplikacji Zepp: logowanie (to samo konto co w aplikacjach Korona, Powrót i Zakupy na telefonie:
-// zdobyte szczyty trafiają do aplikacji Korona na telefonie).
+// Ustawienia w aplikacji Zepp: logowanie (to samo konto co w aplikacjach Na szczycie, Powrót i Zakupy na telefonie:
+// zdobyte szczyty trafiają do aplikacji Na szczycie na telefonie).
 // Hasło trafia do Side Service tylko na czas logowania i jest od razu usuwane.
 
 const PASSWORD_MASK = "••••••••";
@@ -37,9 +37,9 @@ AppSettingsPage({
     const status = storage.getItem("authStatus") || (auth ? "Zalogowano jako " + auth.email : "Nie zalogowano");
 
     const header = [
-      Text({ style: { fontSize: "18px", fontWeight: "bold", marginBottom: "8px" } }, ["Korona – konto"]),
+      Text({ style: { fontSize: "18px", fontWeight: "bold", marginBottom: "8px" } }, ["Na szczycie – konto"]),
       Text({ style: { fontSize: "13px", color: "#555", marginBottom: "8px" } }, [
-        "Zaloguj się tym samym kontem co w aplikacji Korona (i Zakupy, Powrót) na telefonie. Zdobyte " +
+        "Zaloguj się tym samym kontem co w aplikacji Na szczycie (i Zakupy, Powrót) na telefonie. Zdobyte " +
           "szczyty pojawią się w telefonie (postęp list, mapa, historia) i będą bezpieczne po ponownej " +
           "instalacji aplikacji na zegarku. Bez logowania wszystko działa tylko na zegarku.",
       ]),
@@ -50,7 +50,7 @@ AppSettingsPage({
       return View({ style: { padding: "12px 20px" } }, [
         ...header,
         Text({ style: HINT }, [
-          "Zegarek wysyła zdobycia po każdej zmianie, gdy otworzysz aplikację Korona na zegarku " +
+          "Zegarek wysyła zdobycia po każdej zmianie, gdy otworzysz aplikację Na szczycie na zegarku " +
             "(telefon musi być połączony z zegarkiem).",
         ]),
         Button({
@@ -98,7 +98,7 @@ AppSettingsPage({
         onClick: () => storage.setItem("loginMode", signUp ? "login" : "signup"),
       }),
       Text({ style: { ...HINT, marginTop: "16px" } }, [
-        "Jeśli logowanie nie rusza, otwórz aplikację Korona na zegarku.",
+        "Jeśli logowanie nie rusza, otwórz aplikację Na szczycie na zegarku.",
       ]),
     ]);
   },

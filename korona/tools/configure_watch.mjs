@@ -1,6 +1,6 @@
 // Tworzy watch/utils/firebase-config.js (klucz API Firebase - plik poza gitem).
 // Projekt Firebase jest wspólny z Zakupami i Powrotem (zakupy-8ec54), więc konfigurację bierzemy:
-//   1) z phone/android/app/google-services.json (aplikacja Korona na telefon), albo
+//   1) z phone/android/app/google-services.json (aplikacja Na szczycie na telefon, pakiet pl.grekot.naszczycie), albo
 //   2) z gotowej konfiguracji zegarka Powrotu (../powrot/watch/utils/firebase-config.js).
 // Użycie (w folderze korona):  node tools/configure_watch.mjs
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
@@ -17,7 +17,9 @@ let projectId = "";
 if (existsSync(GOOGLE)) {
   const gs = JSON.parse(readFileSync(GOOGLE, "utf8"));
   projectId = gs.project_info.project_id;
-  apiKey = gs.client[0].api_key[0].current_key;
+  const client =
+    gs.client.find((c) => c.client_info.android_client_info.package_name === "pl.grekot.naszczycie") || gs.client[0];
+  apiKey = client.api_key[0].current_key;
   console.log("Konfiguracja z " + GOOGLE);
 } else if (existsSync(POWROT)) {
   const text = readFileSync(POWROT, "utf8");
