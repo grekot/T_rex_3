@@ -4,7 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/climbs.dart';
-import '../data/korona_data.dart';
+import '../data/peaks_data.dart';
 import '../data/peaks.dart';
 import 'format.dart';
 import 'widgets.dart';
@@ -28,7 +28,7 @@ enum MapBase {
 /// Kafelki z nazwą pakietu jako User-Agent (wymóg zasad korzystania z serwerów OSM)
 TileLayer baseTiles(MapBase base) => TileLayer(
       urlTemplate: base.url,
-      userAgentPackageName: 'pl.grekot.korona',
+      userAgentPackageName: 'pl.grekot.naszczycie',
       maxNativeZoom: base.maxZoom,
     );
 
@@ -77,7 +77,7 @@ class _Point {
 class PeaksMap extends StatefulWidget {
   const PeaksMap({super.key, required this.data, this.groupId});
 
-  final KoronaData data;
+  final PeaksData data;
 
   /// Początkowy filtr (np. z ekranu grupy); null = wszystkie
   final String? groupId;
@@ -92,7 +92,7 @@ class _PeaksMapState extends State<PeaksMap> {
   MapBase _base = MapBase.topo;
   bool _ready = false;
 
-  KoronaData get data => widget.data;
+  PeaksData get data => widget.data;
 
   List<_Point> _points() {
     final out = <_Point>[];

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../data/korona_data.dart';
+import '../data/peaks_data.dart';
 import '../data/peaks.dart';
 import '../data/stats.dart';
 import 'format.dart';
@@ -15,7 +15,7 @@ enum _Sort { height, name, date }
 class GroupScreen extends StatefulWidget {
   const GroupScreen({super.key, required this.data, required this.progress});
 
-  final KoronaData data;
+  final PeaksData data;
   final GroupProgress progress;
 
   @override
@@ -27,7 +27,7 @@ class _GroupScreenState extends State<GroupScreen> {
   _Sort _sort = _Sort.height;
   String _query = '';
 
-  KoronaData get data => widget.data;
+  PeaksData get data => widget.data;
   GroupProgress get progress => widget.progress;
 
   List<Peak> _filtered(List<Peak> peaks) {

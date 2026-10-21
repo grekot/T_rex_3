@@ -2,7 +2,7 @@
     <!-- Firebase i kafelki mapy -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="Korona"
+        android:label="Na szczycie"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

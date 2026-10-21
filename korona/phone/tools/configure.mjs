@@ -1,6 +1,6 @@
 // Przepisuje konfigurację Firebase z google-services.json do lib/firebase_options.dart.
 // Projekt Firebase jest ten sam co dla Zakupów i Powrotu; w konsoli trzeba dodać aplikację
-// Android pl.grekot.korona i pobrać google-services.json do android/app/.
+// Android pl.grekot.naszczycie i pobrać google-services.json do android/app/.
 // Bez pliku zapisuje zaślepkę (aplikacja pokaże „Brak konfiguracji” i tryb przykładu).
 // Użycie (w folderze korona/phone):  node tools/configure.mjs
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 const PHONE = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SOURCE = join(PHONE, "android", "app", "google-services.json");
 const TARGET = join(PHONE, "lib", "firebase_options.dart");
-const PACKAGE = "pl.grekot.korona";
+const PACKAGE = "pl.grekot.naszczycie";
 
 const PLACEHOLDER = `// ZAŚLEPKA z tools/configure.mjs - brak google-services.json, Firebase wyłączony.
 import 'package:firebase_core/firebase_core.dart';

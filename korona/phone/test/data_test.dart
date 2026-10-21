@@ -2,11 +2,11 @@ import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart' show Timestamp;
 import 'package:flutter_test/flutter_test.dart';
-import 'package:korona/data/climbs.dart';
-import 'package:korona/data/demo.dart';
-import 'package:korona/data/peaks.dart';
-import 'package:korona/data/stats.dart';
-import 'package:korona/ui/format.dart';
+import 'package:naszczycie/data/climbs.dart';
+import 'package:naszczycie/data/demo.dart';
+import 'package:naszczycie/data/peaks.dart';
+import 'package:naszczycie/data/stats.dart';
+import 'package:naszczycie/ui/format.dart';
 
 void main() {
   // Prawdziwa lista z assetów (kopia korona/data/peaks.json)

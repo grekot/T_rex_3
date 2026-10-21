@@ -14,11 +14,11 @@ Future<void> main() async {
   if (firebaseConfigured) {
     await Firebase.initializeApp(options: firebaseOptions);
   }
-  runApp(KoronaApp(catalog: catalog));
+  runApp(NaSzczycieApp(catalog: catalog));
 }
 
-class KoronaApp extends StatelessWidget {
-  const KoronaApp({super.key, required this.catalog});
+class NaSzczycieApp extends StatelessWidget {
+  const NaSzczycieApp({super.key, required this.catalog});
 
   final PeakCatalog catalog;
 
@@ -28,7 +28,7 @@ class KoronaApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Korona',
+      title: 'Na szczycie',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(colorScheme: ColorScheme.fromSeed(seedColor: _seed), useMaterial3: true),
       darkTheme: ThemeData(
@@ -56,16 +56,16 @@ class AuthGate extends StatelessWidget {
         final user = snapshot.data;
         if (user == null) {
           return const LoginScreen(
-            appName: 'Korona',
+            appName: 'Na szczycie',
             icon: Icons.landscape_outlined,
             description: 'Szczyty zdobyte z zegarkiem: postęp list, mapa i historia wejść.',
-            watchApps: 'Korona',
+            watchApps: 'Na szczycie',
           );
         }
         return HomeScreen(
           key: ValueKey(user.uid),
           catalog: catalog,
-          repo: KoronaRepository(user.uid, user.email ?? ''),
+          repo: ClimbsRepository(user.uid, user.email ?? ''),
         );
       },
     );

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../data/korona_data.dart';
+import '../data/peaks_data.dart';
 import '../data/stats.dart';
 import 'format.dart';
 import 'group_screen.dart';
@@ -10,7 +10,7 @@ import 'widgets.dart';
 class GroupsTab extends StatelessWidget {
   const GroupsTab({super.key, required this.data});
 
-  final KoronaData data;
+  final PeaksData data;
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +50,7 @@ class GroupsTab extends StatelessWidget {
 class _SyncCard extends StatelessWidget {
   const _SyncCard({required this.data});
 
-  final KoronaData data;
+  final PeaksData data;
 
   @override
   Widget build(BuildContext context) {
@@ -72,8 +72,8 @@ class _SyncCard extends StatelessWidget {
           leading: Icon(Icons.watch_outlined),
           title: Text('Zegarek jeszcze nic nie wysłał'),
           subtitle: Text(
-            'Zaloguj się tym samym kontem w aplikacji Korona na zegarku '
-            '(w aplikacji Zepp: Urządzenie → Korona → ustawienia). '
+            'Zaloguj się tym samym kontem w aplikacji Na szczycie na zegarku '
+            '(w aplikacji Zepp: Urządzenie → Na szczycie → ustawienia). '
             'Zdobycia pojawią się tu po synchronizacji.',
           ),
         ),
@@ -101,7 +101,7 @@ class _SyncCard extends StatelessWidget {
 class _GroupCard extends StatelessWidget {
   const _GroupCard({required this.data, required this.progress});
 
-  final KoronaData data;
+  final PeaksData data;
   final GroupProgress progress;
 
   @override
@@ -148,7 +148,7 @@ class _GroupCard extends StatelessWidget {
 class _CustomScreen extends StatelessWidget {
   const _CustomScreen({required this.data});
 
-  final KoronaData data;
+  final PeaksData data;
 
   @override
   Widget build(BuildContext context) {

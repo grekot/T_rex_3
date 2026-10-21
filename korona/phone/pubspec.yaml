@@ -1,5 +1,5 @@
-name: korona
-description: "Korona - zdobyte szczyty z zegarka: postęp, mapa, historia"
+name: naszczycie
+description: "Na szczycie - zdobyte szczyty z zegarka: postęp, mapa, historia"
 publish_to: 'none'
 
 # versionName+versionCode (przy --split-per-abi Flutter dodaje 2000 dla arm64)

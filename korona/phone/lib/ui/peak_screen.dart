@@ -4,7 +4,7 @@ import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../data/climbs.dart';
-import '../data/korona_data.dart';
+import '../data/peaks_data.dart';
 import '../data/peaks.dart';
 import 'format.dart';
 import 'peaks_map.dart';
@@ -15,7 +15,7 @@ class PeakScreen extends StatelessWidget {
   const PeakScreen({super.key, required this.data, this.peak, this.custom})
       : assert((peak == null) != (custom == null));
 
-  final KoronaData data;
+  final PeaksData data;
   final Peak? peak;
   final CustomPeak? custom;
 
@@ -61,7 +61,7 @@ class PeakScreen extends StatelessWidget {
               leading: ClimbDot(climbed: date != null, custom: custom != null),
               title: Text(date != null ? 'Zdobyty ${formatDay(date)}' : 'Jeszcze nie zdobyty'),
               subtitle: Text(date == null
-                  ? 'Otwórz Koronę na zegarku na wierzchołku - zaliczy go po GPS'
+                  ? 'Otwórz aplikację Na szczycie na zegarku na wierzchołku - zaliczy go po GPS'
                   : (gps ? 'Zaliczony na szczycie (GPS)' : 'Dodany ręcznie z datą')),
               trailing: date != null ? GpsIcon(gps: gps, size: 22) : null,
             ),

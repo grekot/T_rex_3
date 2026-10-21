@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/climbs.dart';
-import '../data/korona_data.dart';
+import '../data/peaks_data.dart';
 import '../data/peaks.dart';
 import 'format.dart';
 import 'peak_screen.dart';
@@ -33,7 +33,7 @@ class ClimbDot extends StatelessWidget {
 class PeakTile extends StatelessWidget {
   const PeakTile({super.key, required this.data, required this.peak, this.showRange = true});
 
-  final KoronaData data;
+  final PeaksData data;
   final Peak peak;
   final bool showRange;
 
@@ -139,10 +139,10 @@ class ProgressLine extends StatelessWidget {
   }
 }
 
-void openPeak(BuildContext context, KoronaData data, Peak peak) {
+void openPeak(BuildContext context, PeaksData data, Peak peak) {
   Navigator.of(context).push(MaterialPageRoute(builder: (_) => PeakScreen(data: data, peak: peak)));
 }
 
-void openCustom(BuildContext context, KoronaData data, CustomPeak custom) {
+void openCustom(BuildContext context, PeaksData data, CustomPeak custom) {
   Navigator.of(context).push(MaterialPageRoute(builder: (_) => PeakScreen(data: data, custom: custom)));
 }

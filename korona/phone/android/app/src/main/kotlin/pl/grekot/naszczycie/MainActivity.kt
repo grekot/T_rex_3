@@ -1,4 +1,4 @@
-package pl.grekot.korona
+package pl.grekot.naszczycie
 
 import io.flutter.embedding.android.FlutterActivity
 

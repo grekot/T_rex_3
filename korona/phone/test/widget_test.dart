@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:korona/data/peaks.dart';
-import 'package:korona/ui/home_screen.dart';
+import 'package:naszczycie/data/peaks.dart';
+import 'package:naszczycie/ui/home_screen.dart';
 
 void main() {
   final catalog = PeakCatalog.fromJsonString(File('assets/peaks.json').readAsStringSync());

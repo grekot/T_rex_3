@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../data/korona_data.dart';
+import '../data/peaks_data.dart';
 import '../data/stats.dart';
 import 'format.dart';
 import 'widgets.dart';
@@ -9,7 +9,7 @@ import 'widgets.dart';
 class HistoryTab extends StatelessWidget {
   const HistoryTab({super.key, required this.data});
 
-  final KoronaData data;
+  final PeaksData data;
 
   @override
   Widget build(BuildContext context) {
@@ -19,7 +19,7 @@ class HistoryTab extends StatelessWidget {
         child: Padding(
           padding: EdgeInsets.all(32),
           child: Text(
-            'Brak zdobyć.\n\nOtwórz Koronę na zegarku na szczycie - zaliczy go po GPS - '
+            'Brak zdobyć.\n\nOtwórz aplikację Na szczycie na zegarku na wierzchołku - zaliczy go po GPS - '
             'albo dodaj wcześniejsze wejścia z datą w szczegółach szczytu na zegarku.',
             textAlign: TextAlign.center,
           ),
@@ -186,7 +186,7 @@ class _YearsChart extends StatelessWidget {
 class _EntryTile extends StatelessWidget {
   const _EntryTile({required this.data, required this.entry});
 
-  final KoronaData data;
+  final PeaksData data;
   final TimelineEntry entry;
 
   @override

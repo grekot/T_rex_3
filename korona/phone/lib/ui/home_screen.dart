@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../data/climbs.dart';
 import '../data/demo.dart';
-import '../data/korona_data.dart';
+import '../data/peaks_data.dart';
 import '../data/peaks.dart';
 import '../data/repository.dart';
 import 'groups_tab.dart';
@@ -18,7 +18,7 @@ class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.catalog, this.repo});
 
   final PeakCatalog catalog;
-  final KoronaRepository? repo;
+  final ClimbsRepository? repo;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -59,7 +59,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final repo = widget.repo;
     final doc = _demo ? _demoDoc : _doc;
-    final data = doc == null ? null : KoronaData(catalog: widget.catalog, doc: doc, demo: _demo);
+    final data = doc == null ? null : PeaksData(catalog: widget.catalog, doc: doc, demo: _demo);
 
     Widget body;
     if (data == null && _error != null) {
@@ -79,7 +79,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Korona'),
+        title: const Text('Na szczycie'),
         actions: [
           PopupMenuButton<String>(
             onSelected: (v) {

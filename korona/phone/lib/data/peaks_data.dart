@@ -3,8 +3,8 @@ import 'peaks.dart';
 import 'stats.dart';
 
 /// Stan widoczny na ekranach: lista szczytów + zdobycia (z Firestore albo przykładowe)
-class KoronaData {
-  KoronaData({required this.catalog, required this.doc, this.demo = false});
+class PeaksData {
+  PeaksData({required this.catalog, required this.doc, this.demo = false});
 
   final PeakCatalog catalog;
   final ClimbsDoc doc;

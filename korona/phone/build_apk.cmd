@@ -1,5 +1,5 @@
 @echo off
-rem Buduje APK aplikacji Korona osobno dla każdej architektury procesora:
+rem Buduje APK aplikacji Na szczycie osobno dla każdej architektury procesora:
 rem   build\app\outputs\flutter-apk\app-arm64-v8a-release.apk  <- ten dla współczesnych telefonów
 setlocal
 set "JAVA_HOME=C:\Users\grzegorz.kotarba\dev\jdk-17.0.19+10"

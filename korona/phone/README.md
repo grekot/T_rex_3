@@ -1,14 +1,14 @@
-# Korona – telefon
+# Na szczycie – telefon
 
 Aplikacja na Androida (Flutter), która pokazuje szczyty zdobyte z aplikacją
-[Korona na zegarku](../README.md): postęp każdej listy, mapę i historię wejść. Loguje się
+[Na szczycie na zegarku](../README.md): postęp każdej listy, mapę i historię wejść. Loguje się
 tym samym kontem co Zakupy i Powrót (pakiet [`wspolne`](../../wspolne)). Dane zapisuje
 zegarek – telefon tylko je czyta (kontrakt: [`../SYNC.md`](../SYNC.md)).
 
 ## Ekrany
 
 - **Postęp** – karta każdej grupy z `peaks.json` (np. Korona Gór Polski „12 / 28” z paskiem
-  i procentem, korona przy zdobytej całej liście, „+ 2 warianty”), karta **Własne szczyty**
+  i procentem, medal przy zdobytej całej liście, „+ 2 warianty”), karta **Własne szczyty**
   (dodane na zegarku przyciskiem „Dodaj szczyt tutaj”) i kiedy zegarek ostatnio wysłał dane.
 - **Lista grupy** – szczyty od najwyższego; zdobyte pogrubione z zieloną kropką, datą i ikoną
   (satelita = zaliczony na szczycie po GPS, kalendarz = dodany ręcznie), niezdobyte szare.
@@ -58,7 +58,7 @@ jest nieaktualna.
    scaleniu opublikuj ten plik: konsola Firebase → Firestore Database → Rules → wklej →
    Publish. Bez tego aplikacja pokaże „Brak dostępu do zdobyć”.
 2. **Aplikacja Android w Firebase** – w projekcie `zakupy-8ec54`: Project settings → Your apps
-   → **Add app → Android**, pakiet **`pl.grekot.korona`**, nazwa „Korona”. Pobierz
+   → **Add app → Android**, pakiet **`pl.grekot.naszczycie`**, nazwa „Na szczycie”. Pobierz
    `google-services.json` i zapisz w `android/app/`.
 3. **Konfiguracja** (w tym folderze):
 
@@ -74,24 +74,24 @@ jest nieaktualna.
    (kopia z Powrotu, poza gitem) podpisuje go wspólnym kluczem sklepu, więc sklep potem go
    zaktualizuje.
 5. **Logowanie** – tym samym kontem co Zakupy / Powrót; na zegarku w aplikacji Zepp
-   (Urządzenie → Korona → ustawienia), gdy synchronizacja zegarka będzie gotowa.
+   (Urządzenie → Na szczycie → ustawienia), gdy synchronizacja zegarka będzie gotowa.
 
 ## Wydanie do Sklepu rodzinnego
 
-Tag `korona-vX.Y.Z` uruchamia [release-korona.yml](../../.github/workflows/release-korona.yml)
+Tag `naszczycie-vX.Y.Z` uruchamia [release-naszczycie.yml](../../.github/workflows/release-naszczycie.yml)
 (wspólny workflow z `grekot/App_storage`): APK arm64 podpisany wspólnym kluczem trafia do GitHub
-Release jako `korona.apk`, a wersja do biblioteki sklepu. Konfigurację Firebase CI odtwarza z
-sekretu repozytorium **`FIREBASE_OPTIONS_KORONA_B64`** (base64 pliku `lib/firebase_options.dart`
+Release jako `naszczycie.apk`, a wersja do biblioteki sklepu. Konfigurację Firebase CI odtwarza z
+sekretu repozytorium **`FIREBASE_OPTIONS_NASZCZYCIE_B64`** (base64 pliku `lib/firebase_options.dart`
 po `node tools/configure.mjs`; bez niego wydanie ma zaślepkę i pokazuje tylko przykładowe dane):
 
 ```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\TMP\My_GIT\T_rex_3\korona\phone\libirebase_options.dart")) | Set-Clipboard
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\TMP\My_GIT\T_rex_3\korona\phone\lib\firebase_options.dart")) | Set-Clipboard
 ```
 
 Do grup przypisuje administrator (w folderze `App_storage`):
 
 ```bash
-sklep przypisz korona --grupa Rodzina
+sklep przypisz naszczycie --grupa Rodzina
 ```
 
 ## Dla programisty
@@ -102,7 +102,7 @@ lib/data/peaks.dart        PeakCatalog / PeakGroup / Peak z assets/peaks.json
 lib/data/climbs.dart       ClimbsDoc z dokumentu korona/{uid} (odporny na złe wpisy)
 lib/data/stats.dart        postęp grup, oś czasu, zdobycia w latach, podsumowanie
 lib/data/demo.dart         przykładowe zdobycia (stałe ziarno)
-lib/data/repository.dart   KoronaRepository extends AccountRepository: watchClimbs()
+lib/data/repository.dart   ClimbsRepository extends AccountRepository: watchClimbs()
 lib/ui/home_screen.dart    zakładki Postęp / Mapa / Historia, menu, błędy
 lib/ui/groups_tab.dart     karty grup, własne szczyty
 lib/ui/group_screen.dart   lista grupy: filtr, sortowanie, wyszukiwanie, warianty
