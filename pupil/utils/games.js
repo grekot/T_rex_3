@@ -204,13 +204,15 @@ export function stepBalance(b, tilt, dt) {
 // Kalibracja jak w Labiryncie: średnia z drugiej połowy pomiaru = "poziomo"
 export function calibrate(samples) {
   const half = samples.slice(Math.floor(samples.length / 2)).filter(Boolean);
-  if (!half.length) return { x: 0, y: 0, z: G };
+  if (!half.length) return { x: 0, y: 0, z: G, zSign: 1 };
   const sum = half.reduce((acc, a) => ({ x: acc.x + a.x, y: acc.y + a.y, z: acc.z + a.z }), { x: 0, y: 0, z: 0 });
-  return { x: sum.x / half.length, y: sum.y / half.length, z: sum.z / half.length };
+  const z = sum.z / half.length;
+  return { x: sum.x / half.length, y: sum.y / half.length, z, zSign: z < 0 ? -1 : 1 };
 }
 
+// Przechył w bok w g: dodatni = "z górki" w prawo ekranu (konwencja sprawdzona w Labiryncie)
 export function sideTilt(a, zero) {
-  return a ? (a.x - zero.x) / G : 0;
+  return a ? (-zero.zSign * (a.x - zero.x)) / G : 0;
 }
 
 // --- lewo czy prawo (bez ruchu) --------------------------------------------------

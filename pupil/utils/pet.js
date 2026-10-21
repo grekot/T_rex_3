@@ -391,6 +391,33 @@ export function advance(state, now, tz) {
   return { state: s, events };
 }
 
+// --- przypomnienie -------------------------------------------------------------
+// Kiedy warto zawołać właściciela: pierwsza chwila (po `now` + minGap), gdy pupil będzie
+// czegoś potrzebował, ale tylko w porze REMIND (nie budzimy w nocy). Jeśli potrzebuje
+// już teraz, przypomnienie za `again`. 0 = nic w ciągu `horizon`.
+export const REMIND = { from: 7 * 60 + 45, to: 22 * 60, minGap: 30 * MIN, again: 2 * HOUR, horizon: 20 * HOUR };
+
+function remindOk(t, tz) {
+  return inWindow(localMinute(t, tz), REMIND.from, REMIND.to);
+}
+
+export function nextReminder(state, now, tz) {
+  if (state.gone || stageOf(state) === "egg") return 0;
+  const s = clone(state);
+  const events = [];
+  const first = now + REMIND.minGap;
+  if (needsAttention(s)) {
+    for (let t = now + REMIND.again; t < now + REMIND.horizon; t += 15 * MIN) if (remindOk(t, tz)) return t;
+    return 0;
+  }
+  while (s.t < now + REMIND.horizon && !s.gone) {
+    s.t += TICK;
+    tick(s, tz, events);
+    if (s.t >= first && needsAttention(s) && remindOk(s.t, tz)) return s.t;
+  }
+  return 0;
+}
+
 // --- akcje użytkownika ------------------------------------------------------------
 // Każda akcja dostaje stan już przewinięty do teraz i zwraca
 // { state, msg, anim } - anim to krótka animacja: "eat", "happy", "sad", "no" albo "".

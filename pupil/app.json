@@ -1,0 +1,57 @@
+{
+  "configVersion": "v3",
+  "app": {
+    "appId": 1087167,
+    "appName": "Pupil",
+    "appType": "app",
+    "version": {
+      "code": 1,
+      "name": "1.0.0"
+    },
+    "icon": "icon.png",
+    "vender": "grekot",
+    "description": "Tamagotchi z dinozaurem - karm, baw sie, kladz spac"
+  },
+  "permissions": ["data:os.device.info", "device:os.local_storage", "device:os.accelerometer", "device:os.alarm"],
+  "runtime": {
+    "apiVersion": {
+      "compatible": "3.0",
+      "target": "3.0",
+      "minVersion": "3.0"
+    }
+  },
+  "debug": false,
+  "targets": {
+    "gt": {
+      "module": {
+        "page": {
+          "pages": [
+            "page/gt/home/index.page",
+            "page/gt/stats/index.page",
+            "page/gt/collection/index.page",
+            "page/gt/games/index.page",
+            "page/gt/throw/index.page",
+            "page/gt/rock/index.page",
+            "page/gt/balance/index.page",
+            "page/gt/guess/index.page"
+          ]
+        }
+      },
+      "platforms": [
+        {
+          "st": "r"
+        }
+      ],
+      "designWidth": 480
+    }
+  },
+  "i18n": {
+    "en-US": {
+      "appName": "Pupil"
+    },
+    "pl-PL": {
+      "appName": "Pupil"
+    }
+  },
+  "defaultLanguage": "en-US"
+}

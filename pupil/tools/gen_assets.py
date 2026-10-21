@@ -393,7 +393,29 @@ def mock(all_frames, form, frame, selected, text):
     return img
 
 
+def write_geometry():
+    """utils/geometry.js - rozmiary obrazków i położenie ikon pierścienia (projekt 480 px)."""
+    ring = ",\n".join(
+        '  { id: "%s", cx: %d, cy: %d }' % (iid, cx, cy) for iid, (cx, cy) in zip(RING_IDS, ring_positions())
+    )
+    lines = [
+        "// Wygenerowane przez tools/gen_assets.py - nie edytować ręcznie.",
+        "export const SPRITE = %d;" % SPRITE,
+        "export const THUMB = %d;" % (GRID * THUMB_SCALE),
+        "export const DISC = %d;" % DISC,
+        "export const ICON = %d; // poop, skull, alert, meal, snack, ball" % (12 * 4),
+        "export const HEART = %d;" % (12 * 3),
+        "export const ARROW = %d;" % (12 * 5),
+        "export const ZZZ = { w: %d, h: %d };" % (14 * 4, 12 * 4),
+        "export const LOG = { w: %d, h: %d };" % (32 * 6, 6 * 6),
+        "export const RING = [\n%s,\n];" % ring,
+    ]
+    with open(os.path.join(ROOT, "utils", "geometry.js"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+
+
 def main():
+    write_geometry()
     all_frames = {}
     for fid in FORMS:
         fr = frames_for(fid)

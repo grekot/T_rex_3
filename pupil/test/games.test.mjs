@@ -129,9 +129,13 @@ test("kalibracja i przechył w bok", () => {
   const zero = calibrate(samples);
   assert.ok(Math.abs(zero.x - tilted(10).x) < 1e-6);
   assert.ok(Math.abs(sideTilt(tilted(10), zero)) < 1e-9);
-  assert.ok(sideTilt(tilted(30), zero) > 0.2);
+  // odczyt "w górę" (z > 0 przy ekranie do góry): większe x = prawa krawędź wyżej
+  assert.ok(sideTilt(tilted(30), zero) < -0.2);
+  const flipped = calibrate([{ x: 0, y: 0, z: -G }, { x: 0, y: 0, z: -G }]);
+  assert.equal(flipped.zSign, -1);
+  assert.ok(sideTilt({ x: 300, y: 0, z: -G }, flipped) > 0.2);
   assert.equal(sideTilt(null, zero), 0);
-  assert.deepEqual(calibrate([]), { x: 0, y: 0, z: G });
+  assert.deepEqual(calibrate([]), { x: 0, y: 0, z: G, zSign: 1 });
 });
 
 test("lewo czy prawo: 3 trafienia wygrywają, 3 pudła przegrywają", () => {

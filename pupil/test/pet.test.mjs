@@ -26,6 +26,8 @@ import {
   needsAttention,
   lastNews,
   ageDays,
+  nextReminder,
+  localMinute as lm,
 } from "../utils/pet.js";
 
 let failed = 0;
@@ -410,6 +412,37 @@ test("wszystkie formy mają etap i nazwę, wiek liczy się od wyklucia", () => {
   assert.equal(ageDays({ ...s, t: at(2, 9) }), 2);
   assert.equal(ageDays({ ...s, t: at(2, 7) }), 1);
   assert.ok(CALLS.light.grace <= HOUR);
+});
+
+test("przypomnienie: pierwsza potrzeba w dzień, nigdy w nocy", () => {
+  const s = adultAt(at(1, 9));
+  s.timers = { hunger: 100000, happy: 100000, poop: 120, whim: 100000 };
+  // kupa za 2 h -> przypomnienie wtedy
+  assert.equal(nextReminder(s, at(1, 9), TZ), at(1, 11));
+  // kupa wypadłaby w nocy... (sen wstrzymuje liczniki) - zostaje światło o 21:30
+  const evening = adultAt(at(1, 20, 30));
+  evening.timers = { hunger: 100000, happy: 100000, poop: 100000, whim: 100000 };
+  assert.equal(nextReminder(evening, at(1, 20, 30), TZ), at(1, 21, 30));
+  // po zgaszeniu światła: rano, po pobudce coś znowu spadnie
+  const night = toggleLight(adultAt(at(1, 21)), TZ).state;
+  night.timers = { hunger: 30, happy: 100000, poop: 100000, whim: 100000 };
+  night.hunger = 1;
+  const r = nextReminder(night, at(1, 21), TZ);
+  assert.ok(r > at(2, 7, 45) && r < at(2, 9), new Date(r).toISOString());
+  // już czegoś potrzebuje: za 2 h, ale nie w nocy
+  const dirty = adultAt(at(1, 12));
+  dirty.poops = 1;
+  dirty.poopAt = dirty.t;
+  assert.equal(nextReminder(dirty, at(1, 12), TZ), at(1, 14));
+  const late = adultAt(at(1, 21, 30));
+  late.poops = 1;
+  const lr = nextReminder(late, at(1, 21, 30), TZ);
+  assert.ok(lm(lr, TZ) >= 7 * 60 + 45 && lr < at(2, 9), new Date(lr).toISOString());
+  // jajo i odejście - bez przypomnień
+  assert.equal(nextReminder(newEgg(at(1, 9), 1), at(1, 9), TZ), 0);
+  assert.equal(nextReminder({ ...s, gone: "old" }, at(1, 9), TZ), 0);
+  // stan wejściowy się nie zmienia
+  assert.equal(s.t, at(1, 9));
 });
 
 if (failed) {
