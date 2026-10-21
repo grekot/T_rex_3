@@ -4,6 +4,8 @@
     <!-- Odległość do miejsc i trasa GPX od bieżącej pozycji -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <!-- Wibracja „Na miejscu!” na ekranie kompasu -->
+    <uses-permission android:name="android.permission.VIBRATE"/>
     <application
         android:label="Powrót"
         android:name="${applicationName}"

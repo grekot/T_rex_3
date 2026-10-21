@@ -8,12 +8,13 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:wspolne/wspolne.dart';
 
+import 'compass_screen.dart';
 import 'gpx.dart';
 import 'models.dart';
 import 'repository.dart';
 
 /// Miejsca zapisane na zegarku w aplikacji Powrót (moje i udostępnione mi):
-/// nawigacja w Google Maps, plik GPX do zegarka, udostępnianie znajomym.
+/// kompas na azymut, nawigacja w Google Maps, plik GPX do zegarka, udostępnianie znajomym.
 class PlacesScreen extends StatefulWidget {
   const PlacesScreen({super.key, required this.repo});
 
@@ -65,6 +66,12 @@ class _PlacesScreenState extends State<PlacesScreen> {
   Future<void> _navigate(Place p, {bool driving = false}) async {
     final ok = await launchUrl(mapsDirectionsUri(p.lat, p.lon, driving: driving), mode: LaunchMode.externalApplication);
     if (!ok && mounted) _snack('Nie udało się otworzyć Google Maps');
+  }
+
+  /// Strzałka do celu na azymut - w terenie bez dróg
+  Future<void> _compass(Place p) async {
+    await Navigator.push(context, MaterialPageRoute(builder: (_) => CompassScreen(place: p)));
+    _locate(ask: false); // po marszu odległości na liście są nieaktualne
   }
 
   Future<void> _sendLocation(Place p) async {
@@ -152,6 +159,12 @@ class _PlacesScreenState extends State<PlacesScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(title: Text(p.name, style: Theme.of(ctx).textTheme.titleMedium)),
+              ListTile(
+                leading: const Icon(Icons.explore_outlined),
+                title: const Text('Kompas – na azymut'),
+                subtitle: const Text('Strzałka do celu, w terenie bez dróg'),
+                onTap: () => run(() => _compass(p)),
+              ),
               ListTile(
                 leading: const Icon(Icons.directions_walk),
                 title: const Text('Nawiguj pieszo (Google Maps)'),
@@ -280,10 +293,20 @@ class _PlacesScreenState extends State<PlacesScreen> {
                   title: Text(p.name),
                   subtitle: Text(_subtitle(p)),
                   onTap: () => _actions(p),
-                  trailing: IconButton.filledTonal(
-                    tooltip: 'Nawiguj pieszo',
-                    icon: const Icon(Icons.directions_walk),
-                    onPressed: () => _navigate(p),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton.filledTonal(
+                        tooltip: 'Kompas – na azymut',
+                        icon: const Icon(Icons.explore_outlined),
+                        onPressed: () => _compass(p),
+                      ),
+                      IconButton.filledTonal(
+                        tooltip: 'Nawiguj pieszo',
+                        icon: const Icon(Icons.directions_walk),
+                        onPressed: () => _navigate(p),
+                      ),
+                    ],
                   ),
                 ),
               );

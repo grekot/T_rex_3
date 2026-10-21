@@ -43,6 +43,9 @@ dependencies:
   path_provider: ^2.1.6
   wspolne:
     path: ../../wspolne
+  flutter_compass: ^0.8.1
+  wakelock_plus: ^1.7.0
+  vibration: ^3.2.1
 
 dev_dependencies:
   flutter_test:

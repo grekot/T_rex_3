@@ -49,12 +49,40 @@ Miejsca z wersji 1.0 przenoszą się automatycznie.
 
 Lista miejsc z zegarka (i udostępnionych przez znajomych) z odległością od Ciebie. Przy miejscu:
 
+- **Kompas – na azymut** (ikona kompasu przy miejscu) – strzałka do celu jak na zegarku, do marszu
+  w terenie bez dróg (niżej),
 - **Nawiguj pieszo / autem** – Google Maps z trasą do miejsca (np. do zaparkowanego auta),
 - **Trasa na zegarek (plik GPX)** – trasa od Twojej pozycji do miejsca. W menu udostępniania
   wybierz **Zepp** → zapisz trasę → **Wyślij do zegarka**; na T-Rexie: **Trening → np. Spacer →
   Nawigacja → Moje trasy**. Mapa zegarka działa potem bez telefonu,
 - **Udostępnij znajomym** – u nich miejsce pojawia się w telefonie i w Powrocie na zegarku,
 - **Wyślij link do lokalizacji**, **Zmień nazwę**, **Usuń** (cudze: „Usuń u mnie”).
+
+### Kompas na azymut
+
+Duża strzałka obraca się razem z telefonem i zawsze wskazuje cel **z miejsca, w którym jesteś** –
+można obchodzić przeszkody (bagno, gęstwinę, ogrodzenie) i strzałka sama poprawia kierunek.
+Pod nią odległość, azymut do celu (np. „Pn-Wsch · 47°”), dokładność GPS i użyta deklinacja.
+
+- Trzymaj telefon **płasko**, górą przed siebie. Ekran nie gaśnie, dopóki jest otwarty kompas.
+- W promieniu ok. **15 m**: „Na miejscu!” i wibracja; ponowny alarm dopiero po oddaleniu się na 30 m
+  (drgania GPS przy granicy nie wibrują bez końca) – tak samo jak na zegarku.
+- Gdy Android zgłasza słabą dokładność kompasu, pojawia się podpowiedź kalibracji (ósemka w powietrzu,
+  z dala od metalu i magnesów w etui). Bez magnetometru strzałka jest szara, a ekran podaje azymut
+  do sprawdzenia zwykłym kompasem lub zegarkiem. Brak GPS, wyłączona lokalizacja lub brak zgody –
+  komunikat z przyciskiem (Włącz / Zezwól / Ustawienia / Ponów).
+- **Orientacja ekranu**: kompas ustawia ekran pionowo; `flutter_compass` i tak przelicza kierunek
+  względem obrotu ekranu (`Display.getRotation`).
+- **Deklinacja**: `flutter_compass` (czujnik `TYPE_ROTATION_VECTOR`) daje kierunek do północy
+  **magnetycznej**, a azymut z GPS jest do geograficznej. W Polsce różnica to ok. 5–8° na wschód
+  (≈100 m odchyłki na 1 km), więc ją dodajemy. Zamiast pełnego modelu WMM (kilkaset
+  współczynników) jest siatka z kalkulatora NOAA (WMM2025, epoka 2027 + zmiana roczna) dla Polski
+  i okolic (szer. 45–58,5°, dł. 9–27,5°) – ta sama co w aplikacji Szczyty. Poza tym obszarem
+  poprawki nie ma, a ekran pisze „kierunek magnetyczny”.
+
+Logika (odległość, azymut, kąt strzałki, wygładzanie, strony świata, „na miejscu”, deklinacja)
+jest w czystym Darcie w [`phone/lib/geo.dart`](phone/lib/geo.dart), testy w
+[`phone/test/geo_test.dart`](phone/test/geo_test.dart); ekran: `phone/lib/compass_screen.dart`.
 
 Konto i znajomi są wspólne z aplikacją [Zakupy](../lista-zakupow/README.md) (pakiet
 [`../wspolne`](../wspolne/)).

@@ -1,5 +1,9 @@
 import 'dart:math';
 
+import 'geo.dart';
+
+export 'geo.dart' show distanceMeters, formatDistance;
+
 /// Plik GPX do zaimportowania w aplikacji Zepp (trasa + punkt docelowy).
 /// Zepp nawiguje po trasach, więc zapisujemy odcinek od [from] (moja pozycja) do celu;
 /// bez pozycji startowej trasa ma tylko punkt docelowy (zegarek pokaże go na mapie).
@@ -44,21 +48,6 @@ List<({double lat, double lon})> _interpolate(({double lat, double lon}) a, ({do
     for (var i = 0; i < steps; i++)
       (lat: a.lat + (b.lat - a.lat) * i / steps, lon: a.lon + (b.lon - a.lon) * i / steps),
   ];
-}
-
-double distanceMeters(double lat1, double lon1, double lat2, double lon2) {
-  const r = 6371000.0;
-  double rad(double d) => d * pi / 180;
-  final dLat = rad(lat2 - lat1);
-  final dLon = rad(lon2 - lon1);
-  final a = sin(dLat / 2) * sin(dLat / 2) + cos(rad(lat1)) * cos(rad(lat2)) * sin(dLon / 2) * sin(dLon / 2);
-  return 2 * r * atan2(sqrt(a), sqrt(1 - a));
-}
-
-String formatDistance(double m) {
-  if (m < 1000) return '${m.round()} m';
-  if (m < 10000) return '${(m / 1000).toStringAsFixed(2).replaceAll('.', ',')} km';
-  return '${(m / 1000).toStringAsFixed(1).replaceAll('.', ',')} km';
 }
 
 /// Nazwa pliku bez polskich znaków i spacji: "Auto pod blokiem" -> "auto-pod-blokiem.gpx"
