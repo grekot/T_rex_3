@@ -1,0 +1,8515 @@
+{
+ "version": 1,
+ "generated": "2026-10-20",
+ "sources": [
+  "Korona Gór Polski: lista Klubu Zdobywców KGP (Wikipedia „Korona Gór Polski”, CC BY-SA 4.0)",
+  "Szczyty pasm: kategorie polskiej Wikipedii (Szczyty Beskidu Wyspowego, Szczyty Beskidu Sądeckiego, Szczyty Gorców, Szczyty polskich Tatr), CC BY-SA 4.0",
+  "Współrzędne: OpenStreetMap natural=peak (© współtwórcy OpenStreetMap, ODbL)"
+ ],
+ "groups": [
+  {
+   "id": "kgp",
+   "name": "Korona Gór Polski",
+   "short": "KGP",
+   "counted": 28
+  },
+  {
+   "id": "wyspowy",
+   "name": "Beskid Wyspowy",
+   "short": "Wyspowy",
+   "counted": 145
+  },
+  {
+   "id": "sadecki",
+   "name": "Beskid Sądecki",
+   "short": "Sądecki",
+   "counted": 156
+  },
+  {
+   "id": "gorce",
+   "name": "Gorce",
+   "short": "Gorce",
+   "counted": 126
+  },
+  {
+   "id": "tatry",
+   "name": "Tatry polskie",
+   "short": "Tatry",
+   "counted": 196
+  }
+ ],
+ "peaks": [
+  {
+   "id": "rysy",
+   "name": "Rysy",
+   "h": 2499,
+   "range": "Tatry",
+   "lat": 49.1795756,
+   "lon": 20.0881081,
+   "osm": 4366169405,
+   "border": true,
+   "groups": [
+    "kgp",
+    "tatry"
+   ]
+  },
+  {
+   "id": "babia",
+   "name": "Babia Góra",
+   "h": 1725,
+   "range": "Beskid Żywiecki",
+   "lat": 49.5730231,
+   "lon": 19.5293303,
+   "osm": 477984782,
+   "border": true,
+   "note": "Wierzchołek Diablak",
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "sniezka",
+   "name": "Śnieżka",
+   "h": 1603,
+   "range": "Karkonosze",
+   "lat": 50.7360326,
+   "lon": 15.7396072,
+   "osm": 1850303773,
+   "border": true,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "snieznik",
+   "name": "Śnieżnik",
+   "h": 1423,
+   "range": "Masyw Śnieżnika",
+   "lat": 50.2074081,
+   "lon": 16.847424,
+   "osm": 26863429,
+   "border": true,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "tarnica",
+   "name": "Tarnica",
+   "h": 1346,
+   "range": "Bieszczady",
+   "lat": 49.0747705,
+   "lon": 22.726323,
+   "osm": 1347929065,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "turbacz",
+   "name": "Turbacz",
+   "h": 1310,
+   "range": "Gorce",
+   "lat": 49.5428239,
+   "lon": 20.1113839,
+   "osm": 26864983,
+   "groups": [
+    "kgp",
+    "gorce"
+   ]
+  },
+  {
+   "id": "radziejowa",
+   "name": "Radziejowa",
+   "h": 1266,
+   "range": "Beskid Sądecki",
+   "lat": 49.4493044,
+   "lon": 20.6041221,
+   "osm": 1198299196,
+   "groups": [
+    "kgp",
+    "sadecki"
+   ]
+  },
+  {
+   "id": "skrzyczne",
+   "name": "Skrzyczne",
+   "h": 1257,
+   "range": "Beskid Śląski",
+   "lat": 49.6845736,
+   "lon": 19.0302741,
+   "osm": 26864701,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "mogielica",
+   "name": "Mogielica",
+   "h": 1171,
+   "range": "Beskid Wyspowy",
+   "lat": 49.6553199,
+   "lon": 20.2766736,
+   "osm": 1236685520,
+   "groups": [
+    "kgp",
+    "wyspowy"
+   ]
+  },
+  {
+   "id": "wysokakopa",
+   "name": "Wysoka Kopa",
+   "h": 1126,
+   "range": "Góry Izerskie",
+   "lat": 50.85,
+   "lon": 15.4202778,
+   "osm": 707906070,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "rudawiec",
+   "name": "Rudawiec",
+   "h": 1106,
+   "range": "Góry Bialskie",
+   "lat": 50.2448039,
+   "lon": 16.9768585,
+   "osm": 1793427200,
+   "border": true,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "orlica",
+   "name": "Orlica",
+   "h": 1084,
+   "range": "Góry Orlickie",
+   "lat": 50.3532494,
+   "lon": 16.3606287,
+   "osm": 2418877544,
+   "border": true,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "wysoka",
+   "name": "Wysoka",
+   "h": 1050,
+   "range": "Pieniny",
+   "lat": 49.3802606,
+   "lon": 20.5555018,
+   "osm": 615627232,
+   "border": true,
+   "note": "Wysokie Skałki",
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "wielkasowa",
+   "name": "Wielka Sowa",
+   "h": 1015,
+   "range": "Góry Sowie",
+   "lat": 50.6802778,
+   "lon": 16.4855556,
+   "osm": 458891184,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "lackowa",
+   "name": "Lackowa",
+   "h": 997,
+   "range": "Beskid Niski",
+   "lat": 49.4265468,
+   "lon": 21.1024789,
+   "osm": 4366115862,
+   "border": true,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "kowadlo",
+   "name": "Kowadło",
+   "h": 989,
+   "range": "Góry Złote",
+   "lat": 50.2644312,
+   "lon": 17.0132176,
+   "osm": 2421373077,
+   "border": true,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "jagodna",
+   "name": "Jagodna",
+   "h": 977,
+   "range": "Góry Bystrzyckie",
+   "lat": 50.2524573,
+   "lon": 16.5644186,
+   "osm": 2418865417,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "skalnik",
+   "name": "Skalnik",
+   "h": 945,
+   "range": "Rudawy Janowickie",
+   "lat": 50.8084793,
+   "lon": 15.9000581,
+   "osm": 1219704819,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "waligora",
+   "name": "Waligóra",
+   "h": 936,
+   "range": "Góry Kamienne",
+   "lat": 50.6808246,
+   "lon": 16.2780881,
+   "osm": 2470310941,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "czupel",
+   "name": "Czupel",
+   "h": 931,
+   "range": "Beskid Mały",
+   "lat": 49.767881,
+   "lon": 19.1610286,
+   "osm": 3046822323,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "szczeliniec",
+   "name": "Szczeliniec Wielki",
+   "h": 919,
+   "range": "Góry Stołowe",
+   "lat": 50.4848143,
+   "lon": 16.3410065,
+   "osm": 492775426,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "lubomir",
+   "name": "Lubomir",
+   "h": 904,
+   "range": "Beskid Makowski",
+   "lat": 49.7668805,
+   "lon": 20.0596718,
+   "osm": 2845608415,
+   "groups": [
+    "kgp",
+    "wyspowy"
+   ]
+  },
+  {
+   "id": "biskupia",
+   "name": "Biskupia Kopa",
+   "h": 889,
+   "range": "Góry Opawskie",
+   "lat": 50.2566949,
+   "lon": 17.4285752,
+   "osm": 991934327,
+   "border": true,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "chelmiec",
+   "name": "Chełmiec",
+   "h": 850,
+   "range": "Góry Wałbrzyskie",
+   "lat": 50.7795495,
+   "lon": 16.2109745,
+   "osm": 428725380,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "klodzka",
+   "name": "Kłodzka Góra",
+   "h": 765,
+   "range": "Góry Bardzkie",
+   "lat": 50.45167,
+   "lon": 16.7532205,
+   "osm": 529512640,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "skopiec",
+   "name": "Skopiec",
+   "h": 724,
+   "range": "Góry Kaczawskie",
+   "lat": 50.9439267,
+   "lon": 15.8847061,
+   "osm": 4593556759,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "sleza",
+   "name": "Ślęża",
+   "h": 718,
+   "range": "Masyw Ślęży",
+   "lat": 50.8640875,
+   "lon": 16.7074963,
+   "osm": 349062696,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "lysica",
+   "name": "Łysica",
+   "h": 614,
+   "range": "Góry Świętokrzyskie",
+   "lat": 50.8916162,
+   "lon": 20.8965979,
+   "osm": 1844240120,
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "borowa",
+   "name": "Borowa",
+   "h": 853,
+   "range": "Góry Wałbrzyskie",
+   "lat": 50.7228665,
+   "lon": 16.3044645,
+   "osm": 2479069436,
+   "variantOf": "chelmiec",
+   "note": "Faktycznie najwyższa w Górach Wałbrzyskich",
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "szeroka",
+   "name": "Szeroka Góra",
+   "h": 766,
+   "range": "Góry Bardzkie",
+   "lat": 50.4536637,
+   "lon": 16.7584602,
+   "osm": 1997912845,
+   "variantOf": "klodzka",
+   "note": "Wg nowych pomiarów wyższa od Kłodzkiej Góry",
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "okole",
+   "name": "Okole",
+   "h": 725,
+   "range": "Góry Kaczawskie",
+   "lat": 50.9807356,
+   "lon": 15.8179415,
+   "osm": 2090686556,
+   "variantOf": "skopiec",
+   "note": "Wg pomiarów z 2021 r. wyższe od Skopca",
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "agata",
+   "name": "Agata",
+   "h": 614,
+   "range": "Góry Świętokrzyskie",
+   "lat": 50.8890736,
+   "lon": 20.905947,
+   "osm": 1844339192,
+   "variantOf": "lysica",
+   "note": "Wschodni, najwyższy wierzchołek Łysicy",
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "postawna",
+   "name": "Postawna",
+   "h": 1117,
+   "range": "Góry Złote",
+   "lat": 50.2217821,
+   "lon": 17.0111503,
+   "osm": 1890147175,
+   "variantOf": "rudawiec",
+   "note": "Na pierwszej liście z 1997 r.",
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "trzykorony",
+   "name": "Trzy Korony",
+   "h": 982,
+   "range": "Pieniny",
+   "lat": 49.4138332,
+   "lon": 20.4142155,
+   "osm": 253737989,
+   "variantOf": "wysoka",
+   "note": "Na pierwszej liście z 1997 r.",
+   "groups": [
+    "kgp"
+   ]
+  },
+  {
+   "id": "o4948502135",
+   "name": "Babia Góra",
+   "h": 727,
+   "lat": 49.7120424,
+   "lon": 20.5582665,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4948502135,
+   "wiki": "Babia Góra (Pasmo Łososińskie)"
+  },
+  {
+   "id": "o4959889387",
+   "name": "Bania",
+   "h": 611,
+   "lat": 49.760056,
+   "lon": 19.999472,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4959889387,
+   "wiki": "Bania (Pasmo Lubomira i Łysiny)"
+  },
+  {
+   "id": "o4959896710",
+   "name": "Bąkowiec",
+   "h": 599,
+   "lat": 49.6275,
+   "lon": 20.494167,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4959896710,
+   "wiki": "Bąkowiec (Beskid Wyspowy)"
+  },
+  {
+   "id": "o4948756543",
+   "name": "Białowodzka Góra",
+   "h": 616,
+   "lat": 49.683496,
+   "lon": 20.6199385,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4948756543,
+   "wiki": "Białowodzka Góra"
+  },
+  {
+   "id": "o8903887582",
+   "name": "Borek",
+   "h": 562,
+   "lat": 49.8210862,
+   "lon": 20.1486753,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 8903887582,
+   "wiki": "Borek (Beskid Wyspowy)"
+  },
+  {
+   "id": "o8824614054",
+   "name": "Bucznik",
+   "h": 598,
+   "lat": 49.6594349,
+   "lon": 20.117491,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 8824614054,
+   "wiki": "Bucznik (Beskid Wyspowy)"
+  },
+  {
+   "id": "w1476794",
+   "name": "Bydłoniowa",
+   "h": 645,
+   "lat": 49.73686111111111,
+   "lon": 20.056694444444446,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "wiki": "Bydłoniowa"
+  },
+  {
+   "id": "o3909637619",
+   "name": "Bystra Góra",
+   "h": 670,
+   "lat": 49.5886309,
+   "lon": 20.3292488,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 3909637619,
+   "wiki": "Bystra Góra"
+  },
+  {
+   "id": "o4948511860",
+   "name": "Chełm",
+   "h": 793,
+   "lat": 49.7036119,
+   "lon": 20.5777859,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4948511860,
+   "wiki": "Chełm (Beskid Wyspowy)"
+  },
+  {
+   "id": "o341847825",
+   "name": "Chełm",
+   "h": 614,
+   "lat": 49.7994243,
+   "lon": 19.9494703,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 341847825,
+   "wiki": "Chełm (Pasmo Lubomira i Łysiny)"
+  },
+  {
+   "id": "o4374611014",
+   "name": "Cichoń",
+   "h": 929,
+   "lat": 49.642756,
+   "lon": 20.3745622,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4374611014,
+   "wiki": "Cichoń"
+  },
+  {
+   "id": "o2845599516",
+   "name": "Ciecień",
+   "h": 829,
+   "lat": 49.7736019,
+   "lon": 20.1426824,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2845599516,
+   "wiki": "Ciecień"
+  },
+  {
+   "id": "o10903336420",
+   "name": "Cisówka",
+   "h": 564,
+   "lat": 49.6141051,
+   "lon": 20.4845081,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 10903336420,
+   "wiki": "Cisówka (Beskid Wyspowy)"
+  },
+  {
+   "id": "o7194209104",
+   "name": "Cuba",
+   "h": 596,
+   "lat": 49.7821243,
+   "lon": 20.4519681,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 7194209104,
+   "wiki": "Cuba (Beskid Wyspowy)"
+  },
+  {
+   "id": "o8817376511",
+   "name": "Cubla Góra",
+   "h": 565,
+   "lat": 49.8004236,
+   "lon": 20.1534494,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 8817376511,
+   "wiki": "Cubla Góra"
+  },
+  {
+   "id": "o4950971321",
+   "name": "Cuprówka",
+   "h": 753,
+   "lat": 49.7333128,
+   "lon": 20.4933138,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4950971321,
+   "wiki": "Cuprówka"
+  },
+  {
+   "id": "o7555696857",
+   "name": "Cyrkowa Góra",
+   "h": 828,
+   "lat": 49.6260858,
+   "lon": 20.1763878,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 7555696857,
+   "wiki": "Cyrkowa Góra"
+  },
+  {
+   "id": "o1938491596",
+   "name": "Czarny Dział",
+   "h": 673,
+   "lat": 49.6857276,
+   "lon": 20.1329113,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 1938491596,
+   "wiki": "Czarny Dział (Beskid Wyspowy)"
+  },
+  {
+   "id": "o6270384849",
+   "name": "Czechówka",
+   "h": 721,
+   "lat": 49.6945927,
+   "lon": 19.9952516,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 6270384849,
+   "wiki": "Czechówka (Szczebel)"
+  },
+  {
+   "id": "w5915712",
+   "name": "Czubica",
+   "h": 446,
+   "lat": 49.7265,
+   "lon": 20.583277777777777,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "wiki": "Czubica (Beskid Wyspowy)"
+  },
+  {
+   "id": "o1843836472",
+   "name": "Ćwilin",
+   "h": 1072,
+   "lat": 49.688763,
+   "lon": 20.1914332,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 1843836472,
+   "wiki": "Ćwilin"
+  },
+  {
+   "id": "o10876312186",
+   "name": "Dział",
+   "h": 555,
+   "lat": 49.7478996,
+   "lon": 20.2616558,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 10876312186,
+   "wiki": "Dział (Wilkowisko)"
+  },
+  {
+   "id": "o2396289720",
+   "name": "Działek",
+   "h": 622,
+   "lat": 49.7885674,
+   "lon": 20.0005765,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2396289720,
+   "wiki": "Działek (Pasmo Lubomira i Łysiny)"
+  },
+  {
+   "id": "o4939008335",
+   "name": "Dzielec",
+   "h": 650,
+   "lat": 49.7311462,
+   "lon": 20.1539013,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4939008335,
+   "wiki": "Dzielec (650 m)"
+  },
+  {
+   "id": "o4948773079",
+   "name": "Dzielec",
+   "h": 628,
+   "lat": 49.7378803,
+   "lon": 20.4213051,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4948773079,
+   "wiki": "Dzielec (Pasmo Łososińskie)"
+  },
+  {
+   "id": "o7474413317",
+   "name": "Dzielec",
+   "h": 753,
+   "lat": 49.6615403,
+   "lon": 20.3237247,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 7474413317,
+   "wiki": "Dzielec (Słopnice)"
+  },
+  {
+   "id": "o7555703220",
+   "name": "Dziurczak",
+   "h": 797,
+   "lat": 49.6389572,
+   "lon": 20.1732483,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 7555703220,
+   "wiki": "Dziurczak"
+  },
+  {
+   "id": "w5915694",
+   "name": "Dzwonnica",
+   "h": null,
+   "lat": 49.71786111111111,
+   "lon": 20.56238888888889,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "wiki": "Dzwonnica (Pasmo Łososińskie)"
+  },
+  {
+   "id": "o4374611015",
+   "name": "Golców",
+   "h": 752,
+   "lat": 49.6660286,
+   "lon": 20.4186202,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4374611015,
+   "wiki": "Golców"
+  },
+  {
+   "id": "w5468232",
+   "name": "Goślina",
+   "h": 566,
+   "lat": 49.632222222222225,
+   "lon": 20.572222222222223,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "wiki": "Goślina"
+  },
+  {
+   "id": "o1789769798",
+   "name": "Góra Zyndrama",
+   "h": 410,
+   "lat": 49.5546898,
+   "lon": 20.4650169,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 1789769798,
+   "wiki": "Góra Zyndrama"
+  },
+  {
+   "id": "o5021629153",
+   "name": "Górczyna",
+   "h": 552,
+   "lat": 49.7961269,
+   "lon": 20.4286515,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 5021629153,
+   "wiki": "Górczyna (Beskid Wyspowy)"
+  },
+  {
+   "id": "o292521008",
+   "name": "Grodzisko",
+   "h": 618,
+   "lat": 49.8164402,
+   "lon": 20.1459263,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 292521008,
+   "wiki": "Grodzisko (Beskid Wyspowy)"
+  },
+  {
+   "id": "o10876248070",
+   "name": "Groniec",
+   "h": 638,
+   "lat": 49.7506738,
+   "lon": 20.294872,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 10876248070,
+   "wiki": "Groniec"
+  },
+  {
+   "id": "o12115643527",
+   "name": "Groń",
+   "h": 791,
+   "lat": 49.6735591,
+   "lon": 20.2850393,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 12115643527,
+   "wiki": "Groń (Chyszówki)"
+  },
+  {
+   "id": "o4948769189",
+   "name": "Groń",
+   "h": 743,
+   "lat": 49.7340075,
+   "lon": 20.4404704,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4948769189,
+   "wiki": "Groń (Pasmo Łososińskie)"
+  },
+  {
+   "id": "w5467807",
+   "name": "Gródek",
+   "h": 564,
+   "lat": 49.590444444444444,
+   "lon": 20.472805555555553,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "wiki": "Gródek (Beskid Wyspowy)"
+  },
+  {
+   "id": "o6446568955",
+   "name": "Grunwald",
+   "h": 513,
+   "lat": 49.673678,
+   "lon": 20.090878,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 6446568955,
+   "wiki": "Grunwald (wzgórze)"
+  },
+  {
+   "id": "o4228245188",
+   "name": "Hajdowska Góra",
+   "h": 805,
+   "lat": 49.7064152,
+   "lon": 20.3073982,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4228245188,
+   "wiki": "Hajdowska Góra"
+  },
+  {
+   "id": "o4221341425",
+   "name": "Hala",
+   "h": 913,
+   "lat": 49.6286366,
+   "lon": 20.3044808,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4221341425,
+   "wiki": "Hala (Beskid Wyspowy)"
+  },
+  {
+   "id": "o3911372228",
+   "name": "Herby",
+   "h": 668,
+   "lat": 49.5898061,
+   "lon": 20.4549178,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 3911372228,
+   "wiki": "Herby (szczyt)"
+  },
+  {
+   "id": "o1673180451",
+   "name": "Jabłoniec",
+   "h": 624,
+   "lat": 49.6812174,
+   "lon": 20.4578269,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 1673180451,
+   "wiki": "Jabłoniec (Beskid Wyspowy)"
+  },
+  {
+   "id": "o2516319017",
+   "name": "Jasień",
+   "h": 1063,
+   "lat": 49.6303333,
+   "lon": 20.2243333,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2516319017,
+   "wiki": "Jasień (Beskid Wyspowy)"
+  },
+  {
+   "id": "o3909071360",
+   "name": "Jasieńczyk",
+   "h": 836,
+   "lat": 49.6146185,
+   "lon": 20.4124845,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 3909071360,
+   "wiki": "Jasieńczyk (Beskid Wyspowy)"
+  },
+  {
+   "id": "o3911372230",
+   "name": "Jasionik",
+   "h": 776,
+   "lat": 49.6118521,
+   "lon": 20.3369974,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 3911372230,
+   "wiki": "Jasionik"
+  },
+  {
+   "id": "o7194205022",
+   "name": "Jastrząbka",
+   "h": 565,
+   "lat": 49.7853868,
+   "lon": 20.4864214,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 7194205022,
+   "wiki": "Jastrząbka (Beskid Wyspowy)"
+  },
+  {
+   "id": "o2007077683",
+   "name": "Jaworz",
+   "h": 918,
+   "lat": 49.7207468,
+   "lon": 20.5209231,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2007077683,
+   "wiki": "Jaworz"
+  },
+  {
+   "id": "o4374611016",
+   "name": "Jeżowa Woda",
+   "h": 895,
+   "lat": 49.6406525,
+   "lon": 20.406114,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4374611016,
+   "wiki": "Jeżowa Woda"
+  },
+  {
+   "id": "w2423541",
+   "name": "Jodłowiec Wielki",
+   "h": 482,
+   "lat": 49.724000000000004,
+   "lon": 20.628444444444444,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "wiki": "Jodłowiec Wielki"
+  },
+  {
+   "id": "o4992380599",
+   "name": "Kacza Góra",
+   "h": 665,
+   "lat": 49.7473777,
+   "lon": 20.3053344,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4992380599,
+   "wiki": "Kacza Góra (Beskid Wyspowy)"
+  },
+  {
+   "id": "o7474434456",
+   "name": "Kamienna Góra",
+   "h": 593,
+   "lat": 49.6423451,
+   "lon": 20.5731806,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 7474434456,
+   "wiki": "Kamienna Góra (Beskid Wyspowy)"
+  },
+  {
+   "id": "o4959892786",
+   "name": "Kamiennik Południowy",
+   "h": 827,
+   "lat": 49.789556,
+   "lon": 20.05675,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4959892786,
+   "wiki": "Kamiennik Południowy"
+  },
+  {
+   "id": "o4959892521",
+   "name": "Kamiennik Północny",
+   "h": 785,
+   "lat": 49.79925,
+   "lon": 20.047917,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4959892521,
+   "wiki": "Kamiennik Północny"
+  },
+  {
+   "id": "o8817258181",
+   "name": "Kamionka",
+   "h": 620,
+   "lat": 49.7335942,
+   "lon": 20.0153294,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 8817258181,
+   "wiki": "Kamionka (Pasmo Lubomira i Łysiny)"
+  },
+  {
+   "id": "w5606181",
+   "name": "Kamionka",
+   "h": 593,
+   "lat": 49.79152777777777,
+   "lon": 20.55027777777778,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "wiki": "Kamionka (Pasmo Łopusza i Kobyły)",
+   "r": 40
+  },
+  {
+   "id": "o4955263912",
+   "name": "Kamionna",
+   "h": 801,
+   "lat": 49.7785876,
+   "lon": 20.3962468,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4955263912,
+   "wiki": "Kamionna (Beskid Wyspowy)"
+  },
+  {
+   "id": "o2516421622",
+   "name": "Kiczora",
+   "h": 901,
+   "lat": 49.6409722,
+   "lon": 20.1985556,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2516421622,
+   "wiki": "Kiczora (Beskid Wyspowy)"
+  },
+  {
+   "id": "o6262613944",
+   "name": "Kiczora",
+   "h": 725,
+   "lat": 49.7272812,
+   "lon": 20.0211037,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 6262613944,
+   "wiki": "Kiczora (Pasmo Lubomira i Łysiny)"
+  },
+  {
+   "id": "o2516423467",
+   "name": "Kiczorka",
+   "h": 813,
+   "lat": 49.6529722,
+   "lon": 20.2010556,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2516423467,
+   "wiki": "Kiczorka (Beskid Wyspowy)"
+  },
+  {
+   "id": "o9227028295",
+   "name": "Klasztorówka",
+   "h": 444,
+   "lat": 49.8151563,
+   "lon": 20.1580802,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 9227028295,
+   "wiki": "Klasztorówka"
+  },
+  {
+   "id": "o3909422046",
+   "name": "Klończyk",
+   "h": 806,
+   "lat": 49.6092249,
+   "lon": 20.4322853,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 3909422046,
+   "wiki": "Klończyk"
+  },
+  {
+   "id": "o2877610548",
+   "name": "Kobyła",
+   "h": 605,
+   "lat": 49.7983012,
+   "lon": 20.5114627,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2877610548,
+   "wiki": "Kobyła (Beskid Wyspowy)"
+  },
+  {
+   "id": "o5021642648",
+   "name": "Kopiec",
+   "h": 585,
+   "lat": 49.7957475,
+   "lon": 20.5221863,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 5021642648,
+   "wiki": "Kopiec (Beskid Wyspowy)"
+  },
+  {
+   "id": "o4950944386",
+   "name": "Korab",
+   "h": 727,
+   "lat": 49.7397228,
+   "lon": 20.476498,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4950944386,
+   "wiki": "Korab (Pasmo Łososińskie)"
+  },
+  {
+   "id": "o688075806",
+   "name": "Kostrza",
+   "h": 720,
+   "lat": 49.7706171,
+   "lon": 20.2994076,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 688075806,
+   "wiki": "Kostrza (szczyt)"
+  },
+  {
+   "id": "o5732151589",
+   "name": "Krzystonów",
+   "h": 1012,
+   "lat": 49.6402918,
+   "lon": 20.2410221,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 5732151589,
+   "wiki": "Krzystonów"
+  },
+  {
+   "id": "o6262606096",
+   "name": "Krzywicka Góra",
+   "h": 584,
+   "lat": 49.7797216,
+   "lon": 19.9837363,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 6262606096,
+   "wiki": "Krzywicka Góra"
+  },
+  {
+   "id": "o4459469389",
+   "name": "Księża Góra",
+   "h": 649,
+   "lat": 49.7878524,
+   "lon": 20.1460265,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4459469389,
+   "wiki": "Księża Góra (Beskid Wyspowy)"
+  },
+  {
+   "id": "w5464384",
+   "name": "Kuklacz Przyszowski",
+   "h": 671,
+   "lat": 49.657222222222224,
+   "lon": 20.459166666666665,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "wiki": "Kuklacz Przyszowski"
+  },
+  {
+   "id": "o4374611017",
+   "name": "Kuklacz Siekierczyński",
+   "h": 700,
+   "lat": 49.660803,
+   "lon": 20.4395007,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4374611017,
+   "wiki": "Kuklacz Siekierczyński"
+  },
+  {
+   "id": "o2516319019",
+   "name": "Kutrzyca",
+   "h": 1051,
+   "lat": 49.6331341,
+   "lon": 20.2269105,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2516319019,
+   "wiki": "Kutrzyca"
+  },
+  {
+   "id": "o7194149776",
+   "name": "Laskowa Góra",
+   "h": 489,
+   "lat": 49.7748409,
+   "lon": 20.4577832,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 7194149776,
+   "wiki": "Laskowa Góra"
+  },
+  {
+   "id": "o7492045765",
+   "name": "Litacz",
+   "h": 647,
+   "lat": 49.6530376,
+   "lon": 20.5763646,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 7492045765,
+   "wiki": "Litacz"
+  },
+  {
+   "id": "o1196252994",
+   "name": "Lubogoszcz",
+   "h": 968,
+   "lat": 49.7126166,
+   "lon": 20.0988261,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 1196252994,
+   "wiki": "Lubogoszcz (szczyt)"
+  },
+  {
+   "id": "o1841844445",
+   "name": "Luboń Mały",
+   "h": 869,
+   "lat": 49.6605021,
+   "lon": 19.9308487,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 1841844445,
+   "wiki": "Luboń Mały"
+  },
+  {
+   "id": "o1939306032",
+   "name": "Łopień",
+   "h": 961,
+   "lat": 49.6926039,
+   "lon": 20.2651613,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 1939306032,
+   "wiki": "Łopień"
+  },
+  {
+   "id": "o4228245789",
+   "name": "Łopień Środkowy",
+   "h": 955,
+   "lat": 49.6990061,
+   "lon": 20.2843657,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4228245789,
+   "wiki": "Łopień Środkowy"
+  },
+  {
+   "id": "o2517129450",
+   "name": "Łysa Góra",
+   "h": 616,
+   "lat": 49.651,
+   "lon": 20.0331944,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2517129450,
+   "wiki": "Łysa Góra (Luboń Wielki)"
+  },
+  {
+   "id": "o4266770756",
+   "name": "Łysa Góra",
+   "h": 781,
+   "lat": 49.719127,
+   "lon": 20.4525109,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4266770756,
+   "wiki": "Łysa Góra (Pasmo Łososińskie)"
+  },
+  {
+   "id": "o10879495967",
+   "name": "Łysa Góra",
+   "h": 563,
+   "lat": 49.641421,
+   "lon": 20.5862628,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 10879495967,
+   "wiki": "Łysa Góra (Trzetrzewina)"
+  },
+  {
+   "id": "o6272799901",
+   "name": "Łysina",
+   "h": 891,
+   "lat": 49.7759078,
+   "lon": 20.0483418,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 6272799901,
+   "wiki": "Łysina (Beskid Wyspowy)"
+  },
+  {
+   "id": "o1673097589",
+   "name": "Łyżka",
+   "h": 803,
+   "lat": 49.6427174,
+   "lon": 20.4621831,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 1673097589,
+   "wiki": "Łyżka (Beskid Wyspowy)"
+  },
+  {
+   "id": "o6270349456",
+   "name": "Mała Góra",
+   "h": 883,
+   "lat": 49.6805523,
+   "lon": 20.0118801,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 6270349456,
+   "wiki": "Mała Góra (Szczebel)"
+  },
+  {
+   "id": "o3909422051",
+   "name": "Mała Modyń",
+   "h": 988,
+   "lat": 49.615013,
+   "lon": 20.3842727,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 3909422051,
+   "wiki": "Mała Modyń"
+  },
+  {
+   "id": "o12115639167",
+   "name": "Małkowa Górka",
+   "h": 546,
+   "lat": 49.6715062,
+   "lon": 20.3982955,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 12115639167,
+   "wiki": "Małkowa Górka"
+  },
+  {
+   "id": "o5448243578",
+   "name": "Mały Ćwilinek",
+   "h": 795,
+   "lat": 49.6724102,
+   "lon": 20.2007885,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 5448243578,
+   "wiki": "Mały Ćwilinek"
+  },
+  {
+   "id": "o7474391362",
+   "name": "Mały Krzystonów",
+   "h": 984,
+   "lat": 49.6403492,
+   "lon": 20.2536922,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 7474391362,
+   "wiki": "Mały Krzystonów (Skalna)"
+  },
+  {
+   "id": "o6270371484",
+   "name": "Mały Szczebel",
+   "h": 770,
+   "lat": 49.69609,
+   "lon": 20.0080267,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 6270371484,
+   "wiki": "Mały Szczebel"
+  },
+  {
+   "id": "o12368412598",
+   "name": "Markowska",
+   "h": 495,
+   "lat": 49.6935671,
+   "lon": 20.5538,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 12368412598,
+   "wiki": "Markowska (szczyt)"
+  },
+  {
+   "id": "o3892290314",
+   "name": "Miejska Góra",
+   "h": 716,
+   "lat": 49.7189503,
+   "lon": 20.4406716,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 3892290314,
+   "wiki": "Miejska Góra (Limanowa)"
+  },
+  {
+   "id": "o12115643526",
+   "name": "Miśki",
+   "h": 790,
+   "lat": 49.6558162,
+   "lon": 20.2345052,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 12115643526,
+   "wiki": "Miśki (Beskid Wyspowy)"
+  },
+  {
+   "id": "o2516333546",
+   "name": "Miznówka",
+   "h": 969,
+   "lat": 49.6231667,
+   "lon": 20.2252222,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2516333546,
+   "wiki": "Miznówka"
+  },
+  {
+   "id": "o7495226684",
+   "name": "Młyńska Góra",
+   "h": 508,
+   "lat": 49.7441882,
+   "lon": 20.3583807,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 7495226684,
+   "wiki": "Młyńska Góra (Beskid Wyspowy)"
+  },
+  {
+   "id": "o3909071361",
+   "name": "Modyń",
+   "h": 1029,
+   "lat": 49.6212274,
+   "lon": 20.3760535,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 3909071361,
+   "wiki": "Modyń"
+  },
+  {
+   "id": "o2516343206",
+   "name": "Myszyca",
+   "h": 877,
+   "lat": 49.6063889,
+   "lon": 20.2263889,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2516343206,
+   "wiki": "Myszyca"
+  },
+  {
+   "id": "o2516451181",
+   "name": "Ogorzała",
+   "h": 806,
+   "lat": 49.6661944,
+   "lon": 20.1440556,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2516451181,
+   "wiki": "Ogorzała"
+  },
+  {
+   "id": "o4374611018",
+   "name": "Okowaniec",
+   "h": 805,
+   "lat": 49.6321887,
+   "lon": 20.4374897,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4374611018,
+   "wiki": "Okowaniec"
+  },
+  {
+   "id": "w5191497",
+   "name": "Okrągła Góra",
+   "h": 626,
+   "lat": 49.666,
+   "lon": 20.028277777777777,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "wiki": "Okrągła Góra (Beskid Wyspowy)"
+  },
+  {
+   "id": "w5467947",
+   "name": "Okręglica",
+   "h": 602,
+   "lat": 49.629083333333334,
+   "lon": 20.520416666666666,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "wiki": "Okręglica (szczyt)",
+   "r": 40
+  },
+  {
+   "id": "o2516451182",
+   "name": "Ostra",
+   "h": 780,
+   "lat": 49.6630278,
+   "lon": 20.1534167,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2516451182,
+   "wiki": "Ostra (Ogorzała)"
+  },
+  {
+   "id": "o4374611019",
+   "name": "Ostra",
+   "h": 925,
+   "lat": 49.6433422,
+   "lon": 20.3923252,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4374611019,
+   "wiki": "Ostra (Pasmo Ostrej)"
+  },
+  {
+   "id": "o4992378188",
+   "name": "Paproć",
+   "h": 643,
+   "lat": 49.732501,
+   "lon": 20.3477242,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4992378188,
+   "wiki": "Paproć (Beskid Wyspowy)"
+  },
+  {
+   "id": "o6181893612",
+   "name": "Parwka",
+   "h": 605,
+   "lat": 49.7949091,
+   "lon": 19.9960635,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 6181893612,
+   "wiki": "Parwka"
+  },
+  {
+   "id": "o1702993243",
+   "name": "Pasierbiecka Góra",
+   "h": 764,
+   "lat": 49.7809702,
+   "lon": 20.3769235,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 1702993243,
+   "wiki": "Pasierbiecka Góra"
+  },
+  {
+   "id": "o6262620535",
+   "name": "Patryja",
+   "h": 763,
+   "lat": 49.7541767,
+   "lon": 20.0443722,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 6262620535,
+   "wiki": "Patryja (Pasmo Lubomira i Łysiny)"
+  },
+  {
+   "id": "o9808080354",
+   "name": "Pęczakówka",
+   "h": 523,
+   "lat": 49.757496,
+   "lon": 20.3518446,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 9808080354,
+   "wiki": "Pęczakówka"
+  },
+  {
+   "id": "o3663519737",
+   "name": "Pępówka",
+   "h": 774,
+   "lat": 49.62491,
+   "lon": 20.4723312,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 3663519737,
+   "wiki": "Pępówka (Beskid Wyspowy)"
+  },
+  {
+   "id": "o3909071362",
+   "name": "Piechówka",
+   "h": 623,
+   "lat": 49.5871499,
+   "lon": 20.4242666,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 3909071362,
+   "wiki": "Piechówka"
+  },
+  {
+   "id": "o4976003794",
+   "name": "Piekło",
+   "h": 653,
+   "lat": 49.6433361,
+   "lon": 20.538254,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4976003794,
+   "wiki": "Piekło (Beskid Wyspowy)"
+  },
+  {
+   "id": "o10876318179",
+   "name": "Przymiarki",
+   "h": 530,
+   "lat": 49.7374805,
+   "lon": 20.2808971,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 10876318179,
+   "wiki": "Przymiarki (Beskid Wyspowy)"
+  },
+  {
+   "id": "o13291968368",
+   "name": "Przysłoń",
+   "h": 804,
+   "lat": 49.7685825,
+   "lon": 20.0427278,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 13291968368,
+   "wiki": "Przysłoń"
+  },
+  {
+   "id": "o2007789469",
+   "name": "Sałasz Wschodni",
+   "h": 909,
+   "lat": 49.7222855,
+   "lon": 20.4877505,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2007789469,
+   "wiki": "Sałasz Wschodni"
+  },
+  {
+   "id": "o2007789468",
+   "name": "Sałasz Zachodni",
+   "h": 869,
+   "lat": 49.7276848,
+   "lon": 20.4715482,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2007789468,
+   "wiki": "Sałasz Zachodni"
+  },
+  {
+   "id": "o4948776410",
+   "name": "Sarczyn",
+   "h": 762,
+   "lat": 49.7322946,
+   "lon": 20.4551558,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4948776410,
+   "wiki": "Sarczyn"
+  },
+  {
+   "id": "o3909071363",
+   "name": "Skalica",
+   "h": 623,
+   "lat": 49.5882986,
+   "lon": 20.4115038,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 3909071363,
+   "wiki": "Skalica (Beskid Wyspowy)"
+  },
+  {
+   "id": "o6018230716",
+   "name": "Skiełek",
+   "h": 749,
+   "lat": 49.6083566,
+   "lon": 20.4703703,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 6018230716,
+   "wiki": "Skiełek"
+  },
+  {
+   "id": "o3909421975",
+   "name": "Spleźnia",
+   "h": 730,
+   "lat": 49.6051758,
+   "lon": 20.4489599,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 3909421975,
+   "wiki": "Spleźnia"
+  },
+  {
+   "id": "o10876184047",
+   "name": "Stronica",
+   "h": 606,
+   "lat": 49.7466187,
+   "lon": 20.2947858,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 10876184047,
+   "wiki": "Stronica (wzgórze)"
+  },
+  {
+   "id": "o3911372245",
+   "name": "Stymberek",
+   "h": 586,
+   "lat": 49.5986856,
+   "lon": 20.4612382,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 3911372245,
+   "wiki": "Stymberek"
+  },
+  {
+   "id": "o7227383848",
+   "name": "Szczałba",
+   "h": 657,
+   "lat": 49.7418522,
+   "lon": 20.0725327,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 7227383848,
+   "wiki": "Szczałba"
+  },
+  {
+   "id": "o1939588898",
+   "name": "Szczebel",
+   "h": 977,
+   "lat": 49.6884774,
+   "lon": 20.0104518,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 1939588898,
+   "wiki": "Szczebel"
+  },
+  {
+   "id": "o5021647541",
+   "name": "Szczełba",
+   "h": 511,
+   "lat": 49.7915212,
+   "lon": 20.5493041,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 5021647541,
+   "wiki": "Szczełba",
+   "r": 40
+  },
+  {
+   "id": "o4939008336",
+   "name": "Szklarnia",
+   "h": 586,
+   "lat": 49.7371199,
+   "lon": 20.1385487,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4939008336,
+   "wiki": "Szklarnia (Beskid Wyspowy)"
+  },
+  {
+   "id": "o4936793584",
+   "name": "Śliwnik",
+   "h": 620,
+   "lat": 49.7972584,
+   "lon": 19.9875275,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4936793584,
+   "wiki": "Śliwnik (szczyt)"
+  },
+  {
+   "id": "o2845616229",
+   "name": "Śnieżnica",
+   "h": 1006,
+   "lat": 49.7160169,
+   "lon": 20.1781901,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2845616229,
+   "wiki": "Śnieżnica"
+  },
+  {
+   "id": "o4228407395",
+   "name": "Świerczek",
+   "h": 734,
+   "lat": 49.688145,
+   "lon": 20.3119273,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4228407395,
+   "wiki": "Świerczek (Słopnice)"
+  },
+  {
+   "id": "o9549052880",
+   "name": "Świnna Góra",
+   "h": 611,
+   "lat": 49.7584061,
+   "lon": 20.2799483,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 9549052880,
+   "wiki": "Świnna Góra"
+  },
+  {
+   "id": "o6272805563",
+   "name": "Trzy Kopce",
+   "h": 894,
+   "lat": 49.7703816,
+   "lon": 20.0529303,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 6272805563,
+   "wiki": "Trzy Kopce (Pasmo Lubomira i Łysiny)"
+  },
+  {
+   "id": "o4402341774",
+   "name": "Uklejna",
+   "h": 677,
+   "lat": 49.8103758,
+   "lon": 19.976164,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4402341774,
+   "wiki": "Uklejna"
+  },
+  {
+   "id": "o6263274286",
+   "name": "Urbania Góra",
+   "h": 674,
+   "lat": 49.7223784,
+   "lon": 19.888278,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 6263274286,
+   "wiki": "Urbania Góra"
+  },
+  {
+   "id": "o4948762782",
+   "name": "Wielka Góra",
+   "h": 752,
+   "lat": 49.7045404,
+   "lon": 20.5096084,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4948762782,
+   "wiki": "Wielka Góra (Beskid Wyspowy)"
+  },
+  {
+   "id": "w2819995",
+   "name": "Wierch Stróża",
+   "h": 648,
+   "lat": 49.79752777777777,
+   "lon": 20.963527777777777,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "wiki": "Wierch Stróża"
+  },
+  {
+   "id": "o2845619175",
+   "name": "Wierzbanowska Góra",
+   "h": 770,
+   "lat": 49.7494015,
+   "lon": 20.1154785,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2845619175,
+   "wiki": "Wierzbanowska Góra"
+  },
+  {
+   "id": "o7492092425",
+   "name": "Wierzgóry",
+   "h": 758,
+   "lat": 49.7784442,
+   "lon": 20.3861878,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 7492092425,
+   "wiki": "Wierzgóry (Beskid Wyspowy)"
+  },
+  {
+   "id": "o9549052881",
+   "name": "Wierzki",
+   "h": 585,
+   "lat": 49.7555095,
+   "lon": 20.2762391,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 9549052881,
+   "wiki": "Wierzki"
+  },
+  {
+   "id": "o4950935299",
+   "name": "Wiktorów",
+   "h": 604,
+   "lat": 49.7473268,
+   "lon": 20.4333309,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4950935299,
+   "wiki": "Wiktorów (Pasmo Łososińskie)"
+  },
+  {
+   "id": "o2516451180",
+   "name": "Wsołowa",
+   "h": 624,
+   "lat": 49.6721042,
+   "lon": 20.1043767,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 2516451180,
+   "wiki": "Wsołowa"
+  },
+  {
+   "id": "o12121058643",
+   "name": "Wyszczas",
+   "h": 571,
+   "lat": 49.7281609,
+   "lon": 20.2592731,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 12121058643,
+   "wiki": "Wyszczas"
+  },
+  {
+   "id": "o7474437881",
+   "name": "Zagórów",
+   "h": 587,
+   "lat": 49.6289439,
+   "lon": 20.5205276,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 7474437881,
+   "wiki": "Zagórów (szczyt)",
+   "r": 40
+  },
+  {
+   "id": "o4223759809",
+   "name": "Zapowiednica",
+   "h": 823,
+   "lat": 49.6365764,
+   "lon": 20.3249293,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4223759809,
+   "wiki": "Zapowiednica"
+  },
+  {
+   "id": "o3440728748",
+   "name": "Zębalowa",
+   "h": 854,
+   "lat": 49.712612,
+   "lon": 19.9110896,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 3440728748,
+   "wiki": "Zębalowa"
+  },
+  {
+   "id": "o4992381459",
+   "name": "Zęzów",
+   "h": 705,
+   "lat": 49.7467012,
+   "lon": 20.3194323,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 4992381459,
+   "wiki": "Zęzów"
+  },
+  {
+   "id": "o1375585214",
+   "name": "Luboń Wielki",
+   "h": 1022,
+   "lat": 49.6535245,
+   "lon": 19.9919222,
+   "range": "Beskid Wyspowy",
+   "groups": [
+    "wyspowy"
+   ],
+   "osm": 1375585214,
+   "wiki": "Luboń Wielki"
+  },
+  {
+   "id": "w5871665",
+   "name": "Babia Góra",
+   "h": null,
+   "lat": 49.44638888888888,
+   "lon": 20.45138888888889,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Babia Góra (Pasmo Radziejowej)"
+  },
+  {
+   "id": "o3725887846",
+   "name": "Bereśnik",
+   "h": 811,
+   "lat": 49.441222,
+   "lon": 20.489944,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3725887846,
+   "wiki": "Bereśnik (Beskid Sądecki)",
+   "r": 40
+  },
+  {
+   "id": "o3909336032",
+   "name": "Będzikówka",
+   "h": 972,
+   "lat": 49.4882024,
+   "lon": 20.5398892,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909336032,
+   "wiki": "Będzikówka"
+  },
+  {
+   "id": "w2753538",
+   "name": "Biała Góra",
+   "h": 681,
+   "lat": 49.44119444444444,
+   "lon": 20.463277777777776,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Biała Góra (Pasmo Radziejowej)"
+  },
+  {
+   "id": "o3909166747",
+   "name": "Błyszcz",
+   "h": 945,
+   "lat": 49.4925021,
+   "lon": 20.4434798,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909166747,
+   "wiki": "Błyszcz (Beskid Sądecki)"
+  },
+  {
+   "id": "o1224098149",
+   "name": "Bradowiec",
+   "h": 770,
+   "lat": 49.3805361,
+   "lon": 20.9871225,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1224098149,
+   "wiki": "Bradowiec (szczyt)"
+  },
+  {
+   "id": "o3725887847",
+   "name": "Bryjarka",
+   "h": 679,
+   "lat": 49.4316982,
+   "lon": 20.4810216,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3725887847,
+   "wiki": "Bryjarka"
+  },
+  {
+   "id": "o3909336015",
+   "name": "Bucznik",
+   "h": 870,
+   "lat": 49.4799265,
+   "lon": 20.4970421,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909336015,
+   "wiki": "Bucznik (Pasmo Radziejowej)"
+  },
+  {
+   "id": "o4979211982",
+   "name": "Bukowa",
+   "h": 1077,
+   "lat": 49.4278243,
+   "lon": 20.8744814,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 4979211982,
+   "wiki": "Bukowa (Beskid Sądecki)"
+  },
+  {
+   "id": "w5966757",
+   "name": "Bukowinki",
+   "h": 893,
+   "lat": 49.433527777777776,
+   "lon": 20.921722222222222,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Bukowinki (Pasmo Jaworzyny Krynickiej)"
+  },
+  {
+   "id": "o2927609655",
+   "name": "Bukowinki",
+   "h": 1209,
+   "lat": 49.4540235,
+   "lon": 20.5809055,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 2927609655,
+   "wiki": "Bukowinki (Pasmo Radziejowej)",
+   "r": 40
+  },
+  {
+   "id": "w2051043",
+   "name": "Bystra",
+   "h": 520,
+   "lat": 49.45644444444445,
+   "lon": 20.70347222222222,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Bystra (Beskid Sądecki)"
+  },
+  {
+   "id": "o1736572585",
+   "name": "Cebulówka",
+   "h": 741,
+   "lat": 49.5308332,
+   "lon": 20.4507297,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1736572585,
+   "wiki": "Cebulówka (szczyt)"
+  },
+  {
+   "id": "w5969795",
+   "name": "Cisowy Wierch",
+   "h": 1035,
+   "lat": 49.46902777777778,
+   "lon": 20.81963888888889,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Cisowy Wierch"
+  },
+  {
+   "id": "o7117734470",
+   "name": "Czarci Wierch",
+   "h": 1091,
+   "lat": 49.4809616,
+   "lon": 20.8046617,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7117734470,
+   "wiki": "Czarci Wierch"
+  },
+  {
+   "id": "o3909335988",
+   "name": "Czeremcha",
+   "h": 1124,
+   "lat": 49.4601504,
+   "lon": 20.5348216,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909335988,
+   "wiki": "Czeremcha (szczyt)"
+  },
+  {
+   "id": "o3677276402",
+   "name": "Czeremcha Zachodnia",
+   "h": 1015,
+   "lat": 49.4627589,
+   "lon": 20.5162517,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3677276402,
+   "wiki": "Czeremcha Zachodnia"
+  },
+  {
+   "id": "w2340032",
+   "name": "Czertezy",
+   "h": 865,
+   "lat": 49.39666666666667,
+   "lon": 20.83186111111111,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Czertezy"
+  },
+  {
+   "id": "w3811988",
+   "name": "Czerteż",
+   "h": 801,
+   "lat": 49.45275,
+   "lon": 20.482638888888886,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Czerteż (Dzwonkówka)"
+  },
+  {
+   "id": "o4979209627",
+   "name": "Czubakowska",
+   "h": 1082,
+   "lat": 49.4382669,
+   "lon": 20.8747171,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 4979209627,
+   "wiki": "Czubakowska"
+  },
+  {
+   "id": "o7556828326",
+   "name": "Dermanowski Wierch",
+   "h": 558,
+   "lat": 49.4584014,
+   "lon": 20.7070989,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7556828326,
+   "wiki": "Dermanowski Wierch"
+  },
+  {
+   "id": "o1868563207",
+   "name": "Drabiakówka",
+   "h": 893,
+   "lat": 49.4379278,
+   "lon": 20.9196285,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1868563207,
+   "wiki": "Drabiakówka"
+  },
+  {
+   "id": "o7152308605",
+   "name": "Drapa",
+   "h": 717,
+   "lat": 49.4181924,
+   "lon": 20.7557476,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7152308605,
+   "wiki": "Drapa"
+  },
+  {
+   "id": "o3911372224",
+   "name": "Dzwonkówka",
+   "h": 982,
+   "lat": 49.4663895,
+   "lon": 20.4745414,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3911372224,
+   "wiki": "Dzwonkówka (Beskid Sądecki)"
+  },
+  {
+   "id": "o7475413798",
+   "name": "Flader",
+   "h": 871,
+   "lat": 49.4079327,
+   "lon": 20.5913681,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7475413798,
+   "wiki": "Flader"
+  },
+  {
+   "id": "o7188435030",
+   "name": "Gabańka",
+   "h": 829,
+   "lat": 49.4333984,
+   "lon": 20.5225243,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7188435030,
+   "wiki": "Gabańka"
+  },
+  {
+   "id": "w2293489",
+   "name": "Gaborówka",
+   "h": 790,
+   "lat": 49.439722222222215,
+   "lon": 20.81361111111111,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Gaborówka"
+  },
+  {
+   "id": "o7195253057",
+   "name": "Gałka",
+   "h": 693,
+   "lat": 49.4772924,
+   "lon": 20.631677,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7195253057,
+   "wiki": "Gałka (Beskid Sądecki)"
+  },
+  {
+   "id": "w2441656",
+   "name": "Garby",
+   "h": 786,
+   "lat": 49.52280555555556,
+   "lon": 20.707472222222222,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Garby (Beskid Sądecki)"
+  },
+  {
+   "id": "o4221451362",
+   "name": "Garby",
+   "h": 830,
+   "lat": 49.3457636,
+   "lon": 20.9395818,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 4221451362,
+   "wiki": "Garby (szczyt)"
+  },
+  {
+   "id": "w2753550",
+   "name": "Góra Ciżowa",
+   "h": 649,
+   "lat": 49.43672222222222,
+   "lon": 20.461944444444445,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Góra Ciżowa"
+  },
+  {
+   "id": "o7512280059",
+   "name": "Góra Konieczna",
+   "h": 990,
+   "lat": 49.4707252,
+   "lon": 20.5936412,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7512280059,
+   "wiki": "Góra Konieczna"
+  },
+  {
+   "id": "w2470999",
+   "name": "Góra Kornytowa",
+   "h": 830,
+   "lat": 49.47005555555556,
+   "lon": 20.621805555555557,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Góra Kornytowa"
+  },
+  {
+   "id": "w5873250",
+   "name": "Góra Łabudowa",
+   "h": 870,
+   "lat": 49.45805555555556,
+   "lon": 20.46761111111111,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Góra Łabudowa"
+  },
+  {
+   "id": "o3808146289",
+   "name": "Góra Parkowa",
+   "h": 742,
+   "lat": 49.4153571,
+   "lon": 20.9670205,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3808146289,
+   "wiki": "Góra Parkowa (Krynica-Zdrój)"
+  },
+  {
+   "id": "o7175999096",
+   "name": "Góra Pieniążna",
+   "h": 1078,
+   "lat": 49.4520392,
+   "lon": 20.5521424,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7175999096,
+   "wiki": "Góra Pieniążna"
+  },
+  {
+   "id": "w2912715",
+   "name": "Góra Popa",
+   "h": 843,
+   "lat": 49.44138888888889,
+   "lon": 20.489944444444447,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Góra Popa",
+   "r": 40
+  },
+  {
+   "id": "o3909640294",
+   "name": "Góra Stajkowa",
+   "h": 723,
+   "lat": 49.45557,
+   "lon": 20.4441105,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909640294,
+   "wiki": "Góra Stajkowa"
+  },
+  {
+   "id": "w5908814",
+   "name": "Góra Wysoka",
+   "h": 759,
+   "lat": 49.437638888888884,
+   "lon": 20.509666666666668,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Góra Wysoka (Pasmo Radziejowej)",
+   "r": 40
+  },
+  {
+   "id": "o4223484692",
+   "name": "Góra Zamkowa",
+   "h": 500,
+   "lat": 49.3552761,
+   "lon": 20.8909358,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 4223484692,
+   "wiki": "Góra Zamkowa (Muszyna)"
+  },
+  {
+   "id": "o7152220180",
+   "name": "Groń",
+   "h": 822,
+   "lat": 49.4692123,
+   "lon": 20.7411037,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7152220180,
+   "wiki": "Groń (Beskid Sądecki)"
+  },
+  {
+   "id": "o3909629687",
+   "name": "Groń",
+   "h": 803,
+   "lat": 49.4607285,
+   "lon": 20.4524921,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909629687,
+   "wiki": "Groń (Pasmo Radziejowej)"
+  },
+  {
+   "id": "o3725887848",
+   "name": "Gucka",
+   "h": 763,
+   "lat": 49.439,
+   "lon": 20.480944,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3725887848,
+   "wiki": "Gucka"
+  },
+  {
+   "id": "o7175974946",
+   "name": "Gwoździanka",
+   "h": 899,
+   "lat": 49.4426067,
+   "lon": 20.519393,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7175974946,
+   "wiki": "Gwoździanka (Beskid Sądecki)"
+  },
+  {
+   "id": "w5881901",
+   "name": "Hala",
+   "h": 1115,
+   "lat": 49.461666666666666,
+   "lon": 20.541944444444447,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Hala (szczyt)"
+  },
+  {
+   "id": "o1036619608",
+   "name": "Hala Pisana",
+   "h": 1044,
+   "lat": 49.4801297,
+   "lon": 20.7621346,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1036619608,
+   "wiki": "Hala Pisana (Beskid Sądecki)"
+  },
+  {
+   "id": "o1868563236",
+   "name": "Hawrylakówka",
+   "h": 780,
+   "lat": 49.440349,
+   "lon": 20.9617049,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1868563236,
+   "wiki": "Hawrylakówka"
+  },
+  {
+   "id": "o1868600698",
+   "name": "Holica",
+   "h": 697,
+   "lat": 49.405861,
+   "lon": 20.9444001,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1868600698,
+   "wiki": "Holica (Beskid Sądecki)"
+  },
+  {
+   "id": "w3811724",
+   "name": "Hurcałki",
+   "h": 938,
+   "lat": 49.407333333333334,
+   "lon": 20.611777777777778,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Hurcałki"
+  },
+  {
+   "id": "o3803160607",
+   "name": "Huzary",
+   "h": 864,
+   "lat": 49.4142842,
+   "lon": 20.9923569,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3803160607,
+   "wiki": "Huzary"
+  },
+  {
+   "id": "o7176013652",
+   "name": "Jasielnik",
+   "h": 886,
+   "lat": 49.4123206,
+   "lon": 20.5937834,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7176013652,
+   "wiki": "Jasielnik"
+  },
+  {
+   "id": "o3909336010",
+   "name": "Jasiennik",
+   "h": 1153,
+   "lat": 49.4771885,
+   "lon": 20.5407488,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909336010,
+   "wiki": "Jasiennik"
+  },
+  {
+   "id": "w2471731",
+   "name": "Jastrzębska Góra",
+   "h": 675,
+   "lat": 49.47958333333334,
+   "lon": 20.64713888888889,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Jastrzębska Góra (Pasmo Radziejowej)"
+  },
+  {
+   "id": "o3909629699",
+   "name": "Jaworzyca",
+   "h": 738,
+   "lat": 49.4528832,
+   "lon": 20.4553004,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909629699,
+   "wiki": "Jaworzyca"
+  },
+  {
+   "id": "o7175937760",
+   "name": "Jaworzyna",
+   "h": 1128,
+   "lat": 49.4727736,
+   "lon": 20.5698708,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7175937760,
+   "wiki": "Jaworzyna (1128 m)"
+  },
+  {
+   "id": "o6574884886",
+   "name": "Jaworzyna Kokuszczańska",
+   "h": 948,
+   "lat": 49.4874307,
+   "lon": 20.7443447,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 6574884886,
+   "wiki": "Jaworzyna Kokuszczańska"
+  },
+  {
+   "id": "o437325757",
+   "name": "Jaworzyna Krynicka",
+   "h": 1114,
+   "lat": 49.4180461,
+   "lon": 20.8955129,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 437325757,
+   "wiki": "Jaworzyna Krynicka"
+  },
+  {
+   "id": "o7176040479",
+   "name": "Jaworzyna Wielka",
+   "h": 947,
+   "lat": 49.4676772,
+   "lon": 20.6327221,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7176040479,
+   "wiki": "Jaworzyna Wielka"
+  },
+  {
+   "id": "w1278828",
+   "name": "Jaworzynka",
+   "h": 936,
+   "lat": 49.497222,
+   "lon": 20.442778,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Jaworzynka (Beskid Sądecki)"
+  },
+  {
+   "id": "o1868563245",
+   "name": "Jaworzynka",
+   "h": 899,
+   "lat": 49.4471878,
+   "lon": 20.9358047,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1868563245,
+   "wiki": "Jaworzynka (nad Przełęczą Białą)"
+  },
+  {
+   "id": "o7152318076",
+   "name": "Jaworzynka",
+   "h": 1001,
+   "lat": 49.4088563,
+   "lon": 20.8325346,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7152318076,
+   "wiki": "Jaworzynka (nad Szczawnikiem)"
+  },
+  {
+   "id": "o7176040691",
+   "name": "Jaworzyny",
+   "h": 1068,
+   "lat": 49.456933,
+   "lon": 20.6179632,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7176040691,
+   "wiki": "Jaworzyny (Pasmo Radziejowej)"
+  },
+  {
+   "id": "w2753681",
+   "name": "Juraszowa Góra",
+   "h": 560,
+   "lat": 49.443666666666665,
+   "lon": 20.443916666666667,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Juraszowa Góra"
+  },
+  {
+   "id": "o7475659829",
+   "name": "Kamienny Groń",
+   "h": 758,
+   "lat": 49.443414,
+   "lon": 20.6737225,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7475659829,
+   "wiki": "Kamienny Groń"
+  },
+  {
+   "id": "o3696033937",
+   "name": "Kicarz",
+   "h": 703,
+   "lat": 49.4357641,
+   "lon": 20.7326563,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3696033937,
+   "wiki": "Kicarz"
+  },
+  {
+   "id": "o7152311729",
+   "name": "Kiczora",
+   "h": 806,
+   "lat": 49.4250219,
+   "lon": 20.7721933,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7152311729,
+   "wiki": "Kiczora (806 m)"
+  },
+  {
+   "id": "o9018919062",
+   "name": "Kiczora",
+   "h": 839,
+   "lat": 49.4399917,
+   "lon": 20.7782308,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 9018919062,
+   "wiki": "Kiczora (839 m)"
+  },
+  {
+   "id": "o7235334064",
+   "name": "Kiczora",
+   "h": 988,
+   "lat": 49.450172,
+   "lon": 20.6392813,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7235334064,
+   "wiki": "Kiczora (988 m)"
+  },
+  {
+   "id": "o7175994289",
+   "name": "Kiczora",
+   "h": 1024,
+   "lat": 49.4479192,
+   "lon": 20.5520003,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7175994289,
+   "wiki": "Kiczora (1024 m)"
+  },
+  {
+   "id": "o14039867390",
+   "name": "Kobylarka",
+   "h": 935,
+   "lat": 49.4162978,
+   "lon": 20.6131321,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 14039867390,
+   "wiki": "Kobylarka (Pasmo Radziejowej)"
+  },
+  {
+   "id": "o7176049794",
+   "name": "Kordowiec",
+   "h": 763,
+   "lat": 49.4600248,
+   "lon": 20.6674008,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7176049794,
+   "wiki": "Kordowiec (szczyt)"
+  },
+  {
+   "id": "o7175937752",
+   "name": "Koszarki",
+   "h": 930,
+   "lat": 49.4537049,
+   "lon": 20.5141759,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7175937752,
+   "wiki": "Koszarki"
+  },
+  {
+   "id": "o3909629688",
+   "name": "Kotelnica",
+   "h": 847,
+   "lat": 49.4529266,
+   "lon": 20.4900179,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909629688,
+   "wiki": "Kotelnica (Dzwonkówka)"
+  },
+  {
+   "id": "w2144962",
+   "name": "Kotliny",
+   "h": 838,
+   "lat": 49.48586111111111,
+   "lon": 20.442222222222224,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Kotliny (Beskid Sądecki)"
+  },
+  {
+   "id": "o6053021999",
+   "name": "Kotylniczy Wierch",
+   "h": 1032,
+   "lat": 49.4083767,
+   "lon": 20.8742748,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 6053021999,
+   "wiki": "Kotylniczy Wierch"
+  },
+  {
+   "id": "o1736572589",
+   "name": "Koziarz",
+   "h": 943,
+   "lat": 49.5009792,
+   "lon": 20.4464879,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1736572589,
+   "wiki": "Koziarz"
+  },
+  {
+   "id": "o7195226671",
+   "name": "Koziejówka",
+   "h": 636,
+   "lat": 49.3659727,
+   "lon": 20.9006985,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7195226671,
+   "wiki": "Koziejówka (góra)"
+  },
+  {
+   "id": "o3909166750",
+   "name": "Kramarzówka",
+   "h": 814,
+   "lat": 49.477096,
+   "lon": 20.4759244,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909166750,
+   "wiki": "Kramarzówka (szczyt)"
+  },
+  {
+   "id": "o1037606653",
+   "name": "Krzyżowa",
+   "h": 812,
+   "lat": 49.4183894,
+   "lon": 20.9419056,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1037606653,
+   "wiki": "Krzyżowa (Beskid Sądecki)"
+  },
+  {
+   "id": "o3909335991",
+   "name": "Kuba",
+   "h": 888,
+   "lat": 49.4682631,
+   "lon": 20.4962391,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909335991,
+   "wiki": "Kuba (Beskid Sądecki)"
+  },
+  {
+   "id": "o7175937753",
+   "name": "Kuni Wierch",
+   "h": 982,
+   "lat": 49.4473382,
+   "lon": 20.5306712,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7175937753,
+   "wiki": "Kuni Wierch"
+  },
+  {
+   "id": "o3909629698",
+   "name": "Kuśmierzówka",
+   "h": 705,
+   "lat": 49.4461708,
+   "lon": 20.4630765,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909629698,
+   "wiki": "Kuśmierzówka"
+  },
+  {
+   "id": "o7152301445",
+   "name": "Lembarczek",
+   "h": 917,
+   "lat": 49.4434283,
+   "lon": 20.8310556,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7152301445,
+   "wiki": "Lembarczek"
+  },
+  {
+   "id": "o3909629689",
+   "name": "Lipowiec",
+   "h": 744,
+   "lat": 49.4648141,
+   "lon": 20.4495589,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909629689,
+   "wiki": "Lipowiec (Pasmo Radziejowej)"
+  },
+  {
+   "id": "o7152293181",
+   "name": "Liskowa",
+   "h": 959,
+   "lat": 49.4073011,
+   "lon": 20.8478948,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7152293181,
+   "wiki": "Liskowa"
+  },
+  {
+   "id": "o1036619232",
+   "name": "Łaziska",
+   "h": 947,
+   "lat": 49.4589382,
+   "lon": 20.8001129,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1036619232,
+   "wiki": "Łaziska (Beskid Sądecki)"
+  },
+  {
+   "id": "o7176000307",
+   "name": "Łysiny",
+   "h": 1052,
+   "lat": 49.4525401,
+   "lon": 20.5318535,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7176000307,
+   "wiki": "Łysiny (Beskid Sądecki)"
+  },
+  {
+   "id": "o7175964484",
+   "name": "Magorzyca",
+   "h": 881,
+   "lat": 49.4703385,
+   "lon": 20.6070147,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7175964484,
+   "wiki": "Magorzyca (Beskid Sądecki)"
+  },
+  {
+   "id": "o905195901",
+   "name": "Makowica",
+   "h": 948,
+   "lat": 49.4968779,
+   "lon": 20.7129327,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 905195901,
+   "wiki": "Makowica (Beskid Sądecki)"
+  },
+  {
+   "id": "w4458013",
+   "name": "Mała Prehyba",
+   "h": 1155,
+   "lat": 49.467305555555555,
+   "lon": 20.554305555555555,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Mała Prehyba"
+  },
+  {
+   "id": "o848664444",
+   "name": "Mała Radziejowa",
+   "h": 1207,
+   "lat": 49.452562,
+   "lon": 20.5956289,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 848664444,
+   "wiki": "Mała Radziejowa"
+  },
+  {
+   "id": "o4349896036",
+   "name": "Mały Rogacz",
+   "h": 1162,
+   "lat": 49.4367461,
+   "lon": 20.6095931,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 4349896036,
+   "wiki": "Mały Rogacz"
+  },
+  {
+   "id": "o7235318915",
+   "name": "Międzyradziejówki",
+   "h": 1045,
+   "lat": 49.4408482,
+   "lon": 20.6291051,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7235318915,
+   "wiki": "Międzyradziejówki"
+  },
+  {
+   "id": "o4223484689",
+   "name": "Mikowa",
+   "h": 638,
+   "lat": 49.3541778,
+   "lon": 20.8793218,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 4223484689,
+   "wiki": "Mikowa"
+  },
+  {
+   "id": "o7176004001",
+   "name": "Mokra",
+   "h": 990,
+   "lat": 49.4414928,
+   "lon": 20.5791376,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7176004001,
+   "wiki": "Mokra (Beskid Sądecki)"
+  },
+  {
+   "id": "o7131443172",
+   "name": "Niemcowa",
+   "h": 1001,
+   "lat": 49.4495502,
+   "lon": 20.6499209,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7131443172,
+   "wiki": "Niemcowa (szczyt)"
+  },
+  {
+   "id": "o7195231520",
+   "name": "Nowińska Góra",
+   "h": 709,
+   "lat": 49.3797208,
+   "lon": 20.909319,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7195231520,
+   "wiki": "Nowińska Góra"
+  },
+  {
+   "id": "o3909167281",
+   "name": "Okrąglica Południowa",
+   "h": 785,
+   "lat": 49.5167639,
+   "lon": 20.4444505,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909167281,
+   "wiki": "Okrąglica Południowa"
+  },
+  {
+   "id": "o1736572590",
+   "name": "Okrąglica Północna",
+   "h": 767,
+   "lat": 49.5223948,
+   "lon": 20.4459238,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1736572590,
+   "wiki": "Okrąglica Północna"
+  },
+  {
+   "id": "o7475399474",
+   "name": "Opołta",
+   "h": 646,
+   "lat": 49.4100407,
+   "lon": 20.5493713,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7475399474,
+   "wiki": "Opołta"
+  },
+  {
+   "id": "o1260496463",
+   "name": "Ostra",
+   "h": 834,
+   "lat": 49.5165315,
+   "lon": 20.7357587,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1260496463,
+   "wiki": "Ostra (Pasmo Jaworzyny Krynickiej)"
+  },
+  {
+   "id": "o1036618687",
+   "name": "Parchowatka",
+   "h": 1004,
+   "lat": 49.4551119,
+   "lon": 20.7834247,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1036618687,
+   "wiki": "Parchowatka"
+  },
+  {
+   "id": "o7176020910",
+   "name": "Pokrywisko",
+   "h": 976,
+   "lat": 49.4257817,
+   "lon": 20.5946796,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7176020910,
+   "wiki": "Pokrywisko"
+  },
+  {
+   "id": "w5908451",
+   "name": "Popia Góra",
+   "h": null,
+   "lat": 49.43658333333333,
+   "lon": 20.507916666666667,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Popia Góra (szczyt)",
+   "r": 86
+  },
+  {
+   "id": "w5966606",
+   "name": "Popowa",
+   "h": 996,
+   "lat": 49.436027777777774,
+   "lon": 20.888083333333334,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Popowa (szczyt)"
+  },
+  {
+   "id": "o393334582",
+   "name": "Prehyba",
+   "h": 1173,
+   "lat": 49.4656108,
+   "lon": 20.560115,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 393334582,
+   "wiki": "Prehyba (Pasmo Radziejowej)"
+  },
+  {
+   "id": "w2753786",
+   "name": "Przehybka",
+   "h": 699,
+   "lat": 49.468833333333336,
+   "lon": 20.452222222222222,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Przehybka"
+  },
+  {
+   "id": "o7730789540",
+   "name": "Przypór",
+   "h": 887,
+   "lat": 49.4502858,
+   "lon": 20.7935788,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7730789540,
+   "wiki": "Przypór (887 m)"
+  },
+  {
+   "id": "o4782395627",
+   "name": "Przysłop",
+   "h": 937,
+   "lat": 49.4408928,
+   "lon": 20.9031283,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 4782395627,
+   "wiki": "Przysłop (Pasmo Jaworzyny Krynickiej)"
+  },
+  {
+   "id": "o1158662476",
+   "name": "Przysłop",
+   "h": 991,
+   "lat": 49.464824,
+   "lon": 20.4809298,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1158662476,
+   "wiki": "Przysłop (Pasmo Radziejowej)"
+  },
+  {
+   "id": "o4343533170",
+   "name": "Pusta Wielka",
+   "h": 1061,
+   "lat": 49.4062239,
+   "lon": 20.82575,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 4343533170,
+   "wiki": "Pusta Wielka"
+  },
+  {
+   "id": "o3911372241",
+   "name": "Rokita",
+   "h": 857,
+   "lat": 49.4722348,
+   "lon": 20.5027433,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3911372241,
+   "wiki": "Rokita (szczyt)"
+  },
+  {
+   "id": "o3911372242",
+   "name": "Roztoka",
+   "h": 1030,
+   "lat": 49.4624989,
+   "lon": 20.5227025,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3911372242,
+   "wiki": "Roztoka (szczyt)"
+  },
+  {
+   "id": "o1215771661",
+   "name": "Runek",
+   "h": 1080,
+   "lat": 49.4412122,
+   "lon": 20.873847,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1215771661,
+   "wiki": "Runek (Beskid Sądecki)"
+  },
+  {
+   "id": "o7176000473",
+   "name": "Rusinowski Wierch",
+   "h": 830,
+   "lat": 49.4139692,
+   "lon": 20.5803555,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7176000473,
+   "wiki": "Rusinowski Wierch"
+  },
+  {
+   "id": "o7175999901",
+   "name": "Ruski Wierch",
+   "h": 935,
+   "lat": 49.4200554,
+   "lon": 20.5945595,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7175999901,
+   "wiki": "Ruski Wierch"
+  },
+  {
+   "id": "o7556828324",
+   "name": "Skała",
+   "h": 773,
+   "lat": 49.4727135,
+   "lon": 20.7225691,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7556828324,
+   "wiki": "Skała (Beskid Sądecki)"
+  },
+  {
+   "id": "o3909336001",
+   "name": "Skałka",
+   "h": 1163,
+   "lat": 49.47269,
+   "lon": 20.5393409,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909336001,
+   "wiki": "Skałka (Beskid Sądecki)"
+  },
+  {
+   "id": "o3909167280",
+   "name": "Sobel",
+   "h": 713,
+   "lat": 49.5085816,
+   "lon": 20.4297375,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909167280,
+   "wiki": "Sobel (Tylmanowski)"
+  },
+  {
+   "id": "o3909666449",
+   "name": "Sobel Zarzecki",
+   "h": 657,
+   "lat": 49.5199831,
+   "lon": 20.4314979,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909666449,
+   "wiki": "Sobel Zarzecki"
+  },
+  {
+   "id": "o1036617897",
+   "name": "Sokołowska Góra",
+   "h": 1028,
+   "lat": 49.4865659,
+   "lon": 20.7688375,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1036617897,
+   "wiki": "Sokołowska Góra"
+  },
+  {
+   "id": "o3909336016",
+   "name": "Spadzie",
+   "h": 1058,
+   "lat": 49.4797714,
+   "lon": 20.5303171,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909336016,
+   "wiki": "Spadzie"
+  },
+  {
+   "id": "o7175968938",
+   "name": "Stary Wierch",
+   "h": 840,
+   "lat": 49.4268881,
+   "lon": 20.5486292,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7175968938,
+   "wiki": "Stary Wierch"
+  },
+  {
+   "id": "o3909071365",
+   "name": "Suchy Groń",
+   "h": 859,
+   "lat": 49.5058642,
+   "lon": 20.4456053,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909071365,
+   "wiki": "Suchy Groń (Beskid Sądecki)"
+  },
+  {
+   "id": "o5657427757",
+   "name": "Syhła",
+   "h": 920,
+   "lat": 49.4017853,
+   "lon": 20.6128781,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 5657427757,
+   "wiki": "Syhła"
+  },
+  {
+   "id": "o3609410071",
+   "name": "Szalone",
+   "h": 829,
+   "lat": 49.4033274,
+   "lon": 20.9846785,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3609410071,
+   "wiki": "Szalone"
+  },
+  {
+   "id": "o615630730",
+   "name": "Szczob",
+   "h": 935,
+   "lat": 49.4013002,
+   "lon": 20.605773,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 615630730,
+   "wiki": "Szczob (920 m)"
+  },
+  {
+   "id": "o10677825887",
+   "name": "Szczoby",
+   "h": 838,
+   "lat": 49.4004595,
+   "lon": 20.8525014,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 10677825887,
+   "wiki": "Szczoby"
+  },
+  {
+   "id": "o7556828325",
+   "name": "Szycówka",
+   "h": 593,
+   "lat": 49.4625303,
+   "lon": 20.713413,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7556828325,
+   "wiki": "Szycówka"
+  },
+  {
+   "id": "o7175988933",
+   "name": "Świniarki",
+   "h": 979,
+   "lat": 49.4419506,
+   "lon": 20.5674481,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7175988933,
+   "wiki": "Świniarki (szczyt)"
+  },
+  {
+   "id": "o1451488160",
+   "name": "Trześniowy Groń",
+   "h": 1001,
+   "lat": 49.4438163,
+   "lon": 20.6471741,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1451488160,
+   "wiki": "Trześniowy Groń"
+  },
+  {
+   "id": "o1036618836",
+   "name": "Wargulszańskie Góry",
+   "h": 1060,
+   "lat": 49.4697655,
+   "lon": 20.8052589,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1036618836,
+   "wiki": "Wargulszańskie Góry"
+  },
+  {
+   "id": "o7195215371",
+   "name": "Wdżary Wyżne",
+   "h": 856,
+   "lat": 49.4801399,
+   "lon": 20.6023669,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7195215371,
+   "wiki": "Wdżary Wyżne"
+  },
+  {
+   "id": "o4979191023",
+   "name": "Wielka Bukowa",
+   "h": 1104,
+   "lat": 49.4188962,
+   "lon": 20.8692969,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 4979191023,
+   "wiki": "Wielka Bukowa (Beskid Sądecki)"
+  },
+  {
+   "id": "o2926283067",
+   "name": "Wielka Prehyba",
+   "h": 1191,
+   "lat": 49.4671776,
+   "lon": 20.5710412,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 2926283067,
+   "wiki": "Wielka Prehyba"
+  },
+  {
+   "id": "o7195214060",
+   "name": "Wielki Łazek",
+   "h": 698,
+   "lat": 49.3698745,
+   "lon": 20.9116373,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7195214060,
+   "wiki": "Wielki Łazek"
+  },
+  {
+   "id": "o1451488164",
+   "name": "Wielki Rogacz",
+   "h": 1182,
+   "lat": 49.4399307,
+   "lon": 20.61034,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1451488164,
+   "wiki": "Wielki Rogacz"
+  },
+  {
+   "id": "o7152279365",
+   "name": "Wierch",
+   "h": 842,
+   "lat": 49.4631634,
+   "lon": 20.755425,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7152279365,
+   "wiki": "Wierch (Pasmo Jaworzyny)"
+  },
+  {
+   "id": "o1036619440",
+   "name": "Wierch nad Kamieniem",
+   "h": 1083,
+   "lat": 49.4847822,
+   "lon": 20.7945564,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 1036619440,
+   "wiki": "Wierch nad Kamieniem"
+  },
+  {
+   "id": "o14039322050",
+   "name": "Wierchy",
+   "h": 563,
+   "lat": 49.4380986,
+   "lon": 20.4465113,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 14039322050,
+   "wiki": "Wierchy (Pasmo Radziejowej)"
+  },
+  {
+   "id": "o6854039815",
+   "name": "Wietrzne Dziury",
+   "h": 1038,
+   "lat": 49.475523,
+   "lon": 20.5814339,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 6854039815,
+   "wiki": "Wietrzne Dziury"
+  },
+  {
+   "id": "o7117705685",
+   "name": "Wilcze Doły",
+   "h": 786,
+   "lat": 49.5180683,
+   "lon": 20.7264432,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7117705685,
+   "wiki": "Wilcze Doły (Beskid Sądecki)"
+  },
+  {
+   "id": "o3909629711",
+   "name": "Wisielec",
+   "h": 870,
+   "lat": 49.462889,
+   "lon": 20.4576778,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909629711,
+   "wiki": "Wisielec (Pasmo Radziejowej)"
+  },
+  {
+   "id": "o3909071364",
+   "name": "Wojakówka",
+   "h": 834,
+   "lat": 49.5119037,
+   "lon": 20.4461543,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909071364,
+   "wiki": "Wojakówka"
+  },
+  {
+   "id": "o14039297394",
+   "name": "Wysoka",
+   "h": 759,
+   "lat": 49.4378095,
+   "lon": 20.5099084,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 14039297394,
+   "wiki": "Wysoka (Beskid Sądecki)",
+   "r": 40
+  },
+  {
+   "id": "w2753602",
+   "name": "Wysoka Góra",
+   "h": 527,
+   "lat": 49.43011111111111,
+   "lon": 20.449333333333332,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Wysoka Góra (Pasmo Radziejowej)"
+  },
+  {
+   "id": "o7488561363",
+   "name": "Wysoki Groń",
+   "h": 692,
+   "lat": 49.5177688,
+   "lon": 20.6970266,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7488561363,
+   "wiki": "Wysoki Groń (Beskid Sądecki)"
+  },
+  {
+   "id": "o3909629692",
+   "name": "Wyśnia Góra",
+   "h": 638,
+   "lat": 49.4720172,
+   "lon": 20.4437599,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 3909629692,
+   "wiki": "Wyśnia Góra"
+  },
+  {
+   "id": "o7164797256",
+   "name": "Zadnie Góry",
+   "h": 967,
+   "lat": 49.4899694,
+   "lon": 20.7337944,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7164797256,
+   "wiki": "Zadnie Góry"
+  },
+  {
+   "id": "w5873261",
+   "name": "Załamki",
+   "h": 730,
+   "lat": 49.450278,
+   "lon": 20.462778,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Załamki"
+  },
+  {
+   "id": "o12883440785",
+   "name": "Zamczysko",
+   "h": 462,
+   "lat": 49.4893274,
+   "lon": 20.6871246,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 12883440785,
+   "wiki": "Zamczysko (Rytro)"
+  },
+  {
+   "id": "o7177090319",
+   "name": "Zapała",
+   "h": 639,
+   "lat": 49.3468146,
+   "lon": 20.8401442,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7177090319,
+   "wiki": "Zapała"
+  },
+  {
+   "id": "o7176023409",
+   "name": "Zgrzypy",
+   "h": 1128,
+   "lat": 49.4751161,
+   "lon": 20.5655306,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "osm": 7176023409,
+   "wiki": "Zgrzypy"
+  },
+  {
+   "id": "w5883502",
+   "name": "Złomisty Wierch Południowy",
+   "h": null,
+   "lat": 49.454306,
+   "lon": 20.581056,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Złomisty Wierch Południowy",
+   "r": 40
+  },
+  {
+   "id": "w5883477",
+   "name": "Złomisty Wierch Północny",
+   "h": null,
+   "lat": 49.46,
+   "lon": 20.577611,
+   "range": "Beskid Sądecki",
+   "groups": [
+    "sadecki"
+   ],
+   "wiki": "Złomisty Wierch Północny"
+  },
+  {
+   "id": "o2319033179",
+   "name": "Bania",
+   "h": 612,
+   "lat": 49.6167648,
+   "lon": 19.9718354,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 2319033179,
+   "wiki": "Bania (Rabka)"
+  },
+  {
+   "id": "o6122300046",
+   "name": "Bardo",
+   "h": 942,
+   "lat": 49.57767,
+   "lon": 20.0250706,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6122300046,
+   "wiki": "Bardo (Gorce)"
+  },
+  {
+   "id": "o5389565519",
+   "name": "Basielka",
+   "h": 1023,
+   "lat": 49.5842213,
+   "lon": 20.1044602,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 5389565519,
+   "wiki": "Basielka"
+  },
+  {
+   "id": "o3911372219",
+   "name": "Baszta",
+   "h": 540,
+   "lat": 49.513773,
+   "lon": 20.3916501,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3911372219,
+   "wiki": "Baszta (Gorce)"
+  },
+  {
+   "id": "o9506689784",
+   "name": "Borsuczyzny",
+   "h": 1097,
+   "lat": 49.5262439,
+   "lon": 20.1954747,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 9506689784,
+   "wiki": "Borsuczyzny"
+  },
+  {
+   "id": "o6168906347",
+   "name": "Borysówka",
+   "h": 1085,
+   "lat": 49.5438591,
+   "lon": 20.205143,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6168906347,
+   "wiki": "Borysówka (Gorce)"
+  },
+  {
+   "id": "o6139419629",
+   "name": "Bórczane",
+   "h": 763,
+   "lat": 49.5920862,
+   "lon": 20.0670796,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6139419629,
+   "wiki": "Bórczane"
+  },
+  {
+   "id": "o7640527450",
+   "name": "Brożek",
+   "h": 841,
+   "lat": 49.4684345,
+   "lon": 20.3896113,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 7640527450,
+   "wiki": "Brożek (szczyt)"
+  },
+  {
+   "id": "o14014994951",
+   "name": "Bukowina",
+   "h": 1010,
+   "lat": 49.4787447,
+   "lon": 20.3665981,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 14014994951,
+   "wiki": "Bukowina (Gorce)"
+  },
+  {
+   "id": "o9506689785",
+   "name": "Bukowina Miejska",
+   "h": 1103,
+   "lat": 49.5336329,
+   "lon": 20.0904923,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 9506689785,
+   "wiki": "Bukowina Miejska"
+  },
+  {
+   "id": "o3440676578",
+   "name": "Bukowina Obidowska",
+   "h": 1040,
+   "lat": 49.5362081,
+   "lon": 20.0345976,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3440676578,
+   "wiki": "Bukowina Obidowska"
+  },
+  {
+   "id": "o3440682822",
+   "name": "Bukowina Waksmundzka",
+   "h": 1103,
+   "lat": 49.5251838,
+   "lon": 20.1046818,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3440682822,
+   "wiki": "Bukowina Waksmundzka"
+  },
+  {
+   "id": "o3440697668",
+   "name": "Bukowinka",
+   "h": 935,
+   "lat": 49.4982667,
+   "lon": 20.1953481,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3440697668,
+   "wiki": "Bukowinka (Gorce)"
+  },
+  {
+   "id": "o3911372222",
+   "name": "Bulówka",
+   "h": 733,
+   "lat": 49.4975601,
+   "lon": 20.3862982,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3911372222,
+   "wiki": "Bulówka"
+  },
+  {
+   "id": "o6122412124",
+   "name": "Bystra",
+   "h": 858,
+   "lat": 49.5665914,
+   "lon": 20.3122941,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6122412124,
+   "wiki": "Bystra (Gorce)"
+  },
+  {
+   "id": "o6270330925",
+   "name": "Chabówka",
+   "h": 705,
+   "lat": 49.6201074,
+   "lon": 20.0562448,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6270330925,
+   "wiki": "Chabówka (wzniesienie)"
+  },
+  {
+   "id": "o6122349683",
+   "name": "Chałupisko",
+   "h": 936,
+   "lat": 49.4979057,
+   "lon": 20.2020262,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6122349683,
+   "wiki": "Chałupisko (szczyt)"
+  },
+  {
+   "id": "o6144816056",
+   "name": "Cyrla",
+   "h": 821,
+   "lat": 49.4964752,
+   "lon": 20.1800663,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6144816056,
+   "wiki": "Cyrla (Knurów)"
+  },
+  {
+   "id": "o6031592853",
+   "name": "Czarnotówka",
+   "h": 805,
+   "lat": 49.5005802,
+   "lon": 20.0647555,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6031592853,
+   "wiki": "Czarnotówka"
+  },
+  {
+   "id": "o6139408284",
+   "name": "Czechowa Góra",
+   "h": 703,
+   "lat": 49.5997084,
+   "lon": 20.1049517,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6139408284,
+   "wiki": "Czechowa Góra"
+  },
+  {
+   "id": "o7323621112",
+   "name": "Czerteż",
+   "h": 937,
+   "lat": 49.5127626,
+   "lon": 20.1616603,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 7323621112,
+   "wiki": "Czerteż (szczyt w Gorcach)"
+  },
+  {
+   "id": "o7640919275",
+   "name": "Czerteż Grywałdzki",
+   "h": 861,
+   "lat": 49.4717524,
+   "lon": 20.3854985,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 7640919275,
+   "wiki": "Czerteż Grywałdzki"
+  },
+  {
+   "id": "o6169070466",
+   "name": "Czertys",
+   "h": 968,
+   "lat": 49.5526368,
+   "lon": 20.2863523,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6169070466,
+   "wiki": "Czertys"
+  },
+  {
+   "id": "o1215361524",
+   "name": "Czoło Turbacza",
+   "h": 1258,
+   "lat": 49.552254,
+   "lon": 20.1152861,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 1215361524,
+   "wiki": "Czoło Turbacza"
+  },
+  {
+   "id": "o12230330588",
+   "name": "Drzyślawa",
+   "h": 792,
+   "lat": 49.4711658,
+   "lon": 20.3149763,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 12230330588,
+   "wiki": "Drzyślawa (szczyt)"
+  },
+  {
+   "id": "o7638116445",
+   "name": "Dudowa Góra",
+   "h": 753,
+   "lat": 49.4674571,
+   "lon": 20.3138995,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 7638116445,
+   "wiki": "Dudowa Góra"
+  },
+  {
+   "id": "o12200917332",
+   "name": "Ferków Gronik",
+   "h": 1013,
+   "lat": 49.5434929,
+   "lon": 20.2523126,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 12200917332,
+   "wiki": "Ferków Gronik"
+  },
+  {
+   "id": "o6122403396",
+   "name": "Goły Wierch",
+   "h": 781,
+   "lat": 49.5398901,
+   "lon": 20.3354064,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6122403396,
+   "wiki": "Goły Wierch (Gorce)"
+  },
+  {
+   "id": "o1196049580",
+   "name": "Gorc",
+   "h": 1228,
+   "lat": 49.5651317,
+   "lon": 20.2530125,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 1196049580,
+   "wiki": "Gorc"
+  },
+  {
+   "id": "o6574884887",
+   "name": "Gorc Troszacki",
+   "h": 1235,
+   "lat": 49.5732834,
+   "lon": 20.1884853,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6574884887,
+   "wiki": "Gorc Troszacki"
+  },
+  {
+   "id": "o6139394145",
+   "name": "Góra Kiełbaśna",
+   "h": 955,
+   "lat": 49.5860349,
+   "lon": 20.1613149,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6139394145,
+   "wiki": "Góra Kiełbaśna"
+  },
+  {
+   "id": "o6173302322",
+   "name": "Góra Kozerowa",
+   "h": 888,
+   "lat": 49.5921835,
+   "lon": 20.1809351,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6173302322,
+   "wiki": "Góra Kozerowa"
+  },
+  {
+   "id": "o2517152049",
+   "name": "Góra Królewska",
+   "h": 588,
+   "lat": 49.6210556,
+   "lon": 19.9850833,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 2517152049,
+   "wiki": "Góra Królewska"
+  },
+  {
+   "id": "o12121075746",
+   "name": "Góra Spyrkowa",
+   "h": 711,
+   "lat": 49.6373645,
+   "lon": 20.097993,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 12121075746,
+   "wiki": "Góra Spyrkowa"
+  },
+  {
+   "id": "o6168941381",
+   "name": "Góra Szczylowska",
+   "h": 937,
+   "lat": 49.5516581,
+   "lon": 20.2918746,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6168941381,
+   "wiki": "Góra Szczylowska"
+  },
+  {
+   "id": "o6169081557",
+   "name": "Góra Szlagowa",
+   "h": 1012,
+   "lat": 49.553083,
+   "lon": 20.2819158,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6169081557,
+   "wiki": "Góra Szlagowa"
+  },
+  {
+   "id": "o1195055324",
+   "name": "Groniki",
+   "h": 1027,
+   "lat": 49.559165,
+   "lon": 20.046291,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 1195055324,
+   "wiki": "Groniki (Gorce)"
+  },
+  {
+   "id": "o2517152048",
+   "name": "Groń",
+   "h": 666,
+   "lat": 49.6143056,
+   "lon": 20.0035,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 2517152048,
+   "wiki": "Groń (Pasmo Szumiącej)"
+  },
+  {
+   "id": "o2319033191",
+   "name": "Grzebień",
+   "h": 677,
+   "lat": 49.6140153,
+   "lon": 19.9898699,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 2319033191,
+   "wiki": "Grzebień (Gorce)"
+  },
+  {
+   "id": "o6113967611",
+   "name": "Hrube",
+   "h": 1027,
+   "lat": 49.5298539,
+   "lon": 20.0602924,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6113967611,
+   "wiki": "Hrube"
+  },
+  {
+   "id": "o6270391875",
+   "name": "Jadamczyków Groń",
+   "h": 611,
+   "lat": 49.6494887,
+   "lon": 20.0607701,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6270391875,
+   "wiki": "Jadamczyków Groń"
+  },
+  {
+   "id": "o3440682823",
+   "name": "Jaworzyna",
+   "h": 943,
+   "lat": 49.5548388,
+   "lon": 20.0172291,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3440682823,
+   "wiki": "Jaworzyna (942 m)"
+  },
+  {
+   "id": "w1373975",
+   "name": "Jaworzyna",
+   "h": 1026,
+   "lat": 49.587583,
+   "lon": 20.198667,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "wiki": "Jaworzyna (Lubomierska)"
+  },
+  {
+   "id": "o1211055972",
+   "name": "Jaworzyna Kamienicka",
+   "h": 1288,
+   "lat": 49.5477659,
+   "lon": 20.157368,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 1211055972,
+   "wiki": "Jaworzyna Kamienicka"
+  },
+  {
+   "id": "o7636435613",
+   "name": "Jaworzyna Ligasowska",
+   "h": 1063,
+   "lat": 49.4800453,
+   "lon": 20.3620231,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 7636435613,
+   "wiki": "Jaworzyna Ligasowska"
+  },
+  {
+   "id": "o6052889502",
+   "name": "Jaworzyna Ponicka",
+   "h": 996,
+   "lat": 49.5733061,
+   "lon": 20.0294653,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6052889502,
+   "wiki": "Jaworzyna Ponicka"
+  },
+  {
+   "id": "o2688835728",
+   "name": "Jaworzynka Gorcowska",
+   "h": 1086,
+   "lat": 49.5525561,
+   "lon": 20.2479683,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 2688835728,
+   "wiki": "Jaworzynka Gorcowska"
+  },
+  {
+   "id": "o6169556123",
+   "name": "Jaworzyny",
+   "h": 1096,
+   "lat": 49.4903763,
+   "lon": 20.3121277,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6169556123,
+   "wiki": "Jaworzyny (Gorce)"
+  },
+  {
+   "id": "o1211056092",
+   "name": "Kiczora",
+   "h": 1282,
+   "lat": 49.5396829,
+   "lon": 20.1491473,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 1211056092,
+   "wiki": "Kiczora (Gorce)",
+   "r": 119
+  },
+  {
+   "id": "o4221363358",
+   "name": "Kiczora Kamienicka",
+   "h": 1003,
+   "lat": 49.603153,
+   "lon": 20.255303,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 4221363358,
+   "wiki": "Kiczora Kamienicka"
+  },
+  {
+   "id": "o6270345414",
+   "name": "Kocia Górka",
+   "h": 606,
+   "lat": 49.652763,
+   "lon": 20.0884886,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6270345414,
+   "wiki": "Kocia Górka (Gorce)"
+  },
+  {
+   "id": "o10603826868",
+   "name": "Koń",
+   "h": 812,
+   "lat": 49.5490353,
+   "lon": 20.3322588,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 10603826868,
+   "wiki": "Koń (szczyt w Gorcach)"
+  },
+  {
+   "id": "o6139389151",
+   "name": "Kopa",
+   "h": 1032,
+   "lat": 49.5757258,
+   "lon": 20.1525174,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6139389151,
+   "wiki": "Kopa (Gorce)"
+  },
+  {
+   "id": "o6169560474",
+   "name": "Kopia Góra",
+   "h": 476,
+   "lat": 49.443167,
+   "lon": 20.4201898,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6169560474,
+   "wiki": "Kopia Góra"
+  },
+  {
+   "id": "o12200917336",
+   "name": "Kopiec",
+   "h": 810,
+   "lat": 49.5389591,
+   "lon": 20.3393761,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 12200917336,
+   "wiki": "Kopiec (Gorce)"
+  },
+  {
+   "id": "o6139338305",
+   "name": "Kopieniec",
+   "h": 1080,
+   "lat": 49.5661482,
+   "lon": 20.1161645,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6139338305,
+   "wiki": "Kopieniec (Gorce)"
+  },
+  {
+   "id": "o7640913165",
+   "name": "Kotelnica",
+   "h": 825,
+   "lat": 49.4680577,
+   "lon": 20.3932665,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 7640913165,
+   "wiki": "Kotelnica (825 m)"
+  },
+  {
+   "id": "o3440697669",
+   "name": "Kotelnica",
+   "h": 946,
+   "lat": 49.4914417,
+   "lon": 20.2299196,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3440697669,
+   "wiki": "Kotelnica (946 m)"
+  },
+  {
+   "id": "w2362569",
+   "name": "Krzyżowa",
+   "h": 778,
+   "lat": 49.59258333333334,
+   "lon": 20.197916666666668,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "wiki": "Krzyżowa (Gorce)"
+  },
+  {
+   "id": "o3301316387",
+   "name": "Kudłoń",
+   "h": 1274,
+   "lat": 49.5726403,
+   "lon": 20.1761169,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3301316387,
+   "wiki": "Kudłoń"
+  },
+  {
+   "id": "o6169549350",
+   "name": "Kudowski Wierch",
+   "h": 1024,
+   "lat": 49.4904389,
+   "lon": 20.294227,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6169549350,
+   "wiki": "Kudowski Wierch"
+  },
+  {
+   "id": "o3401997387",
+   "name": "Kułakowy Wierch",
+   "h": 843,
+   "lat": 49.5405631,
+   "lon": 19.9815305,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3401997387,
+   "wiki": "Kułakowy Wierch"
+  },
+  {
+   "id": "o6169558797",
+   "name": "Kuternogowa",
+   "h": 956,
+   "lat": 49.4784849,
+   "lon": 20.3285546,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6169558797,
+   "wiki": "Kuternogowa"
+  },
+  {
+   "id": "o4221451186",
+   "name": "Lanckorona",
+   "h": 746,
+   "lat": 49.5908856,
+   "lon": 20.2361514,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 4221451186,
+   "wiki": "Lanckorona (Gorce)"
+  },
+  {
+   "id": "o4221451188",
+   "name": "Lelonek",
+   "h": 961,
+   "lat": 49.5669431,
+   "lon": 20.2785378,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 4221451188,
+   "wiki": "Lelonek"
+  },
+  {
+   "id": "o1196539230",
+   "name": "Lubań",
+   "h": 1211,
+   "lat": 49.489321,
+   "lon": 20.3389281,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 1196539230,
+   "wiki": "Lubań (szczyt)"
+  },
+  {
+   "id": "o12200917335",
+   "name": "Łysa Góra",
+   "h": 698,
+   "lat": 49.5348421,
+   "lon": 20.3301328,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 12200917335,
+   "wiki": "Łysa Góra (Gorce)"
+  },
+  {
+   "id": "o3586614034",
+   "name": "Maciejowa",
+   "h": 837,
+   "lat": 49.5840803,
+   "lon": 20.0031731,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3586614034,
+   "wiki": "Maciejowa (szczyt)"
+  },
+  {
+   "id": "o4221363359",
+   "name": "Magorzyca",
+   "h": 882,
+   "lat": 49.5903213,
+   "lon": 20.2560854,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 4221363359,
+   "wiki": "Magorzyca (Gorce)"
+  },
+  {
+   "id": "o6466882916",
+   "name": "Magurki",
+   "h": 1108,
+   "lat": 49.5309964,
+   "lon": 20.1814323,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6466882916,
+   "wiki": "Magurki"
+  },
+  {
+   "id": "o6122351910",
+   "name": "Majcherek",
+   "h": 927,
+   "lat": 49.4984047,
+   "lon": 20.2148695,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6122351910,
+   "wiki": "Majcherek"
+  },
+  {
+   "id": "o3911372234",
+   "name": "Makowica",
+   "h": 857,
+   "lat": 49.5057629,
+   "lon": 20.3780001,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3911372234,
+   "wiki": "Makowica (Gorce)"
+  },
+  {
+   "id": "o1158666455",
+   "name": "Marszałek",
+   "h": 827,
+   "lat": 49.4653903,
+   "lon": 20.4020709,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 1158666455,
+   "wiki": "Marszałek (szczyt)"
+  },
+  {
+   "id": "o3440676577",
+   "name": "Miejski Wierch",
+   "h": 1142,
+   "lat": 49.5319265,
+   "lon": 20.0834923,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3440676577,
+   "wiki": "Miejski Wierch"
+  },
+  {
+   "id": "o6270264293",
+   "name": "Mnisko",
+   "h": 950,
+   "lat": 49.5670647,
+   "lon": 20.0366045,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6270264293,
+   "wiki": "Mnisko"
+  },
+  {
+   "id": "o6270261385",
+   "name": "Mnistroma",
+   "h": 943,
+   "lat": 49.569665,
+   "lon": 20.0381587,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6270261385,
+   "wiki": "Mnistroma"
+  },
+  {
+   "id": "w2369750",
+   "name": "Morskie Oko",
+   "h": 768,
+   "lat": 49.597611111111114,
+   "lon": 20.04641666666667,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "wiki": "Morskie Oko (Gorce)"
+  },
+  {
+   "id": "o6139356229",
+   "name": "Mostownica",
+   "h": 1250,
+   "lat": 49.5555983,
+   "lon": 20.1305978,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6139356229,
+   "wiki": "Mostownica (szczyt)"
+  },
+  {
+   "id": "o6168918152",
+   "name": "Mraźnica",
+   "h": 1163,
+   "lat": 49.5612943,
+   "lon": 20.2592513,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6168918152,
+   "wiki": "Mraźnica (Gorce)"
+  },
+  {
+   "id": "o6132276330",
+   "name": "Obidowa",
+   "h": 865,
+   "lat": 49.5451643,
+   "lon": 19.9899612,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6132276330,
+   "wiki": "Obidowa (Gorce)"
+  },
+  {
+   "id": "o3440676576",
+   "name": "Obidowiec",
+   "h": 1106,
+   "lat": 49.5601737,
+   "lon": 20.0690341,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3440676576,
+   "wiki": "Obidowiec (szczyt)"
+  },
+  {
+   "id": "o11293101781",
+   "name": "Ostra",
+   "h": 764,
+   "lat": 49.5962255,
+   "lon": 20.0366761,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 11293101781,
+   "wiki": "Ostra (Gorce)"
+  },
+  {
+   "id": "o3911372236",
+   "name": "Palenica",
+   "h": 822,
+   "lat": 49.4935319,
+   "lon": 20.3813609,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3911372236,
+   "wiki": "Palenica (Gorce)"
+  },
+  {
+   "id": "o4589970158",
+   "name": "Pasterski Wierch",
+   "h": 1100,
+   "lat": 49.4960542,
+   "lon": 20.3606155,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 4589970158,
+   "wiki": "Pasterski Wierch"
+  },
+  {
+   "id": "o3401997388",
+   "name": "Piątkowa Góra",
+   "h": 714,
+   "lat": 49.5754237,
+   "lon": 19.9481837,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3401997388,
+   "wiki": "Piątkowa Góra"
+  },
+  {
+   "id": "o6173235436",
+   "name": "Pieronka",
+   "h": 732,
+   "lat": 49.6020254,
+   "lon": 20.1438899,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6173235436,
+   "wiki": "Pieronka (Gorce)"
+  },
+  {
+   "id": "w6120761",
+   "name": "Podtobołczyk",
+   "h": 941,
+   "lat": 49.57666666666667,
+   "lon": 20.061722222222222,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "wiki": "Podtobołczyk"
+  },
+  {
+   "id": "o2686774144",
+   "name": "Potaczkowa",
+   "h": 746,
+   "lat": 49.6263665,
+   "lon": 20.0612557,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 2686774144,
+   "wiki": "Potaczkowa"
+  },
+  {
+   "id": "o10128260795",
+   "name": "Przysłop",
+   "h": 837,
+   "lat": 49.5828121,
+   "lon": 20.0081859,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 10128260795,
+   "wiki": "Przysłop (852 m)"
+  },
+  {
+   "id": "o1211056127",
+   "name": "Przysłop",
+   "h": 1187,
+   "lat": 49.5502425,
+   "lon": 20.2042312,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 1211056127,
+   "wiki": "Przysłop (Pasmo Gorca)"
+  },
+  {
+   "id": "o3391467207",
+   "name": "Przysłopek",
+   "h": 1123,
+   "lat": 49.565457,
+   "lon": 20.1523647,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3391467207,
+   "wiki": "Przysłopek (szczyt)"
+  },
+  {
+   "id": "o3440643901",
+   "name": "Rozdziele",
+   "h": 1189,
+   "lat": 49.5495169,
+   "lon": 20.0977332,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3440643901,
+   "wiki": "Rozdziele (szczyt)"
+  },
+  {
+   "id": "o3440697670",
+   "name": "Runek",
+   "h": 1004,
+   "lat": 49.4964319,
+   "lon": 20.2639562,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3440697670,
+   "wiki": "Runek (1004 m)"
+  },
+  {
+   "id": "o6122355439",
+   "name": "Runek",
+   "h": 997,
+   "lat": 49.493306,
+   "lon": 20.2534636,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6122355439,
+   "wiki": "Runek (Hubieński)"
+  },
+  {
+   "id": "o6122264526",
+   "name": "Skałka",
+   "h": 905,
+   "lat": 49.548212,
+   "lon": 20.0029922,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6122264526,
+   "wiki": "Skałka (Gorce)"
+  },
+  {
+   "id": "o1809203095",
+   "name": "Skrzyńczyska",
+   "h": 752,
+   "lat": 49.5762298,
+   "lon": 20.302268,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 1809203095,
+   "wiki": "Skrzyńczyska"
+  },
+  {
+   "id": "o3440643899",
+   "name": "Solnisko",
+   "h": 1183,
+   "lat": 49.5458055,
+   "lon": 20.0882081,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3440643899,
+   "wiki": "Solnisko (Gorce)"
+  },
+  {
+   "id": "w1487861",
+   "name": "Stare Wierchy",
+   "h": 971,
+   "lat": 49.559806,
+   "lon": 20.039028,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "wiki": "Stare Wierchy"
+  },
+  {
+   "id": "o6173226112",
+   "name": "Starmachów Groń",
+   "h": 747,
+   "lat": 49.6031969,
+   "lon": 20.0801315,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6173226112,
+   "wiki": "Starmachów Groń"
+  },
+  {
+   "id": "w5316867",
+   "name": "Stusy",
+   "h": 1126,
+   "lat": 49.522333333333336,
+   "lon": 20.147444444444442,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "wiki": "Stusy"
+  },
+  {
+   "id": "o3440698532",
+   "name": "Suchora",
+   "h": 999,
+   "lat": 49.5694193,
+   "lon": 20.0672805,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3440698532,
+   "wiki": "Suchora (szczyt)"
+  },
+  {
+   "id": "o6139329154",
+   "name": "Suchy Groń",
+   "h": 1043,
+   "lat": 49.5668001,
+   "lon": 20.1013011,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6139329154,
+   "wiki": "Suchy Groń (Gorce)"
+  },
+  {
+   "id": "o3586614035",
+   "name": "Szumiąca",
+   "h": 842,
+   "lat": 49.5900429,
+   "lon": 20.0174106,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3586614035,
+   "wiki": "Szumiąca (szczyt)"
+  },
+  {
+   "id": "o6169550204",
+   "name": "Średni Groń",
+   "h": 1211,
+   "lat": 49.4869213,
+   "lon": 20.3459327,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6169550204,
+   "wiki": "Średni Groń (Lubań)"
+  },
+  {
+   "id": "o3440643900",
+   "name": "Średni Wierch",
+   "h": 1122,
+   "lat": 49.5472024,
+   "lon": 20.0755819,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3440643900,
+   "wiki": "Średni Wierch (Gorce)"
+  },
+  {
+   "id": "o3586614036",
+   "name": "Tatarów",
+   "h": 710,
+   "lat": 49.5908783,
+   "lon": 19.9854655,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3586614036,
+   "wiki": "Tatarów (szczyt)"
+  },
+  {
+   "id": "o2583534101",
+   "name": "Tobołczyk",
+   "h": 969,
+   "lat": 49.579924,
+   "lon": 20.0687977,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 2583534101,
+   "wiki": "Tobołczyk"
+  },
+  {
+   "id": "o6132467081",
+   "name": "Tobołów",
+   "h": 993,
+   "lat": 49.5753644,
+   "lon": 20.0669409,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6132467081,
+   "wiki": "Tobołów (szczyt)"
+  },
+  {
+   "id": "o6168938592",
+   "name": "Tokarka",
+   "h": 958,
+   "lat": 49.5677738,
+   "lon": 20.2744615,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6168938592,
+   "wiki": "Tokarka (szczyt w Gorcach)"
+  },
+  {
+   "id": "o6169586308",
+   "name": "Trzy Kopce",
+   "h": 1281,
+   "lat": 49.5418222,
+   "lon": 20.1495456,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6169586308,
+   "wiki": "Trzy Kopce (Gorce)",
+   "r": 119
+  },
+  {
+   "id": "o1211056267",
+   "name": "Turbaczyk",
+   "h": 1078,
+   "lat": 49.5794466,
+   "lon": 20.1160411,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 1211056267,
+   "wiki": "Turbaczyk"
+  },
+  {
+   "id": "o6122345971",
+   "name": "Turkówka",
+   "h": 885,
+   "lat": 49.5015423,
+   "lon": 20.1910559,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6122345971,
+   "wiki": "Turkówka"
+  },
+  {
+   "id": "o6122374445",
+   "name": "Tworogi",
+   "h": 839,
+   "lat": 49.5371842,
+   "lon": 20.3471312,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6122374445,
+   "wiki": "Tworogi"
+  },
+  {
+   "id": "o3909666450",
+   "name": "Tylmanowska Góra",
+   "h": 603,
+   "lat": 49.5288064,
+   "lon": 20.3912639,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3909666450,
+   "wiki": "Tylmanowska Góra"
+  },
+  {
+   "id": "o6173205440",
+   "name": "Wichry",
+   "h": 836,
+   "lat": 49.5872663,
+   "lon": 20.0205976,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6173205440,
+   "wiki": "Wichry (Gorce)"
+  },
+  {
+   "id": "o4221363360",
+   "name": "Wielki Wierch",
+   "h": 1014,
+   "lat": 49.6121897,
+   "lon": 20.2559401,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 4221363360,
+   "wiki": "Wielki Wierch (Gorce)"
+  },
+  {
+   "id": "o6139333517",
+   "name": "Wierch",
+   "h": 1091,
+   "lat": 49.573644,
+   "lon": 20.1149996,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6139333517,
+   "wiki": "Wierch (Gorce)"
+  },
+  {
+   "id": "o4221451187",
+   "name": "Wierch Bystrzaniec",
+   "h": 1050,
+   "lat": 49.5678115,
+   "lon": 20.2666402,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 4221451187,
+   "wiki": "Wierch Bystrzaniec"
+  },
+  {
+   "id": "w6090207",
+   "name": "Wierch Obiesia",
+   "h": null,
+   "lat": 49.56194444444444,
+   "lon": 20.248194444444444,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "wiki": "Wierch Obiesia"
+  },
+  {
+   "id": "o6122277022",
+   "name": "Wierchowa",
+   "h": 940,
+   "lat": 49.5790581,
+   "lon": 20.0130494,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6122277022,
+   "wiki": "Wierchowa"
+  },
+  {
+   "id": "o6270306319",
+   "name": "Wierchy",
+   "h": 783,
+   "lat": 49.5527165,
+   "lon": 19.9127836,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6270306319,
+   "wiki": "Wierchy (Rabska Góra)"
+  },
+  {
+   "id": "o3909666451",
+   "name": "Wietrznice",
+   "h": 534,
+   "lat": 49.5218324,
+   "lon": 20.4081792,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 3909666451,
+   "wiki": "Wietrznice"
+  },
+  {
+   "id": "o6144517050",
+   "name": "Wisielakówka",
+   "h": 1216,
+   "lat": 49.5361054,
+   "lon": 20.1065506,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6144517050,
+   "wiki": "Wisielakówka (szczyt w Gorcach)"
+  },
+  {
+   "id": "o6270337505",
+   "name": "Witów",
+   "h": 720,
+   "lat": 49.6329146,
+   "lon": 20.1101958,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 6270337505,
+   "wiki": "Witów (Gorce)"
+  },
+  {
+   "id": "o5389703279",
+   "name": "Wyżnia",
+   "h": 1107,
+   "lat": 49.5225342,
+   "lon": 20.1378019,
+   "range": "Gorce",
+   "groups": [
+    "gorce"
+   ],
+   "osm": 5389703279,
+   "wiki": "Wyżnia (szczyt w Gorcach)"
+  },
+  {
+   "id": "o430646675",
+   "name": "Beskid",
+   "h": 2012,
+   "lat": 49.2282368,
+   "lon": 19.9879231,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 430646675,
+   "wiki": "Beskid (Tatry)"
+  },
+  {
+   "id": "o11595734654",
+   "name": "Biała Czubka",
+   "h": 1333,
+   "lat": 49.2616531,
+   "lon": 19.9635503,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 11595734654,
+   "wiki": "Biała Czubka"
+  },
+  {
+   "id": "o495957128",
+   "name": "Błyszcz",
+   "h": 2159,
+   "lat": 49.1926302,
+   "lon": 19.8409972,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 495957128,
+   "wiki": "Błyszcz (Tatry)"
+  },
+  {
+   "id": "o615736220",
+   "name": "Bobrowiec",
+   "h": 1665,
+   "lat": 49.2462266,
+   "lon": 19.7846935,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 615736220,
+   "wiki": "Bobrowiec (Tatry)"
+  },
+  {
+   "id": "o2604672434",
+   "name": "Boczań",
+   "h": 1224,
+   "lat": 49.2646101,
+   "lon": 19.9871382,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2604672434,
+   "wiki": "Boczań"
+  },
+  {
+   "id": "w76157",
+   "name": "Buczynowe Czuby",
+   "h": null,
+   "lat": 49.2275,
+   "lon": 20.0375,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "wiki": "Buczynowe Czuby",
+   "r": 63
+  },
+  {
+   "id": "o3508693152",
+   "name": "Bula pod Rysami",
+   "h": 2054,
+   "lat": 49.1819195,
+   "lon": 20.0807907,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3508693152,
+   "wiki": "Bula pod Rysami"
+  },
+  {
+   "id": "o496805357",
+   "name": "Ciemniak",
+   "h": 2096,
+   "lat": 49.2310073,
+   "lon": 19.9034053,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 496805357,
+   "wiki": "Ciemniak"
+  },
+  {
+   "id": "o3568548393",
+   "name": "Cisowa Turnia",
+   "h": 1112,
+   "lat": 49.2721369,
+   "lon": 19.8403267,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3568548393,
+   "wiki": "Cisowa Turnia"
+  },
+  {
+   "id": "o321624997",
+   "name": "Cubryna",
+   "h": 2376,
+   "lat": 49.1878013,
+   "lon": 20.0536809,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 321624997,
+   "wiki": "Cubryna",
+   "r": 69
+  },
+  {
+   "id": "o9296056231",
+   "name": "Cubryńska Strażnica",
+   "h": 2332,
+   "lat": 49.1884679,
+   "lon": 20.0553146,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 9296056231,
+   "wiki": "Cubryńska Strażnica",
+   "r": 69
+  },
+  {
+   "id": "o1295379308",
+   "name": "Czerwony Wierch Chochołowski",
+   "h": 1766,
+   "lat": 49.2135399,
+   "lon": 19.7815741,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295379308,
+   "wiki": "Czerwony Wierch Chochołowski"
+  },
+  {
+   "id": "o11331646687",
+   "name": "Czoło",
+   "h": 1514,
+   "lat": 49.2390688,
+   "lon": 19.7734387,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 11331646687,
+   "wiki": "Czoło (Grześ)"
+  },
+  {
+   "id": "o9962071956",
+   "name": "Czuba nad Karbem",
+   "h": 1896,
+   "lat": 49.2284512,
+   "lon": 20.0128241,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 9962071956,
+   "wiki": "Czuba nad Karbem"
+  },
+  {
+   "id": "o8993678469",
+   "name": "Czuba nad Uboczą",
+   "h": null,
+   "lat": 49.2191722,
+   "lon": 20.0713708,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 8993678469,
+   "wiki": "Czuba nad Uboczą"
+  },
+  {
+   "id": "o1294543793",
+   "name": "Czubik",
+   "h": 1845,
+   "lat": 49.2127021,
+   "lon": 19.8079495,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1294543793,
+   "wiki": "Czubik"
+  },
+  {
+   "id": "o2107822733",
+   "name": "Diabliniec",
+   "h": 1241,
+   "lat": 49.2566111,
+   "lon": 19.8446667,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2107822733,
+   "wiki": "Diabliniec"
+  },
+  {
+   "id": "o9978523979",
+   "name": "Dziurawa Czuba",
+   "h": null,
+   "lat": 49.1947526,
+   "lon": 20.041143,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 9978523979,
+   "wiki": "Dziurawa Czuba",
+   "r": 76
+  },
+  {
+   "id": "o11217424623",
+   "name": "Filipczański Wierch",
+   "h": 1223,
+   "lat": 49.2741158,
+   "lon": 20.0765139,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 11217424623,
+   "wiki": "Filipczański Wierch"
+  },
+  {
+   "id": "o3560991693",
+   "name": "Furkaska",
+   "h": 1491,
+   "lat": 49.2616215,
+   "lon": 19.7887314,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3560991693,
+   "wiki": "Furkaska"
+  },
+  {
+   "id": "o803761539",
+   "name": "Gęsia Szyja",
+   "h": 1489,
+   "lat": 49.2590286,
+   "lon": 20.0765188,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 803761539,
+   "wiki": "Gęsia Szyja"
+  },
+  {
+   "id": "o385123541",
+   "name": "Gładki Wierch",
+   "h": 2065,
+   "lat": 49.2067762,
+   "lon": 20.0134135,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 385123541,
+   "wiki": "Gładki Wierch"
+  },
+  {
+   "id": "o9978523978",
+   "name": "Głaźna Czuba",
+   "h": null,
+   "lat": 49.1928668,
+   "lon": 20.0438219,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 9978523978,
+   "wiki": "Głaźna Czuba"
+  },
+  {
+   "id": "o2102060425",
+   "name": "Goły Wierch Rusinowy",
+   "h": 1206,
+   "lat": 49.2675419,
+   "lon": 20.0968461,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2102060425,
+   "wiki": "Goły Wierch Rusinowy"
+  },
+  {
+   "id": "o1295278137",
+   "name": "Goryczkowa Czuba",
+   "h": 1912,
+   "lat": 49.2322686,
+   "lon": 19.9576008,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295278137,
+   "wiki": "Goryczkowa Czuba"
+  },
+  {
+   "id": "w33157",
+   "name": "Granaty",
+   "h": 2240,
+   "lat": 49.224722,
+   "lon": 20.033056,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "wiki": "Granaty",
+   "r": 40
+  },
+  {
+   "id": "o803761542",
+   "name": "Grześ",
+   "h": 1653,
+   "lat": 49.2366407,
+   "lon": 19.7666402,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 803761542,
+   "wiki": "Grześ",
+   "r": 102
+  },
+  {
+   "id": "o10128847999",
+   "name": "Gubalec",
+   "h": 1550,
+   "lat": 49.2317354,
+   "lon": 19.8718275,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 10128847999,
+   "wiki": "Gubalec"
+  },
+  {
+   "id": "o3509932447",
+   "name": "Hińczowa Turnia",
+   "h": 2372,
+   "lat": 49.1809457,
+   "lon": 20.0690274,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3509932447,
+   "wiki": "Hińczowa Turnia",
+   "r": 118
+  },
+  {
+   "id": "o1295379313",
+   "name": "Hrubas",
+   "h": 1499,
+   "lat": 49.2451977,
+   "lon": 19.8006705,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295379313,
+   "wiki": "Hrubas"
+  },
+  {
+   "id": "o2100603506",
+   "name": "Hruby Regiel",
+   "h": 1339,
+   "lat": 49.2677778,
+   "lon": 19.8894444,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2100603506,
+   "wiki": "Hruby Regiel"
+  },
+  {
+   "id": "o1333271264",
+   "name": "Igła",
+   "h": 1207,
+   "lat": 49.2645619,
+   "lon": 19.9501318,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1333271264,
+   "wiki": "Igła (Dolina Białego)"
+  },
+  {
+   "id": "o11090149599",
+   "name": "Jaferowa Kopa",
+   "h": 1598,
+   "lat": 49.2137559,
+   "lon": 19.8692606,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 11090149599,
+   "wiki": "Jaferowa Kopa"
+  },
+  {
+   "id": "o1295379316",
+   "name": "Jamborowy Wierch",
+   "h": 1565,
+   "lat": 49.2453567,
+   "lon": 19.7784434,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295379316,
+   "wiki": "Jamborowy Wierch"
+  },
+  {
+   "id": "o3568740193",
+   "name": "Jamska Czuba",
+   "h": 1108,
+   "lat": 49.2563367,
+   "lon": 19.8189715,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3568740193,
+   "wiki": "Jamska Czuba"
+  },
+  {
+   "id": "o3560920780",
+   "name": "Jarząbczy Wierch",
+   "h": 2137,
+   "lat": 49.1974727,
+   "lon": 19.7951037,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3560920780,
+   "wiki": "Jarząbczy Wierch"
+  },
+  {
+   "id": "o8499322250",
+   "name": "Jaworzyńska Czuba",
+   "h": 1625,
+   "lat": 49.2490695,
+   "lon": 19.9934095,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 8499322250,
+   "wiki": "Jaworzyńska Czuba"
+  },
+  {
+   "id": "o3568750126",
+   "name": "Jaworzyński Przysłop",
+   "h": 1269,
+   "lat": 49.2541231,
+   "lon": 19.8047674,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3568750126,
+   "wiki": "Jaworzyński Przysłop"
+  },
+  {
+   "id": "o11581710075",
+   "name": "Juhaska Kopa",
+   "h": null,
+   "lat": 49.2536823,
+   "lon": 19.9441801,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 11581710075,
+   "wiki": "Juhaska Kopa",
+   "r": 93
+  },
+  {
+   "id": "o1295278146",
+   "name": "Kalacka Kopa",
+   "h": 1601,
+   "lat": 49.2544292,
+   "lon": 19.9537582,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295278146,
+   "wiki": "Kalacka Kopa"
+  },
+  {
+   "id": "o1295341400",
+   "name": "Kamienista",
+   "h": 2127,
+   "lat": 49.1953437,
+   "lon": 19.8705692,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295341400,
+   "wiki": "Kamienista (Tatry)"
+  },
+  {
+   "id": "o3552158247",
+   "name": "Kasprowy Wierch",
+   "h": 1987,
+   "lat": 49.2318014,
+   "lon": 19.9815609,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3552158247,
+   "wiki": "Kasprowy Wierch"
+  },
+  {
+   "id": "o3508700214",
+   "name": "Kazalnica Mięguszowiecka",
+   "h": 2159,
+   "lat": 49.1852039,
+   "lon": 20.0697268,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3508700214,
+   "wiki": "Kazalnica Mięguszowiecka"
+  },
+  {
+   "id": "o3568646693",
+   "name": "Klinowa Czuba",
+   "h": 1276,
+   "lat": 49.2617032,
+   "lon": 19.8257869,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3568646693,
+   "wiki": "Klinowa Czuba"
+  },
+  {
+   "id": "w2924252",
+   "name": "Kobylarzowa Kopka",
+   "h": null,
+   "lat": 49.24486111111111,
+   "lon": 19.913027777777778,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "wiki": "Kobylarzowa Kopka"
+  },
+  {
+   "id": "o3494317589",
+   "name": "Kołowa Czuba",
+   "h": 2105,
+   "lat": 49.2150947,
+   "lon": 20.0203934,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3494317589,
+   "wiki": "Kołowa Czuba"
+  },
+  {
+   "id": "o1295379325",
+   "name": "Kominiarski Wierch",
+   "h": 1829,
+   "lat": 49.240814,
+   "lon": 19.8355407,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295379325,
+   "wiki": "Kominiarski Wierch"
+  },
+  {
+   "id": "o11595734713",
+   "name": "Kondracka Kopka",
+   "h": 1776,
+   "lat": 49.2481208,
+   "lon": 19.9331262,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 11595734713,
+   "wiki": "Kondracka Kopka"
+  },
+  {
+   "id": "o1294543842",
+   "name": "Kończysty Wierch",
+   "h": 2002,
+   "lat": 49.2056581,
+   "lon": 19.8075854,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1294543842,
+   "wiki": "Kończysty Wierch"
+  },
+  {
+   "id": "o3560695684",
+   "name": "Kopa Kondracka",
+   "h": 2005,
+   "lat": 49.2365407,
+   "lon": 19.9322676,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3560695684,
+   "wiki": "Kopa Kondracka"
+  },
+  {
+   "id": "o6178007809",
+   "name": "Kopa Magury",
+   "h": 1704,
+   "lat": 49.2486118,
+   "lon": 20.0006968,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 6178007809,
+   "wiki": "Kopa Magury"
+  },
+  {
+   "id": "o9451044777",
+   "name": "Kopa nad Białym",
+   "h": 1034,
+   "lat": 49.2754559,
+   "lon": 19.9539796,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 9451044777,
+   "wiki": "Kopa nad Białym"
+  },
+  {
+   "id": "o9032605698",
+   "name": "Kopa nad Krzyżnem",
+   "h": 2130,
+   "lat": 49.2284705,
+   "lon": 20.0464117,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 9032605698,
+   "wiki": "Kopa nad Krzyżnem",
+   "r": 102
+  },
+  {
+   "id": "o6720011784",
+   "name": "Kopa nad Wrotami",
+   "h": 2075,
+   "lat": 49.1912991,
+   "lon": 20.0461458,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 6720011784,
+   "wiki": "Kopa nad Wrotami"
+  },
+  {
+   "id": "o3560918391",
+   "name": "Kopa Prawdy",
+   "h": 2027,
+   "lat": 49.2022301,
+   "lon": 19.8008168,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3560918391,
+   "wiki": "Kopa Prawdy"
+  },
+  {
+   "id": "o3568554193",
+   "name": "Koryciańska Czuba",
+   "h": 1161,
+   "lat": 49.2705055,
+   "lon": 19.8019062,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3568554193,
+   "wiki": "Koryciańska Czuba"
+  },
+  {
+   "id": "o355985949",
+   "name": "Kościelec",
+   "h": 2155,
+   "lat": 49.2251794,
+   "lon": 20.0145834,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 355985949,
+   "wiki": "Kościelec (Tatry)",
+   "r": 89
+  },
+  {
+   "id": "o9512402786",
+   "name": "Kotlinowy Wierch",
+   "h": 1305,
+   "lat": 49.271192,
+   "lon": 20.0293065,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 9512402786,
+   "wiki": "Kotlinowy Wierch"
+  },
+  {
+   "id": "o1295379312",
+   "name": "Kotłowa Czuba",
+   "h": 1840,
+   "lat": 49.2069618,
+   "lon": 19.8349199,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295379312,
+   "wiki": "Kotłowa Czuba"
+  },
+  {
+   "id": "o460928401",
+   "name": "Kozi Wierch",
+   "h": 2291,
+   "lat": 49.2183172,
+   "lon": 20.0287051,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 460928401,
+   "wiki": "Kozi Wierch",
+   "r": 69
+  },
+  {
+   "id": "o9041102947",
+   "name": "Kozie Czuby",
+   "h": 2264,
+   "lat": 49.2188028,
+   "lon": 20.026939,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 9041102947,
+   "wiki": "Kozie Czuby",
+   "r": 69
+  },
+  {
+   "id": "o2100603508",
+   "name": "Krokiew",
+   "h": 1378,
+   "lat": 49.267122,
+   "lon": 19.9646069,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2100603508,
+   "wiki": "Krokiew (Tatry)"
+  },
+  {
+   "id": "w2834552",
+   "name": "Kruźlik",
+   "h": null,
+   "lat": 49.236472222222226,
+   "lon": 19.769444444444442,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "wiki": "Kruźlik",
+   "r": 102
+  },
+  {
+   "id": "o2359130653",
+   "name": "Kryta Czuba",
+   "h": 1246,
+   "lat": 49.2639722,
+   "lon": 19.806,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2359130653,
+   "wiki": "Kryta Czuba"
+  },
+  {
+   "id": "o1295341402",
+   "name": "Krzesanica",
+   "h": 2122,
+   "lat": 49.2316647,
+   "lon": 19.9094918,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295341402,
+   "wiki": "Krzesanica"
+  },
+  {
+   "id": "o9957754070",
+   "name": "Liliowa Kopka",
+   "h": 1979,
+   "lat": 49.226281,
+   "lon": 19.9897691,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 9957754070,
+   "wiki": "Liliowa Kopka"
+  },
+  {
+   "id": "w2987778",
+   "name": "Limbowa Ściana",
+   "h": null,
+   "lat": 49.22863888888889,
+   "lon": 20.091388888888886,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "wiki": "Limbowa Ściana",
+   "r": 40
+  },
+  {
+   "id": "o9512402761",
+   "name": "Łasicowa Czubka",
+   "h": 1461,
+   "lat": 49.2557291,
+   "lon": 20.0419535,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 9512402761,
+   "wiki": "Łasicowa Czubka"
+  },
+  {
+   "id": "o11217424622",
+   "name": "Łężny Wierch",
+   "h": 1246,
+   "lat": 49.2748013,
+   "lon": 20.0709294,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 11217424622,
+   "wiki": "Łężny Wierch"
+  },
+  {
+   "id": "o9451044783",
+   "name": "Łomik",
+   "h": 1267,
+   "lat": 49.2690989,
+   "lon": 19.9478588,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 9451044783,
+   "wiki": "Łomik"
+  },
+  {
+   "id": "o1294543790",
+   "name": "Łopata",
+   "h": 1957,
+   "lat": 49.2050038,
+   "lon": 19.7785794,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1294543790,
+   "wiki": "Łopata (Tatry)"
+  },
+  {
+   "id": "o1295341403",
+   "name": "Łysanki",
+   "h": 1447,
+   "lat": 49.2621551,
+   "lon": 19.9154426,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295341403,
+   "wiki": "Łysanki"
+  },
+  {
+   "id": "w2248819",
+   "name": "Machajowa Czuba",
+   "h": null,
+   "lat": 49.23902777777778,
+   "lon": 19.907416666666666,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "wiki": "Machajowa Czuba"
+  },
+  {
+   "id": "o2639389008",
+   "name": "Mała Buczynowa Turnia",
+   "h": 2172,
+   "lat": 49.227426,
+   "lon": 20.0430864,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2639389008,
+   "wiki": "Mała Buczynowa Turnia",
+   "r": 103
+  },
+  {
+   "id": "o8809914868",
+   "name": "Mała Furkaska",
+   "h": 1133,
+   "lat": 49.2752197,
+   "lon": 19.8136274,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 8809914868,
+   "wiki": "Mała Furkaska"
+  },
+  {
+   "id": "o3633405165",
+   "name": "Mała Kopa Królowa",
+   "h": 1578,
+   "lat": 49.2526107,
+   "lon": 20.0026916,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3633405165,
+   "wiki": "Mała Kopa Królowa"
+  },
+  {
+   "id": "o1496149193",
+   "name": "Mała Kopka",
+   "h": 1793,
+   "lat": 49.2364036,
+   "lon": 20.035092,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1496149193,
+   "wiki": "Mała Kopka (Tatry Wysokie)"
+  },
+  {
+   "id": "o3499289916",
+   "name": "Mała Koszysta",
+   "h": 2014,
+   "lat": 49.243757,
+   "lon": 20.0535269,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3499289916,
+   "wiki": "Mała Koszysta"
+  },
+  {
+   "id": "o8518741431",
+   "name": "Mała Krokiew",
+   "h": 1365,
+   "lat": 49.2640576,
+   "lon": 19.9637536,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 8518741431,
+   "wiki": "Mała Krokiew (Tatry)"
+  },
+  {
+   "id": "o9447967719",
+   "name": "Małe Uhrocie Kasprowe",
+   "h": 1750,
+   "lat": 49.243445,
+   "lon": 19.9970056,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 9447967719,
+   "wiki": "Małe Uhrocie Kasprowe"
+  },
+  {
+   "id": "o496805360",
+   "name": "Małołączniak",
+   "h": 2096,
+   "lat": 49.2358298,
+   "lon": 19.9192231,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 496805360,
+   "wiki": "Małołączniak"
+  },
+  {
+   "id": "o11592361116",
+   "name": "Mały Giewont",
+   "h": 1735,
+   "lat": 49.2500809,
+   "lon": 19.928438,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 11592361116,
+   "wiki": "Mały Giewont"
+  },
+  {
+   "id": "o1294543765",
+   "name": "Mały Kopieniec",
+   "h": 1329,
+   "lat": 49.2349301,
+   "lon": 19.8105055,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1294543765,
+   "wiki": "Mały Kopieniec (Dolina Chochołowska)"
+  },
+  {
+   "id": "o7917548639",
+   "name": "Mały Kopieniec",
+   "h": 1167,
+   "lat": 49.2761921,
+   "lon": 20.0049809,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 7917548639,
+   "wiki": "Mały Kopieniec (Dolina Olczyska)"
+  },
+  {
+   "id": "o460928032",
+   "name": "Mały Kozi Wierch",
+   "h": 2226,
+   "lat": 49.2189222,
+   "lon": 20.020038,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 460928032,
+   "wiki": "Mały Kozi Wierch",
+   "r": 40
+  },
+  {
+   "id": "o2107834137",
+   "name": "Mały Opalony Wierch",
+   "h": 1448,
+   "lat": 49.2519444,
+   "lon": 19.8330556,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2107834137,
+   "wiki": "Mały Opalony Wierch"
+  },
+  {
+   "id": "o2359130654",
+   "name": "Mały Regiel",
+   "h": 1141,
+   "lat": 49.2710278,
+   "lon": 19.8775556,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2359130654,
+   "wiki": "Mały Regiel (Tatry Zachodnie)"
+  },
+  {
+   "id": "o3503810011",
+   "name": "Mały Wołoszyn",
+   "h": 2144,
+   "lat": 49.2285245,
+   "lon": 20.0492333,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3503810011,
+   "wiki": "Mały Wołoszyn",
+   "r": 40
+  },
+  {
+   "id": "o3544051107",
+   "name": "Marusarzowa Turnia",
+   "h": 2083,
+   "lat": 49.1948693,
+   "lon": 20.0842957,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3544051107,
+   "wiki": "Marusarzowa Turnia",
+   "r": 66
+  },
+  {
+   "id": "o1103423432",
+   "name": "Miedziane",
+   "h": 2237,
+   "lat": 49.2010232,
+   "lon": 20.0473711,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1103423432,
+   "wiki": "Miedziane (Tatry)"
+  },
+  {
+   "id": "o615589377",
+   "name": "Mięguszowiecki Szczyt",
+   "h": 2439,
+   "lat": 49.18703,
+   "lon": 20.0592982,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 615589377,
+   "wiki": "Mięguszowiecki Szczyt"
+  },
+  {
+   "id": "o385103809",
+   "name": "Mięguszowiecki Szczyt Czarny",
+   "h": 2405,
+   "lat": 49.1828242,
+   "lon": 20.0674662,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 385103809,
+   "wiki": "Mięguszowiecki Szczyt Czarny",
+   "r": 118
+  },
+  {
+   "id": "o9991444350",
+   "name": "Mięguszowiecki Szczyt Pośredni",
+   "h": 2389,
+   "lat": 49.1849729,
+   "lon": 20.0617255,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 9991444350,
+   "wiki": "Mięguszowiecki Szczyt Pośredni"
+  },
+  {
+   "id": "o605282386",
+   "name": "Mnich",
+   "h": 2068,
+   "lat": 49.1926757,
+   "lon": 20.0549059,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 605282386,
+   "wiki": "Mnich (Tatry)"
+  },
+  {
+   "id": "o3508343300",
+   "name": "Mnichowa Kopa",
+   "h": 2090,
+   "lat": 49.1905451,
+   "lon": 20.0523405,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3508343300,
+   "wiki": "Mnichowa Kopa",
+   "r": 91
+  },
+  {
+   "id": "o1103336859",
+   "name": "Nieborak",
+   "h": 1219,
+   "lat": 49.2681871,
+   "lon": 19.9910744,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1103336859,
+   "wiki": "Nieborak"
+  },
+  {
+   "id": "o1103562984",
+   "name": "Niedźwiedź",
+   "h": 1812,
+   "lat": 49.2073905,
+   "lon": 20.0485055,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1103562984,
+   "wiki": "Niedźwiedź (Miedziane)"
+  },
+  {
+   "id": "o452477312",
+   "name": "Niżni Kostur",
+   "h": 2055,
+   "lat": 49.1999582,
+   "lon": 20.0322557,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 452477312,
+   "wiki": "Niżni Kostur",
+   "r": 58
+  },
+  {
+   "id": "o8757470156",
+   "name": "Niżnia Kopa",
+   "h": 1711,
+   "lat": 49.2145349,
+   "lon": 20.0510088,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 8757470156,
+   "wiki": "Niżnia Kopa"
+  },
+  {
+   "id": "o385115017",
+   "name": "Niżnie Rysy",
+   "h": 2430,
+   "lat": 49.1833905,
+   "lon": 20.0880078,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 385115017,
+   "wiki": "Niżnie Rysy"
+  },
+  {
+   "id": "o1103336843",
+   "name": "Nosal",
+   "h": 1206,
+   "lat": 49.2764311,
+   "lon": 19.989459,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1103336843,
+   "wiki": "Nosal (Tatry)"
+  },
+  {
+   "id": "o1103423820",
+   "name": "Opalony Wierch",
+   "h": 2115,
+   "lat": 49.2074941,
+   "lon": 20.0590427,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1103423820,
+   "wiki": "Opalony Wierch"
+  },
+  {
+   "id": "o3503795970",
+   "name": "Orla Baszta",
+   "h": 2175,
+   "lat": 49.2273331,
+   "lon": 20.0357587,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3503795970,
+   "wiki": "Orla Baszta",
+   "r": 40
+  },
+  {
+   "id": "w2987995",
+   "name": "Orla Ściana",
+   "h": null,
+   "lat": 49.22527777777778,
+   "lon": 20.08361111111111,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "wiki": "Orla Ściana"
+  },
+  {
+   "id": "o1294577934",
+   "name": "Ornak",
+   "h": 1854,
+   "lat": 49.2190459,
+   "lon": 19.8329494,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1294577934,
+   "wiki": "Ornak (szczyt)"
+  },
+  {
+   "id": "o2102060445",
+   "name": "Ostry Wierch Waksmundzki",
+   "h": 1475,
+   "lat": 49.2641904,
+   "lon": 20.0611722,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2102060445,
+   "wiki": "Ostry Wierch Waksmundzki"
+  },
+  {
+   "id": "o1496149195",
+   "name": "Pańszczycka Turnia",
+   "h": 2106,
+   "lat": 49.2297899,
+   "lon": 20.0327291,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1496149195,
+   "wiki": "Pańszczycka Turnia",
+   "r": 46
+  },
+  {
+   "id": "w432882",
+   "name": "Pańszczyckie Czuby",
+   "h": null,
+   "lat": 49.22833333333333,
+   "lon": 20.033611111111114,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "wiki": "Pańszczyckie Czuby",
+   "r": 40
+  },
+  {
+   "id": "o3560988994",
+   "name": "Parzątczak",
+   "h": 1486,
+   "lat": 49.2556794,
+   "lon": 19.7904947,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3560988994,
+   "wiki": "Parzątczak"
+  },
+  {
+   "id": "o1295278125",
+   "name": "Pośredni Goryczkowy Wierch",
+   "h": 1874,
+   "lat": 49.2312889,
+   "lon": 19.9661663,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295278125,
+   "wiki": "Pośredni Goryczkowy Wierch"
+  },
+  {
+   "id": "o1878512558",
+   "name": "Pośredni Granat",
+   "h": 2233,
+   "lat": 49.2257013,
+   "lon": 20.0327347,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1878512558,
+   "wiki": "Pośredni Granat",
+   "r": 52
+  },
+  {
+   "id": "o2103272996",
+   "name": "Pośredni Wołoszyn",
+   "h": 2117,
+   "lat": 49.2305556,
+   "lon": 20.0555556,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2103272996,
+   "wiki": "Pośredni Wołoszyn"
+  },
+  {
+   "id": "o2107808027",
+   "name": "Pośrednia Kopka",
+   "h": 1305,
+   "lat": 49.2660441,
+   "lon": 19.8529266,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2107808027,
+   "wiki": "Pośrednia Kopka"
+  },
+  {
+   "id": "o3504631174",
+   "name": "Pośrednia Turnia",
+   "h": 2128,
+   "lat": 49.2222837,
+   "lon": 20.0012354,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3504631174,
+   "wiki": "Pośrednia Turnia"
+  },
+  {
+   "id": "o11217424621",
+   "name": "Przednia Kopa Sołtysia",
+   "h": 1334,
+   "lat": 49.2749331,
+   "lon": 20.0597661,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 11217424621,
+   "wiki": "Przednia Kopa Sołtysia"
+  },
+  {
+   "id": "o2107808028",
+   "name": "Przednia Kopka",
+   "h": 1113,
+   "lat": 49.2741667,
+   "lon": 19.8608889,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2107808028,
+   "wiki": "Przednia Kopka"
+  },
+  {
+   "id": "o946080669",
+   "name": "Rakoń",
+   "h": 1879,
+   "lat": 49.215958,
+   "lon": 19.7584624,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 946080669,
+   "wiki": "Rakoń"
+  },
+  {
+   "id": "o8757489712",
+   "name": "Roztocka Czuba",
+   "h": 1425,
+   "lat": 49.2285283,
+   "lon": 20.0907648,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 8757489712,
+   "wiki": "Roztocka Czuba",
+   "r": 40
+  },
+  {
+   "id": "o2100603509",
+   "name": "Samkowa Czuba",
+   "h": 1189,
+   "lat": 49.2721481,
+   "lon": 19.9268394,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2100603509,
+   "wiki": "Samkowa Czuba"
+  },
+  {
+   "id": "o11603241052",
+   "name": "Samkowy Zwornik",
+   "h": 1317,
+   "lat": 49.2669575,
+   "lon": 19.923254,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 11603241052,
+   "wiki": "Samkowy Zwornik"
+  },
+  {
+   "id": "o469733583",
+   "name": "Sarnia Skała",
+   "h": 1378,
+   "lat": 49.2648986,
+   "lon": 19.9410007,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 469733583,
+   "wiki": "Sarnia Skała"
+  },
+  {
+   "id": "o1294577864",
+   "name": "Siwy Zwornik",
+   "h": 1965,
+   "lat": 49.2016538,
+   "lon": 19.8295433,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1294577864,
+   "wiki": "Siwy Zwornik"
+  },
+  {
+   "id": "o1496149197",
+   "name": "Skrajna Pańszczycka Czuba",
+   "h": 2155,
+   "lat": 49.2280739,
+   "lon": 20.0334973,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1496149197,
+   "wiki": "Skrajna Pańszczycka Czuba",
+   "r": 40
+  },
+  {
+   "id": "o3571689193",
+   "name": "Skrajna Rosocha",
+   "h": 1262,
+   "lat": 49.2657006,
+   "lon": 19.8362271,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3571689193,
+   "wiki": "Skrajna Rosocha"
+  },
+  {
+   "id": "o1496151182",
+   "name": "Skrajny Granat",
+   "h": 2228,
+   "lat": 49.2269445,
+   "lon": 20.0332931,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1496151182,
+   "wiki": "Skrajny Granat",
+   "r": 40
+  },
+  {
+   "id": "o2103272997",
+   "name": "Skrajny Wołoszyn",
+   "h": 2088,
+   "lat": 49.2333333,
+   "lon": 20.0625,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2103272997,
+   "wiki": "Skrajny Wołoszyn"
+  },
+  {
+   "id": "o3560769900",
+   "name": "Smreczyński Wierch",
+   "h": 2070,
+   "lat": 49.2041744,
+   "lon": 19.8839454,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3560769900,
+   "wiki": "Smreczyński Wierch"
+  },
+  {
+   "id": "o10128848003",
+   "name": "Smreczyński Żar",
+   "h": 1558,
+   "lat": 49.2307121,
+   "lon": 19.8758935,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 10128848003,
+   "wiki": "Smreczyński Żar"
+  },
+  {
+   "id": "o3508596269",
+   "name": "Spadowa Kopa",
+   "h": 2252,
+   "lat": 49.1855554,
+   "lon": 20.0872398,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3508596269,
+   "wiki": "Spadowa Kopa"
+  },
+  {
+   "id": "o2107834138",
+   "name": "Spalona Czuba",
+   "h": 1257,
+   "lat": 49.2537961,
+   "lon": 19.8244776,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2107834138,
+   "wiki": "Spalona Czuba"
+  },
+  {
+   "id": "o1294543835",
+   "name": "Starorobociański Wierch",
+   "h": 2176,
+   "lat": 49.1995255,
+   "lon": 19.8198353,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1294543835,
+   "wiki": "Starorobociański Wierch"
+  },
+  {
+   "id": "o8809479343",
+   "name": "Stoły",
+   "h": 1428,
+   "lat": 49.2463202,
+   "lon": 19.8584051,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 8809479343,
+   "wiki": "Stoły (Dolina Kościeliska)"
+  },
+  {
+   "id": "o1295278131",
+   "name": "Sucha Czuba",
+   "h": 1696,
+   "lat": 49.2409266,
+   "lon": 19.9776443,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295278131,
+   "wiki": "Sucha Czuba"
+  },
+  {
+   "id": "o11595734600",
+   "name": "Sucha Czubka",
+   "h": 1562,
+   "lat": 49.2553634,
+   "lon": 19.9440815,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 11595734600,
+   "wiki": "Sucha Czubka",
+   "r": 93
+  },
+  {
+   "id": "o1295278153",
+   "name": "Suchy Wierch",
+   "h": 1539,
+   "lat": 49.2580116,
+   "lon": 19.942429,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295278153,
+   "wiki": "Suchy Wierch (Giewont)"
+  },
+  {
+   "id": "o2107808029",
+   "name": "Suchy Wierch",
+   "h": 1428,
+   "lat": 49.2475869,
+   "lon": 19.8526951,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2107808029,
+   "wiki": "Suchy Wierch (Stoły)"
+  },
+  {
+   "id": "o1295278148",
+   "name": "Suchy Wierch Kondracki",
+   "h": 1895,
+   "lat": 49.2336471,
+   "lon": 19.9403201,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295278148,
+   "wiki": "Suchy Wierch Kondracki"
+  },
+  {
+   "id": "o3571391593",
+   "name": "Suchy Wierch Ornaczański",
+   "h": 1832,
+   "lat": 49.2221134,
+   "lon": 19.8336342,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3571391593,
+   "wiki": "Suchy Wierch Ornaczański"
+  },
+  {
+   "id": "o1295341394",
+   "name": "Suchy Wierch Tomanowy",
+   "h": 1860,
+   "lat": 49.216583,
+   "lon": 19.9019256,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295341394,
+   "wiki": "Suchy Wierch Tomanowy"
+  },
+  {
+   "id": "o2102060451",
+   "name": "Suchy Wierch Waksmundzki",
+   "h": 1485,
+   "lat": 49.2586111,
+   "lon": 20.0680556,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2102060451,
+   "wiki": "Suchy Wierch Waksmundzki"
+  },
+  {
+   "id": "o9978523985",
+   "name": "Szpiglasowa Czuba",
+   "h": null,
+   "lat": 49.1959403,
+   "lon": 20.0400583,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 9978523985,
+   "wiki": "Szpiglasowa Czuba",
+   "r": 75
+  },
+  {
+   "id": "o452477062",
+   "name": "Szpiglasowy Wierch",
+   "h": 2172,
+   "lat": 49.1972908,
+   "lon": 20.0401058,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 452477062,
+   "wiki": "Szpiglasowy Wierch",
+   "r": 75
+  },
+  {
+   "id": "w5588730",
+   "name": "Śpiąca Góra",
+   "h": 1333,
+   "lat": 49.26533333333333,
+   "lon": 19.972277777777776,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "wiki": "Śpiąca Góra"
+  },
+  {
+   "id": "o11217424620",
+   "name": "Średnia Kopa Sołtysia",
+   "h": 1362,
+   "lat": 49.2713311,
+   "lon": 20.0609208,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 11217424620,
+   "wiki": "Średnia Kopa Sołtysia"
+  },
+  {
+   "id": "o3343362920",
+   "name": "Świnica",
+   "h": 2302,
+   "lat": 49.2194211,
+   "lon": 20.0093063,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3343362920,
+   "wiki": "Świnica"
+  },
+  {
+   "id": "o8757470164",
+   "name": "Świstowa Czuba",
+   "h": 1763,
+   "lat": 49.2164694,
+   "lon": 20.0575189,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 8757470164,
+   "wiki": "Świstowa Czuba"
+  },
+  {
+   "id": "o8757470163",
+   "name": "Świstowa Kopa",
+   "h": 1858,
+   "lat": 49.2143579,
+   "lon": 20.0588475,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 8757470163,
+   "wiki": "Świstowa Kopa"
+  },
+  {
+   "id": "o3560808077",
+   "name": "Tomanowa Kopa",
+   "h": 1892,
+   "lat": 49.2120048,
+   "lon": 19.8968976,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3560808077,
+   "wiki": "Tomanowa Kopa"
+  },
+  {
+   "id": "o10128848016",
+   "name": "Tomanowy Niedźwiedź",
+   "h": null,
+   "lat": 49.2293386,
+   "lon": 19.8859154,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 10128848016,
+   "wiki": "Tomanowy Niedźwiedź"
+  },
+  {
+   "id": "o1295341387",
+   "name": "Tomanowy Wierch Polski",
+   "h": 1977,
+   "lat": 49.2133146,
+   "lon": 19.9023403,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295341387,
+   "wiki": "Tomanowy Wierch Polski"
+  },
+  {
+   "id": "o1294543814",
+   "name": "Trzydniowiański Wierch",
+   "h": 1758,
+   "lat": 49.2191036,
+   "lon": 19.8037262,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1294543814,
+   "wiki": "Trzydniowiański Wierch"
+  },
+  {
+   "id": "o2103272998",
+   "name": "Turnia nad Dziadem",
+   "h": 1901,
+   "lat": 49.2390096,
+   "lon": 20.0724576,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2103272998,
+   "wiki": "Turnia nad Dziadem"
+  },
+  {
+   "id": "o1295341393",
+   "name": "Twarda Kopa",
+   "h": 2026,
+   "lat": 49.2346773,
+   "lon": 19.9003,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295341393,
+   "wiki": "Twarda Kopa"
+  },
+  {
+   "id": "w2085370",
+   "name": "Tyrałowa Czuba",
+   "h": 1400,
+   "lat": 49.25152777777778,
+   "lon": 19.79652777777778,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "wiki": "Tyrałowa Czuba"
+  },
+  {
+   "id": "o1295341388",
+   "name": "Upłaziańska Kopa",
+   "h": 1796,
+   "lat": 49.2395142,
+   "lon": 19.8897333,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295341388,
+   "wiki": "Upłaziańska Kopa"
+  },
+  {
+   "id": "o1995387409",
+   "name": "Upłaziańska Kopka",
+   "h": 1457,
+   "lat": 49.2503652,
+   "lon": 19.8871327,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1995387409,
+   "wiki": "Upłaziańska Kopka"
+  },
+  {
+   "id": "o2008611051",
+   "name": "Upłaziański Wierszyk",
+   "h": 1203,
+   "lat": 49.2563337,
+   "lon": 19.8784308,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2008611051,
+   "wiki": "Upłaziański Wierszyk"
+  },
+  {
+   "id": "o2103273000",
+   "name": "Waksmundzki Wierch",
+   "h": 2186,
+   "lat": 49.2319444,
+   "lon": 20.0469444,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2103273000,
+   "wiki": "Waksmundzki Wierch"
+  },
+  {
+   "id": "o385107932",
+   "name": "Walentkowy Wierch",
+   "h": 2156,
+   "lat": 49.2134347,
+   "lon": 20.0068154,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 385107932,
+   "wiki": "Walentkowy Wierch"
+  },
+  {
+   "id": "o2639389007",
+   "name": "Wielka Buczynowa Turnia",
+   "h": 2184,
+   "lat": 49.2271815,
+   "lon": 20.0402645,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2639389007,
+   "wiki": "Wielka Buczynowa Turnia",
+   "r": 101
+  },
+  {
+   "id": "o3633401218",
+   "name": "Wielka Kopa Królowa",
+   "h": 1531,
+   "lat": 49.2558619,
+   "lon": 20.0048452,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3633401218,
+   "wiki": "Wielka Kopa Królowa"
+  },
+  {
+   "id": "o1496149198",
+   "name": "Wielka Kopka",
+   "h": 1855,
+   "lat": 49.2336634,
+   "lon": 20.0394364,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1496149198,
+   "wiki": "Wielka Kopka"
+  },
+  {
+   "id": "o2103273001",
+   "name": "Wielka Koszysta",
+   "h": 2193,
+   "lat": 49.2353625,
+   "lon": 20.0495127,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2103273001,
+   "wiki": "Wielka Koszysta"
+  },
+  {
+   "id": "o9032609525",
+   "name": "Wielka Orla Turniczka",
+   "h": 2162,
+   "lat": 49.2270429,
+   "lon": 20.034948,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 9032609525,
+   "wiki": "Wielka Orla Turniczka",
+   "r": 40
+  },
+  {
+   "id": "o1295278143",
+   "name": "Wielki Giewont",
+   "h": 1895,
+   "lat": 49.2509538,
+   "lon": 19.9341016,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295278143,
+   "wiki": "Wielki Giewont"
+  },
+  {
+   "id": "o1294543865",
+   "name": "Wielki Kopieniec",
+   "h": 1257,
+   "lat": 49.2393485,
+   "lon": 19.8099993,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1294543865,
+   "wiki": "Wielki Kopieniec (Dolina Chochołowska)"
+  },
+  {
+   "id": "o2098613390",
+   "name": "Wielki Kopieniec",
+   "h": 1328,
+   "lat": 49.2716554,
+   "lon": 20.0163039,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2098613390,
+   "wiki": "Wielki Kopieniec (Dolina Olczyska)"
+  },
+  {
+   "id": "o2107834139",
+   "name": "Wielki Opalony Wierch",
+   "h": 1485,
+   "lat": 49.2503056,
+   "lon": 19.8366111,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2107834139,
+   "wiki": "Wielki Opalony Wierch"
+  },
+  {
+   "id": "o2103273002",
+   "name": "Wielki Wołoszyn",
+   "h": 2155,
+   "lat": 49.2283333,
+   "lon": 20.05,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2103273002,
+   "wiki": "Wielki Wołoszyn",
+   "r": 40
+  },
+  {
+   "id": "w2113356",
+   "name": "Wierch Kuca",
+   "h": 1305,
+   "lat": 49.26105555555556,
+   "lon": 19.831944444444446,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "wiki": "Wierch Kuca"
+  },
+  {
+   "id": "o8967856477",
+   "name": "Wierch nad Zagonnym Żlebem",
+   "h": 2039,
+   "lat": 49.2346772,
+   "lon": 20.0671354,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 8967856477,
+   "wiki": "Wierch nad Zagonnym Żlebem"
+  },
+  {
+   "id": "o1496149199",
+   "name": "Wierch pod Fajki",
+   "h": 2138,
+   "lat": 49.2289552,
+   "lon": 20.0327326,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1496149199,
+   "wiki": "Wierch pod Fajki",
+   "r": 46
+  },
+  {
+   "id": "o2107822736",
+   "name": "Wierch Spalenisko",
+   "h": 1324,
+   "lat": 49.2563611,
+   "lon": 19.8351667,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2107822736,
+   "wiki": "Wierch Spalenisko"
+  },
+  {
+   "id": "o3569141394",
+   "name": "Wierch Świerkule",
+   "h": 1485,
+   "lat": 49.2483824,
+   "lon": 19.8385726,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3569141394,
+   "wiki": "Wierch Świerkule"
+  },
+  {
+   "id": "o2302916813",
+   "name": "Wołowiec",
+   "h": 2063,
+   "lat": 49.2075694,
+   "lon": 19.7631281,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2302916813,
+   "wiki": "Wołowiec (Tatry)"
+  },
+  {
+   "id": "o8518741430",
+   "name": "Wysokie",
+   "h": 1287,
+   "lat": 49.2643061,
+   "lon": 19.9940869,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 8518741430,
+   "wiki": "Wysokie (Dolina Olczyska)"
+  },
+  {
+   "id": "o1103562910",
+   "name": "Wyżni Kostur",
+   "h": 2080,
+   "lat": 49.1992073,
+   "lon": 20.0333875,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1103562910,
+   "wiki": "Wyżni Kostur",
+   "r": 58
+  },
+  {
+   "id": "o8757470155",
+   "name": "Wyżnia Kopa",
+   "h": 1715,
+   "lat": 49.2132555,
+   "lon": 20.0453853,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 8757470155,
+   "wiki": "Wyżnia Kopa"
+  },
+  {
+   "id": "o1496151183",
+   "name": "Zadni Granat",
+   "h": 2240,
+   "lat": 49.2247696,
+   "lon": 20.0325692,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1496151183,
+   "wiki": "Zadni Granat",
+   "r": 40
+  },
+  {
+   "id": "o2721684699",
+   "name": "Zadni Kościelec",
+   "h": 2162,
+   "lat": 49.2236914,
+   "lon": 20.0155525,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2721684699,
+   "wiki": "Zadni Kościelec",
+   "r": 89
+  },
+  {
+   "id": "o385123800",
+   "name": "Zadni Mnich",
+   "h": 2172,
+   "lat": 49.1895224,
+   "lon": 20.0503572,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 385123800,
+   "wiki": "Zadni Mnich",
+   "r": 91
+  },
+  {
+   "id": "o1295379318",
+   "name": "Zadni Ornak",
+   "h": 1867,
+   "lat": 49.2129588,
+   "lon": 19.835383,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1295379318,
+   "wiki": "Zadni Ornak"
+  },
+  {
+   "id": "o11217424618",
+   "name": "Zadnia Kopa Sołtysia",
+   "h": 1420,
+   "lat": 49.2682009,
+   "lon": 20.0629533,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 11217424618,
+   "wiki": "Zadnia Kopa Sołtysia"
+  },
+  {
+   "id": "o2107808030",
+   "name": "Zadnia Kopka",
+   "h": 1334,
+   "lat": 49.2601116,
+   "lon": 19.858905,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 2107808030,
+   "wiki": "Zadnia Kopka"
+  },
+  {
+   "id": "o9029897690",
+   "name": "Zadnia Pańszczycka Czuba",
+   "h": null,
+   "lat": 49.2276168,
+   "lon": 20.0336725,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 9029897690,
+   "wiki": "Zadnia Pańszczycka Czuba",
+   "r": 40
+  },
+  {
+   "id": "o3571653875",
+   "name": "Zadnia Rosocha",
+   "h": 1271,
+   "lat": 49.2635816,
+   "lon": 19.8329795,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3571653875,
+   "wiki": "Zadnia Rosocha"
+  },
+  {
+   "id": "o1103563004",
+   "name": "Zamarła Turnia",
+   "h": 2179,
+   "lat": 49.2194257,
+   "lon": 20.0242927,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1103563004,
+   "wiki": "Zamarła Turnia",
+   "r": 102
+  },
+  {
+   "id": "o1103562966",
+   "name": "Zmarzłe Czuby",
+   "h": null,
+   "lat": 49.2189274,
+   "lon": 20.0203405,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1103562966,
+   "wiki": "Zmarzłe Czuby",
+   "r": 40
+  },
+  {
+   "id": "o3508683869",
+   "name": "Żabi Koń",
+   "h": 2291,
+   "lat": 49.1785869,
+   "lon": 20.0793064,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3508683869,
+   "wiki": "Żabi Koń",
+   "r": 79
+  },
+  {
+   "id": "o3508601596",
+   "name": "Żabi Mnich",
+   "h": 2146,
+   "lat": 49.1891699,
+   "lon": 20.0858442,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3508601596,
+   "wiki": "Żabi Mnich"
+  },
+  {
+   "id": "o3544035356",
+   "name": "Żabi Szczyt Niżni",
+   "h": 2098,
+   "lat": 49.196063,
+   "lon": 20.0843704,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3544035356,
+   "wiki": "Żabi Szczyt Niżni",
+   "r": 66
+  },
+  {
+   "id": "o385106042",
+   "name": "Żabi Szczyt Wyżni",
+   "h": 2259,
+   "lat": 49.1878465,
+   "lon": 20.0892494,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 385106042,
+   "wiki": "Żabi Szczyt Wyżni"
+  },
+  {
+   "id": "o3544033690",
+   "name": "Żabia Czuba",
+   "h": 2080,
+   "lat": 49.1985009,
+   "lon": 20.0862719,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3544033690,
+   "wiki": "Żabia Czuba"
+  },
+  {
+   "id": "o3508689204",
+   "name": "Żabia Turnia Mięguszowiecka",
+   "h": 2336,
+   "lat": 49.1786039,
+   "lon": 20.0771327,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 3508689204,
+   "wiki": "Żabia Turnia Mięguszowiecka",
+   "r": 79
+  },
+  {
+   "id": "o1496149233",
+   "name": "Żółta Turnia",
+   "h": 2087,
+   "lat": 49.2344814,
+   "lon": 20.0290165,
+   "range": "Tatry polskie",
+   "groups": [
+    "tatry"
+   ],
+   "osm": 1496149233,
+   "wiki": "Żółta Turnia"
+  }
+ ]
+}

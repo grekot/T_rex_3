@@ -1,0 +1,35 @@
+name: naszczycie
+description: "Na szczycie - zdobyte szczyty z zegarka: postęp, mapa, historia"
+publish_to: 'none'
+
+# versionName+versionCode (przy --split-per-abi Flutter dodaje 2000 dla arm64)
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  firebase_core: ^5.0.0
+  firebase_auth: ^7.0.0
+  cloud_firestore: ^7.0.0
+  # Mapa: kafelki OpenStreetMap / OpenTopoMap, bez klucza API
+  flutter_map: ^8.3.0
+  latlong2: ^0.9.1
+  url_launcher: ^6.3.3
+  wspolne:
+    path: ../../wspolne
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Kopia korona/data/peaks.json - odświeżana przez `node tools/copy_peaks.mjs`
+  assets:
+    - assets/peaks.json

@@ -1,0 +1,66 @@
+{
+  "configVersion": "v3",
+  "app": {
+    "appId": 1087166,
+    "appName": "Na szczycie",
+    "appType": "app",
+    "version": {
+      "code": 2,
+      "name": "1.1.0"
+    },
+    "icon": "icon.png",
+    "vender": "grekot",
+    "description": "Na szczycie - Korona Gor Polski, Beskid Wyspowy, Sadecki, Gorce, Tatry: zegarek rozpoznaje szczyt i zapisuje zdobycie"
+  },
+  "permissions": [
+    "data:os.device.info",
+    "device:os.local_storage",
+    "device:os.geolocation",
+    "device:os.compass"
+  ],
+  "runtime": {
+    "apiVersion": {
+      "compatible": "3.0",
+      "target": "3.0",
+      "minVersion": "3.0"
+    }
+  },
+  "debug": false,
+  "targets": {
+    "gt": {
+      "module": {
+        "page": {
+          "pages": [
+            "page/gt/home/index.page",
+            "page/gt/group/index.page",
+            "page/gt/peak/index.page",
+            "page/gt/date/index.page",
+            "page/gt/nearest/index.page",
+            "page/gt/add/index.page"
+          ]
+        },
+        "app-side": {
+          "path": "app-side/index"
+        },
+        "setting": {
+          "path": "setting/index"
+        }
+      },
+      "platforms": [
+        {
+          "st": "r"
+        }
+      ],
+      "designWidth": 480
+    }
+  },
+  "i18n": {
+    "en-US": {
+      "appName": "On the summit"
+    },
+    "pl-PL": {
+      "appName": "Na szczycie"
+    }
+  },
+  "defaultLanguage": "en-US"
+}
