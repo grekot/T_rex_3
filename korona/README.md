@@ -193,13 +193,20 @@ T-Rex 3, zeskanuj kod QR w aplikacji Zepp (Tryb dewelopera → „+” → Skanu
 Uprawnienia: lokalizacja, kompas, pamięć zegarka, informacje o urządzeniu. API 3.0
 (Zepp OS 3 i nowsze).
 
-## Telefon i konto
+## Telefon
 
-Logowanie: aplikacja Zepp → zegarek → **Na szczycie** → ustawienia. To samo konto co
-w aplikacjach Na szczycie, Zakupy i Powrót na telefonie (e-mail i hasło). Po zalogowaniu
-zegarek wysyła cały zapis (zdobycia i własne szczyty) do Firestore, do dokumentu
-`korona/{uid}`, a aplikacja Na szczycie na telefonie go pokazuje. Format opisuje
-[SYNC.md](SYNC.md).
+Aplikacja **Na szczycie** na Androida w [`phone/`](phone/README.md) (Flutter, `pl.grekot.naszczycie`) pokazuje
+zdobycia z zegarka: postęp każdej listy („12 / 28” z paskiem), listy szczytów z datami,
+szczegóły szczytu, mapę (OpenTopoMap / OpenStreetMap, zdobyte na zielono) i historię wejść
+po latach, także własne szczyty. Logowanie tym samym kontem co Zakupy i Powrót; dane czyta z
+Firestore (`korona/{uid}`, patrz [SYNC.md](SYNC.md)) – zapisuje je zegarek. Bez zegarka
+można obejrzeć przykładowe dane (menu ⋮).
+
+### Konto na zegarku i wysyłanie
+
+Logowanie na zegarku: aplikacja Zepp → zegarek → **Na szczycie** → ustawienia (to samo
+konto, e-mail i hasło). Po zalogowaniu zegarek wysyła cały zapis (zdobycia i własne
+szczyty) do dokumentu `korona/{uid}`.
 
 - Wysyłanie działa, gdy aplikacja jest otwarta na zegarku, a telefon połączony z zegarkiem.
   Jeśli się nie uda, zegarek próbuje ponownie co minutę. Stan widać na dole ekranu głównego.
