@@ -11,7 +11,12 @@ python tools/preview_art.py <forma>   # podgląd w pupil-art/_podglad.png
 
 Arkusze leżą tu, poza `pupil/`, bo `zeus build` pakuje cały folder aplikacji do `.ip-package`.
 
-Gotowe: tupek, pisklak, lobuz, rex, allo, kropek, rozek.
+Wskazówki: zaznacz narzędzie „Utwórz obraz” (bez niego Gemini często odpisuje, że nie umie
+generować obrazów; wtedy w tej samej rozmowie „Generate this image now using the image
+generation tool.”). Minę obróconą w lewo import_art.py sam odwraca; formom z długim ogonem
+lub szerokimi skrzydłami wpisz w TAIL_KEEP, żeby nie obcinać ich w kadrze.
+
+Gotowe: tupek, pisklak, lobuz, rex, allo, kropek, rozek, rogal, szyjek, kolec, piorko, pterek, lotek, ptero, mewa, gapcio, mruk.
 
 ## STYL (początek każdego promptu)
 
@@ -39,5 +44,7 @@ Character sheet for a smartwatch tamagotchi game. Flat vector cartoon sticker st
 | burczek | a grumpy fat adult dinosaur, big round lavender-grey body, pale belly, a row of coral orange spikes on the back, heavy grumpy eyebrows, short stubby legs, short tail. |
 
 ## Jajka (jeden obraz, 3 jajka obok siebie)
+
+Zapisz jako `eggs` (`python tools/grab_gemini.py eggs`, `python tools/import_art.py eggs`).
 
 Three cute cartoon dinosaur eggs side by side in one row, flat vector sticker style, thick dark outline, soft cel shading, pure solid white background, no text: left a cream egg with green spots, middle a light blue egg with darker blue spots, right a peach egg with orange spots. Same size, upright.

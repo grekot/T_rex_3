@@ -28,6 +28,7 @@ FEET_Y = 160  # stopy na tej wysokości (jak w rysowanych postaciach)
 MAX_H = 150  # najwyższa mina ma tyle px
 MAX_W = 162
 TAIL_OVER = 0.22  # o tyle szerokości może wystawać ogon
+TAIL_KEEP = {"kolec": 0.0, "lotek": 0.0, "ptero": 0.0, "mewa": 0.0}  # formy, którym ogona/skrzydeł nie obcinamy
 WORK = 4  # obróbka w 4-krotnym powiększeniu, potem zmniejszenie z antyaliasingiem
 CELLS = ["idle", "happy", "sad", "sleep"]  # kolejność w siatce: wierszami
 
@@ -73,14 +74,30 @@ def load_sheet(path):
     for r in range(2):
         for c in range(2):
             cells.append(sheet.crop((c * w // 2, r * h // 2, (c + 1) * w // 2, (r + 1) * h // 2)))
-    return {name: cut_cell(cell) for name, cell in zip(CELLS, cells)}
+    cuts = {name: cut_cell(cell) for name, cell in zip(CELLS, cells)}
+    # Gemini czasem obraca jedną minę w lewo: odwróć ją, jeśli w lustrze lepiej pasuje do spokojnej
+    ref = shape(cuts["idle"])
+    for name in CELLS[1:]:
+        flip = ImageOps.mirror(cuts[name])
+        if overlap(ref, shape(flip)) > overlap(ref, shape(cuts[name])) + 0.03:
+            cuts[name] = flip
+            print("  %s: odwrócona do prawej" % name)
+    return cuts
 
 
-def place(cuts):
+def shape(im, n=48):
+    return np.asarray(im.getchannel("A").resize((n, n), Image.BILINEAR)) > 100
+
+
+def overlap(a, b):
+    return (a & b).sum() / max(1, (a | b).sum())
+
+
+def place(cuts, tail=TAIL_OVER):
     """Wspólna skala dla wszystkich min, stopy na FEET_Y, środek w poziomie."""
     # bardzo szerokie postacie (długi ogon): ogon może wyjść do TAIL_OVER poza kadr po lewej,
     # głowa (po prawej) zostaje cała - lepiej niż mocno zmniejszona postać
-    scale = min(MAX_H / max(im.height for im in cuts.values()), MAX_W * (1 + TAIL_OVER) / max(im.width for im in cuts.values()))
+    scale = min(MAX_H / max(im.height for im in cuts.values()), MAX_W * (1 + tail) / max(im.width for im in cuts.values()))
     out = {}
     S = SPRITE * WORK
     for name, im in cuts.items():
@@ -148,7 +165,7 @@ def import_form(fid):
         path = os.path.join(ART, fid + "_sheet.png")
     if not os.path.exists(path):
         return None
-    big = place(load_sheet(path))
+    big = place(load_sheet(path), TAIL_KEEP.get(fid, TAIL_OVER))
     fr = frames(big)
     d = os.path.join(ASSETS, "pet", fid)
     os.makedirs(d, exist_ok=True)
@@ -160,16 +177,91 @@ def import_form(fid):
     return fr
 
 
+# --- jajka: jeden obraz (art/eggs_sheet.jpg), trzy jajka obok siebie --------------
+EGG_IDS = ["egg", "eggh", "eggf"]  # od lewej: kremowe w zielone kropki, niebieskie, brzoskwiniowe
+EGG_LINE = {"egg": "rex", "eggh": "herb", "eggf": "fly"}
+EGG_PICK = 112  # jak w gen_assets.py
+EGG_H = 128  # wysokość jajka w kadrze 168 px
+
+
+def split_columns(path, n=3):
+    """Dzieli obraz na n części w pionowych przerwach między obiektami na białym tle."""
+    sheet = Image.open(path).convert("RGB")
+    fg = np.asarray(sheet).astype(np.int16).min(axis=2) <= 226
+    cols = fg.sum(axis=0) > 2
+    runs, start = [], None
+    for x, on in enumerate(list(cols) + [False]):
+        if on and start is None:
+            start = x
+        elif not on and start is not None:
+            runs.append((start, x))
+            start = None
+    runs = sorted(sorted(runs, key=lambda r: r[1] - r[0], reverse=True)[:n])
+    if len(runs) < n:
+        raise ValueError("nie znaleziono %d jajek" % n)
+    pad = 6
+    return [sheet.crop((max(0, a - pad), 0, min(sheet.width, b + pad), sheet.height)) for a, b in runs]
+
+
+def crack(img):
+    """Pęknięcie: zygzak przez środek jajka w kolorze obrysu."""
+    a = np.asarray(img.getchannel("A")) > 128
+    ys, xs = np.nonzero(a)
+    x0, x1, y0, y1 = xs.min(), xs.max(), ys.min(), ys.max()
+    y = y0 + (y1 - y0) * 0.45
+    w = x1 - x0
+    pts = []
+    for i in range(9):
+        t = i / 8
+        pts.append((x0 + w * (0.1 + 0.8 * t), y + (-1 if i % 2 else 1) * (y1 - y0) * 0.05))
+    out = img.copy()
+    d = ImageDraw.Draw(out)
+    d.line(pts, fill=(60, 44, 36, 255), width=max(2, round(3 * WORK)), joint="curve")
+    return out
+
+
+def import_eggs():
+    path = os.path.join(ART, "eggs_sheet.jpg")
+    if not os.path.exists(path):
+        path = os.path.join(ART, "eggs_sheet.png")
+    if not os.path.exists(path):
+        return {}
+    cuts = [cut_cell(c) for c in split_columns(path)]
+    scale = EGG_H / max(c.height for c in cuts)  # wspólna skala: jajka różnej wielkości zostają różne
+    S = SPRITE * WORK
+    out = {}
+    for fid, im in zip(EGG_IDS, cuts):
+        nw, nh = round(im.width * scale * WORK), round(im.height * scale * WORK)
+        big = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+        big.alpha_composite(im.resize((nw, nh), Image.LANCZOS), ((S - nw) // 2, FEET_Y * WORK - nh))
+        center = (S // 2, FEET_Y * WORK)
+        fr = {
+            "egg0": big,
+            "egg1": big.rotate(-7, resample=Image.BICUBIC, center=center),
+            "egg2": crack(big).rotate(7, resample=Image.BICUBIC, center=center),
+        }
+        fr = {k: v.resize((SPRITE, SPRITE), Image.LANCZOS) for k, v in fr.items()}
+        d = os.path.join(ASSETS, "pet", fid)
+        os.makedirs(d, exist_ok=True)
+        for name, img in fr.items():
+            img.save(os.path.join(d, name + ".png"), optimize=True)
+        big.resize((EGG_PICK, EGG_PICK), Image.LANCZOS).save(os.path.join(ASSETS, "ui", "egg_" + EGG_LINE[fid] + ".png"), optimize=True)
+        if fid == "egg":
+            big.resize((34, 34), Image.LANCZOS).save(os.path.join(ASSETS, "ui", "egg_small.png"), optimize=True)
+        out[fid] = fr
+    return out
+
+
 def available():
     if not os.path.isdir(ART):
         return []
-    return sorted({n.split("_sheet")[0] for n in os.listdir(ART) if "_sheet." in n})
+    return sorted({n.split("_sheet")[0] for n in os.listdir(ART) if "_sheet." in n} - {"eggs"})
 
 
 def main(ids):
     done = []
-    for fid in ids or available():
-        if import_form(fid):
+    for fid in ids or available() + ["eggs"]:
+        if fid == "eggs" and import_eggs() or fid != "eggs" and import_form(fid):
             done.append(fid)
     print("z arkuszy Gemini:", ", ".join(done) or "-")
     return done

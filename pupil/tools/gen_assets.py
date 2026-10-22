@@ -414,12 +414,6 @@ def main():
             th = render(fid, big=True).resize((THUMB, THUMB), Image.LANCZOS)
             save(th, "thumb", fid + ".png")
             save(silhouette(th), "thumb", fid + "_x.png")
-    # postacie z arkuszy Gemini (../pupil-art/) nadpisują rysowane klatki
-    import import_art
-    for fid in import_art.available():
-        fr = import_art.import_form(fid)
-        if fr:
-            all_frames[fid] = fr
     for iid in RING_IDS:
         save(action_icon(iid, False), "ring", iid + ".png")
         save(action_icon(iid, True), "ring", iid + "_sel.png")
@@ -443,6 +437,13 @@ def main():
     lock = os.path.join(ASSETS, "ui", "lock.png")
     if os.path.exists(lock):
         os.remove(lock)  # nieużywana
+    # postacie z arkuszy Gemini (../pupil-art/) nadpisują rysowane klatki (i jajka)
+    import import_art
+    for fid in import_art.available():
+        fr = import_art.import_form(fid)
+        if fr:
+            all_frames[fid] = fr
+    all_frames.update(import_art.import_eggs())
     app_icon().save(os.path.join(ASSETS, "icon.png"), optimize=True)
     sheet(all_frames)
     m = Image.new("RGBA", (980, 480), (40, 40, 40, 255))

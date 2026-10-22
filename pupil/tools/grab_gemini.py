@@ -8,6 +8,7 @@ import glob
 import os
 import shutil
 import sys
+import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # arkusze leżą poza folderem aplikacji: zeus pakuje cały folder do .ip-package
@@ -27,9 +28,10 @@ def main(name):
     os.makedirs(ART, exist_ok=True)
     files = sorted(glob.glob(os.path.join(DOWNLOADS, "Gemini_Generated_Image_*")), key=os.path.getmtime, reverse=True)
     taken = used()
-    fresh = [f for f in files if os.path.basename(f) not in taken]
+    # tylko świeże pliki: w Pobranych leżą też stare obrazy z Gemini, a pobieranie może jeszcze trwać
+    fresh = [f for f in files if os.path.basename(f) not in taken and time.time() - os.path.getmtime(f) < 15 * 60]
     if not fresh:
-        sys.exit("brak nowego obrazu z Gemini w " + DOWNLOADS)
+        sys.exit("brak nowego (z ostatnich 15 min) obrazu z Gemini w " + DOWNLOADS)
     src = fresh[0]
     ext = os.path.splitext(src)[1].lower()
     dst = os.path.join(ART, name + "_sheet" + ext)
