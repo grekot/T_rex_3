@@ -145,6 +145,13 @@ padają tylko między 7:45 a 22:00; jeśli już czegoś potrzebuje, kolejne za 2
   wycina tło, odwraca minę obróconą w lewo, wyrównuje miny wspólną skalą i robi klatki
   (oddech = spłaszczenie, podskok, noc = przyciemnienie, lustro); jajka z jednego obrazu
   `eggs` (kołysanie, dorysowane pęknięcie). `tools/preview_art.py` – podgląd.
+- Zajęcia: arkusz `<forma>_act` (klocki, książka, stanie na rękach, piłka). Gdy pupilowi nic
+  nie trzeba, strona główna co chwilę każe mu spacerować albo się czymś zająć
+  (`utils/idle.js`, formy z klatkami zajęć w generowanym `utils/art.js`).
+- Rekwizyty gier: arkusz `props` (jabłko, kamień, kość, ryba, gniazdo, ul, piłka, kłoda,
+  drzewo, balon w 11 rozmiarach, perła, skrzynia, flaga, gwiazdka, spławik, pieniek).
+- Gdy Chrome przestaje zapisywać pobrania z Gemini: w Gemini „Kopiuj obraz”, potem
+  `python tools/grab_gemini.py <nazwa> --clip` (obraz ze schowka, 1024 px).
 - `tools/gen_assets.py` – reszta grafiki: ikony (`tools/icons.py`), `utils/geometry.js`,
   arkusz `docs/arkusz.png` i makieta `docs/podglad.png`; na końcu uruchamia import z
   `pupil-art/`. Rysowane w Pillow postacie (`tools/forms.py`, `tools/draw.py`) zostają jako

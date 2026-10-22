@@ -19,3 +19,19 @@ burczek	Gemini_Generated_Image_wgxm50wgxm50wgxm.jpg
 eggs	Gemini_Generated_Image_b8mxib8mxib8mxib.jpg
 props	Gemini_Generated_Image_21u67h21u67h21u6.jpg
 tupek_act	Gemini_Generated_Image_in9h71in9h71in9h.jpg
+pisklak_act	schowek 0fe992aec9ab
+lobuz_act	schowek 5833dedae17a
+rex_act	schowek d9f3ff285733
+allo_act	schowek 16781717178e
+kropek_act	schowek 30bab09a3a78
+rozek_act	schowek 6b11d7e273ff
+rogal_act	schowek 489a0f50d6ba
+szyjek_act	schowek 5b25518313c1
+kolec_act	schowek a2f1c6769df6
+piorko_act	schowek 145957e7c277
+pterek_act	schowek 9da271fd6850
+lotek_act	schowek 4941d509832a
+ptero_act	schowek d73afbf95672
+mewa_act	schowek e7208fa1fefc
+gapcio_act	schowek 428a0005f307
+mruk_act	schowek 50c77fcaa09e

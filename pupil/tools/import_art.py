@@ -105,11 +105,11 @@ def overlap(a, b):
     return (a & b).sum() / max(1, (a | b).sum())
 
 
-def place(cuts, tail=TAIL_OVER):
+def place(cuts, tail=TAIL_OVER, max_h=MAX_H):
     """Wspólna skala dla wszystkich min, stopy na FEET_Y, środek w poziomie."""
     # bardzo szerokie postacie (długi ogon): ogon może wyjść do TAIL_OVER poza kadr po lewej,
     # głowa (po prawej) zostaje cała - lepiej niż mocno zmniejszona postać
-    scale = min(MAX_H / max(im.height for im in cuts.values()), MAX_W * (1 + tail) / max(im.width for im in cuts.values()))
+    scale = min(max_h / max(im.height for im in cuts.values()), MAX_W * (1 + tail) / max(im.width for im in cuts.values()))
     out = {}
     S = SPRITE * WORK
     for name, im in cuts.items():
@@ -277,7 +277,14 @@ def import_acts(fid):
     if not path:
         return None
     cuts = {name: cut_cell(cell, keep_all=True) for name, cell in zip(ACTS, grid(path, 2))}
-    big = place(cuts, 0.0)
+    # nie większy niż w spoczynku (formy z długim ogonem są w kadrze pomniejszone)
+    idle = os.path.join(ASSETS, "pet", fid, "idle0.png")
+    max_h = MAX_H
+    if os.path.exists(idle):
+        box = Image.open(idle).getchannel("A").point(lambda v: 255 if v > 40 else 0).getbbox()
+        if box:
+            max_h = min(MAX_H, round((box[3] - box[1]) * 1.1))
+    big = place(cuts, 0.0, max_h)
     f = {
         "act_blocks0": big["blocks"],
         "act_blocks1": squash(big["blocks"]),
