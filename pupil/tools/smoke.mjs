@@ -20,7 +20,9 @@ if (!dir) {
 
 // --- wspólne atrapy ----------------------------------------------------------------
 
-const clock = { now: Date.UTC(2026, 9, 21, 9, 0) }; // 9:00 UTC, strefa 0
+// Zegar w czasie lokalnym UTC+2: Date.UTC(...) poniżej to godziny lokalne minus TZ_MS
+const TZ_MS = 2 * 3600000;
+const clock = { now: Date.UTC(2026, 9, 21, 9, 0) - TZ_MS }; // 9:00 lokalnie
 const storageMap = new Map();
 const log = { push: [], back: 0, toasts: [], buzz: [], display: [], errors: [], alarms: [], cancels: [] };
 let accelReading = { x: 0, y: 0, z: 980 };
@@ -33,7 +35,7 @@ class FakeDate extends Date {
     return clock.now;
   }
   getTimezoneOffset() {
-    return 0;
+    return 0; // jak (być może) na zegarku - strefa musi przyjść z sensora Time
   }
 }
 
@@ -130,6 +132,15 @@ function makePage(file) {
         stop() {}
         getCurrent() {
           return { ...accelReading };
+        }
+      },
+      // systemowy zegar zna godzinę lokalną; w teście strefa = +2 h (jak w Polsce latem)
+      Time: class {
+        getHours() {
+          return new Date(clock.now + TZ_MS).getUTCHours();
+        }
+        getMinutes() {
+          return new Date(clock.now + TZ_MS).getUTCMinutes();
         }
       },
       Vibrator: class {
@@ -302,7 +313,8 @@ test("ekran główny: nowe jajo, wyklucie, karmienie, przyciski", () => {
   assert.equal(pet().hunger, hunger + 1);
   assert.ok(p.hasText("Mniam!"));
   assert.ok(p.imgs().some((s) => /\/eat[01]\.png$/.test(s)), p.imgs().join(","));
-  // przyciski: w dół = następna ikona, wybór = akcja
+  // przyciski: w dół = następna ikona, wybór = akcja, skrót zostaje dla systemu
+  assert.equal(p.key("KEY_SHORTCUT"), false);
   p.key("KEY_DOWN");
   assert.equal(ring[1].props.src, "ring/snack_sel.png");
   assert.equal(ring[0].props.src, "ring/meal.png");
@@ -355,12 +367,24 @@ test("ekran główny: noc, zgaszone światło, odejście i nowe jajo", () => {
   p.tap(light);
   assert.equal(pet().asleep, true);
   assert.equal(pet().light, false);
+  // drugie naciśnięcie (np. przycisk przy wychodzeniu) nie zapala światła
+  p.key("KEY_DOWN");
+  p.key("KEY_UP");
+  p.tap(light);
+  assert.equal(pet().light, false);
   p.run(1000);
   assert.ok(p.imgs().some((s) => /rex\/dark[01]\.png$/.test(s)), p.imgs().join(","));
   assert.ok(p.imgs().includes("ui/zzz.png"));
   const bg = p.widgets[0];
   assert.equal(bg.props.color, 0x060918);
   p.destroy();
+  // po ponownym otwarciu o 23:00 dalej śpi przy zgaszonym świetle
+  clock.now += 2.5 * 3600000;
+  const again = makePage("page_gt_home_index.page.js").start();
+  assert.equal(pet().light, false);
+  assert.equal(pet().asleep, true);
+  assert.ok(again.hasText("Zzz"), again.texts().join("|"));
+  again.destroy();
 
   // ktoś zapomniał o nim na tydzień
   clock.now += 7 * 86400000;
@@ -387,7 +411,7 @@ test("przypomnienie: alarm przy wyjściu, wibracja, gdy alarm otworzy aplikację
     Object.assign(s, { form: "rex", hatched: s.t - 3 * 86400000, stageAt: s.t, hunger: 4, happy: 4, poops: 0, sick: 0, asleep: false, light: true, whim: 0, gone: "" });
     s.timers = { hunger: 2000, happy: 2000, poop: 90, whim: 2000 };
   });
-  clock.now = Date.UTC(2026, 9, 25, 10, 0);
+  clock.now = Date.UTC(2026, 9, 25, 10, 0) - TZ_MS;
   setPet((s) => (s.t = clock.now));
   const p = makePage("page_gt_home_index.page.js").start();
   const buzzBefore = log.buzz.length;
@@ -395,7 +419,7 @@ test("przypomnienie: alarm przy wyjściu, wibracja, gdy alarm otworzy aplikację
   const a = log.alarms.pop();
   assert.ok(a, "nie ustawiono alarmu");
   assert.equal(a.url, "page/gt/home/index.page");
-  assert.equal(a.time, Math.floor(Date.UTC(2026, 9, 25, 11, 30) / 1000));
+  assert.equal(a.time, Math.floor((Date.UTC(2026, 9, 25, 11, 30) - TZ_MS) / 1000));
   assert.equal(a.store, true);
   clock.now = a.time * 1000 + 20000;
   const q = makePage("page_gt_home_index.page.js").start();

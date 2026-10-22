@@ -1,6 +1,6 @@
 # Pupil – tamagotchi z dinozaurem
 
-Klasyczne tamagotchi na Amazfit T-Rex 3: z jajka wykluwa się dinozaur w stylu pixel art,
+Klasyczne tamagotchi na Amazfit T-Rex 3: z jajka wykluwa się dinozaur (gładka, kreskówkowa grafika),
 rośnie przez kilka etapów i zmienia formę zależnie od tego, jak o niego dbasz.
 Tempo jest luźne – wystarczy zajrzeć 2–3 razy dziennie. Czas płynie także przy
 zamkniętej aplikacji.
@@ -10,13 +10,13 @@ zamkniętej aplikacji.
 ## Jak grać
 
 Dinozaur stoi na środku tarczy, dookoła jest pierścień ikon akcji. Stuknij ikonę albo
-wybierz ją przyciskami **góra/dół** i zatwierdź przyciskiem **wyboru**.
+wybierz ją przyciskami **góra/dół** i zatwierdź przyciskiem **wyboru** (`KEY_SELECT`; przycisk skrótu zostaje dla systemu).
 
 | Ikona       | Co robi |
 |-------------|---------|
 | Jedzenie    | +1 serce głodu, +1 g. Najedzony odmawia. Przy słabej dyscyplinie nastolatek i dorosły czasem kręcą nosem |
 | Przekąska   | +1 serce humoru, +2 g (chory nie chce) |
-| Światło     | od 20:00 robi się senny – zgaś światło; o 21:30 zasypia sam, o 7:30 wstaje i światło zapala się samo |
+| Światło     | od 20:00 robi się senny – zgaś światło; o 21:30 zasypia sam, o 7:30 wstaje i światło zapala się samo. Zgaszonego w nocy nie da się przypadkiem zapalić. Pora dnia z systemowego zegara (`Time`) |
 | Zabawa      | minigry (niżej); wygrana +1 humoru, każda gra −1 g |
 | Lekarstwo   | leczy chorobę (1–2 dawki) |
 | Sprzątanie  | usuwa kupy |
@@ -89,9 +89,11 @@ padają tylko między 7:45 a 22:00; jeśli już czegoś potrzebuje, kolejne za 2
 - `utils/reminder.js` – alarm z przypomnieniem (funkcja `nextReminder` w `pet.js`).
 - `tools/smoke.mjs` – smoke test prawdziwych bundli zeusa w Node `vm` (atrapy `@zos/*`,
   sztuczny zegar); bundle przechwytuje `tools/capture-hook.cjs` (opis w nagłówku smoke.mjs).
-- `tools/gen_assets.py` – grafika: postacie z siatek 24 × 24 w `tools/forms.py`
-  (klatki z jednej siatki: oddech, radość, smutek, sen, jedzenie, lustro), ikony 12 × 12
-  w `tools/icons.py`, `utils/geometry.js`, arkusz `docs/arkusz.png` i makieta `docs/podglad.png`.
+- `tools/gen_assets.py` – grafika: postacie w `tools/forms.py` z prostych kształtów
+  (elipsy, wielokąty, zwężające się „rurki”, `tools/draw.py`) rysowanych w 8× powiększeniu
+  z obrysem jak naklejka; miny i klatki (oddech, radość, smutek, sen, jedzenie, lustro)
+  dorysowuje generator. Ikony w `tools/icons.py`. Powstają też `utils/geometry.js`,
+  arkusz `docs/arkusz.png` i makieta `docs/podglad.png`.
 
 ```bash
 npm install

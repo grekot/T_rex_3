@@ -27,6 +27,7 @@ import {
   lastNews,
   ageDays,
   nextReminder,
+  tzFrom,
   localMinute as lm,
 } from "../utils/pet.js";
 
@@ -143,6 +144,22 @@ test("w nocy nic nie spada, rano światło zapala się samo", () => {
   assert.equal(morning.asleep, false);
   assert.equal(morning.light, true);
   assert.equal(morning.mistakes, 0);
+});
+
+test("światło: drugie naciśnięcie w nocy go nie zapala", () => {
+  let s = toggleLight(adultAt(at(1, 21)), TZ).state;
+  assert.equal(s.light, false);
+  const again = toggleLight(s, TZ);
+  assert.equal(again.state.light, false);
+  assert.equal(again.state.asleep, true);
+  // zgaszone wieczorem zostaje zgaszone do rana, także po przewinięciu czasu
+  s = run(s, at(2, 3));
+  assert.equal(s.light, false);
+  assert.equal(s.asleep, true);
+  // śpi przy zapalonym (o 21:30 sam zasnął) - wtedy można zgasić
+  const lit = run(adultAt(at(1, 21)), at(1, 22));
+  assert.equal(lit.asleep && lit.light, true);
+  assert.equal(toggleLight(lit, TZ).state.light, false);
 });
 
 test("za wcześnie nie da się zgasić światła", () => {
@@ -366,6 +383,15 @@ test("restore odrzuca śmieci", () => {
   assert.equal(restore('{"v":2}'), null);
   const s = hatched();
   assert.deepEqual(restore(JSON.stringify(s)), s);
+});
+
+test("tzFrom: strefa z godziny lokalnej", () => {
+  const u = (h, m) => Date.UTC(2026, 9, 22, h, m);
+  assert.equal(tzFrom(22 * 60 + 5, u(20, 5)), 120, "Polska latem: UTC+2");
+  assert.equal(tzFrom(30, u(22, 30)), 120, "przez północ");
+  assert.equal(tzFrom(21 * 60, u(20, 0)), 60, "zimą UTC+1");
+  assert.equal(tzFrom(23 * 60, u(4, 0)), -300, "strefa ujemna");
+  assert.equal(tzFrom(22 * 60 + 6, u(20, 5) + 59000), 120, "zegary minimalnie przesunięte");
 });
 
 test("localMinute uwzględnia strefę", () => {

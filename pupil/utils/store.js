@@ -2,12 +2,21 @@
 // Każda strona wczytuje stan, przewija czas do teraz (advance) i zapisuje z powrotem,
 // więc minigry i strona główna widzą to samo.
 import { LocalStorage } from "@zos/storage";
-import { newEgg, restore, advance } from "./pet.js";
+import { Time } from "@zos/sensor";
+import { newEgg, restore, advance, tzFrom } from "./pet.js";
 
 const storage = new LocalStorage();
 const KEY = "pupil_state";
 
+// getTimezoneOffset() w silniku zegarka może zwracać 0 - wtedy pora dnia byłaby w UTC,
+// więc strefę liczymy z systemowego zegara (Time), który zna godzinę lokalną.
 export function tz() {
+  try {
+    const t = new Time();
+    const h = t.getHours();
+    const m = t.getMinutes();
+    if (typeof h === "number" && typeof m === "number") return tzFrom(h * 60 + m, Date.now());
+  } catch (e) {}
   try {
     return -new Date().getTimezoneOffset();
   } catch (e) {

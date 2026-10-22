@@ -1,301 +1,137 @@
-"""Ikony pixel art 12 x 12 (akcje, serca, kupa, czaszka...).
+"""Gładkie ikony: każda funkcja rysuje na płótnie 48 x 48 px (układ projektu) i zwraca
+listę (kształty z obrysem, detale). Obrys ciemny, jak przy postaciach."""
+from draw import ell, poly, tube, rrect
 
-Znaki jak w forms.py: . przezroczyste, O obrys, pozostałe litery wg palety ikony.
-"""
-
-ICONS = {}
-
-
-def icon(iid, palette, rows):
-    rows = [r for r in rows.strip("\n").split("\n")]
-    w = max(len(r) for r in rows)
-    rows = [r.ljust(w, ".") for r in rows]
-    ICONS[iid] = {"palette": palette, "rows": rows}
+OUT = (24, 20, 30)
+W = (252, 250, 244)
 
 
-OUT = (18, 16, 22)
+def meal():
+    meat = (206, 122, 62)
+    return [tube([(12, 38), (20, 30)], 4, 4, W), ell(8, 40, 4.5, 4.5, W), ell(13, 43, 4.5, 4.5, W), ell(28, 20, 15, 12, meat, rot=-40)], [
+        ell(23, 16, 5, 3, (232, 160, 100), rot=-40)
+    ]
 
-icon(
-    "meal",
-    {"O": OUT, "B": (205, 120, 60), "D": (160, 85, 40), "W": (245, 238, 220)},
-    """
-............
-......OOOO..
-.....OBBBBO.
-....OBBBBDBO
-....OBBBDDBO
-...OBBBBDBO.
-...OBBBDBO..
-..OWOODOO...
-.OWWO.OO....
-OWWO........
-.OO.........
-............
-""",
-)
 
-icon(
-    "snack",
-    {"O": OUT, "A": (250, 110, 160), "B": (255, 235, 240), "W": (240, 230, 210)},
-    """
-...OOOOO....
-..OAABBAO...
-.OABBAABBO..
-.OBAAAABAO..
-.OBABBAABO..
-.OAABBAABO..
-..OBAABAO...
-...OOOOO....
-.....OWO....
-.....OWO....
-.....OWO....
-.....OOO....
-""",
-)
+def snack():
+    pink = (250, 112, 164)
+    return [rrect(22, 24, 26, 46, 2, W), ell(24, 17, 14, 14, pink)], [
+        tube([(14, 17), (18, 10), (26, 9), (31, 14), (28, 21), (22, 21), (20, 16), (24, 14)], 2.2, 2.2, W, n=60)
+    ]
 
-icon(
-    "light",
-    {"O": OUT, "A": (255, 214, 70), "W": (255, 250, 210), "B": (150, 150, 160)},
-    """
-....OOOO....
-...OAAAAO...
-..OAWWAAAO..
-..OAWAAAAO..
-..OAAAAAAO..
-..OAAAAAAO..
-...OAAAAO...
-....OAAO....
-....OBBO....
-....OBBO....
-.....OO.....
-............
-""",
-)
 
-icon(
-    "play",
-    {"O": OUT, "A": (240, 80, 70), "W": (250, 250, 250), "B": (70, 140, 240)},
-    """
-....OOOO....
-..OOAAWWOO..
-.OAAAAWWBBO.
-.OAAAAWBBBO.
-OWWWWAWBBBBO
-OWWWWWWWWWWO
-OBBBBWAAAAAO
-OBBBBWAAAAAO
-.OBBBWAAAAO.
-.OBBWWAAAAO.
-..OOWWAAOO..
-....OOOO....
-""",
-)
+def light():
+    yellow = (255, 214, 72)
+    grey = (150, 152, 164)
+    return [ell(24, 19, 14, 15, yellow), rrect(18, 30, 30, 42, 3, grey)], [
+        ell(19, 14, 4, 6, (255, 246, 200), rot=20),
+        rrect(18, 34, 30, 35.5, 1, (110, 112, 124)),
+        rrect(18, 38, 30, 39.5, 1, (110, 112, 124)),
+    ]
 
-icon(
-    "medicine",
-    {"O": OUT, "A": (235, 70, 80), "W": (250, 250, 250), "L": (255, 150, 150)},
-    """
-............
-.......OOO..
-......OALAO.
-.....OAAAAAO
-....OAAAAAO.
-...OWWAAAO..
-..OWWWWWO...
-.OWWWWWO....
-.OWWWWO.....
-..OWWO......
-...OO.......
-............
-""",
-)
 
-icon(
-    "clean",
-    {"O": OUT, "B": (170, 110, 60), "A": (250, 205, 80), "D": (210, 160, 50)},
-    """
-.........OO.
-........OBO.
-.......OBO..
-......OBO...
-.....OBO....
-....OBO.....
-..OOOOO.....
-.OAAAAAO....
-OAADAADAO...
-OADAADAO....
-.OAOAOO.....
-..O.O.......
-""",
-)
+def play():
+    red = (240, 82, 72)
+    blue = (70, 140, 240)
+    return [ell(24, 24, 19, 19, W)], [
+        poly([(24, 24), (24, 5), (11, 10)], red),
+        poly([(24, 24), (43, 24), (40, 12)], blue),
+        poly([(24, 24), (24, 43), (37, 38)], red),
+        poly([(24, 24), (5, 24), (8, 36)], blue),
+        ell(24, 24, 3, 3, (250, 220, 80)),
+    ]
 
-icon(
-    "scold",
-    {"O": OUT, "W": (250, 250, 250), "A": (235, 60, 70)},
-    """
-.OOOOOOOOOO.
-OWWWWAAWWWWO
-OWWWWAAWWWWO
-OWWWWAAWWWWO
-OWWWWAAWWWWO
-OWWWWWWWWWWO
-OWWWWAAWWWWO
-.OOWOOOOOOO.
-..OWO.......
-..OO........
-............
-............
-""",
-)
 
-icon(
-    "stats",
-    {"O": OUT, "A": (90, 200, 120), "B": (255, 190, 60), "C": (90, 160, 240)},
-    """
-............
-.........OOO
-.........OCO
-.........OCO
-.....OOO.OCO
-.....OBO.OCO
-.....OBO.OCO
-.OOO.OBO.OCO
-.OAO.OBO.OCO
-.OAO.OBO.OCO
-.OOO.OOO.OOO
-OOOOOOOOOOOO
-""",
-)
+def medicine():
+    red = (236, 72, 84)
+    return [tube([(14, 34), (34, 14)], 9, 9, red)], [
+        tube([(14, 34), (24, 24)], 9, 9, W),
+        ell(30, 16, 3, 2, (255, 170, 170), rot=-45),
+    ]
 
-icon(
-    "heart",
-    {"O": OUT, "A": (240, 70, 90), "W": (255, 200, 210)},
-    """
-............
-.OOO....OOO.
-OAAAO..OAAAO
-OAWAAOOAAAAO
-OAWAAAAAAAAO
-OAAAAAAAAAAO
-.OAAAAAAAAO.
-..OAAAAAAO..
-...OAAAAO...
-....OAAO....
-.....OO.....
-............
-""",
-)
 
-icon(
-    "heart_empty",
-    {"O": (80, 76, 86), "A": (40, 38, 44), "W": (40, 38, 44)},
-    ICONS["heart"]["rows"] and "\n".join(ICONS["heart"]["rows"]),
-)
+def clean():
+    wood = (176, 114, 64)
+    straw = (250, 206, 84)
+    return [tube([(40, 6), (24, 26)], 2.6, 2.6, wood), poly([(18, 22), (30, 30), (22, 44), (6, 38)], straw)], [
+        tube([(14, 30), (10, 40)], 1, 1, (210, 160, 50)),
+        tube([(20, 32), (16, 42)], 1, 1, (210, 160, 50)),
+        rrect(15, 22, 31, 27, 2, (220, 90, 70)),
+    ]
 
-icon(
-    "poop",
-    {"O": OUT, "B": (150, 95, 50), "D": (115, 70, 35), "W": (190, 130, 75)},
-    """
-............
-............
-.....OO.....
-....OBWO....
-...OOBBBO...
-..OBWBBDBO..
-..OOOBBBDO..
-.OBWBBBBBDO.
-OBBBBBBBBBDO
-OOOOOOOOOOOO
-............
-............
-""",
-)
 
-icon(
-    "skull",
-    {"O": OUT, "W": (235, 235, 240), "K": (60, 55, 70)},
-    """
-...OOOOOO...
-..OWWWWWWO..
-.OWWWWWWWWO.
-.OWKKWWKKWO.
-.OWKKWWKKWO.
-.OWWWWWWWWO.
-..OWWKKWWO..
-...OWWWWO...
-...OWOWOWO..
-....OOOOO...
-............
-............
-""",
-)
+def scold():
+    red = (236, 62, 72)
+    return [rrect(5, 6, 43, 34, 9, W), poly([(12, 30), (12, 44), (24, 32)], W)], [
+        rrect(21.5, 10, 26.5, 24, 2.5, red),
+        ell(24, 29, 2.8, 2.8, red),
+    ]
 
-icon(
-    "alert",
-    {"O": OUT, "A": (255, 200, 40)},
-    """
-....OOOO....
-....OAAO....
-....OAAO....
-....OAAO....
-....OAAO....
-....OAAO....
-....OOOO....
-............
-....OOOO....
-....OAAO....
-....OOOO....
-............
-""",
-)
 
-icon(
-    "arrow",  # w prawo, w lewo = odbicie
-    {"O": OUT, "A": (255, 170, 40)},
-    """
-.....OO.....
-.....OAO....
-.....OAAO...
-OOOOOOAAAO..
-OAAAAAAAAAO.
-OAAAAAAAAAAO
-OAAAAAAAAAO.
-OOOOOOAAAO..
-.....OAAO...
-.....OAO....
-.....OO.....
-............
-""",
-)
+def stats():
+    return [rrect(6, 28, 15, 42, 2, (96, 206, 128)), rrect(19.5, 18, 28.5, 42, 2, (255, 192, 64)), rrect(33, 8, 42, 42, 2, (96, 164, 244))], []
 
-icon(
-    "ball",
-    {"O": OUT, "A": (240, 80, 70), "W": (250, 250, 250)},
-    """
-..OOOO..
-.OAAWWO.
-OAAAWWWO
-OWWWAAAO
-OWWWAAAO
-OAAAWWWO
-.OAAWWO.
-..OOOO..
-""",
-)
 
-icon(
-    "lock",
-    {"O": (70, 70, 80), "A": (110, 110, 125)},
-    """
-...OOOO...
-..OAAAAO..
-..OA..AO..
-..OA..AO..
-.OOOOOOOO.
-.OAAAAAAO.
-.OAAOOAAO.
-.OAAOOAAO.
-.OAAAAAAO.
-.OOOOOOOO.
-""",
-)
+def heart(color=(240, 72, 92)):
+    return [ell(16, 18, 10, 10, color), ell(32, 18, 10, 10, color), poly([(7, 22), (24, 42), (41, 22), (24, 16)], color)], [
+        ell(13, 15, 3, 4, (255, 200, 210), rot=30)
+    ]
+
+
+def heart_empty():
+    shapes, _ = heart((52, 50, 60))
+    return shapes, []
+
+
+def poop():
+    brown = (156, 98, 52)
+    return [ell(24, 38, 18, 7, brown), ell(24, 29, 13, 6, brown), ell(24, 21, 8, 5, brown), tube([(24, 17), (28, 10), (24, 8)], 3, 1.5, brown)], [
+        ell(18, 36, 3, 1.5, (196, 138, 86)),
+        ell(20, 27, 2.5, 1.2, (196, 138, 86)),
+    ]
+
+
+def skull():
+    k = (64, 58, 76)
+    return [ell(24, 21, 16, 15, W), rrect(15, 28, 33, 41, 4, W)], [
+        ell(18, 22, 4.5, 5, k),
+        ell(30, 22, 4.5, 5, k),
+        poly([(24, 27), (21.5, 32), (26.5, 32)], k),
+        rrect(19, 36, 21, 41, 1, k),
+        rrect(23, 36, 25, 41, 1, k),
+        rrect(27, 36, 29, 41, 1, k),
+    ]
+
+
+def alert():
+    y = (255, 202, 40)
+    return [rrect(19, 4, 29, 32, 5, y), ell(24, 40, 5.5, 5.5, y)], []
+
+
+def arrow():
+    o = (255, 172, 40)
+    return [poly([(6, 18), (26, 18), (26, 8), (44, 24), (26, 40), (26, 30), (6, 30)], o)], []
+
+
+def ball():
+    shapes, det = play()
+    return shapes, det
+
+
+ICONS = {
+    "meal": meal,
+    "snack": snack,
+    "light": light,
+    "play": play,
+    "medicine": medicine,
+    "clean": clean,
+    "scold": scold,
+    "stats": stats,
+    "heart": heart,
+    "heart_empty": heart_empty,
+    "poop": poop,
+    "skull": skull,
+    "alert": alert,
+    "arrow": arrow,
+    "ball": ball,
+}

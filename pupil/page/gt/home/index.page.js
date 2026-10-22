@@ -3,7 +3,7 @@
 import * as hmUI from "@zos/ui";
 import { px } from "@zos/utils";
 import { push } from "@zos/router";
-import { onKey, offKey, KEY_UP, KEY_DOWN, KEY_SELECT, KEY_SHORTCUT, KEY_EVENT_CLICK } from "@zos/interaction";
+import { onKey, offKey, KEY_UP, KEY_DOWN, KEY_SELECT, KEY_EVENT_CLICK } from "@zos/interaction";
 import {
   FORMS,
   STAGES,
@@ -123,7 +123,7 @@ Page({
             if (event === KEY_EVENT_CLICK) this.move(key === KEY_UP ? -1 : 1);
             return true;
           }
-          if (key === KEY_SELECT || key === KEY_SHORTCUT) {
+          if (key === KEY_SELECT) {
             if (event === KEY_EVENT_CLICK) this.run(RING[s.sel].id);
             return true;
           }

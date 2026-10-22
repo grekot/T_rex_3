@@ -95,6 +95,14 @@ export function localMinute(t, tz) {
   return ((m % 1440) + 1440) % 1440;
 }
 
+// Przesunięcie strefy z godziny lokalnej (minuty doby) i czasu UTC; zaokrąglone do 15 min,
+// żeby nie przeszkadzała zmiana minuty między odczytami
+export function tzFrom(localMinutes, nowMs) {
+  const utc = Math.floor(nowMs / MIN) % 1440;
+  const d = ((((localMinutes - utc + 720) % 1440) + 1440) % 1440) - 720;
+  return Math.round(d / 15) * 15;
+}
+
 function inWindow(m, from, to) {
   return from <= to ? m >= from && m < to : m >= from || m < to;
 }
@@ -480,8 +488,10 @@ export function toggleLight(state, tz) {
   const s = clone(state);
   if (s.gone || stageOf(s) === "egg") return result(s, "", "no");
   if (s.asleep) {
-    s.light = !s.light;
-    return result(s, s.light ? "Światło zapalone" : "Dobranoc", "");
+    // zapalanie śpiącemu niczemu nie służy - przypadkowe drugie naciśnięcie nic nie psuje
+    if (!s.light) return result(s, "Śpi… nie budź go", "");
+    s.light = false;
+    return result(s, "Dobranoc", "");
   }
   if (s.light && isSleepy(localMinute(s.t, tz))) {
     s.light = false;
