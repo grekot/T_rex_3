@@ -23,7 +23,8 @@ if (!dir) {
 // Zegar w czasie lokalnym UTC+2: Date.UTC(...) poniżej to godziny lokalne minus TZ_MS
 const TZ_MS = 2 * 3600000;
 const clock = { now: Date.UTC(2026, 9, 21, 9, 0) - TZ_MS }; // 9:00 lokalnie
-const storageMap = new Map();
+const storageMap = new Map(); // "plik" LocalStorage
+const files = new Map(); // /data aplikacji (@zos/fs)
 const log = { push: [], back: 0, toasts: [], buzz: [], display: [], errors: [], alarms: [], cancels: [] };
 let accelReading = { x: 0, y: 0, z: 980 };
 
@@ -108,14 +109,32 @@ function makePage(file) {
         log.toasts.push(o.content);
       },
     },
+    // Złośliwa atrapa: każda instancja ma własną kopię danych z chwili utworzenia
+    // i przy zapisie nadpisuje całość (tak mógł działać zegarek, gdy światło wracało)
     "@zos/storage": {
       LocalStorage: class {
+        constructor() {
+          this.copy = new Map(storageMap);
+        }
         getItem(k) {
-          return storageMap.has(k) ? storageMap.get(k) : undefined;
+          return this.copy.has(k) ? this.copy.get(k) : undefined;
         }
         setItem(k, v) {
-          storageMap.set(k, String(v));
+          this.copy.set(k, String(v));
+          storageMap.clear();
+          for (const [a, b] of this.copy) storageMap.set(a, b);
         }
+      },
+    },
+    "@zos/fs": {
+      readFileSync(o) {
+        if (!files.has(o.path)) return undefined;
+        const v = files.get(o.path);
+        if (o.options && o.options.encoding) return v;
+        return new TextEncoder().encode(v).buffer;
+      },
+      writeFileSync(o) {
+        files.set(o.path, String(o.data));
       },
     },
     "@zos/sensor": {
@@ -269,12 +288,13 @@ function makePage(file) {
 }
 
 function pet() {
-  return JSON.parse(storageMap.get("pupil_state"));
+  return JSON.parse(files.get("pupil_state.json"));
 }
 function setPet(fn) {
   const s = pet();
   fn(s);
-  storageMap.set("pupil_state", JSON.stringify(s));
+  files.set("pupil_state.json", JSON.stringify(s));
+  files.set("pupil_state.bak", JSON.stringify(s));
 }
 
 let failed = 0;
@@ -295,6 +315,17 @@ test("app.js się ładuje", () => {
   vm.runInContext(fs.readFileSync(path.join(dir, "app.js"), "utf8"), ctx);
 });
 
+test("stan z wersji 1.0.0 (LocalStorage) przechodzi do pliku", () => {
+  const old = { v: 1, gen: 3, rng: 5, t: clock.now - 60000, born: clock.now - 86400000, hatched: clock.now - 86000000, form: "tupek", stageAt: clock.now - 3600000, hunger: 3, happy: 3, discipline: 1, weight: 12, poops: 0, poopAt: 0, sick: 0, asleep: false, light: true, lightMiss: false, timers: { hunger: 100, happy: 100, poop: 100, whim: 300 }, calls: { hunger: 0, happy: 0, sick: 0, light: 0 }, due: { hunger: 0, happy: 0, sick: 0, light: 0 }, whim: 0, mistakes: 0, totalMistakes: 0, neglect: 0, gone: "", goneAt: 0, seen: ["pisklak", "tupek"], history: [] };
+  storageMap.set("pupil_state", JSON.stringify(old));
+  const p = makePage("page_gt_home_index.page.js").start();
+  assert.equal(pet().gen, 3);
+  assert.equal(pet().form, "tupek");
+  p.destroy();
+  storageMap.clear();
+  files.clear();
+});
+
 test("ekran główny: nowe jajo, wyklucie, karmienie, przyciski", () => {
   const p = makePage("page_gt_home_index.page.js").start();
   assert.equal(pet().form, "egg");
@@ -311,6 +342,10 @@ test("ekran główny: nowe jajo, wyklucie, karmienie, przyciski", () => {
   const hunger = pet().hunger;
   p.tap(ring[0]);
   assert.equal(pet().hunger, hunger + 1);
+  // wynik akcji przetrwa zamknięcie i ponowne otwarcie (inne strony, inne instancje pamięci)
+  const reopened = makePage("page_gt_home_index.page.js").start();
+  assert.equal(pet().hunger, hunger + 1);
+  reopened.destroy();
   assert.ok(p.hasText("Mniam!"));
   assert.ok(p.imgs().some((s) => /\/eat[01]\.png$/.test(s)), p.imgs().join(","));
   // przyciski: w dół = następna ikona, wybór = akcja, skrót zostaje dla systemu
@@ -406,7 +441,7 @@ function hatchAdult() {
 }
 
 test("przypomnienie: alarm przy wyjściu, wibracja, gdy alarm otworzy aplikację", () => {
-  storageMap.delete("pupil_alarm");
+  files.delete("pupil_alarm.json");
   setPet((s) => {
     Object.assign(s, { form: "rex", hatched: s.t - 3 * 86400000, stageAt: s.t, hunger: 4, happy: 4, poops: 0, sick: 0, asleep: false, light: true, whim: 0, gone: "" });
     s.timers = { hunger: 2000, happy: 2000, poop: 90, whim: 2000 };

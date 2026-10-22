@@ -2,26 +2,23 @@
 // ustawiamy systemowy alarm @zos/alarm, który o wyliczonej porze otwiera aplikację;
 // strona główna rozpoznaje to po zapisanej godzinie i wibruje.
 import { set, cancel } from "@zos/alarm";
-import { LocalStorage } from "@zos/storage";
 import { nextReminder } from "./pet.js";
+import { readText, writeText } from "./files.js";
 
-const storage = new LocalStorage();
-const KEY = "pupil_alarm";
+const FILE = "pupil_alarm.json";
 const HOME = "page/gt/home/index.page";
 const MATCH_MS = 3 * 60000; // otwarcie tyle od pory alarmu = obudził nas alarm
 
 function readAlarm() {
   try {
-    return JSON.parse(storage.getItem(KEY) || "null");
+    return JSON.parse(readText(FILE) || "null");
   } catch (e) {
     return null;
   }
 }
 
 function writeAlarm(a) {
-  try {
-    storage.setItem(KEY, JSON.stringify(a));
-  } catch (e) {}
+  writeText(FILE, JSON.stringify(a));
 }
 
 function cancelPending() {

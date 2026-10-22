@@ -1,12 +1,17 @@
 // Pamięć zegarka: jeden zapis JSON z całym stanem pupila (razem z kolekcją form).
 // Każda strona wczytuje stan, przewija czas do teraz (advance) i zapisuje z powrotem,
 // więc minigry i strona główna widzą to samo.
+//
+// Stan leży w pliku pupil_state.json (+ kopia .bak na wypadek przerwanego zapisu).
+// Wersja 1.0.0 trzymała go w LocalStorage - stamtąd tylko jednorazowy odczyt.
 import { LocalStorage } from "@zos/storage";
+import { readText, writeText } from "./files.js";
 import { Time } from "@zos/sensor";
 import { newEgg, restore, advance, tzFrom } from "./pet.js";
 
-const storage = new LocalStorage();
 const KEY = "pupil_state";
+const FILE = "pupil_state.json";
+const BACKUP = "pupil_state.bak";
 
 // getTimezoneOffset() w silniku zegarka może zwracać 0 - wtedy pora dnia byłaby w UTC,
 // więc strefę liczymy z systemowego zegara (Time), który zna godzinę lokalną.
@@ -28,26 +33,39 @@ export function newSeed() {
   return (Date.now() ^ Math.floor(Math.random() * 4294967296)) >>> 0;
 }
 
-export function rawState() {
+function legacyState() {
   try {
-    return storage.getItem(KEY) || "";
+    const v = new LocalStorage().getItem(KEY);
+    return v ? String(v) : "";
   } catch (e) {
     return "";
   }
 }
 
+export function rawState() {
+  return readText(FILE);
+}
+
+function readState() {
+  return restore(readText(FILE)) || restore(readText(BACKUP)) || restore(legacyState());
+}
+
 export function save(state) {
   const raw = JSON.stringify(state);
-  try {
-    storage.setItem(KEY, raw);
-  } catch (e) {}
+  if (writeText(FILE, raw)) writeText(BACKUP, raw);
+  else {
+    // pliki nie działają - lepsze to niż nic (świeża instancja przy każdym zapisie)
+    try {
+      new LocalStorage().setItem(KEY, raw);
+    } catch (e) {}
+  }
   return raw;
 }
 
 // Stan przewinięty do teraz: { state, events, fresh } (fresh = właśnie złożone pierwsze jajo)
 export function load(now) {
   const t = now || Date.now();
-  let s = restore(rawState());
+  let s = readState();
   const fresh = !s;
   if (!s) s = newEgg(t, newSeed(), null);
   const r = advance(s, t, tz());

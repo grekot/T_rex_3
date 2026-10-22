@@ -79,12 +79,13 @@ padają tylko między 7:45 a 22:00; jeśli już czegoś potrzebuje, kolejne za 2
 
 ## Jak to działa
 
-- `utils/pet.js` – cały stan i logika (czysty JS). Stan z czasem `t` leży w LocalStorage
-  (`pupil_state`); po otwarciu `advance()` przewija czas minuta po minucie, z losowością
+- `utils/pet.js` – cały stan i logika (czysty JS). Stan z czasem `t` leży w pliku
+  `pupil_state.json` w `/data` aplikacji (+ kopia `.bak`; `utils/files.js`, `@zos/fs`); po otwarciu `advance()` przewija czas minuta po minucie, z losowością
   z generatora zapisanego w stanie – wynik jest deterministyczny, także przy przewijaniu
   kawałkami.
 - `utils/games.js` – logika minigier (detektor machnięcia, kołysania, fizyka balansu).
-- `utils/store.js` – zapis/odczyt; każda strona przewija czas i zapisuje, strona główna
+- `utils/store.js` – zapis/odczyt (nie LocalStorage: na zegarku zapis z jednej strony
+  potrafił nadpisać świeży stan starą kopią z innej); każda strona przewija czas i zapisuje, strona główna
   co sekundę sprawdza, czy stan się zmienił.
 - `utils/reminder.js` – alarm z przypomnieniem (funkcja `nextReminder` w `pet.js`).
 - `tools/smoke.mjs` – smoke test prawdziwych bundli zeusa w Node `vm` (atrapy `@zos/*`,
