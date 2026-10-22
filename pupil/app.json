@@ -5,8 +5,8 @@
     "appName": "Pupil",
     "appType": "app",
     "version": {
-      "code": 1,
-      "name": "1.0.0"
+      "code": 2,
+      "name": "1.1.0"
     },
     "icon": "icon.png",
     "vender": "grekot",
@@ -16,7 +16,10 @@
     "data:os.device.info",
     "device:os.local_storage",
     "device:os.accelerometer",
-    "device:os.alarm"
+    "device:os.alarm",
+    "device:os.compass",
+    "device:os.barometer",
+    "device:os.geolocation"
   ],
   "runtime": {
     "apiVersion": {
@@ -39,7 +42,25 @@
             "page/gt/throw/index.page",
             "page/gt/rock/index.page",
             "page/gt/balance/index.page",
-            "page/gt/guess/index.page"
+            "page/gt/guess/index.page",
+            "page/gt/simon/index.page",
+            "page/gt/catch/index.page",
+            "page/gt/runner/index.page",
+            "page/gt/tree/index.page",
+            "page/gt/dig/index.page",
+            "page/gt/balloon/index.page",
+            "page/gt/eggroll/index.page",
+            "page/gt/reflex/index.page",
+            "page/gt/fishing/index.page",
+            "page/gt/aim/index.page",
+            "page/gt/forage/index.page",
+            "page/gt/climb/index.page",
+            "page/gt/dive/index.page",
+            "page/gt/trip/index.page",
+            "page/gt/marks/index.page",
+            "page/gt/race/index.page",
+            "page/gt/calm/index.page",
+            "page/gt/warmup/index.page"
           ]
         }
       },

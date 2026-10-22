@@ -27,6 +27,8 @@ const storageMap = new Map(); // "plik" LocalStorage
 const files = new Map(); // /data aplikacji (@zos/fs)
 const log = { push: [], back: 0, toasts: [], buzz: [], display: [], errors: [], alarms: [], cancels: [] };
 let accelReading = { x: 0, y: 0, z: 980 };
+// kompas (null = nieskalibrowany), barometr (m), GPS (null = szuka)
+const sensors = { heading: 0, altitude: 220, fix: { lat: 50.0614, lon: 19.9366 } };
 
 class FakeDate extends Date {
   constructor(...a) {
@@ -143,6 +145,41 @@ function makePage(file) {
       VIBRATOR_SCENE_SHORT_MIDDLE: 2,
       VIBRATOR_SCENE_DURATION: 3,
       VIBRATOR_SCENE_NOTIFICATION: 4,
+      VIBRATOR_SCENE_SHORT_STRONG: 5,
+      Compass: class {
+        onChange() {}
+        offChange() {}
+        start() {}
+        stop() {}
+        getStatus() {
+          return sensors.heading !== null;
+        }
+        getDirectionAngle() {
+          return sensors.heading === null ? "INVALID" : sensors.heading;
+        }
+      },
+      Barometer: class {
+        onChange() {}
+        offChange() {}
+        getAltitude() {
+          return sensors.altitude;
+        }
+      },
+      Geolocation: class {
+        start() {}
+        stop() {}
+        onChange() {}
+        offChange() {}
+        getStatus() {
+          return sensors.fix ? "A" : "V";
+        }
+        getLatitude(o) {
+          return o.format === "DD" ? Math.abs(sensors.fix.lat) : { direction: sensors.fix.lat < 0 ? "S" : "N" };
+        }
+        getLongitude(o) {
+          return o.format === "DD" ? Math.abs(sensors.fix.lon) : { direction: sensors.fix.lon < 0 ? "W" : "E" };
+        }
+      },
       Accelerometer: class {
         setFreqMode() {}
         onChange() {}
@@ -649,6 +686,158 @@ test("lewo czy prawo: trafienia strzałkami i przyciskami", () => {
   assert.ok(p.hasText("Wygrana!"));
   assert.equal(arrows.left.visible, false);
   assert.equal(p.destroy(), 0);
+});
+
+// --- nowe wyzwania -------------------------------------------------------------
+
+function freshPet() {
+  setPet((s) => {
+    Object.assign(s, { form: "tupek", gone: "", asleep: false, light: true, sick: 0, hunger: 4, happy: 2, weight: 14, hatched: s.t - 86400000, stageAt: s.t });
+    s.walks = {};
+  });
+}
+
+test("menu zabaw: 22 gry w grupach, przewijana lista", () => {
+  const p = makePage("page_gt_games_index.page.js").start();
+  const names = ["Powtórz ruch", "Łapanie owoców", "Labirynt jajka", "Celowanie", "Refleks", "Wędkowanie", "Skoki", "Potrząśnij drzewem", "Wykopywanie kości", "Balon", "Medytacja", "Wyścig", "Rozgrzewka", "Szukanie jedzenia", "Wspinaczka", "Nurkowanie", "Wyprawa", "Znaczenie terenu", "Lewo czy prawo?", "Rzut piłką", "Kołysanie do snu", "Balans na kłodzie"];
+  for (const n of names) assert.ok(p.hasText(n), "brak " + n);
+  p.tapText("Wyprawa");
+  assert.equal(log.push.pop(), "page/gt/trip/index.page");
+  const lowest = Math.max(...p.widgets.filter((w) => w.type === "TEXT").map((w) => w.props.y));
+  assert.ok(lowest > 480, "lista powinna wychodzić poza ekran (przewijanie)");
+});
+
+// Każda nowa gra: ładuje się, chodzi 3 s bez błędów, po zamknięciu nie zostają timery,
+// a gry ruchowe przywracają gaszenie ekranu
+const NEW_GAMES = ["simon", "catch", "runner", "tree", "dig", "balloon", "eggroll", "reflex", "fishing", "aim", "forage", "climb", "dive", "trip", "marks", "race", "calm", "warmup"];
+for (const id of NEW_GAMES) {
+  test("gra " + id + ": start, 3 s, zamknięcie", () => {
+    freshPet();
+    accelReading = { x: 0, y: 0, z: 980 };
+    log.display.length = 0;
+    const p = makePage("page_gt_" + id + "_index.page.js").start();
+    for (let i = 0; i < 30; i++) {
+      accelReading = { x: Math.sin(i) * 30, y: Math.cos(i) * 30, z: 980 };
+      p.run(100);
+    }
+    assert.ok(p.texts().length > 2);
+    assert.equal(p.destroy(), 0, "zostały timery");
+    if (log.display.includes("pause")) assert.ok(log.display.lastIndexOf("resetWrist") > log.display.lastIndexOf("pause"), "ekran nie przywrócony");
+  });
+}
+
+test("powtórz ruch: przechyły zgodne z sekwencją wygrywają", () => {
+  freshPet();
+  const before = pet().happy;
+  accelReading = { x: 0, y: 0, z: 980 };
+  const p = makePage("page_gt_simon_index.page.js").start();
+  const tiltFor = { left: { x: 500, y: 0 }, right: { x: -500, y: 0 }, up: { x: 0, y: -500 }, down: { x: 0, y: 500 } };
+  for (let guard = 0; guard < 4000 && !p.opts.state.game.done; guard++) {
+    const st = p.opts.state;
+    if (st.phase === "input") {
+      const d = st.game.seq[st.game.pos];
+      accelReading = { x: tiltFor[d].x, y: tiltFor[d].y, z: 850 };
+      p.run(80);
+      accelReading = { x: 0, y: 0, z: 980 };
+      p.run(80);
+    } else p.run(100);
+  }
+  assert.equal(p.opts.state.game.win, true);
+  assert.ok(p.hasText("Wygrana!"));
+  assert.equal(pet().happy, before + 1);
+  p.destroy();
+});
+
+test("szukanie jedzenia: obrót w stronę jedzenia znajduje je", () => {
+  freshPet();
+  const p = makePage("page_gt_forage_index.page.js").start();
+  sensors.heading = null;
+  p.run(300);
+  assert.ok(p.hasText("Skalibruj kompas"));
+  for (let i = 0; i < 300 && !p.opts.state.game.done; i++) {
+    const g = p.opts.state.game;
+    sensors.heading = g.targets[g.found] + 3;
+    p.run(100);
+  }
+  assert.equal(p.opts.state.game.win, true);
+  assert.ok(p.hasText("Najedzony!"));
+  p.destroy();
+  sensors.heading = 0;
+});
+
+test("wspinaczka: start, zamknięcie, 3 m wyżej po powrocie = nagroda", () => {
+  freshPet();
+  sensors.altitude = 220;
+  const before = pet().happy;
+  const p = makePage("page_gt_climb_index.page.js").start();
+  p.tap(p.find((w) => w.type === "TEXT" && w.props.text === "Start"));
+  assert.equal(pet().walks.climb.alt0, 220);
+  p.run(1000);
+  assert.ok(p.hasText("+0.0 m"), p.texts().join("|"));
+  p.destroy();
+  // spacer po schodach z zamkniętą aplikacją
+  clock.now += 20 * 60000;
+  sensors.altitude = 223.4;
+  const q = makePage("page_gt_climb_index.page.js").start();
+  assert.ok(q.hasText("Na szczycie!"), q.texts().join("|"));
+  assert.equal(pet().happy, Math.min(4, before + 2));
+  assert.equal(pet().walks.climb, undefined);
+  q.destroy();
+});
+
+test("wyprawa: cel zapamiętany, strzałka, dotarcie = nagroda", () => {
+  freshPet();
+  sensors.fix = { lat: 50.0614, lon: 19.9366 };
+  sensors.heading = 0;
+  const p = makePage("page_gt_trip_index.page.js").start();
+  p.tapText("Wyznacz cel");
+  const trip = pet().walks.trip;
+  assert.ok(trip && trip.dist >= 200 && trip.dist <= 500);
+  p.run(1000);
+  const arrow = p.find((w) => w.props.src === "ui/pointer.png");
+  assert.equal(arrow.visible, true);
+  assert.ok(p.hasText(" m"));
+  p.destroy();
+  // dotarcie do celu, aplikacja otwarta ponownie
+  sensors.fix = { lat: trip.lat + 0.00005, lon: trip.lon };
+  const q = makePage("page_gt_trip_index.page.js").start();
+  assert.ok(q.hasText("Skarb znaleziony!"), q.texts().join("|"));
+  assert.equal(pet().walks.trip, undefined);
+  q.destroy();
+  sensors.fix = { lat: 50.0614, lon: 19.9366 };
+});
+
+test("znaczenie terenu: za blisko, potem 3 miejsca", () => {
+  freshPet();
+  const p = makePage("page_gt_marks_index.page.js").start();
+  sensors.fix = { lat: 50.0, lon: 20.0 };
+  p.tapText("Oznacz tu");
+  sensors.fix = { lat: 50.0003, lon: 20.0 }; // ok. 33 m
+  p.tapText("Oznacz tu");
+  assert.ok(p.hasText("Za blisko"), p.texts().join("|"));
+  sensors.fix = { lat: 50.002, lon: 20.0 };
+  p.tapText("Oznacz tu");
+  sensors.fix = { lat: 50.004, lon: 20.0 };
+  p.tapText("Oznacz tu");
+  p.run(1000);
+  assert.ok(p.hasText("Teren oznaczony!"), p.texts().join("|"));
+  p.destroy();
+  sensors.fix = { lat: 50.0614, lon: 19.9366 };
+});
+
+test("balon: pompowanie ruchem i puszczenie przyciskiem", () => {
+  freshPet();
+  const p = makePage("page_gt_balloon_index.page.js").start();
+  const g = () => p.opts.state.game;
+  for (let t = 0; t < 30000 && g().size < g().lo; t += 40) {
+    accelReading = { x: 0, y: 800 * Math.sin((2 * Math.PI * t) / 700), z: 980 };
+    p.run(40);
+  }
+  assert.ok(g().size >= g().lo);
+  p.key("KEY_SELECT");
+  assert.equal(g().done, true);
+  assert.equal(g().win, g().size <= g().hi);
+  p.destroy();
 });
 
 if (failed) {

@@ -75,6 +75,32 @@ stuknij ekran – wybierasz nowe jajo i imię, kolekcja zdobytych form zostaje.
 - **Lewo czy prawo?** – bez ruchu: zgadnij, w którą stronę spojrzy (strzałki albo
   przyciski góra = lewo, dół = prawo). 3 trafienia z 5 = wygrana.
 
+Od wersji 1.1 jest 22 gier w przewijanym menu (logika w `utils/moves.js` i `utils/walks.js`):
+
+| Gra | Czujnik | Jak wygrać |
+|-----|---------|-----------|
+| Powtórz ruch | akcelerometr | powtórz przechyłami sekwencję strzałek aż do 6 ruchów (2 pomyłki dozwolone) |
+| Łapanie owoców | akcelerometr | przechylaj w bok, złap 10 owoców w 30 s, omijaj kamienie (3 życia) |
+| Labirynt jajka | akcelerometr | dotocz jajko do gniazda w 40 s (3 plansze) |
+| Celowanie | akcelerometr | celuj przechyłem, stuknij = rzut; 3 trafienia z 5 |
+| Refleks | akcelerometr | machnij, gdy kółko zzielenieje; średnio poniżej 0,65 s, bez falstartów |
+| Wędkowanie | akcelerometr | poderwij rękę w 1,3 s po wibracji; 2 ryby z 3 |
+| Skoki | akcelerometr | podrzut nadgarstka (albo stuknięcie) = skok; wytrzymaj 25 s |
+| Potrząśnij drzewem | akcelerometr | 12 owoców w 15 s; za mocno 2 razy = pszczoły |
+| Wykopywanie kości | akcelerometr | 15 ruchów łopatą w 25 s |
+| Balon | akcelerometr | pompuj ruchem ręki, puść w zielonym przedziale |
+| Medytacja | akcelerometr | 20 s zupełnego bezruchu (w ciągu minuty) |
+| Wyścig | akcelerometr | biegnij w miejscu szybciej niż rywal przez 15 s |
+| Rozgrzewka | akcelerometr | 8 krążeń ramion, 8 wymachów, 5 skłonów |
+| Szukanie jedzenia | kompas | „ciepło – gorąco” i wibracje; 3 kierunki w 90 s |
+| Wspinaczka | barometr | Start, potem 3 m wyżej w ciągu 6 h (zadanie spacerowe) |
+| Nurkowanie | barometr | 3 razy szybko opuść i podnieś rękę (eksperyment – pokazuje zmianę wysokości) |
+| Wyprawa | GPS + kompas | dojdź do skarbu 200–500 m stąd w ciągu 3 h (zadanie spacerowe) |
+| Znaczenie terenu | GPS | oznacz 3 miejsca co najmniej 100 m od siebie w ciągu doby |
+
+Zadania spacerowe zapisują się w stanie (`s.walks`) – aplikację można zamknąć, a po
+powrocie do gry zegarek sprawdza postęp. Nagroda: humor +2 (zwykła gra +1).
+
 Strony gier ruchowych trzymają ekran włączony (i przywracają ustawienia przy wyjściu).
 
 ### Przypomnienie (niesprawdzone na zegarku)

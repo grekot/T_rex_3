@@ -550,7 +550,7 @@ function placeTarget(g) {
   const a = g.rnd() * Math.PI * 2;
   const d = 40 + g.rnd() * (AIM.field - 40);
   g.tx = Math.round(Math.cos(a) * d);
-  g.ty = Math.round(Math.sin(a) * d);
+  g.ty = Math.round(Math.sin(a) * d * 0.75); // pole celowania jest niższe niż szersze
 }
 
 // Celownik idzie za przechyłem (wygładzony), względem środka ekranu

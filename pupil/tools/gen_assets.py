@@ -177,12 +177,15 @@ def frames_for(fid):
 # --- ikony i drobiazgi -----------------------------------------------------------
 
 
-def icon_img(iid, size=ICON, flip=False):
+def icon_img(iid, size=ICON, flip=False, rotate=0):
     shapes, detail = ICONS[iid]()
     c = Canvas(ICON, ICON)
     c.body(shapes, ICON_OUT, 1.8)
     c.shapes(detail)
-    img = c.result((size, size))
+    img = c.img
+    if rotate:
+        img = img.rotate(rotate, resample=Image.BICUBIC)
+    img = img.resize((size, size), Image.LANCZOS)
     return ImageOps.mirror(img) if flip else img
 
 
@@ -286,6 +289,8 @@ def write_geometry():
         "export const ARROW = 60;",
         "export const BALL = 32;",
         "export const EGG_PICK = %d;" % EGG_PICK,
+        "export const ITEM = 36; // apple, rock, bone, fish, nest, hive",
+        "export const POINTER = 140;",
         "export const ZZZ = { w: 56, h: 48 };",
         "export const LOG = { w: 192, h: 36 };",
         "export const RING = [\n%s,\n];" % ring,
@@ -418,6 +423,13 @@ def main():
     save(icon_img("ball", 32), "ui", "ball.png")
     save(icon_img("arrow", 60), "ui", "arrow_r.png")
     save(icon_img("arrow", 60, flip=True), "ui", "arrow_l.png")
+    save(icon_img("arrow", 60, rotate=90), "ui", "arrow_u.png")
+    save(icon_img("arrow", 60, rotate=-90), "ui", "arrow_d.png")
+    for iid in ["apple", "rock", "bone", "fish", "nest", "hive"]:
+        save(icon_img(iid, 36), "ui", iid + ".png")
+    save(icon_img("bone", 96), "ui", "bone_big.png")
+    save(icon_img("pointer", 140), "ui", "pointer.png")
+    save(egg_frame("egg", size=34), "ui", "egg_small.png")
     save(zzz(), "ui", "zzz.png")
     save(trees(), "ui", "forest.png")
     save(log_img(), "ui", "log.png")

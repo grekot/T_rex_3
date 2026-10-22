@@ -1,5 +1,5 @@
 // Wspólne zakończenie minigier: zapis wyniku (humor, waga) i przycisk powrotu.
-import { play } from "./pet.js";
+import { play, treat, setWalk } from "./pet.js";
 import { apply } from "./store.js";
 import { COLOR, label, button, goBack } from "./ui.js";
 
@@ -18,6 +18,22 @@ export function finishGame(st, win, text) {
     if (r.anim === "no") msg = r.msg;
   } catch (e) {}
   label({ ...RESULT, text, color: win ? COLOR.good : COLOR.bad });
+  label({ ...RESULT_MSG, text: msg, color: COLOR.grey });
+  button(BACK_BTN, goBack);
+}
+
+// Zadanie spacerowe ukończone: większa nagroda i usunięcie zadania ze stanu
+export const WALK_REWARD = 2;
+
+export function finishWalk(st, key, text) {
+  if (st.finished) return;
+  st.finished = true;
+  let msg = "";
+  try {
+    const r = apply((p) => treat(setWalk(p, key, null), WALK_REWARD));
+    msg = r.anim === "no" ? r.msg : "Humor +" + WALK_REWARD;
+  } catch (e) {}
+  label({ ...RESULT, text, color: COLOR.good });
   label({ ...RESULT_MSG, text: msg, color: COLOR.grey });
   button(BACK_BTN, goBack);
 }
