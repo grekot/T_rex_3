@@ -3,7 +3,7 @@
 import { LocalStorage } from "@zos/storage";
 import { rmSync, readdirSync } from "@zos/fs";
 import { mergePhoto } from "./photos.js";
-import { normalizeSettings } from "./schedule.js";
+import { normalizeSettings, migrateSettings, BRIGHT_VERSION } from "./schedule.js";
 
 const storage = new LocalStorage();
 const PHOTOS_KEY = "zd_photos";
@@ -97,12 +97,23 @@ const PLAN_KEY = "zd_plan";
 const BAG_KEY = "zd_bag";
 const SHOWN_KEY = "zd_shown";
 
+const SETTINGS_VERSION_KEY = "zd_settings_v";
+
 export function loadSettings() {
-  return normalizeSettings(readJson(SETTINGS_KEY, null));
+  const raw = readJson(SETTINGS_KEY, null);
+  const version = readJson(SETTINGS_VERSION_KEY, 0);
+  if (raw && version < BRIGHT_VERSION) {
+    // Ustawienia ze starszej wersji: raz poprawione i zapisane
+    const settings = normalizeSettings(migrateSettings(raw, version));
+    saveSettings(settings);
+    return settings;
+  }
+  return normalizeSettings(raw);
 }
 
 export function saveSettings(settings) {
   writeJson(SETTINGS_KEY, normalizeSettings(settings));
+  writeJson(SETTINGS_VERSION_KEY, BRIGHT_VERSION);
 }
 
 export function loadPlan() {

@@ -67,12 +67,19 @@ Zegarek sam, w losowych chwilach, pokazuje ciekawe zdjęcie – bez powiadomieni
 ```
 budzik systemowy (@zos/alarm, store: true – przetrwa restart zegarka)
   → wprost ekran page/gt/photo (param {"m":"D","at":…})
-  → zdjęcie z worka, krótka wibracja, po 15 s powrót do tarczy
+  → zapowiedź „Zobacz to” (czarny ekran, zwykła jasność) + krótka wibracja
+  → uniesienie ręki albo stuknięcie: ekran jaśniej, zdjęcie z worka
+  → opuszczenie ręki albo podwójne stuknięcie: zdjęcie gaśnie, powrót do tarczy
   → od razu uzupełnienie planu budzików
 ```
 
-Na ekranie zdjęcia **pierwsze stuknięcie** zatrzymuje zamykanie (na dole pojawia się data zdjęcia),
-**kolejne** pokazują następne zdjęcia z worka.
+Zegarek 0.7.0: zdjęcie jest losowane i wczytane od razu pod zapowiedzią (odsłonięcie bez opóźnienia), ale do worka
+trafia dopiero przy odsłonięciu; bez reakcji zapowiedź znika po 30 s i nieobejrzane zdjęcie nie przepada,
+odsłonięte zdjęcie gaśnie samo najpóźniej po 60 s. **Pojedyncze stuknięcie** w zdjęcie = następne z worka.
+Uniesienie/opuszczenie ręki wykrywają naraz systemowe `onWristMotion` (@zos/interaction) i własna logika
+z akcelerometru (`watch/utils/wrist.js`: ekran do twarzy = |z| ≥ 75% grawitacji przez 250 ms, ręka opuszczona
+= |z| ≤ 45% przez 500 ms; testy `watch/test/wrist.test.mjs`) – liczy się to, co zgłosi się pierwsze.
+Gaszenie ekranu po opuszczeniu ręki jest na czas strony wyłączone, żeby to aplikacja przywróciła jasność.
 
 **Losowanie** (`watch/utils/schedule.js`, testy `watch/test/schedule.test.mjs`):
 
@@ -106,8 +113,8 @@ najbliższe zdjęcia po dniach, kiedy zegarek ostatnio sam pokazał zdjęcie i p
 ### Test na zegarku
 
 1. Zainstaluj (`zeus preview` w `watch/`), otwórz **Zdjęcia** – na panelu powinno być „Następne zdjęcie: …”.
-2. **Ustawienia → Próba za 1 min** → wyjdź z aplikacji i opuść rękę. Po minucie zegarek wibruje, pokazuje zdjęcie,
-   a po 15 s sam wraca do tarczy.
+2. **Ustawienia → Próba za 1 min** → wyjdź z aplikacji i opuść rękę. Po minucie zegarek wibruje i pokazuje
+   „Zobacz to”; unieś rękę → zdjęcie jaśniej, opuść rękę → zgaśnie (albo stuknij / stuknij 2 razy).
 3. Krótkie okno zamiast czekania godzinami: **Od** = bieżąca godzina, **Do** = następna, **Ile razy** = 6
    (np. o 14:20 ustaw 14:00–15:00 → zdjęcia mniej więcej co 10 min do 15:00; lista „Najbliższe zdjęcia” pokazuje godziny).
 4. Po próbie wróć do 3 razy, 9:00–21:00.
@@ -202,9 +209,11 @@ zdjęcie dla zegarka (dociągane po trochu). Skąd kadr, widać na karcie zdjęc
 ## Jaśniej i żywiej (telefon 0.7.0, zegarek 0.6.0)
 
 - **Zegarek** podczas pokazu zdjęcia (samoczynnego i w podglądzie) wyłącza na chwilę jasność automatyczną
-  i ustawia jasność z ustawień („Jasność przy zdjęciu”: bez zmian / 60 / 80 / 100%, domyślnie 100%).
+  i ustawia jasność z ustawień („Jasność przy zdjęciu”: bez zmian albo 50–100% co 10%, domyślnie 70%).
   Poprzednie ustawienia systemu są zapamiętane (`zd_bright_restore`) i przywracane przy zamknięciu zdjęcia,
   a gdyby aplikacja zamknęła się wcześniej – przy następnym starcie.
+  Zegarek 0.7.1: od 0.7.0 jasność podbija się przy odsłonięciu zdjęcia (ekran już świeci, więc naprawdę działa)
+  i 100% było za jaskrawe – domyślnie 70%, a zapisane wcześniej 100% zmienia się raz na 70% (`zd_settings_v`).
 - **Telefon** przygotowuje PNG z żywszymi kolorami (`vivid` w `photo_prep.dart`: nasycenie ×1,25 względem
   jasności piksela, kontrast ×1,08, gamma 0,94, każdy krok przycięty do 0..255 – `img.adjustColor` zawijał
   kanały przy nasyconych barwach). Wersja obróbki jest w nazwie PNG i w id na zegarku, więc zegarek

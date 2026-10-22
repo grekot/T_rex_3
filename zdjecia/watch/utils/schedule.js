@@ -8,14 +8,19 @@
 
 export const PHOTO_PAGE = "page/gt/photo/index.page";
 export const DIRECT = "D";
-// Po tylu sekundach zdjęcie z budzika samo się zamyka (powrót do tarczy)
-export const AUTO_CLOSE_S = 15;
+// Zapowiedź "Zobacz to" czeka tyle sekund na uniesienie ręki / stuknięcie, potem wraca do tarczy
+export const TEASER_S = 30;
+// Odsłonięte zdjęcie gaśnie samo najpóźniej po tylu sekundach (gdyby opuszczenie ręki nie zadziałało)
+export const PHOTO_MAX_S = 60;
 // Próba z ekranu ustawień: budzik za tyle sekund
 export const TEST_DELAY_S = 60;
 
-export const DEFAULT_SETTINGS = { on: true, perDay: 3, from: 9, to: 21, bright: 100 };
+export const DEFAULT_SETTINGS = { on: true, perDay: 3, from: 9, to: 21, bright: 70 };
 // Jasność ekranu podczas pokazu zdjęcia (0 = bez zmian, zostaje systemowa)
-export const BRIGHT_STEPS = [0, 60, 80, 100];
+export const BRIGHT_STEPS = [0, 50, 60, 70, 80, 90, 100];
+// Wersja domyślnej jasności: 0.6–0.7.0 miały 100% (od 0.7.0 podbicie działa przy odsłonięciu i było
+// za jaskrawo), od 0.7.1 jest 70%. Zapisane wcześniej 100% zamieniamy raz na nową domyślną.
+export const BRIGHT_VERSION = 2;
 export const PER_DAY_MIN = 1;
 export const PER_DAY_MAX = 24;
 // Kolejne wartości przyciskami +/- (powyżej 6 większymi krokami - dużo pokazów przydaje się do testów)
@@ -70,6 +75,12 @@ export function normalizeSettings(settings) {
     to,
     bright: clampInt(s.bright, 0, 100, d.bright),
   };
+}
+
+// Jednorazowa zmiana zapisanych ustawień ze starszej wersji (version = zapisana BRIGHT_VERSION, 0 = brak)
+export function migrateSettings(raw, version) {
+  if (!raw || version >= BRIGHT_VERSION) return raw;
+  return raw.bright === 100 ? { ...raw, bright: DEFAULT_SETTINGS.bright } : raw;
 }
 
 export function brightText(bright) {
