@@ -209,9 +209,11 @@ zdjęcie dla zegarka (dociągane po trochu). Skąd kadr, widać na karcie zdjęc
 ## Jaśniej i żywiej (telefon 0.7.0, zegarek 0.6.0)
 
 - **Zegarek** podczas pokazu zdjęcia (samoczynnego i w podglądzie) wyłącza na chwilę jasność automatyczną
-  i ustawia jasność z ustawień („Jasność przy zdjęciu”: bez zmian / 60 / 80 / 100%, domyślnie 100%).
+  i ustawia jasność z ustawień („Jasność przy zdjęciu”: bez zmian albo 50–100% co 10%, domyślnie 70%).
   Poprzednie ustawienia systemu są zapamiętane (`zd_bright_restore`) i przywracane przy zamknięciu zdjęcia,
   a gdyby aplikacja zamknęła się wcześniej – przy następnym starcie.
+  Zegarek 0.7.1: od 0.7.0 jasność podbija się przy odsłonięciu zdjęcia (ekran już świeci, więc naprawdę działa)
+  i 100% było za jaskrawe – domyślnie 70%, a zapisane wcześniej 100% zmienia się raz na 70% (`zd_settings_v`).
 - **Telefon** przygotowuje PNG z żywszymi kolorami (`vivid` w `photo_prep.dart`: nasycenie ×1,25 względem
   jasności piksela, kontrast ×1,08, gamma 0,94, każdy krok przycięty do 0..255 – `img.adjustColor` zawijał
   kanały przy nasyconych barwach). Wersja obróbki jest w nazwie PNG i w id na zegarku, więc zegarek

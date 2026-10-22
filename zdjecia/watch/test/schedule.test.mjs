@@ -56,10 +56,10 @@ function minuteOfDay(ms) {
 // --- ustawienia ---
 
 assert.deepEqual(normalizeSettings(undefined), DEFAULT_SETTINGS);
-assert.deepEqual(DEFAULT_SETTINGS, { on: true, perDay: 3, from: 9, to: 21, bright: 100 });
-assert.deepEqual(normalizeSettings({ on: false, perDay: 30, from: -3, to: 30 }), { on: false, perDay: 24, from: 0, to: 24, bright: 100 });
+assert.deepEqual(DEFAULT_SETTINGS, { on: true, perDay: 3, from: 9, to: 21, bright: 70 });
+assert.deepEqual(normalizeSettings({ on: false, perDay: 30, from: -3, to: 30 }), { on: false, perDay: 24, from: 0, to: 24, bright: 70 });
 assert.equal(normalizeSettings({ perDay: 9 }).perDay, 9);
-assert.deepEqual(normalizeSettings({ perDay: 0, from: 22, to: 8 }), { on: true, perDay: 1, from: 22, to: 23, bright: 100 });
+assert.deepEqual(normalizeSettings({ perDay: 0, from: 22, to: 8 }), { on: true, perDay: 1, from: 22, to: 23, bright: 70 });
 assert.deepEqual(normalizeSettings({ perDay: "x", from: null }), DEFAULT_SETTINGS);
 
 assert.equal(adjust(DEFAULT_SETTINGS, "on").on, false);
@@ -73,8 +73,8 @@ assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 7 }, "perDay", 1).perDay, 8);
 assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 7 }, "perDay", -1).perDay, 6);
 assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 1 }, "perDay", -1).perDay, 1);
 // „od” dosuwa „do” i odwrotnie
-assert.deepEqual(adjust({ ...DEFAULT_SETTINGS, from: 20, to: 21 }, "from", 1), { on: true, perDay: 3, from: 21, to: 22, bright: 100 });
-assert.deepEqual(adjust({ ...DEFAULT_SETTINGS, from: 9, to: 10 }, "to", -1), { on: true, perDay: 3, from: 8, to: 9, bright: 100 });
+assert.deepEqual(adjust({ ...DEFAULT_SETTINGS, from: 20, to: 21 }, "from", 1), { on: true, perDay: 3, from: 21, to: 22, bright: 70 });
+assert.deepEqual(adjust({ ...DEFAULT_SETTINGS, from: 9, to: 10 }, "to", -1), { on: true, perDay: 3, from: 8, to: 9, bright: 70 });
 assert.equal(adjust({ ...DEFAULT_SETTINGS, from: 0 }, "from", -1).from, 0);
 assert.equal(adjust({ ...DEFAULT_SETTINGS, to: 24 }, "to", 1).to, 24);
 assert.equal(adjust({ ...DEFAULT_SETTINGS, from: 23, to: 24 }, "from", 1).from, 23);
@@ -387,14 +387,29 @@ import { horizonDays } from "../utils/schedule.js";
 }
 
 // --- jasność przy zdjęciu (0 = bez zmian) ---
-import { brightText } from "../utils/schedule.js";
+import { brightText, migrateSettings, BRIGHT_VERSION } from "../utils/schedule.js";
 {
-  assert.equal(adjust(DEFAULT_SETTINGS, "bright", -1).bright, 80);
-  assert.equal(adjust({ ...DEFAULT_SETTINGS, bright: 60 }, "bright", -1).bright, 0);
+  // Domyślnie 70%, kroki co 10% od 50 do 100, poniżej 50 - bez zmian
+  assert.equal(DEFAULT_SETTINGS.bright, 70);
+  assert.equal(adjust(DEFAULT_SETTINGS, "bright", -1).bright, 60);
+  assert.equal(adjust(DEFAULT_SETTINGS, "bright", 1).bright, 80);
+  assert.equal(adjust({ ...DEFAULT_SETTINGS, bright: 50 }, "bright", -1).bright, 0);
   assert.equal(adjust({ ...DEFAULT_SETTINGS, bright: 0 }, "bright", -1).bright, 0);
-  assert.equal(adjust({ ...DEFAULT_SETTINGS, bright: 0 }, "bright", 1).bright, 60);
-  assert.equal(adjust(DEFAULT_SETTINGS, "bright", 1).bright, 100);
+  assert.equal(adjust({ ...DEFAULT_SETTINGS, bright: 0 }, "bright", 1).bright, 50);
+  assert.equal(adjust({ ...DEFAULT_SETTINGS, bright: 90 }, "bright", 1).bright, 100);
+  assert.equal(adjust({ ...DEFAULT_SETTINGS, bright: 100 }, "bright", 1).bright, 100);
+  // Wartość spoza kroków (np. 65) idzie do najbliższego kroku w danym kierunku
+  assert.equal(adjust({ ...DEFAULT_SETTINGS, bright: 65 }, "bright", 1).bright, 70);
+  assert.equal(adjust({ ...DEFAULT_SETTINGS, bright: 65 }, "bright", -1).bright, 60);
   assert.equal(normalizeSettings({ bright: 250 }).bright, 100);
+  // Zapisane 100% ze starszej wersji zmienia się raz na 70%; inne wartości i nowe zapisy zostają
+  const old = { on: true, perDay: 24, from: 9, to: 21, bright: 100 };
+  assert.deepEqual(migrateSettings(old, 0), { ...old, bright: 70 });
+  assert.deepEqual(migrateSettings(old, BRIGHT_VERSION), old);
+  assert.deepEqual(migrateSettings({ ...old, bright: 60 }, 0), { ...old, bright: 60 });
+  assert.deepEqual(migrateSettings({ ...old, bright: 0 }, 0), { ...old, bright: 0 });
+  assert.equal(migrateSettings(null, 0), null);
+  assert.equal(normalizeSettings(migrateSettings({ perDay: 3 }, 0)).bright, 70);
   assert.equal(brightText(0), "bez zmian");
   assert.equal(brightText(80), "80%");
   // Jasność nie zmienia planu pokazów
