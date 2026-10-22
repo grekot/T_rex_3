@@ -12,7 +12,7 @@ Page({
     buildSignalPage(this, REFLEX, { LAMP, LAMP_TEXT, RESULTS }, {
       id: "reflex",
       title: "Refleks",
-      hint: "Machnij ręką, gdy kółko zzielenieje",
+      hint: "Patrz! Machnij, gdy kółko zzielenieje",
       wait: "Czekaj…",
       go: "TERAZ!",
       early: "Falstart!",

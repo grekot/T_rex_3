@@ -18,7 +18,7 @@ export function buildSignalPage(page, cfg, ui, texts) {
   const s = page.state;
   const now = Date.now();
   s.game = newSignalGame(newSeed(), cfg, now);
-  s.flick = createFlick(cfg.flick, 300);
+  s.flick = createFlick(cfg.flick, 300, cfg.hits);
   s.hint = header(texts.title, texts.hint);
   const L = ui.LAMP;
   s.lamp = rect(L.cx - L.r, L.cy - L.r, L.r * 2, L.r * 2, WAIT_COLOR, L.r);
@@ -46,12 +46,16 @@ export function buildSignalPage(page, cfg, ui, texts) {
       if (ev === "go") {
         setLamp(GO_COLOR, texts.go);
         if (s.fish) s.fish.show(true);
-        buzz(s, VIBRATOR_SCENE_SHORT_STRONG);
+        if (cfg.vibrate) {
+          buzz(s, VIBRATOR_SCENE_SHORT_STRONG);
+          s.flick.mute(t + cfg.mute); // drgania wibracji to nie szarpnięcie ręką
+        }
       } else if (ev === "ok") {
         setLamp(WAIT_COLOR, cfg === FISH ? "Złowiona!" : g.results[g.results.length - 1].ms + " ms");
       } else if (ev === "early") {
         setLamp(EARLY_COLOR, texts.early);
         buzz(s, VIBRATOR_SCENE_DURATION);
+        s.flick.mute(t + 900);
       } else if (ev === "late") {
         setLamp(EARLY_COLOR, texts.late);
         if (s.fish) s.fish.show(false);

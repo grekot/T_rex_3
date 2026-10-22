@@ -8,6 +8,9 @@ import { load } from "./store.js";
 
 export const POLL_MS = 40;
 const CALIB_MS = 600;
+// Wibracja zegarka trzęsie akcelerometrem - przez tyle ms po buzz() gra dostaje ostatni
+// spokojny odczyt zamiast drgań (inaczej wibracja przy powtórzeniu nabijałaby kolejne)
+export const VIBRATION_HOLD_MS = 300;
 
 export const HEAD = { x: 70, y: 28, w: 340, h: 44, size: 30 };
 export const HINT = { x: 60, y: 72, w: 360, h: 34, size: 22 };
@@ -36,9 +39,13 @@ export function startMotion(st, opts) {
   const t0 = Date.now();
   let last = t0;
   st.zero = opts.calibrate ? null : { x: 0, y: 0, z: 980, zSign: 1 };
+  st.vibUntil = 0;
+  st.lastCalm = null;
   st.poll = setInterval(() => {
     const now = Date.now();
-    const a = readAccel(st.accel);
+    let a = readAccel(st.accel);
+    if (now < st.vibUntil) a = st.lastCalm;
+    else st.lastCalm = a;
     if (!st.zero) {
       samples.push(a);
       if (now - t0 < CALIB_MS) return;
@@ -65,4 +72,5 @@ export function stopMotion(st) {
 
 export function buzz(st, scene) {
   if (st.buzzer) st.buzzer.buzz(scene);
+  st.vibUntil = Date.now() + VIBRATION_HOLD_MS;
 }

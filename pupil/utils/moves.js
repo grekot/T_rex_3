@@ -40,10 +40,15 @@ export function createTiltReader() {
   };
 }
 
-// Szarpnięcie / machnięcie: true w chwili przekroczenia progu, potem przerwa
-export function createFlick(threshold, cooldown) {
+// Szarpnięcie / machnięcie: true w chwili przekroczenia progu, potem przerwa.
+// hits = ile kolejnych odczytów (co 40 ms) musi być ponad progiem - drgania silniczka
+// wibracji są krótkie, prawdziwe szarpnięcie ręką trwa dłużej. mute(t) = ignoruj do t
+// (np. w trakcie własnej wibracji zegarka, która trzęsie akcelerometrem).
+export function createFlick(threshold, cooldown, hits) {
+  const need = hits || 1;
   let up = false;
   let quietUntil = 0;
+  let run = 0;
   return {
     feed(a, t) {
       if (!a) return false;
@@ -52,10 +57,19 @@ export function createFlick(threshold, cooldown) {
         if (dev < threshold * 0.5) up = false;
         return false;
       }
-      if (t < quietUntil || dev < threshold) return false;
+      if (t < quietUntil || dev < threshold) {
+        run = 0;
+        return false;
+      }
+      if (++run < need) return false;
+      run = 0;
       up = true;
       quietUntil = t + cooldown;
       return true;
+    },
+    mute(until) {
+      quietUntil = Math.max(quietUntil, until);
+      run = 0;
     },
     dev(a) {
       return a ? Math.abs(mag(a) - G) : 0;
@@ -465,8 +479,10 @@ export function stepEggRoll(g, tx, ty, dt) {
 
 // --- 8. Refleks i 10. Wędkowanie (czekaj na sygnał, potem szybko) ---------------------
 
-export const REFLEX = { rounds: 3, waitMin: 1500, waitMax: 4500, maxAvg: 650, flick: 700, timeout: 2000 };
-export const FISH = { rounds: 3, waitMin: 2500, waitMax: 7000, window: 1300, need: 2, flick: 900 };
+// Refleks: sygnał tylko na ekranie (bez wibracji). Wędkowanie: sygnałem jest wibracja,
+// przez mute ms po niej akcelerometr jest ignorowany, okno odpowiednio dłuższe.
+export const REFLEX = { rounds: 3, waitMin: 1500, waitMax: 4500, maxAvg: 650, flick: 700, timeout: 2000, hits: 2, vibrate: false, mute: 0 };
+export const FISH = { rounds: 3, waitMin: 2500, waitMax: 7000, window: 1700, need: 2, flick: 900, hits: 2, vibrate: true, mute: 400 };
 
 export function newSignalGame(seed, cfg, now) {
   const rnd = makeRng(seed);
@@ -632,6 +648,8 @@ export const WARMUP = {
   ],
   bendDown: 60, // stopni od pozycji startowej
   bendUp: 25,
+  back: 45, // albo tyle stopni wstecz od najgłębszego punktu skłonu
+  settle: 600, // ms bez ruchu poza skłonem = nowa pozycja wyprostowana
 };
 
 function angleBetween(a, b) {
@@ -651,13 +669,27 @@ export function feedWarmup(g, a, t, dt) {
   let rep = false;
   if (st.kind === "reps") rep = g.reps.feed(a, t);
   else {
+    // Pozycja "wyprostowany" dopasowuje się powoli do ręki, gdy nie ma skłonu - start
+    // w dowolnej pozycji (albo w ruchu) nie psuje liczenia
     if (!g.ref) g.ref = { ...a };
     const ang = angleBetween(a, g.ref);
-    if (!g.down && ang > WARMUP.bendDown) g.down = true;
-    else if (g.down && ang < WARMUP.bendUp) {
-      g.down = false;
-      rep = true;
+    // powrót = blisko pozycji wyjściowej albo cofnięcie o "back" stopni od najgłębszego punktu
+    if (!g.down && ang > WARMUP.bendDown) {
+      g.down = true;
+      g.peak = ang;
+    } else if (g.down) {
+      g.peak = Math.max(g.peak, ang);
+      if (ang < WARMUP.bendUp || ang < g.peak - WARMUP.back) {
+        g.down = false;
+        rep = true;
+      }
     }
+    // ręka nieruchomo przez chwilę (poza skłonem) = nowa pozycja wyprostowana
+    const p = g.prev || a;
+    const still = Math.abs(a.x - p.x) + Math.abs(a.y - p.y) + Math.abs(a.z - p.z) < 80;
+    g.prev = { ...a };
+    g.calmMs = still ? (g.calmMs || 0) + dt : 0;
+    if (!g.down && g.calmMs >= WARMUP.settle) g.ref = { ...a };
   }
   let ev = "";
   if (rep) {

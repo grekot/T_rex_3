@@ -27,6 +27,7 @@ const storageMap = new Map(); // "plik" LocalStorage
 const files = new Map(); // /data aplikacji (@zos/fs)
 const log = { push: [], back: 0, toasts: [], buzz: [], display: [], errors: [], alarms: [], cancels: [] };
 let accelReading = { x: 0, y: 0, z: 980 };
+let vibrateAt = -1e12;
 // kompas (null = nieskalibrowany), barometr (m), GPS (null = szuka)
 const sensors = { heading: 0, altitude: 220, fix: { lat: 50.0614, lon: 19.9366 } };
 
@@ -187,6 +188,12 @@ function makePage(file) {
         start() {}
         stop() {}
         getCurrent() {
+          // wibracja zegarka trzęsie akcelerometrem (tak było na T-Rex 3: Refleks i
+          // Wędkowanie zaliczały "reakcję" bez ruchu ręki)
+          if (clock.now - vibrateAt < 250) {
+            const k = Math.floor(clock.now / 40) % 2 ? 1 : -1;
+            return { x: accelReading.x + k * 1500, y: accelReading.y, z: accelReading.z };
+          }
           return { ...accelReading };
         }
       },
@@ -205,6 +212,7 @@ function makePage(file) {
         }
         start() {
           log.buzz.push(this.m);
+          vibrateAt = clock.now;
         }
         stop() {}
       },
@@ -944,10 +952,70 @@ test("poranna rozgrzewka: zaproszenie po pobudce i premia", () => {
     else accelReading = Math.floor(t / 800) % 2 ? { x: 965, y: 0, z: 170 } : { x: 0, y: 0, z: 980 };
     w.run(40);
   }
-  assert.equal(w.opts.state.game.win, true);
+  { const g = w.opts.state.game; assert.equal(g.win, true, "krok " + g.step + " powtórzeń " + g.count + " czas " + g.elapsed + " zrobione " + g.done); }
   assert.ok(w.hasText("Poranna premia!"), w.texts().join("|"));
   assert.equal(pet().happy, 3);
   w.destroy();
+});
+
+test("refleks i wędkowanie: bez ruchu ręki nic się nie zalicza (wibracja to nie ruch)", () => {
+  for (const id of ["reflex", "fishing"]) {
+    freshPet();
+    accelReading = { x: 0, y: 0, z: 980 };
+    vibrateAt = -1e12; // zegarek spokojny na starcie gry
+    const p = makePage("page_gt_" + id + "_index.page.js").start();
+    for (let i = 0; i < 2000 && !p.opts.state.game.done; i++) p.run(40);
+    const g = p.opts.state.game;
+    assert.equal(g.done, true, id);
+    assert.ok(g.results.every((r) => r.late), id + ": " + JSON.stringify(g.results));
+    assert.equal(g.win, false);
+    p.destroy();
+  }
+});
+
+test("kopanie: wibracja przy każdym kopnięciu nie nabija kolejnych", () => {
+  freshPet();
+  accelReading = { x: 0, y: 0, z: 980 };
+  vibrateAt = -1e12;
+  const p = makePage("page_gt_dig_index.page.js").start();
+  // dokładnie 5 ruchów łopatą, potem spokój (a każde kopnięcie wibruje)
+  for (let t = 0; t < 12000; t += 40) {
+    const moving = t < 5 * 700;
+    accelReading = moving ? { x: 0, y: 800 * Math.sin((2 * Math.PI * t) / 700), z: 980 } : { x: 0, y: 0, z: 980 };
+    p.run(40);
+  }
+  const digs = p.opts.state.game.digs;
+  assert.ok(digs >= 4 && digs <= 5, "kopnięć " + digs);
+  p.destroy();
+});
+
+test("drzewo: wibracja przy owocu nie strąca kolejnych", () => {
+  freshPet();
+  accelReading = { x: 0, y: 0, z: 980 };
+  vibrateAt = -1e12;
+  const p = makePage("page_gt_tree_index.page.js").start();
+  // 3 wyraźne potrząśnięcia co sekundę, poza tym ręka nieruchomo
+  for (let t = 0; t < 6000; t += 40) {
+    const shake = t % 1000 < 80 && t < 3000;
+    accelReading = shake ? { x: 1500, y: 0, z: 980 } : { x: 0, y: 0, z: 980 };
+    p.run(40);
+  }
+  assert.equal(p.opts.state.game.fruits, 3);
+  p.destroy();
+});
+
+test("wędkowanie: poderwanie po wibracji łowi rybę", () => {
+  freshPet();
+  const p = makePage("page_gt_fishing_index.page.js").start();
+  for (let i = 0; i < 3000 && !p.opts.state.game.done; i++) {
+    const st = p.opts.state.game;
+    const jerk = st.phase === "go" && clock.now - st.goAt > 600 && clock.now - st.goAt < 700;
+    accelReading = jerk ? { x: 0, y: 1800, z: 980 } : { x: 0, y: 0, z: 980 };
+    p.run(40);
+  }
+  const g = p.opts.state.game;
+  assert.equal(g.win, true, JSON.stringify(g.results));
+  p.destroy();
 });
 
 if (failed) {

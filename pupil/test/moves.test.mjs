@@ -98,6 +98,16 @@ test("szarpnięcie: jedno zdarzenie na ruch, przerwa", () => {
   assert.equal(f.feed({ x: 1500, y: 0, z: G }, T + 500), true);
 });
 
+test("szarpnięcie: pojedynczy skok odczytu i wyciszenie w czasie wibracji", () => {
+  const f = createFlick(700, 300, 2);
+  assert.equal(f.feed({ x: 1500, y: 0, z: G }, T), false, "jeden odczyt to za mało");
+  assert.equal(f.feed(still, T + 40), false);
+  f.mute(T + 400);
+  for (let t = T + 80; t < T + 400; t += 40) assert.equal(f.feed(shake(1500, t / 40), t), false, "wibracja");
+  assert.equal(f.feed({ x: 1500, y: 0, z: G }, T + 440), false);
+  assert.equal(f.feed({ x: 1600, y: 0, z: G }, T + 480), true, "dwa odczyty po wyciszeniu");
+});
+
 test("licznik powtórzeń liczy rytmiczny ruch, nie liczy spokoju", () => {
   const c = createRepCounter();
   for (let t = 0; t < 5000; t += 40) c.feed(wave(800, 600, t), T + t);
@@ -338,6 +348,12 @@ test("rozgrzewka: trzy ćwiczenia po kolei", () => {
   }
   assert.equal(g.win, true, "krok " + g.step);
   assert.deepEqual(events, [1, 2, 3]);
+  // skłony liczą się także wtedy, gdy ćwiczenie zaczęło się z ręką w ruchu
+  const odd = newWarmup();
+  odd.step = 2;
+  feedWarmup(odd, { x: 0, y: 900, z: 980 }, T, 40);
+  for (let k = 40; !odd.done && k < 60000; k += 40) feedWarmup(odd, Math.floor(k / 1000) % 2 ? tilted(80) : still, T + k, 40);
+  assert.equal(odd.win, true, "skłonów " + odd.count);
   const lazy = newWarmup();
   for (let k = 0; !lazy.done; k += 40) feedWarmup(lazy, still, T + k, 40);
   assert.equal(lazy.win, false);
