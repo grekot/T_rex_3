@@ -54,7 +54,7 @@ Page({
       stopMotion(s);
       s.status.set("");
       buzz(s, g.win ? VIBRATOR_SCENE_NOTIFICATION : VIBRATOR_SCENE_DURATION);
-      finishGame(s, g.win, g.win ? "Wygrana!" : "Potknął się");
+      finishGame(s, g.win, g.win ? "Wygrana!" : "Potknął się", "runner");
     }
   },
 });

@@ -21,5 +21,9 @@ export const ALERT = { x: 112, y: 150 };
 export const SKULL = { x: 112, y: 202 };
 export const ZZZ_POS = { x: 320, y: 150 };
 export const FOOD = { x: 324, y: 196 };
+// Dymek prośby o zabawę (w miejscu "Zzz" - prośby są tylko na jawie)
+export const BUBBLE = { x: 320, y: 150 };
+// Przycisk gry o premię - między dolnymi ikonami pierścienia
+export const OFFER_BTN = { x: 172, y: 362, w: 136, h: 38, size: 18, text: "Gra o premię ›", color: 0x4a3a1c };
 export const ICON_SIZE = ICON;
 export const ZZZ_SIZE = ZZZ;

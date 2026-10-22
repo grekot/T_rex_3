@@ -87,7 +87,7 @@ Page({
       [s.arena, s.h, s.v].forEach((w) => w.setProperty(hmUI.prop.VISIBLE, false));
       s.target.show(false);
       if (g.win) buzz(s, VIBRATOR_SCENE_NOTIFICATION);
-      finishGame(s, g.win, g.win ? "Celne oko!" : "Tym razem nie");
+      finishGame(s, g.win, g.win ? "Celne oko!" : "Tym razem nie", "aim");
     }
   },
 });

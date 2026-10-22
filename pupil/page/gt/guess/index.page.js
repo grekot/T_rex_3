@@ -80,7 +80,7 @@ Page({
         });
         s.feedback.set("");
         s.pet.set(spriteSrc(s.form, s.game.win ? "happy0" : "sad0"));
-        finishGame(s, s.game.win, s.game.win ? "Wygrana!" : "Tym razem nie");
+        finishGame(s, s.game.win, s.game.win ? "Wygrana!" : "Tym razem nie", "guess");
         return;
       }
       s.busy = false;

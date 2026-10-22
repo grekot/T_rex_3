@@ -38,6 +38,11 @@ import {
   setWalk,
   getWalk,
   treat,
+  REQUEST,
+  setBonus,
+  activeRequest,
+  requestText,
+  canPlay as canPlayFor,
   localMinute as lm,
 } from "../utils/pet.js";
 
@@ -522,8 +527,8 @@ test("przypomnienie: pierwsza potrzeba w dzień, nigdy w nocy", () => {
   const night = toggleLight(adultAt(at(1, 21)), TZ).state;
   night.timers = { hunger: 30, happy: 100000, poop: 100000, whim: 100000 };
   night.hunger = 1;
-  const r = nextReminder(night, at(1, 21), TZ);
-  assert.ok(r > at(2, 7, 45) && r < at(2, 9), new Date(r).toISOString());
+  // rano pierwsze jest zaproszenie na rozgrzewkę (7:45, przypomnienia nie wcześniej)
+  assert.equal(nextReminder(night, at(1, 21), TZ), at(2, 7, 45));
   // już czegoś potrzebuje: za 2 h, ale nie w nocy
   const dirty = adultAt(at(1, 12));
   dirty.poops = 1;
@@ -553,6 +558,85 @@ test("zadania spacerowe i nagroda za spacer", () => {
   assert.equal(treat(newEgg(at(1, 9), 1), 2).anim, "no");
   // przewijanie czasu zachowuje zadania
   assert.deepEqual(run(w, at(1, 12)).walks, w.walks);
+});
+
+test("prośba o zabawę: mniej więcej raz dziennie, wygasa bez kary", () => {
+  const s = adultAt(at(1, 8));
+  s.timers = { hunger: 100000, happy: 100000, poop: 100000, whim: 100000, ask: 60 };
+  const r = advance(s, at(1, 9, 30), TZ);
+  const req = activeRequest(r.state);
+  assert.ok(req, "brak prośby");
+  assert.equal(req.kind, "ask");
+  assert.ok(requestText(req).startsWith("Chce zagrać: "));
+  assert.equal(statusText(r.state, TZ), requestText(req));
+  assert.equal(lastNews(r.events), requestText(req));
+  // po 3 godzinach przechodzi, bez błędu opieki
+  const later = run(r.state, at(1, 9) + REQUEST.ttl + 5 * MIN);
+  assert.equal(activeRequest(later), null);
+  assert.equal(later.mistakes, 0);
+  // przez tydzień troskliwego życia: około jednej prośby na dzień
+  const l = life([8, 13, 20.5], 5);
+  const asks = l.events.filter((e) => e.type === "ask").length;
+  const days = l.days;
+  assert.ok(asks > days * 0.5 && asks < days * 2, asks + " próśb przez " + days.toFixed(1) + " dni");
+});
+
+test("spełniona prośba daje dodatkowy humor, przegrana jej nie zabiera", () => {
+  const s = adultAt(at(1, 10));
+  s.happy = 1;
+  s.request = { game: "reflex", kind: "ask", t: s.t, until: s.t + REQUEST.ttl };
+  const lost = play(s, false, "reflex");
+  assert.ok(activeRequest(lost.state), "po przegranej można spróbować jeszcze raz");
+  const other = play(s, true, "catch");
+  assert.equal(other.state.happy, 2);
+  assert.ok(activeRequest(other.state));
+  const won = play(s, true, "reflex");
+  assert.equal(won.state.happy, 3);
+  assert.equal(won.msg, "Prośba spełniona!");
+  assert.equal(activeRequest(won.state), null);
+});
+
+test("poranna rozgrzewka po pobudce", () => {
+  const s = toggleLight(adultAt(at(1, 21)), TZ).state;
+  s.timers = { hunger: 100000, happy: 100000, poop: 100000, whim: 100000, ask: 100000 };
+  const r = advance(s, at(2, 8), TZ);
+  const req = activeRequest(r.state);
+  assert.equal(req.kind, "morning");
+  assert.equal(req.game, "warmup");
+  assert.equal(lastNews(r.events), "Poranna rozgrzewka!");
+  assert.equal(statusText(r.state, TZ), "Poranna rozgrzewka!");
+  const done = play(r.state, true, "warmup");
+  assert.equal(done.msg, "Poranna premia!");
+  // przechodzi koło 11:30
+  assert.equal(activeRequest(run(r.state, at(2, 11, 31))), null);
+  // maluch nie dostaje zaproszeń
+  const baby = toggleLight({ ...adultAt(at(1, 21)), form: "pisklak" }, TZ).state;
+  assert.equal(activeRequest(run(baby, at(2, 8))), null);
+});
+
+test("gra o premię po akcji", () => {
+  let s = adultAt(at(1, 10));
+  s.happy = 1;
+  s = setBonus(s, "snack", s.t);
+  assert.equal(s.bonus.game, "catch");
+  const won = play(s, true, "catch");
+  assert.equal(won.state.happy, 3);
+  assert.equal(won.msg, "Premia!");
+  assert.equal(won.state.bonus, null);
+  // przegrana zużywa premię
+  assert.equal(play(s, false, "catch").state.bonus, null);
+  // wygasa po kwadransie
+  assert.equal(run(s, at(1, 10, 20)).bonus, null);
+  // lekarstwo: chory może zagrać w celowanie, wygrana leczy od razu
+  let sick = adultAt(at(1, 10));
+  sick.sick = 1;
+  assert.equal(canPlayFor(sick, "aim"), "Jest chory");
+  sick = setBonus(sick, "medicine", sick.t);
+  assert.equal(canPlayFor(sick, "aim"), "");
+  assert.equal(canPlayFor(sick, "catch"), "Jest chory");
+  const cured = play(sick, true, "aim");
+  assert.equal(cured.state.sick, 0);
+  assert.equal(cured.msg, "Wyleczony!");
 });
 
 if (failed) {

@@ -170,6 +170,17 @@ def pointer():
     return [poly([(24, 2), (40, 40), (24, 31), (8, 40)], o)], [poly([(24, 8), (24, 30), (12, 37)], (255, 206, 120))]
 
 
+def bubble():
+    # dymek z piłką: dinozaur prosi o zabawę
+    red = (240, 82, 72)
+    return [rrect(3, 4, 45, 34, 12, W), poly([(12, 30), (8, 45), (24, 33)], W)], [
+        ell(24, 19, 9, 9, red),
+        poly([(24, 19), (24, 10), (17, 13)], W),
+        poly([(24, 19), (33, 19), (31, 12)], (70, 140, 240)),
+        poly([(24, 19), (24, 28), (31, 25)], W),
+    ]
+
+
 ICONS = {
     "meal": meal,
     "snack": snack,
@@ -193,4 +204,5 @@ ICONS = {
     "nest": nest,
     "hive": hive,
     "pointer": pointer,
+    "bubble": bubble,
 }

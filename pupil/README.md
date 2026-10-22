@@ -101,6 +101,19 @@ Od wersji 1.1 jest 22 gier w przewijanym menu (logika w `utils/moves.js` i `util
 Zadania spacerowe zapisują się w stanie (`s.walks`) – aplikację można zamknąć, a po
 powrocie do gry zegarek sprawdza postęp. Nagroda: humor +2 (zwykła gra +1).
 
+**Wyzwania same z siebie (od 1.2):**
+
+- **Prośba o zabawę** – mniej więcej raz na dzień czuwania dziecko, nastolatek albo dorosły
+  prosi o konkretną grę: przy dinozaurze dymek z piłką, na dole „Chce zagrać: …”, w menu
+  „· prosi!”. Stuknięcie dymka albo napisu otwiera grę. Wygrana = dodatkowe serce humoru;
+  prośba przechodzi po 3 h bez kary.
+- **Gra o premię po akcji** – po przekąsce, sprzątaniu i lekarstwie przez 6 s widać przycisk
+  „Gra o premię”: Łapanie owoców, Zakopywanie (kopanie), Celowanie pigułką. Wygrana =
+  dodatkowe serce humoru, przy lekarstwie od razu wyleczenie (chory może zagrać tylko w tę grę).
+  Zwykła akcja działa jak dawniej, gra jest dobrowolna.
+- **Poranna rozgrzewka** – po pobudce (7:30) zaproszenie na Rozgrzewkę do 11:30; przypomnienie
+  wibracją o 7:45. Ukończona = poranna premia (dodatkowe serce humoru).
+
 Strony gier ruchowych trzymają ekran włączony (i przywracają ustawienia przy wyjściu).
 
 ### Przypomnienie (niesprawdzone na zegarku)

@@ -55,7 +55,7 @@ Page({
       s.delta.set("");
       s.count.set("");
       if (g.win) s.buzzer.buzz(VIBRATOR_SCENE_NOTIFICATION);
-      finishGame(s, g.win, g.win ? "Trzy perły!" : "Barometr nie poczuł");
+      finishGame(s, g.win, g.win ? "Trzy perły!" : "Barometr nie poczuł", "dive");
     }
   },
 });

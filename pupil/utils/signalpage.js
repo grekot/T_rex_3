@@ -61,7 +61,7 @@ export function buildSignalPage(page, cfg, ui, texts) {
         stopMotion(s);
         s.results.set("");
         if (g.win) buzz(s, VIBRATOR_SCENE_NOTIFICATION);
-        finishGame(s, g.win, g.win ? texts.win : texts.lose);
+        finishGame(s, g.win, g.win ? texts.win : texts.lose, texts.id);
       }
     },
   });

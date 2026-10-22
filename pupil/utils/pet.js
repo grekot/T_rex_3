@@ -7,6 +7,8 @@
 // Losowość pochodzi z generatora zapisanego w stanie (mulberry32), więc ten sam stan
 // i ten sam czas zawsze dają ten sam wynik - także przy przewijaniu kawałkami.
 
+import { GAME_NAMES, REQUEST_GAMES, ACTION_GAMES } from "./gamelist.js";
+
 export const MIN = 60000;
 export const HOUR = 60 * MIN;
 export const DAY = 24 * HOUR;
@@ -89,6 +91,12 @@ export const CALLS = {
 };
 // Marudzenie bez powodu: tyle trwa, potem przechodzi i liczy się jako błąd wychowania
 export const WHIM_LEN = 4 * HOUR;
+
+// Prośby o zabawę: mniej więcej raz na dzień czuwania (minuty czuwania), ważne przez ttl.
+// Rano po pobudce zaproszenie na rozgrzewkę. Spełniona prośba = dodatkowy humor.
+export const REQUEST = { every: 800, ttl: 3 * HOUR, morningTtl: 4 * HOUR, bonus: 1 };
+// Gra o premię po akcji: trzeba ją zacząć w ciągu tego czasu
+export const BONUS_TTL = 15 * MIN;
 
 // Kupa leżąca dłużej niż POOP_SAFE grozi chorobą: szansa na godzinę za każdą kupę
 const POOP_SAFE = 6 * HOUR;
@@ -230,6 +238,13 @@ function resetTimers(s) {
   s.timers.happy = jitter(s, st.happy);
   s.timers.poop = jitter(s, st.poop);
   s.timers.whim = st.whim ? jitter(s, st.whim) : 0;
+  s.timers.ask = jitter(s, REQUEST.every);
+}
+
+// Prośby tylko od dziecka wzwyż (maluch żyje 2 godziny)
+function canAsk(s) {
+  const stage = stageOf(s);
+  return stage === "child" || stage === "teen" || stage === "adult";
 }
 
 function becomeForm(s, form, events) {
@@ -339,6 +354,10 @@ function tick(s, tz, events) {
       depart(s, "old", events);
       return;
     }
+    if (canAsk(s)) {
+      s.request = { game: "warmup", kind: "morning", t: s.t, until: s.t + REQUEST.morningTtl };
+      events.push({ t: s.t, type: "morning" });
+    }
   } else if (!s.asleep && (isNight(m) || (isSleepy(m) && !s.light))) {
     s.asleep = true;
     events.push({ t: s.t, type: "sleep" });
@@ -367,7 +386,16 @@ function tick(s, tz, events) {
       s.timers.whim = jitter(s, st.whim);
       events.push({ t: s.t, type: "whim" });
     }
+    if (s.timers.ask === undefined) s.timers.ask = jitter(s, REQUEST.every); // stan sprzed 1.2
+    if (canAsk(s) && !s.request && --s.timers.ask <= 0) {
+      const game = REQUEST_GAMES[Math.floor(rand(s) * REQUEST_GAMES.length)];
+      s.request = { game, kind: "ask", t: s.t, until: s.t + REQUEST.ttl };
+      s.timers.ask = jitter(s, REQUEST.every);
+      events.push({ t: s.t, type: "ask", game });
+    }
   }
+  if (s.request && s.t >= s.request.until) s.request = null; // przeszło bez kary
+  if (s.bonus && s.t >= s.bonus.until) s.bonus = null;
 
   // Choroba: od kupy leżącej za długo albo (rzadko) od nadwagi
   if (!s.sick) {
@@ -455,10 +483,12 @@ export function nextReminder(state, now, tz) {
     for (let t = now + REMIND.again; t < now + REMIND.horizon; t += 15 * MIN) if (remindOk(t, tz)) return t;
     return 0;
   }
+  let morning = 0;
   while (s.t < now + REMIND.horizon && !s.gone) {
     s.t += TICK;
     tick(s, tz, events);
-    if (s.t >= first && needsAttention(s) && remindOk(s.t, tz)) return s.t;
+    if (s.request && s.request.kind === "morning" && s.request.t === s.t) morning = s.t;
+    if (s.t >= first && remindOk(s.t, tz) && (needsAttention(s) || (morning && activeRequest(s)))) return s.t;
   }
   return 0;
 }
@@ -503,22 +533,62 @@ export function snack(state) {
   return result(s, "Pycha!", "eat");
 }
 
-export function canPlay(s) {
+// Czy można grać; gameId - chory może zagrać tylko w grę o premię po lekarstwie
+export function canPlay(s, gameId) {
   if (s.gone || stageOf(s) === "egg") return "To jeszcze jajo";
   if (s.asleep) return "Śpi…";
-  if (s.sick) return "Jest chory";
+  if (s.sick && !(gameId && s.bonus && s.bonus.action === "medicine" && s.bonus.game === gameId)) return "Jest chory";
   return "";
 }
 
-// Wynik minigry: zabawa zawsze odchudza, wygrana poprawia humor
-export function play(state, win) {
+// Wynik minigry: zabawa zawsze odchudza, wygrana poprawia humor. gameId pozwala
+// zaliczyć prośbę dinozaura albo grę o premię po akcji.
+export function play(state, win, gameId) {
   const s = clone(state);
-  const why = canPlay(s);
+  const why = canPlay(s, gameId);
   if (why) return result(s, why, "no");
+  const bonus = gameId && s.bonus && s.bonus.game === gameId ? s.bonus : null;
+  if (bonus) s.bonus = null;
+  const request = gameId && s.request && s.request.game === gameId ? s.request : null;
   s.weight = Math.max(baseWeight(s), s.weight - 1);
   if (!win) return result(s, "Może następnym razem", "sad");
   s.happy = Math.min(MAX_HEARTS, s.happy + 1);
-  return result(s, "Wygrana!", "happy");
+  const msgs = [];
+  if (request) {
+    s.request = null;
+    s.happy = Math.min(MAX_HEARTS, s.happy + REQUEST.bonus);
+    msgs.push(request.kind === "morning" ? "Poranna premia!" : "Prośba spełniona!");
+  }
+  if (bonus) {
+    if (bonus.action === "medicine" && s.sick) {
+      s.sick = 0;
+      msgs.push("Wyleczony!");
+    } else {
+      s.happy = Math.min(MAX_HEARTS, s.happy + 1);
+      msgs.push("Premia!");
+    }
+  }
+  return result(s, msgs.length ? msgs.join(" ") : "Wygrana!", "happy");
+}
+
+// Gra o premię po akcji (przekąska, sprzątanie, lekarstwo): zapamiętuje, w co zagrać
+export function setBonus(state, action, now) {
+  const s = clone(state);
+  const a = ACTION_GAMES[action];
+  if (!a) return s;
+  s.bonus = { action, game: a.game, until: (now || s.t) + BONUS_TTL };
+  return s;
+}
+
+// Aktualna prośba (null, gdy nie ma albo wygasła / śpi)
+export function activeRequest(s) {
+  if (!s.request || s.gone || s.asleep || stageOf(s) === "egg") return null;
+  return s.t < s.request.until ? s.request : null;
+}
+
+export function requestText(r) {
+  if (!r) return "";
+  return r.kind === "morning" ? "Poranna rozgrzewka!" : "Chce zagrać: " + GAME_NAMES[r.game];
 }
 
 // Zadania spacerowe (wspinaczka, wyprawa, znaczenie terenu) - zapis w stanie; null usuwa
@@ -648,7 +718,7 @@ export function statusText(s, tz) {
   if (s.whim) return "Marudzi bez powodu";
   if (s.poops) return "Trzeba posprzątać";
   if (isSleepy(localMinute(s.t, tz))) return "Ziewa… zgaś światło";
-  return "";
+  return requestText(activeRequest(s));
 }
 
 // Teksty zdarzeń, które warto pokazać po otwarciu aplikacji
@@ -660,6 +730,10 @@ export function eventText(e) {
       return "Teraz to " + FORMS[e.form].name + "!";
     case "sick":
       return "Zachorował";
+    case "ask":
+      return "Chce zagrać: " + GAME_NAMES[e.game];
+    case "morning":
+      return "Poranna rozgrzewka!";
     case "gone":
       return e.reason === "old" ? "Odszedł ze starości" : "Uciekł do lasu";
   }

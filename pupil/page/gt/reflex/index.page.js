@@ -10,6 +10,7 @@ Page({
 
   build() {
     buildSignalPage(this, REFLEX, { LAMP, LAMP_TEXT, RESULTS }, {
+      id: "reflex",
       title: "Refleks",
       hint: "Machnij ręką, gdy kółko zzielenieje",
       wait: "Czekaj…",

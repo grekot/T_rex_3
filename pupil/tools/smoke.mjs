@@ -432,7 +432,8 @@ test("ekran główny: noc, zgaszone światło, odejście i nowe jajo", () => {
     s.poops = 0;
     s.sick = 0;
     s.weight = 30;
-    s.timers = { hunger: 2000, happy: 2000, poop: 2000, whim: 2000 };
+    s.timers = { hunger: 2000, happy: 2000, poop: 2000, whim: 2000, ask: 5000 };
+    s.request = null;
   });
   clock.now += 11 * 3600000 + 30 * 60000; // 20:30
   const p = makePage("page_gt_home_index.page.js").start();
@@ -692,8 +693,11 @@ test("lewo czy prawo: trafienia strzałkami i przyciskami", () => {
 
 function freshPet() {
   setPet((s) => {
-    Object.assign(s, { form: "tupek", gone: "", asleep: false, light: true, sick: 0, hunger: 4, happy: 2, weight: 14, hatched: s.t - 86400000, stageAt: s.t });
+    Object.assign(s, { form: "tupek", gone: "", asleep: false, light: true, sick: 0, hunger: 4, happy: 2, weight: 14, poops: 0, whim: 0, hatched: s.t - 86400000, stageAt: s.t });
     s.walks = {};
+    s.request = null;
+    s.bonus = null;
+    s.timers.ask = 5000;
   });
 }
 
@@ -838,6 +842,112 @@ test("balon: pompowanie ruchem i puszczenie przyciskiem", () => {
   assert.equal(g().done, true);
   assert.equal(g().win, g().size <= g().hi);
   p.destroy();
+});
+
+// --- prośby, gry o premię, poranna rozgrzewka ------------------------------------
+
+test("prośba o zabawę: dymek, napis, stuknięcie otwiera grę, wygrana daje premię", () => {
+  freshPet();
+  setPet((s) => {
+    s.request = { game: "reflex", kind: "ask", t: s.t, until: s.t + 3 * 3600000 };
+    s.happy = 1;
+  });
+  const p = makePage("page_gt_home_index.page.js").start();
+  p.run(3000);
+  assert.ok(p.imgs().includes("ui/bubble.png"), p.imgs().join(","));
+  assert.ok(p.hasText("Chce zagrać: Refleks"), p.texts().join("|"));
+  p.tap(p.find((w) => w.props.src === "ui/bubble.png"));
+  assert.equal(log.push.pop(), "page/gt/reflex/index.page");
+  p.destroy();
+  const m = makePage("page_gt_games_index.page.js").start();
+  assert.ok(m.hasText("Refleks · prosi!"));
+  m.destroy();
+  // wygrana w refleks (szybkie machnięcia po sygnale)
+  const g = makePage("page_gt_reflex_index.page.js").start();
+  for (let i = 0; i < 800 && !g.opts.state.game.done; i++) {
+    const st = g.opts.state.game;
+    accelReading = st.phase === "go" && clock.now - st.goAt > 250 ? { x: 1600, y: 0, z: 980 } : { x: 0, y: 0, z: 980 };
+    g.run(40);
+  }
+  assert.equal(g.opts.state.game.win, true);
+  assert.ok(g.hasText("Prośba spełniona!"), g.texts().join("|"));
+  assert.equal(pet().happy, 3);
+  assert.equal(pet().request, null);
+  g.destroy();
+});
+
+test("gra o premię po przekąsce: przycisk przez chwilę, premia zapisana, gra otwarta", () => {
+  freshPet();
+  const p = makePage("page_gt_home_index.page.js").start();
+  const ring = p.widgets.filter((w) => w.type === "IMG" && String(w.props.src).startsWith("ring/"));
+  const offer = () => p.find((w) => w.type === "TEXT" && String(w.props.text).startsWith("Gra o premię"));
+  assert.equal(offer().visible, false);
+  p.tap(ring[1]); // przekąska
+  p.run(1100);
+  assert.equal(offer().visible, true);
+  p.tap(offer());
+  assert.equal(pet().bonus.game, "catch");
+  assert.equal(log.push.pop(), "page/gt/catch/index.page");
+  p.run(7000);
+  assert.equal(offer().visible, false);
+  // bez stuknięcia przycisk znika
+  p.tap(ring[5]); // sprzątanie (czysto) - bez przycisku, bo akcja nic nie zrobiła
+  p.run(1100);
+  assert.equal(offer().visible, false);
+  p.destroy();
+});
+
+test("lekarstwo z grą: chory może zagrać w celowanie, wygrana leczy", () => {
+  freshPet();
+  setPet((s) => (s.sick = 2));
+  const p = makePage("page_gt_home_index.page.js").start();
+  const ring = p.widgets.filter((w) => w.type === "IMG" && String(w.props.src).startsWith("ring/"));
+  p.tap(ring[4]); // lekarstwo: 1 z 2 dawek
+  assert.equal(pet().sick, 1);
+  p.run(500);
+  p.tapText("Gra o premię");
+  assert.equal(log.push.pop(), "page/gt/aim/index.page");
+  p.destroy();
+  // celowanie: celownik prosto na cel, stuknięcie
+  accelReading = { x: 0, y: 0, z: 980 };
+  const a = makePage("page_gt_aim_index.page.js").start();
+  a.run(800);
+  for (let k = 0; k < 10 && !a.opts.state.game.done; k++) {
+    const g = a.opts.state.game;
+    // przechył: x = -tx/gain (znak jak w Labiryncie), y = +ty/gain
+    accelReading = { x: (-g.tx / 260) * 980, y: (g.ty / 260) * 980, z: 980 };
+    a.run(1500);
+    a.key("KEY_SELECT");
+  }
+  assert.equal(a.opts.state.game.win, true, "trafienia " + a.opts.state.game.hits);
+  assert.ok(a.hasText("Wyleczony!"), a.texts().join("|"));
+  assert.equal(pet().sick, 0);
+  a.destroy();
+});
+
+test("poranna rozgrzewka: zaproszenie po pobudce i premia", () => {
+  freshPet();
+  setPet((s) => {
+    s.request = { game: "warmup", kind: "morning", t: s.t, until: s.t + 4 * 3600000 };
+    s.happy = 1;
+  });
+  const p = makePage("page_gt_home_index.page.js").start();
+  p.run(3000);
+  assert.ok(p.hasText("Poranna rozgrzewka!"), p.texts().join("|"));
+  p.tap(p.find((w) => w.props.src === "ui/bubble.png"));
+  assert.equal(log.push.pop(), "page/gt/warmup/index.page");
+  p.destroy();
+  const w = makePage("page_gt_warmup_index.page.js").start();
+  for (let t = 0; t < 120000 && !w.opts.state.game.done; t += 40) {
+    const g = w.opts.state.game;
+    if (g.step < 2) accelReading = { x: 0, y: 900 * Math.sin((2 * Math.PI * t) / 700), z: 980 };
+    else accelReading = Math.floor(t / 800) % 2 ? { x: 965, y: 0, z: 170 } : { x: 0, y: 0, z: 980 };
+    w.run(40);
+  }
+  assert.equal(w.opts.state.game.win, true);
+  assert.ok(w.hasText("Poranna premia!"), w.texts().join("|"));
+  assert.equal(pet().happy, 3);
+  w.destroy();
 });
 
 if (failed) {

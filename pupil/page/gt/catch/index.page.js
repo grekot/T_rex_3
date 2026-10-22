@@ -50,7 +50,7 @@ Page({
       s.items.forEach((w) => w.show(false));
       s.status.set("");
       if (g.win) buzz(s, VIBRATOR_SCENE_NOTIFICATION);
-      finishGame(s, g.win, g.win ? "Wygrana!" : "Tym razem nie");
+      finishGame(s, g.win, g.win ? "Wygrana!" : "Tym razem nie", "catch");
     }
   },
 

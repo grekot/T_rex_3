@@ -101,6 +101,6 @@ Page({
     s.btn.txt.widget.setProperty(hmUI.prop.VISIBLE, false);
     s.target.set("");
     buzz(s, g.win ? VIBRATOR_SCENE_NOTIFICATION : VIBRATOR_SCENE_DURATION);
-    finishGame(s, g.win, g.win ? "Wygrana!" : g.popped ? "Pękł!" : "Za mały");
+    finishGame(s, g.win, g.win ? "Wygrana!" : g.popped ? "Pękł!" : "Za mały", "balloon");
   },
 });

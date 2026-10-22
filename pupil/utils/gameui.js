@@ -8,14 +8,15 @@ export const RESULT_MSG = { x: 80, y: 372, w: 320, h: 32, size: 22 };
 export const BACK_BTN = { x: 150, y: 410, w: 180, h: 52, size: 26, text: "Wróć" };
 
 // Zapisuje wynik i pokazuje go na dole ekranu (raz na grę)
-export function finishGame(st, win, text) {
+export function finishGame(st, win, text, gameId) {
   if (st.finished) return;
   st.finished = true;
   let msg = "";
   try {
-    const r = apply((p) => play(p, win));
+    const r = apply((p) => play(p, win, gameId));
     msg = win ? "Humor +1, waga -1 g" : "Waga -1 g";
     if (r.anim === "no") msg = r.msg;
+    else if (win && r.msg !== "Wygrana!") msg = r.msg + " Waga -1 g";
   } catch (e) {}
   label({ ...RESULT, text, color: win ? COLOR.good : COLOR.bad });
   label({ ...RESULT_MSG, text: msg, color: COLOR.grey });

@@ -1,5 +1,6 @@
 // Ekran główny: dinozaur z animacją, pierścień ikon akcji (dotyk albo przyciski
-// góra/dół + zatwierdzenie), kupy, czaszka przy chorobie, wykrzyknik, gdy czegoś potrzebuje.
+// góra/dół + zatwierdzenie), kupy, czaszka przy chorobie, wykrzyknik, gdy czegoś potrzebuje,
+// dymek z prośbą o zabawę i przycisk "Gra o premię" po przekąsce, sprzątaniu i lekarstwie.
 import * as hmUI from "@zos/ui";
 import { px } from "@zos/utils";
 import { push } from "@zos/router";
@@ -22,13 +23,16 @@ import {
   lastNews,
   ageDays,
   stageOf,
+  activeRequest,
+  setBonus,
 } from "../../../utils/pet";
+import { ACTION_GAMES, gamePage } from "../../../utils/gamelist";
 import { load, apply, rawState, tz } from "../../../utils/store";
 import { openedByAlarm, scheduleReminder } from "../../../utils/reminder";
 import { createBuzzer } from "../../../utils/device";
 import { VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { RING, DISC } from "../../../utils/geometry";
-import { COLOR, spriteSrc, label, image, rect, onTap, toast, daysText } from "../../../utils/ui";
+import { COLOR, spriteSrc, label, image, rect, button, onTap, toast, daysText } from "../../../utils/ui";
 import {
   PET_X,
   PET_Y,
@@ -40,6 +44,8 @@ import {
   SKULL,
   ZZZ_POS,
   FOOD,
+  BUBBLE,
+  OFFER_BTN,
 } from "zosLoader:./index.page.[pf].layout.js";
 
 const ANIM_MS = 600;
@@ -47,6 +53,7 @@ const SYNC_MS = 1000;
 const ADVANCE_EVERY = 15; // co tyle synchronizacji przewijamy czas (stan zmienia się co minutę)
 const MSG_MS = 2600;
 const ANIM_LEN = 2400;
+const OFFER_MS = 6000; // tyle widać przycisk "Gra o premię" po akcji
 
 const ACTION_NAMES = {
   meal: "Jedzenie",
@@ -91,7 +98,13 @@ Page({
     s.skull = image("ui/skull.png", SKULL.x, SKULL.y);
     s.zzz = image("ui/zzz.png", ZZZ_POS.x, ZZZ_POS.y);
     s.food = image("ui/meal.png", FOOD.x, FOOD.y);
+    s.bubble = image("ui/bubble.png", BUBBLE.x, BUBBLE.y);
+    onTap([s.bubble.widget], () => this.openRequest());
     s.status = label({ ...STATUS, color: COLOR.accent });
+    onTap([s.status.widget], () => this.openRequest());
+    s.offer = null;
+    s.offerBtn = button(OFFER_BTN, () => this.takeOffer());
+    s.offerShown = true;
     s.action = label({ ...ACTION });
     s.ring = RING.map((r, i) => {
       const w = image("ring/" + r.id + ".png", r.cx - DISC / 2, r.cy - DISC / 2);
@@ -222,9 +235,36 @@ Page({
     s.pet_ = r.state;
     s.raw = rawState();
     this.say(r.msg);
+    s.offer = ACTION_GAMES[id] && r.anim !== "no" ? { action: id, until: Date.now() + OFFER_MS } : null;
     s.anim = r.anim ? { kind: r.anim, until: Date.now() + ANIM_LEN, food: id === "snack" ? "snack" : "meal" } : null;
     s.frame = 0;
     this.render();
+  },
+
+  // Dymek albo napis prośby: od razu do gry, o którą prosi
+  openRequest() {
+    const p = load().state;
+    const req = activeRequest(p);
+    if (!req) return;
+    const why = canPlay(p, req.game);
+    if (why) toast(why);
+    else push({ url: gamePage(req.game) });
+  },
+
+  // Gra o premię po akcji: zapamiętuje premię w stanie i otwiera grę
+  takeOffer() {
+    const s = this.state;
+    if (!s.offer || Date.now() > s.offer.until) return;
+    const action = s.offer.action;
+    s.offer = null;
+    const r = apply((p) => ({ state: setBonus(p, action, Date.now()) }));
+    s.pet_ = r.state;
+    s.raw = rawState();
+    const game = ACTION_GAMES[action].game;
+    const why = canPlay(r.state, game);
+    if (why) toast(why);
+    else push({ url: gamePage(game) });
+    this.renderText();
   },
 
   tapPet() {
@@ -272,6 +312,13 @@ Page({
     const status = s.msg ? s.msg.text : statusText(p, tz());
     s.status.set(status, s.msg ? COLOR.text : COLOR.accent);
     s.action.set(p.gone ? "Stuknij: nowe jajo" : ACTION_NAMES[RING[s.sel].id], p.gone ? COLOR.accent : COLOR.text);
+    const offer = !!(s.offer && now < s.offer.until && !p.gone);
+    if (!offer) s.offer = null;
+    if (offer !== s.offerShown) {
+      s.offerShown = offer;
+      s.offerBtn.bg.setProperty(hmUI.prop.VISIBLE, offer);
+      s.offerBtn.txt.widget.setProperty(hmUI.prop.VISIBLE, offer);
+    }
   },
 
   renderPet() {
@@ -311,6 +358,7 @@ Page({
     s.skull.show(alive && p.sick > 0);
     s.alert.show(alive && needsAttention(p) && !s.anim && tick === 0);
     s.zzz.show(alive && p.asleep);
+    s.bubble.show(alive && !!activeRequest(p));
     const eating = !!(s.anim && s.anim.kind === "eat");
     if (eating) s.food.set("ui/" + s.anim.food + ".png");
     s.food.show(eating && tick === 0);

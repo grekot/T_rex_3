@@ -42,7 +42,7 @@ Page({
       stopMotion(s);
       s.status.set("");
       if (g.win) buzz(s, VIBRATOR_SCENE_NOTIFICATION);
-      finishGame(s, g.win, g.win ? "Skamielina!" : "Nic nie znalazł");
+      finishGame(s, g.win, g.win ? "Skamielina!" : "Nic nie znalazł", "dig");
     }
   },
 });

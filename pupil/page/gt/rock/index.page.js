@@ -93,7 +93,7 @@ Page({
       s.hint.set(st.win ? "Śpi jak suseł" : "Nie chce spać", st.win ? COLOR.good : COLOR.bad);
       s.strikeText.set("");
       if (st.win) s.buzzer.buzz(VIBRATOR_SCENE_NOTIFICATION);
-      finishGame(s, st.win, st.win ? "Wygrana!" : "Tym razem nie");
+      finishGame(s, st.win, st.win ? "Wygrana!" : "Tym razem nie", "rock");
     }
   },
 });

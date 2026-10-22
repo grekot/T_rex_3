@@ -95,7 +95,7 @@ Page({
       s.status.set("");
       stopMotion(s);
       if (r.event === "win") buzz(s, VIBRATOR_SCENE_NOTIFICATION);
-      finishGame(s, r.event === "win", r.event === "win" ? "Wygrana!" : "Tym razem nie");
+      finishGame(s, r.event === "win", r.event === "win" ? "Wygrana!" : "Tym razem nie", "simon");
     }
   },
 });

@@ -77,7 +77,7 @@ Page({
         s.hint.set("Spadł z kłody", COLOR.bad);
         s.buzzer.buzz(VIBRATOR_SCENE_DURATION);
       }
-      finishGame(s, b.win, b.win ? "Wygrana!" : "Tym razem nie");
+      finishGame(s, b.win, b.win ? "Wygrana!" : "Tym razem nie", "balance");
     }
   },
 });

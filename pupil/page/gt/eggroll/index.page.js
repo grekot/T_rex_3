@@ -49,7 +49,7 @@ Page({
       s.egg.show(false);
       s.nest.show(false);
       buzz(s, g.win ? VIBRATOR_SCENE_NOTIFICATION : VIBRATOR_SCENE_DURATION);
-      finishGame(s, g.win, g.win ? "Jajo w gnieździe!" : "Zabrakło czasu");
+      finishGame(s, g.win, g.win ? "Jajo w gnieździe!" : "Zabrakło czasu", "eggroll");
     }
   },
 });

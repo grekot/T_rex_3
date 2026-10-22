@@ -45,7 +45,7 @@ Page({
       s.step.set("");
       s.count.set("");
       if (g.win) buzz(s, VIBRATOR_SCENE_NOTIFICATION);
-      finishGame(s, g.win, g.win ? "Rozgrzany!" : "Może jutro");
+      finishGame(s, g.win, g.win ? "Rozgrzany!" : "Może jutro", "warmup");
     }
   },
 

@@ -10,6 +10,7 @@ Page({
 
   build() {
     buildSignalPage(this, FISH, { LAMP, LAMP_TEXT, RESULTS }, {
+      id: "fishing",
       title: "Wędkowanie",
       hint: "Poderwij rękę, gdy zawibruje",
       wait: "Czekamy…",

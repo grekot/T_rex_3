@@ -79,7 +79,7 @@ Page({
       s.temp.set("");
       s.found.set("");
       if (g.win) s.buzzer.buzz(VIBRATOR_SCENE_NOTIFICATION);
-      finishGame(s, g.win, g.win ? "Najedzony!" : "Nie znalazł");
+      finishGame(s, g.win, g.win ? "Najedzony!" : "Nie znalazł", "forage");
     }
   },
 });

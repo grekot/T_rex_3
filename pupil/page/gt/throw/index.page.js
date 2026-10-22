@@ -99,7 +99,7 @@ Page({
         s.last.set("");
         s.hint.set("");
         if (s.game.win) s.buzzer.buzz(VIBRATOR_SCENE_NOTIFICATION);
-        finishGame(s, s.game.win, s.game.win ? "Wygrana!" : "Tym razem nie");
+        finishGame(s, s.game.win, s.game.win ? "Wygrana!" : "Tym razem nie", "throw");
       }, 1200);
       return;
     }

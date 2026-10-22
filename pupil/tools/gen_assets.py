@@ -418,7 +418,7 @@ def main():
         save(action_icon(iid, True), "ring", iid + "_sel.png")
     save(icon_img("heart", 36), "ui", "heart.png")
     save(icon_img("heart_empty", 36), "ui", "heart_empty.png")
-    for iid in ["poop", "skull", "alert", "meal", "snack"]:
+    for iid in ["poop", "skull", "alert", "meal", "snack", "bubble"]:
         save(icon_img(iid), "ui", iid + ".png")
     save(icon_img("ball", 32), "ui", "ball.png")
     save(icon_img("arrow", 60), "ui", "arrow_r.png")
