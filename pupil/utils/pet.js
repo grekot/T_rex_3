@@ -521,6 +521,28 @@ export function play(state, win) {
   return result(s, "Wygrana!", "happy");
 }
 
+// Zadania spacerowe (wspinaczka, wyprawa, znaczenie terenu) - zapis w stanie; null usuwa
+export function setWalk(state, key, value) {
+  const s = clone(state);
+  s.walks = { ...(s.walks || {}) };
+  if (value === null || value === undefined) delete s.walks[key];
+  else s.walks[key] = value;
+  return s;
+}
+
+export function getWalk(state, key) {
+  return (state.walks && state.walks[key]) || null;
+}
+
+// Nagroda za ukończone zadanie spacerowe: więcej humoru niż za zwykłą grę (śpiącemu też)
+export function treat(state, hearts) {
+  const s = clone(state);
+  if (s.gone || stageOf(s) === "egg") return result(s, "To jeszcze jajo", "no");
+  s.happy = Math.min(MAX_HEARTS, s.happy + hearts);
+  s.weight = Math.max(baseWeight(s), s.weight - 1);
+  return result(s, "Humor +" + hearts, "happy");
+}
+
 export function toggleLight(state, tz) {
   const s = clone(state);
   if (s.gone || stageOf(s) === "egg") return result(s, "", "no");

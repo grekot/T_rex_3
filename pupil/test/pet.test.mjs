@@ -35,6 +35,9 @@ import {
   chooseEgg,
   setName,
   displayName,
+  setWalk,
+  getWalk,
+  treat,
   localMinute as lm,
 } from "../utils/pet.js";
 
@@ -535,6 +538,21 @@ test("przypomnienie: pierwsza potrzeba w dzień, nigdy w nocy", () => {
   assert.equal(nextReminder({ ...s, gone: "old" }, at(1, 9), TZ), 0);
   // stan wejściowy się nie zmienia
   assert.equal(s.t, at(1, 9));
+});
+
+test("zadania spacerowe i nagroda za spacer", () => {
+  const s = adultAt(at(1, 10));
+  s.happy = 1;
+  const w = setWalk(s, "trip", { lat: 50, lon: 20, t0: 1 });
+  assert.deepEqual(getWalk(w, "trip"), { lat: 50, lon: 20, t0: 1 });
+  assert.equal(getWalk(s, "trip"), null, "stan wejściowy bez zmian");
+  assert.equal(getWalk(setWalk(w, "trip", null), "trip"), null);
+  const t = treat(w, 2);
+  assert.equal(t.state.happy, 3);
+  assert.equal(t.state.weight, 30);
+  assert.equal(treat(newEgg(at(1, 9), 1), 2).anim, "no");
+  // przewijanie czasu zachowuje zadania
+  assert.deepEqual(run(w, at(1, 12)).walks, w.walks);
 });
 
 if (failed) {
