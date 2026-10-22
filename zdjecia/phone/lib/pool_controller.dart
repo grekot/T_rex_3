@@ -20,6 +20,7 @@ import 'select/analysis.dart';
 import 'select/candidates.dart';
 import 'select/crop.dart';
 import 'select/memories.dart';
+import 'select/rotation.dart';
 import 'select/pool.dart';
 import 'select/scoring.dart';
 import 'select/store.dart';
@@ -137,12 +138,16 @@ class PoolController extends ChangeNotifier {
     _apiKey = await _keys.gemini();
   }
 
-  /// Pełne odświeżenie: nowe zdjęcia z galerii, analiza nowych, pula od nowa
-  Future<void> refresh() => _run(_fullRefresh);
+  /// Pełne odświeżenie: nowe zdjęcia z galerii, analiza nowych, pula od nowa.
+  /// [swap] (przycisk „Odśwież”): od razu wymienia kilka świeżych zdjęć i wspomnień.
+  Future<void> refresh({bool swap = false}) => _run(() => _fullRefresh(swap: swap));
+
+  /// Ile wspomnień wymienia ręczne „Odśwież”
+  static const int memorySwapOnRefresh = 2;
 
   // Cały przebieg na świeżym stanie z plików (usługa w tle mogła zmienić wspomnienia czy oceny);
   // gdy nie ma nic nowego, trwa krótko: analizy, oceny i PNG są zapamiętane.
-  Future<void> _fullRefresh() async {
+  Future<void> _fullRefresh({bool swap = false}) async {
         _set(PoolPhase.scanning);
         if (headless) {
           // Bez aktywności nie da się pytać o zgodę - korzystamy z tej nadanej w aplikacji
@@ -164,8 +169,15 @@ class PoolController extends ChangeNotifier {
         }
         // Wspomnienia, które jeszcze nie wygasły, zostają w puli
         _memories = [];
-        for (final m in activeMemories(await _store.loadMemories(), DateTime.now(),
-            pinned: prefs.pinned, removed: prefs.removed)) {
+        final active = activeMemories(await _store.loadMemories(), DateTime.now(),
+            pinned: prefs.pinned, removed: prefs.removed);
+        if (swap) {
+          // Najdłużej obecne, nieprzypięte wspomnienia ustępują nowym
+          final old = [for (final m in active) if (!prefs.pinned.contains(m.photoId)) m]
+            ..sort((a, b) => a.addedAt.compareTo(b.addedAt));
+          active.removeWhere(old.take(memorySwapOnRefresh).contains);
+        }
+        for (final m in active) {
           final a = assets[m.photoId] ?? await AssetEntity.fromId(m.assetId);
           if (a == null) continue;
           assets[photoIdOf(a)] = a;
@@ -178,7 +190,7 @@ class PoolController extends ChangeNotifier {
         await _rateMissing();
         await _refreshMemories();
         _rescore();
-        await _preparePool();
+        await _preparePool(swap: swap ? freshSwapOnRefresh : 0);
   }
 
   /// Uzupełnia wspomnienia do udziału z ustawień: losuje okresy z historii galerii, z każdego
@@ -390,7 +402,7 @@ class PoolController extends ChangeNotifier {
     }
   }
 
-  Future<void> _preparePool() async {
+  Future<void> _preparePool({int swap = 0}) async {
     // Pula = wspomnienia (najlepsze najpierw) + świeże zdjęcia na pozostałe miejsca, wg zasad puli
     final memoryIds = {for (final m in _memories) m.photoId};
     final memories = [
@@ -404,10 +416,16 @@ class PoolController extends ChangeNotifier {
       memories.length,
       math.min(prefs.size, math.max(memoryTarget(prefs.size, prefs.memoryShare), pinnedMemories)),
     );
-    final recent = choosePool(
+    final rotation = await _store.loadRotation();
+    final recent = rotateFresh(
       [for (final s in scored) if (!memoryIds.contains(s.id)) s],
       PoolRules(size: prefs.size - memorySlots, pinned: prefs.pinned, removed: prefs.removed),
+      rotation,
+      DateTime.now(),
+      _random,
+      swap: swap,
     );
+    await _store.saveRotation(rotation);
     final chosen = [...recent, ...memories.take(memorySlots)];
     _set(PoolPhase.preparing, total: chosen.length);
     final items = <PoolItem>[];

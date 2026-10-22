@@ -37,7 +37,7 @@ class _PickScreenState extends State<PickScreen> {
           final photos = snap.data!;
           if (photos.isEmpty) return const Center(child: Text('Brak zdjęć w galerii.'));
           return GridView.builder(
-            padding: const EdgeInsets.all(4),
+            padding: const EdgeInsets.all(4) + EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 4,
               mainAxisSpacing: 4,
