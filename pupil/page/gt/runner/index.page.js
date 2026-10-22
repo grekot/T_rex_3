@@ -45,7 +45,7 @@ Page({
     s.rocks.forEach((w, i) => {
       const o = g.obstacles[i];
       if (!o) return w.show(false);
-      w.set("ui/rock.png", Math.round(TRACK.x + o.x - (ITEM - RUNNER.obstW) / 2), TRACK.y - ITEM + 4);
+      w.set(i % 2 ? "ui/stump.png" : "ui/rock.png", Math.round(TRACK.x + o.x - (ITEM - RUNNER.obstW) / 2), TRACK.y - ITEM + 4);
       w.show(true);
     });
     s.dino.set(s.dinoSrc, TRACK.x + RUNNER.dinoX - THUMB / 2, Math.round(TRACK.y - THUMB - jumpHeight(g)));

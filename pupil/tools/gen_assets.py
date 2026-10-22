@@ -443,7 +443,10 @@ def main():
         fr = import_art.import_form(fid)
         if fr:
             all_frames[fid] = fr
+        import_art.import_acts(fid)
     all_frames.update(import_art.import_eggs())
+    import_art.import_props()
+    import_art.write_art_list()
     app_icon().save(os.path.join(ASSETS, "icon.png"), optimize=True)
     sheet(all_frames)
     m = Image.new("RGBA", (980, 480), (40, 40, 40, 255))

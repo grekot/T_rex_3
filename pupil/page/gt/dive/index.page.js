@@ -8,7 +8,7 @@ import { keepScreenOn, releaseScreen, createBuzzer } from "../../../utils/device
 import { COLOR, label, image, rect } from "../../../utils/ui";
 import { finishGame } from "../../../utils/gameui";
 import { header, petForm } from "../../../utils/gamekit";
-import { WATER, PET, DELTA, COUNT } from "zosLoader:./index.page.[pf].layout.js";
+import { WATER, PET, DELTA, COUNT, PEARLS } from "zosLoader:./index.page.[pf].layout.js";
 
 const TICK_MS = 100;
 
@@ -22,6 +22,7 @@ Page({
     s.game = newDive();
     s.hint = header("Nurkowanie", "Opuść szybko rękę i podnieś");
     rect(WATER.x, WATER.y, WATER.w, WATER.h, 0x123a5a, 20);
+    s.pearls = PEARLS.map((p) => image("ui/pearl.png", p.x, p.y)); // perły na dnie znikają po wyłowieniu
     s.petSrc = "thumb/" + petForm() + ".png";
     s.pet = image(s.petSrc, PET.x, PET.y);
     s.delta = label({ ...DELTA });
@@ -48,6 +49,7 @@ Page({
     if (ev === "dive") s.buzzer.buzz(VIBRATOR_SCENE_SHORT_MIDDLE);
     s.pet.set(s.petSrc, PET.x, g.low ? PET.y + 96 : PET.y);
     s.delta.set((g.delta >= 0 ? "+" : "") + g.delta.toFixed(2) + " m", g.low ? COLOR.good : COLOR.text);
+    s.pearls.forEach((w, i) => w.show(i >= g.dives));
     s.count.set("Perły " + g.dives + "/" + DIVE.need + " · " + Math.max(0, Math.ceil((DIVE.time - g.elapsed) / 1000)) + " s");
     if (g.done) {
       clearInterval(s.timer);

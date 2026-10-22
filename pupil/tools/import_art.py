@@ -33,10 +33,14 @@ WORK = 4  # obróbka w 4-krotnym powiększeniu, potem zmniejszenie z antyaliasin
 CELLS = ["idle", "happy", "sad", "sleep"]  # kolejność w siatce: wierszami
 
 
-def cut_cell(cell):
-    """Wycina postać z białego tła: zwraca RGBA przycięte do kształtu."""
+def cut_cell(cell, keep_all=False, sticker=False):
+    """Wycina postać z białego tła: zwraca RGBA przycięte do kształtu.
+    keep_all: zostają wszystkie większe kształty (klocki obok postaci, sznurek balonu),
+    nie tylko największy. sticker: tłem jest też jasnoszara obwódka naklejki."""
     rgb = np.asarray(cell.convert("RGB")).astype(np.int16)
     near_white = rgb.min(axis=2) > 226
+    if sticker:
+        near_white = (rgb.min(axis=2) > 165) & (rgb.max(axis=2) - rgb.min(axis=2) < 40)
     lum = Image.fromarray((near_white * 255).astype(np.uint8), "L").copy()  # kopia: obraz z numpy jest tylko do odczytu
     h, w = near_white.shape
     # białe połączone z brzegiem = tło
@@ -50,15 +54,23 @@ def cut_cell(cell):
                 ImageDraw.floodfill(lum, (x, y), 128, thresh=0)
     bg = np.asarray(lum) == 128
     fg = (~bg).astype(np.uint8) * 255
-    # największy kształt: zalewanie od punktu w środku postaci
     ys, xs = np.nonzero(fg)
     if not len(xs):
         raise ValueError("pusta komórka")
-    order = np.argsort(np.abs(ys - np.median(ys)) + np.abs(xs - np.median(xs)))
-    sy, sx = int(ys[order[0]]), int(xs[order[0]])
-    lab = Image.fromarray(fg, "L").copy()
-    ImageDraw.floodfill(lab, (sx, sy), 100, thresh=0)
-    mask = Image.fromarray(((np.asarray(lab) == 100) * 255).astype(np.uint8), "L")
+    if keep_all:
+        import cv2
+
+        n, lab, stats, _ = cv2.connectedComponentsWithStats(fg, connectivity=8)
+        areas = stats[1:, cv2.CC_STAT_AREA]
+        big = [i + 1 for i, a in enumerate(areas) if a >= 0.02 * areas.max()]
+        mask = Image.fromarray((np.isin(lab, big) * 255).astype(np.uint8), "L")
+    else:
+        # największy kształt: zalewanie od punktu w środku postaci
+        order = np.argsort(np.abs(ys - np.median(ys)) + np.abs(xs - np.median(xs)))
+        sy, sx = int(ys[order[0]]), int(xs[order[0]])
+        lab = Image.fromarray(fg, "L").copy()
+        ImageDraw.floodfill(lab, (sx, sy), 100, thresh=0)
+        mask = Image.fromarray(((np.asarray(lab) == 100) * 255).astype(np.uint8), "L")
     # bez białej obwódki z JPEG-a: zjedz 1 px i lekko zmiękcz brzeg
     mask = mask.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(0.7))
     out = cell.convert("RGBA")
@@ -67,14 +79,14 @@ def cut_cell(cell):
     return out.crop(bbox)
 
 
-def load_sheet(path):
+def grid(path, n):
     sheet = Image.open(path).convert("RGB")
     w, h = sheet.size
-    cells = []
-    for r in range(2):
-        for c in range(2):
-            cells.append(sheet.crop((c * w // 2, r * h // 2, (c + 1) * w // 2, (r + 1) * h // 2)))
-    cuts = {name: cut_cell(cell) for name, cell in zip(CELLS, cells)}
+    return [sheet.crop((c * w // n, r * h // n, (c + 1) * w // n, (r + 1) * h // n)) for r in range(n) for c in range(n)]
+
+
+def load_sheet(path):
+    cuts = {name: cut_cell(cell) for name, cell in zip(CELLS, grid(path, 2))}
     # Gemini czasem obraca jedną minę w lewo: odwróć ją, jeśli w lustrze lepiej pasuje do spokojnej
     ref = shape(cuts["idle"])
     for name in CELLS[1:]:
@@ -252,17 +264,142 @@ def import_eggs():
     return out
 
 
+# --- zajęcia na ekranie głównym: art/<forma>_act_sheet.jpg, 2 x 2 ----------------
+ACTS = ["blocks", "book", "hand", "ball"]  # klocki, książka, stanie na rękach, piłka
+
+
+def wobble(img, deg):
+    return img.rotate(deg, resample=Image.BICUBIC, center=(img.width // 2, FEET_Y * WORK - 40 * WORK))
+
+
+def import_acts(fid):
+    path = sheet_path(fid + "_act")
+    if not path:
+        return None
+    cuts = {name: cut_cell(cell, keep_all=True) for name, cell in zip(ACTS, grid(path, 2))}
+    big = place(cuts, 0.0)
+    f = {
+        "act_blocks0": big["blocks"],
+        "act_blocks1": squash(big["blocks"]),
+        "act_book0": big["book"],
+        "act_book1": squash(big["book"]),
+        "act_hand0": wobble(big["hand"], -3),
+        "act_hand1": wobble(big["hand"], 3),
+        "act_ball0": big["ball"],
+        "act_ball1": lift(big["ball"], 6),
+    }
+    d = os.path.join(ASSETS, "pet", fid)
+    for name, img in f.items():
+        img.resize((SPRITE, SPRITE), Image.LANCZOS).save(os.path.join(d, name + ".png"), optimize=True)
+    return f
+
+
+# --- rekwizyty gier: art/props_sheet.jpg, siatka 4 x 4 ---------------------------
+# (nazwa w ui/, rozmiar kadru); kolejność jak w prompcie, wierszami
+PROPS = [
+    ("apple", 36), ("rock", 36), ("bone", 36), ("fish", 36),
+    ("nest", 36), ("hive", 36), ("ball", 32), ("log", (192, 36)),
+    ("forest", 168), ("balloon", 0), ("pearl", 48), ("chest", 72),
+    ("flag", 56), ("star", 40), ("bobber", 40), ("stump", 36),
+]
+EXTRA = {"bone": [("bone_big", 96)], "apple": [("apple_big", 72)], "fish": [("fish_big", 72)], "flag": [("flag_s", 40)]}
+SHADOW = {"flag": ("flag_x", 40)}  # nieodblokowane: szary cień
+BALLOON_SIZES = [28 + round(148 * i / 10) for i in range(11)]  # balon rośnie przy pompowaniu (średnica 28-176 jak w grze)
+
+
+def fit(im, box):
+    """Mieści kształt w kadrze box (w, h) z zachowaniem proporcji, wyśrodkowany, przy dole."""
+    bw, bh = (box, box) if isinstance(box, int) else box
+    sc = min(bw * WORK / im.width, bh * WORK / im.height)
+    sm = im.resize((max(1, round(im.width * sc)), max(1, round(im.height * sc))), Image.LANCZOS)
+    c = Image.new("RGBA", (bw * WORK, bh * WORK), (0, 0, 0, 0))
+    c.alpha_composite(sm, ((c.width - sm.width) // 2, c.height - sm.height))
+    return c.resize((bw, bh), Image.LANCZOS)
+
+
+def stickers(path, n, cols):
+    """Naklejki na arkuszu: n największych kształtów, wierszami od góry, w wierszu od lewej
+    (Gemini nie trzyma się równej siatki, więc nie tniemy na kratki)."""
+    import cv2
+
+    sheet = Image.open(path).convert("RGB")
+    fg = (np.asarray(sheet).astype(np.int16).min(axis=2) <= 226).astype(np.uint8)
+    _, _, stats, cent = cv2.connectedComponentsWithStats(fg, connectivity=8)
+    idx = sorted(range(1, len(stats)), key=lambda i: stats[i, cv2.CC_STAT_AREA], reverse=True)[:n]
+    idx.sort(key=lambda i: cent[i][1])
+    rows = [sorted(idx[r : r + cols], key=lambda i: cent[i][0]) for r in range(0, n, cols)]
+    out = []
+    for i in [i for row in rows for i in row]:
+        x, y, w, h = stats[i, :4]
+        pad = 12
+        out.append(sheet.crop((max(0, x - pad), max(0, y - pad), min(sheet.width, x + w + pad), min(sheet.height, y + h + pad))))
+    return out
+
+
+def import_props():
+    path = sheet_path("props")
+    if not path:
+        return []
+    done = []
+    for (name, size), cell in zip(PROPS, stickers(path, len(PROPS), 4)):
+        im = cut_cell(cell, keep_all=True, sticker=True)
+        ui = os.path.join(ASSETS, "ui")
+        if name == "balloon":
+            for i, sz in enumerate(BALLOON_SIZES):
+                fit(im, sz).save(os.path.join(ui, "balloon%d.png" % i), optimize=True)
+        else:
+            fit(im, size).save(os.path.join(ui, name + ".png"), optimize=True)
+        for ename, esize in EXTRA.get(name, []):
+            fit(im, esize).save(os.path.join(ui, ename + ".png"), optimize=True)
+        if name in SHADOW:
+            sname, ssize = SHADOW[name]
+            silhouette(fit(im, ssize), (70, 70, 82)).save(os.path.join(ui, sname + ".png"), optimize=True)
+        done.append(name)
+    return done
+
+
+def sheet_path(name):
+    for ext in (".jpg", ".png"):
+        p = os.path.join(ART, name + "_sheet" + ext)
+        if os.path.exists(p):
+            return p
+    return None
+
+
+def write_art_list():
+    """utils/art.js: formy, które mają klatki zajęć (strona główna nie umie sprawdzić plików)."""
+    pet = os.path.join(ASSETS, "pet")
+    forms = sorted(f for f in os.listdir(pet) if os.path.exists(os.path.join(pet, f, "act_blocks0.png")))
+    with open(os.path.join(ROOT, "utils", "art.js"), "w", encoding="utf-8", newline="\n") as f:
+        f.write("// Wygenerowane przez tools/import_art.py - nie edytować ręcznie.\n")
+        f.write("// Formy z klatkami zajęć (klocki, książka, stanie na rękach, piłka).\n")
+        f.write("export const ACT_FORMS = [%s];\n" % ", ".join('"%s"' % x for x in forms))
+    return forms
+
+
 def available():
+    """Formy z arkuszem postaci (bez jajek, rekwizytów i arkuszy zajęć)."""
     if not os.path.isdir(ART):
         return []
-    return sorted({n.split("_sheet")[0] for n in os.listdir(ART) if "_sheet." in n} - {"eggs"})
+    names = {n.split("_sheet")[0] for n in os.listdir(ART) if "_sheet." in n}
+    return sorted(n for n in names if n not in ("eggs", "props") and not n.endswith("_act"))
 
 
 def main(ids):
     done = []
-    for fid in ids or available() + ["eggs"]:
-        if fid == "eggs" and import_eggs() or fid != "eggs" and import_form(fid):
+    for fid in ids or available() + ["eggs", "props"]:
+        if fid == "eggs":
+            ok = import_eggs()
+        elif fid == "props":
+            ok = import_props()
+        elif fid.endswith("_act"):
+            ok = import_acts(fid[:-4])
+        else:
+            ok = import_form(fid)
+            import_acts(fid)
+        if ok:
             done.append(fid)
+    write_art_list()
     print("z arkuszy Gemini:", ", ".join(done) or "-")
     return done
 

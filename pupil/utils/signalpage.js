@@ -25,6 +25,13 @@ export function buildSignalPage(page, cfg, ui, texts) {
   s.lampText = label({ ...ui.LAMP_TEXT, text: texts.wait });
   s.fish = cfg === FISH ? image("ui/fish.png", L.cx - 18, L.cy + 26) : null;
   if (s.fish) s.fish.show(false);
+  // spławik na wodzie: kołysze się, przy braniu zanurza
+  const BOB = { x: L.cx - 20, y: L.cy - L.r - 18 };
+  s.bobber = cfg === FISH ? image("ui/bobber.png", BOB.x, BOB.y) : null;
+  s.bite = false;
+  const moveBobber = (t) => {
+    if (s.bobber) s.bobber.set("ui/bobber.png", BOB.x, BOB.y + (Math.floor(t / 500) % 2) * 3 + (s.bite ? 14 : 0));
+  };
   s.results = label({ ...ui.RESULTS, color: COLOR.grey });
   const setLamp = (color, text) => {
     s.lamp.setProperty(hmUI.prop.MORE, { x: px(L.cx - L.r), y: px(L.cy - L.r), w: px(L.r * 2), h: px(L.r * 2), radius: px(L.r), color });
@@ -43,6 +50,8 @@ export function buildSignalPage(page, cfg, ui, texts) {
         if (s.fish) s.fish.show(false);
       }
       const ev = stepSignal(g, t, s.flick.feed(a, t));
+      if (ev) s.bite = ev === "go";
+      moveBobber(t);
       if (ev === "go") {
         setLamp(GO_COLOR, texts.go);
         if (s.fish) s.fish.show(true);

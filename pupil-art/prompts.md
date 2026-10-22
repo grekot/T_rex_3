@@ -26,6 +26,8 @@ Character sheet for a smartwatch tamagotchi game. Flat vector cartoon sticker st
 
 | forma | opis |
 |---|---|
+| tupek | a cute chibi child Tyrannosaurus rex, green body, pale yellow belly, darker green spots on the back, big round eyes, tiny arms, short legs, thick tail. |
+| pisklak | a tiny newborn baby T-rex hatchling, very round chubby light green body, pale yellow-green belly, darker green spots, very big round eyes, tiny feet, short tail, a piece of white eggshell on its head. |
 | lobuz | a cute chibi teenage velociraptor, slim purple body leaning slightly forward, pale lavender belly, a few darker purple spots, a small crest of bright pink feathers on the head, long thin tail, small clawed arms, long legs, cheeky mischievous look, small pointy teeth. |
 | rex | a cute chibi adult Tyrannosaurus rex, big chunky green body, pale yellow belly, darker green spots, a row of small golden spikes along the back, big head with a confident smile and small teeth, tiny arms, strong legs, thick tail. |
 | allo | a cute chibi adult Allosaurus, rusty orange-brown body with darker brown stripes on the back, cream belly, two small bony ridges above the eyes, big head, tiny arms, strong legs, long tail. |
@@ -42,6 +44,21 @@ Character sheet for a smartwatch tamagotchi game. Flat vector cartoon sticker st
 | gapcio | a clumsy chubby child dinosaur, orange round potato-shaped body, cream belly, a small tuft of brown hair on top of its head, short arms, short legs, small tail, slightly sleepy goofy look. |
 | mruk | a grumpy chubby teenage dinosaur, round greyish-brown body, light belly, a row of small orange spikes on the back, heavy grumpy eyebrows, short legs, short tail. |
 | burczek | a grumpy fat adult dinosaur, big round lavender-grey body, pale belly, a row of coral orange spikes on the back, heavy grumpy eyebrows, short stubby legs, short tail. |
+
+## Zajęcia na ekranie głównym (arkusz `<forma>_act`)
+
+Nowa rozmowa, narzędzie „Utwórz obraz”, prompt (opis postaci z tabeli wyżej):
+
+Character sheet for a smartwatch tamagotchi game. Flat vector cartoon sticker style, thick dark outline, simple soft cel shading, pure solid white background. Show the SAME character 4 times in a 2x2 grid, same size in each cell, full body, facing RIGHT: top-left sitting and stacking colorful toy blocks, top-right sitting and reading an open book, bottom-left doing a funny handstand upside down, bottom-right kicking a red and white ball. No text, no letters, no ground shadow, no frames. Character: ...
+
+`python tools/grab_gemini.py <forma>_act`, `python tools/import_art.py <forma>_act`.
+
+## Rekwizyty gier (arkusz `props`)
+
+Game item sticker sheet for a smartwatch tamagotchi game. Flat vector cartoon sticker style, thick dark outline, simple soft cel shading, pure solid white background. A 4x4 grid of 16 separate items, each item centered in its own cell with plenty of empty white space around it, all items about the same visual size. Row 1: a shiny red apple with a leaf, a grey rock, a white dinosaur bone, a blue fish facing right. Row 2: a bird nest with three eggs, a yellow beehive, a red and white ball, a wooden log lying horizontally. Row 3: a round green fruit tree with red apples, a red balloon with a short string, a white pearl in an open pink seashell, a wooden treasure chest with gold. Row 4: a red flag on a short pole, a yellow star, a red and white fishing bobber, a small tree stump. No text, no letters, no numbers, no ground shadows, no frames, no grid lines.
+
+Kolejność musi zostać (PROPS w import_art.py). Gemini robi z nich naklejki z białą obwódką -
+import_art.py wykrywa każdą naklejkę osobno i zdejmuje obwódkę.
 
 ## Jajka (jeden obraz, 3 jajka obok siebie)
 

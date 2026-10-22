@@ -25,7 +25,7 @@ Page({
     s.hint = header("Znaczenie terenu", MARKS.need + " miejsca, co najmniej " + MARKS.spacing + " m od siebie");
     image("thumb/" + petForm() + ".png", PET.x, PET.y);
     s.flags = [];
-    for (let i = 0; i < MARKS.need; i++) s.flags.push(image("ui/nest.png", FLAGS.x + i * FLAGS.step, FLAGS.y));
+    for (let i = 0; i < MARKS.need; i++) s.flags.push(image("ui/flag_x.png", FLAGS.x + i * FLAGS.step, FLAGS.y));
     s.info = label({ ...INFO, color: COLOR.grey });
     s.btn = button(MARK_BTN, () => this.mark());
     s.gps = startGps();
@@ -66,7 +66,7 @@ Page({
     const s = this.state;
     if (s.finished) return;
     const st = marksStatus(getWalk(load().state, KEY), Date.now());
-    s.flags.forEach((w, i) => w.set(i < st.count ? "ui/nest.png" : "ui/rock.png"));
+    s.flags.forEach((w, i) => w.set(i < st.count ? "ui/flag_s.png" : "ui/flag_x.png"));
     if (st.state === "done") {
       clearInterval(s.timer);
       s.timer = null;

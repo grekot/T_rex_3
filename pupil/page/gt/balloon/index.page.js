@@ -6,12 +6,14 @@ import { onKey, offKey, KEY_SELECT, KEY_EVENT_CLICK } from "@zos/interaction";
 import { VIBRATOR_SCENE_DURATION, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { newBalloon, pump, releaseBalloon } from "../../../utils/moves";
 import { newSeed } from "../../../utils/store";
-import { COLOR, label, rect, button } from "../../../utils/ui";
+import { COLOR, label, rect, image, button } from "../../../utils/ui";
 import { finishGame } from "../../../utils/gameui";
 import { header, startMotion, stopMotion, buzz } from "../../../utils/gamekit";
 import { BALLOON_C, METER, TARGET, RELEASE_BTN } from "zosLoader:./index.page.[pf].layout.js";
 
-const BALLOON_COLOR = 0xe8484a;
+// balon z Gemini w 11 rozmiarach (ui/balloon0..10.png, średnica 28-176 px)
+const BALLOON_STEPS = 10;
+const balloonPx = (i) => 28 + Math.round((148 * i) / BALLOON_STEPS);
 
 Page({
   state: {},
@@ -21,7 +23,7 @@ Page({
     s.game = newBalloon(newSeed());
     const g = s.game;
     s.hint = header("Balon", "Pompuj ruchem ręki w górę i w dół");
-    s.balloon = rect(BALLOON_C.x - BALLOON_C.rMin, BALLOON_C.y - BALLOON_C.rMin, BALLOON_C.rMin * 2, BALLOON_C.rMin * 2, BALLOON_COLOR, BALLOON_C.rMin);
+    s.balloon = image("ui/balloon0.png", BALLOON_C.x - balloonPx(0) / 2, BALLOON_C.y - balloonPx(0) / 2);
     rect(METER.x, METER.y, METER.w, METER.h, 0x26262e, 6);
     rect(METER.x, METER.y + (METER.h * (100 - g.hi)) / 100, METER.w, (METER.h * (g.hi - g.lo)) / 100, 0x3f9a56, 4);
     s.marker = rect(METER.x - 6, METER.y + METER.h - 3, METER.w + 12, 6, 0xffffff, 3);
@@ -65,15 +67,10 @@ Page({
   render() {
     const s = this.state;
     const g = s.game;
-    const r = Math.round(BALLOON_C.rMin + ((BALLOON_C.rMax - BALLOON_C.rMin) * g.size) / 100);
-    s.balloon.setProperty(hmUI.prop.MORE, {
-      x: px(BALLOON_C.x - r),
-      y: px(BALLOON_C.y - r),
-      w: px(r * 2),
-      h: px(r * 2),
-      radius: px(r),
-      color: g.popped ? 0x555555 : BALLOON_COLOR,
-    });
+    const i = Math.max(0, Math.min(BALLOON_STEPS, Math.round((g.size * BALLOON_STEPS) / 100)));
+    const d = balloonPx(i);
+    s.balloon.set("ui/balloon" + i + ".png", BALLOON_C.x - d / 2, BALLOON_C.y - d / 2);
+    s.balloon.show(!g.popped);
     s.marker.setProperty(hmUI.prop.MORE, {
       x: px(METER.x - 6),
       y: px(Math.round(METER.y + (METER.h * (100 - g.size)) / 100 - 3)),

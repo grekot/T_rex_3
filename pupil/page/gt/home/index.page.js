@@ -1,6 +1,7 @@
 // Ekran główny: dinozaur z animacją, pierścień ikon akcji (dotyk albo przyciski
 // góra/dół + zatwierdzenie), kupy, czaszka przy chorobie, wykrzyknik, gdy czegoś potrzebuje,
 // dymek z prośbą o zabawę i przycisk "Gra o premię" po przekąsce, sprzątaniu i lekarstwie.
+// Gdy nic mu nie trzeba, pupil sam się czymś zajmuje (spacer, klocki, książka... - utils/idle.js).
 import * as hmUI from "@zos/ui";
 import { px } from "@zos/utils";
 import { push } from "@zos/router";
@@ -32,6 +33,8 @@ import { openedByAlarm, scheduleReminder } from "../../../utils/reminder";
 import { createBuzzer } from "../../../utils/device";
 import { VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { RING, DISC } from "../../../utils/geometry";
+import { ACT_FORMS } from "../../../utils/art";
+import { newIdle, stepIdle, idleSprite, resetIdle } from "../../../utils/idle";
 import { COLOR, spriteSrc, label, image, rect, button, onTap, toast, daysText } from "../../../utils/ui";
 import {
   PET_X,
@@ -87,6 +90,7 @@ Page({
     s.anim = null;
     s.msg = null;
     s.syncCount = 0;
+    s.idle = newIdle();
 
     s.bg = rect(0, 0, 480, 480, 0x000000);
     s.bgColor = 0x000000;
@@ -336,7 +340,12 @@ Page({
     }
 
     const eggDir = LINES[lineOf(p)].egg;
+    const tickedNow = s.lastFrame !== s.frame; // renderPet woła też odświeżanie po akcji
+    s.lastFrame = s.frame;
     let src;
+    let dx = 0;
+    let dy = 0;
+    let idling = false;
     if (p.gone) {
       src = p.gone === "old" ? spriteSrc(eggDir, tick ? "egg1" : "egg0") : "ui/forest.png";
     } else if (stageOf(p) === "egg") {
@@ -349,9 +358,19 @@ Page({
       const slow = Math.floor(s.frame / 2) % 2; // oddech wolniej niż animacje
       if (mood === "sleep") src = spriteSrc(p.form, (dark ? "dark" : "sleep") + slow);
       else if (mood === "sad") src = spriteSrc(p.form, "sad" + slow);
-      else src = spriteSrc(p.form, "idle" + slow);
+      else if (!needsAttention(p)) {
+        // nic mu nie trzeba: sam się czymś zajmuje
+        idling = true;
+        if (tickedNow) stepIdle(s.idle, ACT_FORMS.indexOf(p.form) >= 0, Math.random);
+        const f = idleSprite(s.idle, s.frame);
+        src = spriteSrc(p.form, f.frame);
+        dx = f.dx;
+        dy = f.dy;
+      } else src = spriteSrc(p.form, "idle" + slow);
     }
-    s.pet.set(src);
+    // jedzenie, smutek, sen, prośby: od razu z powrotem na środek
+    if (!idling && (s.idle.x || s.idle.kind !== "stand")) resetIdle(s.idle);
+    s.pet.set(src, PET_X + dx, PET_Y + dy);
 
     const alive = !p.gone && stageOf(p) !== "egg";
     s.poops.forEach((w, i) => w.show(alive && i < p.poops));
