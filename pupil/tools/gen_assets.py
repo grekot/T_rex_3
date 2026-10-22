@@ -31,7 +31,8 @@ SPRITE = 168
 THUMB = 64
 EGG_PICK = 112  # jajka na ekranie wyboru
 EGGS = {"rex": "egg", "herb": "eggh", "fly": "eggf"}
-DISC = 76
+DISC = 88  # krążek przycisku akcji w pierścieniu (było 76 - za małe do trafiania palcem)
+RING_ICON = 58  # ikona na krążku
 ICON = 48
 OUTLINE = 2.6  # grubość obrysu postaci (px)
 
@@ -201,7 +202,7 @@ def disc(color, ring=None):
 
 def action_icon(iid, selected):
     base = disc((70, 56, 30), ring=(255, 170, 40)) if selected else disc((34, 34, 42))
-    base.alpha_composite(icon_img(iid), ((DISC - ICON) // 2, (DISC - ICON) // 2))
+    base.alpha_composite(icon_img(iid, RING_ICON), ((DISC - RING_ICON) // 2, (DISC - RING_ICON) // 2))
     return base
 
 
@@ -413,6 +414,12 @@ def main():
             th = render(fid, big=True).resize((THUMB, THUMB), Image.LANCZOS)
             save(th, "thumb", fid + ".png")
             save(silhouette(th), "thumb", fid + "_x.png")
+    # postacie z arkuszy Gemini (../pupil-art/) nadpisują rysowane klatki
+    import import_art
+    for fid in import_art.available():
+        fr = import_art.import_form(fid)
+        if fr:
+            all_frames[fid] = fr
     for iid in RING_IDS:
         save(action_icon(iid, False), "ring", iid + ".png")
         save(action_icon(iid, True), "ring", iid + "_sel.png")

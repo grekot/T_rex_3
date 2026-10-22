@@ -1,7 +1,7 @@
 // Wygenerowane przez tools/gen_assets.py - nie edytować ręcznie.
 export const SPRITE = 168;
 export const THUMB = 64;
-export const DISC = 76;
+export const DISC = 88;
 export const ICON = 48; // poop, skull, alert, meal, snack
 export const HEART = 36;
 export const ARROW = 60;
