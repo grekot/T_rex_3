@@ -83,7 +83,7 @@ class _AiSettingsScreenState extends State<AiSettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Ocena przez AI')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(16) + EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
         children: [
           SwitchListTile(
             contentPadding: EdgeInsets.zero,

@@ -11,6 +11,7 @@ import '../ai/photo_rating.dart';
 import 'analysis.dart';
 import 'crop.dart';
 import 'memories.dart';
+import 'rotation.dart';
 
 class PoolPrefs {
   PoolPrefs({
@@ -193,6 +194,7 @@ class SelectStore {
   File get _autoFile => File('${dir.path}/auto.json');
   File get _lockFile => File('${dir.path}/refresh.lock');
   File get _memoriesFile => File('${dir.path}/memories.json');
+  File get _rotationFile => File('${dir.path}/fresh.json');
 
   Future<List<MemoryItem>> loadMemories() async {
     final j = await _readJson(_memoriesFile);
@@ -204,6 +206,15 @@ class SelectStore {
 
   Future<void> saveMemories(List<MemoryItem> items) =>
       _writeJson(_memoriesFile, {'items': [for (final m in items) m.toJson()]});
+
+  /// Rotacja świeżych zdjęć: które są w puli do kiedy, które odpoczywają
+  Future<FreshRotation> loadRotation() async {
+    final j = await _readJson(_rotationFile);
+    return j == null ? FreshRotation() : FreshRotation.fromJson(j);
+  }
+
+  Future<void> saveRotation(FreshRotation r) => _writeJson(_rotationFile, r.toJson());
+
   Directory get pngDir => Directory('${dir.path}/png');
 
   /// Pula dla zegarka (most w usłudze w tle czyta ją przy każdym zapytaniu zegarka)

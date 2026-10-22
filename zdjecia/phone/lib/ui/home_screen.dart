@@ -166,7 +166,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
           ],
         ),
         body: ListView(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(12) + EdgeInsets.only(bottom: MediaQuery.paddingOf(context).bottom),
           children: [
             _statusCard(context),
             if (_pool.pool.isNotEmpty) _poolGrid(context),
@@ -250,7 +250,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
-                  onPressed: p.refresh,
+                  onPressed: () => p.refresh(swap: true),
                   icon: const Icon(Icons.refresh),
                   label: const Text('Odśwież'),
                 ),

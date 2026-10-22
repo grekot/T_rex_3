@@ -55,7 +55,8 @@ class PoolRules {
 }
 
 /// Pula: przypięte, potem najlepsze z zachowaniem zasad; gdy brakuje zdjęć - zasady łagodnieją.
-List<ScoredPhoto> choosePool(List<ScoredPhoto> photos, PoolRules rules) {
+/// [priority] zmienia kolejność kandydatów (domyślnie punkty), np. losowanie przy rotacji.
+List<ScoredPhoto> choosePool(List<ScoredPhoto> photos, PoolRules rules, {double Function(ScoredPhoto)? priority}) {
   final pool = <ScoredPhoto>[
     for (final p in photos)
       if (rules.pinned.contains(p.id) && !rules.removed.contains(p.id)) p,
@@ -68,7 +69,8 @@ List<ScoredPhoto> choosePool(List<ScoredPhoto> photos, PoolRules rules) {
     if (group.any((p) => taken.contains(p.id))) continue;
     candidates.add(group.first);
   }
-  candidates.sort((a, b) => b.score.compareTo(a.score));
+  final order = priority ?? (ScoredPhoto p) => p.score;
+  candidates.sort((a, b) => order(b).compareTo(order(a)));
 
   void fill({required int perDay, required Duration gap}) {
     for (final c in candidates) {
