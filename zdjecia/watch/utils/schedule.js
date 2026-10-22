@@ -8,8 +8,10 @@
 
 export const PHOTO_PAGE = "page/gt/photo/index.page";
 export const DIRECT = "D";
-// Po tylu sekundach zdjęcie z budzika samo się zamyka (powrót do tarczy)
-export const AUTO_CLOSE_S = 15;
+// Zapowiedź "Zobacz to" czeka tyle sekund na uniesienie ręki / stuknięcie, potem wraca do tarczy
+export const TEASER_S = 30;
+// Odsłonięte zdjęcie gaśnie samo najpóźniej po tylu sekundach (gdyby opuszczenie ręki nie zadziałało)
+export const PHOTO_MAX_S = 60;
 // Próba z ekranu ustawień: budzik za tyle sekund
 export const TEST_DELAY_S = 60;
 

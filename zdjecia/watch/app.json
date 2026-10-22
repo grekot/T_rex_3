@@ -5,8 +5,8 @@
     "appName": "Zdjecia",
     "appType": "app",
     "version": {
-      "code": 7,
-      "name": "0.6.0"
+      "code": 8,
+      "name": "0.7.0"
     },
     "icon": "icon.png",
     "vender": "grekot",
@@ -16,7 +16,8 @@
     "data:os.device.info",
     "device:os.local_storage",
     "device:os.ble",
-    "device:os.alarm"
+    "device:os.alarm",
+    "device:os.accelerometer"
   ],
   "runtime": {
     "apiVersion": {

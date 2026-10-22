@@ -67,12 +67,19 @@ Zegarek sam, w losowych chwilach, pokazuje ciekawe zdjęcie – bez powiadomieni
 ```
 budzik systemowy (@zos/alarm, store: true – przetrwa restart zegarka)
   → wprost ekran page/gt/photo (param {"m":"D","at":…})
-  → zdjęcie z worka, krótka wibracja, po 15 s powrót do tarczy
+  → zapowiedź „Zobacz to” (czarny ekran, zwykła jasność) + krótka wibracja
+  → uniesienie ręki albo stuknięcie: ekran jaśniej, zdjęcie z worka
+  → opuszczenie ręki albo podwójne stuknięcie: zdjęcie gaśnie, powrót do tarczy
   → od razu uzupełnienie planu budzików
 ```
 
-Na ekranie zdjęcia **pierwsze stuknięcie** zatrzymuje zamykanie (na dole pojawia się data zdjęcia),
-**kolejne** pokazują następne zdjęcia z worka.
+Zegarek 0.7.0: zdjęcie jest losowane i wczytane od razu pod zapowiedzią (odsłonięcie bez opóźnienia), ale do worka
+trafia dopiero przy odsłonięciu; bez reakcji zapowiedź znika po 30 s i nieobejrzane zdjęcie nie przepada,
+odsłonięte zdjęcie gaśnie samo najpóźniej po 60 s. **Pojedyncze stuknięcie** w zdjęcie = następne z worka.
+Uniesienie/opuszczenie ręki wykrywają naraz systemowe `onWristMotion` (@zos/interaction) i własna logika
+z akcelerometru (`watch/utils/wrist.js`: ekran do twarzy = |z| ≥ 75% grawitacji przez 250 ms, ręka opuszczona
+= |z| ≤ 45% przez 500 ms; testy `watch/test/wrist.test.mjs`) – liczy się to, co zgłosi się pierwsze.
+Gaszenie ekranu po opuszczeniu ręki jest na czas strony wyłączone, żeby to aplikacja przywróciła jasność.
 
 **Losowanie** (`watch/utils/schedule.js`, testy `watch/test/schedule.test.mjs`):
 
@@ -106,8 +113,8 @@ najbliższe zdjęcia po dniach, kiedy zegarek ostatnio sam pokazał zdjęcie i p
 ### Test na zegarku
 
 1. Zainstaluj (`zeus preview` w `watch/`), otwórz **Zdjęcia** – na panelu powinno być „Następne zdjęcie: …”.
-2. **Ustawienia → Próba za 1 min** → wyjdź z aplikacji i opuść rękę. Po minucie zegarek wibruje, pokazuje zdjęcie,
-   a po 15 s sam wraca do tarczy.
+2. **Ustawienia → Próba za 1 min** → wyjdź z aplikacji i opuść rękę. Po minucie zegarek wibruje i pokazuje
+   „Zobacz to”; unieś rękę → zdjęcie jaśniej, opuść rękę → zgaśnie (albo stuknij / stuknij 2 razy).
 3. Krótkie okno zamiast czekania godzinami: **Od** = bieżąca godzina, **Do** = następna, **Ile razy** = 6
    (np. o 14:20 ustaw 14:00–15:00 → zdjęcia mniej więcej co 10 min do 15:00; lista „Najbliższe zdjęcia” pokazuje godziny).
 4. Po próbie wróć do 3 razy, 9:00–21:00.
