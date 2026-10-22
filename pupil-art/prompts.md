@@ -16,7 +16,7 @@ generować obrazów; wtedy w tej samej rozmowie „Generate this image now using
 generation tool.”). Minę obróconą w lewo import_art.py sam odwraca; formom z długim ogonem
 lub szerokimi skrzydłami wpisz w TAIL_KEEP, żeby nie obcinać ich w kadrze.
 
-Gotowe: tupek, pisklak, lobuz, rex, allo, kropek, rozek, rogal, szyjek, kolec, piorko, pterek, lotek, ptero, mewa, gapcio, mruk.
+Gotowe: wszystkie 18 form i jajka (eggs).
 
 ## STYL (początek każdego promptu)
 

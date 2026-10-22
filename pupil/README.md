@@ -1,6 +1,6 @@
 # Pupil – tamagotchi z dinozaurem
 
-Klasyczne tamagotchi na Amazfit T-Rex 3: z jajka wykluwa się dinozaur (gładka, kreskówkowa grafika),
+Klasyczne tamagotchi na Amazfit T-Rex 3: z jajka wykluwa się dinozaur (kreskówkowe postacie wygenerowane w Gemini),
 rośnie przez kilka etapów i zmienia formę zależnie od tego, jak o niego dbasz.
 Tempo jest luźne – wystarczy zajrzeć 2–3 razy dziennie. Czas płynie także przy
 zamkniętej aplikacji.
@@ -138,16 +138,22 @@ padają tylko między 7:45 a 22:00; jeśli już czegoś potrzebuje, kolejne za 2
 - `utils/reminder.js` – alarm z przypomnieniem (funkcja `nextReminder` w `pet.js`).
 - `tools/smoke.mjs` – smoke test prawdziwych bundli zeusa w Node `vm` (atrapy `@zos/*`,
   sztuczny zegar); bundle przechwytuje `tools/capture-hook.cjs` (opis w nagłówku smoke.mjs).
-- `tools/gen_assets.py` – grafika: postacie w `tools/forms.py` z prostych kształtów
-  (elipsy, wielokąty, zwężające się „rurki”, `tools/draw.py`) rysowanych w 8× powiększeniu
-  z obrysem jak naklejka; miny i klatki (oddech, radość, smutek, sen, jedzenie, lustro)
-  dorysowuje generator. Ikony w `tools/icons.py`. Powstają też `utils/geometry.js`,
-  arkusz `docs/arkusz.png` i makieta `docs/podglad.png`.
+- Postacie i jajka są wygenerowane w Gemini („Utwórz obraz”): arkusz 2×2 każdej formy
+  (spokój, radość, smutek, sen) według `../pupil-art/prompts.md`. Arkusze leżą w
+  `../pupil-art/`, poza folderem aplikacji, bo `zeus build` pakuje cały folder do `.ip-package`.
+  `tools/grab_gemini.py <forma>` kopiuje świeży obraz z Pobranych, `tools/import_art.py`
+  wycina tło, odwraca minę obróconą w lewo, wyrównuje miny wspólną skalą i robi klatki
+  (oddech = spłaszczenie, podskok, noc = przyciemnienie, lustro); jajka z jednego obrazu
+  `eggs` (kołysanie, dorysowane pęknięcie). `tools/preview_art.py` – podgląd.
+- `tools/gen_assets.py` – reszta grafiki: ikony (`tools/icons.py`), `utils/geometry.js`,
+  arkusz `docs/arkusz.png` i makieta `docs/podglad.png`; na końcu uruchamia import z
+  `pupil-art/`. Rysowane w Pillow postacie (`tools/forms.py`, `tools/draw.py`) zostają jako
+  zapas dla formy bez arkusza.
 
 ```bash
 npm install
 npm test                     # testy logiki w Node
-python tools/gen_assets.py   # po zmianie grafiki
+python tools/gen_assets.py   # po zmianie grafiki (importuje też arkusze z ../pupil-art)
 zeus preview                 # instalacja na zegarku
 ```
 

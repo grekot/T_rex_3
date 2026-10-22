@@ -15,3 +15,5 @@ ptero	Gemini_Generated_Image_7h6khb7h6khb7h6k.jpg
 mewa	Gemini_Generated_Image_pqk4rypqk4rypqk4.jpg
 gapcio	Gemini_Generated_Image_c7ieemc7ieemc7ie.jpg
 mruk	Gemini_Generated_Image_thay5ithay5ithay.jpg
+burczek	Gemini_Generated_Image_wgxm50wgxm50wgxm.jpg
+eggs	Gemini_Generated_Image_b8mxib8mxib8mxib.jpg
