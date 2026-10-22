@@ -33,19 +33,51 @@ export const STAGES = {
 
 export const FORMS = {
   egg: { stage: "egg", name: "Jajo" },
+  // drapieżniki
   pisklak: { stage: "baby", name: "Pisklak" },
   tupek: { stage: "child", name: "Tupek" },
-  gapcio: { stage: "child", name: "Gapcio" },
-  rogal: { stage: "teen", name: "Rogal" },
-  kolec: { stage: "teen", name: "Kolec" },
   lobuz: { stage: "teen", name: "Łobuz" },
   rex: { stage: "adult", name: "Rex" },
+  allo: { stage: "adult", name: "Allo" },
+  // roślinożercy
+  kropek: { stage: "baby", name: "Kropek" },
+  rozek: { stage: "child", name: "Rożek" },
+  rogal: { stage: "teen", name: "Rogal" },
   szyjek: { stage: "adult", name: "Szyjek" },
+  kolec: { stage: "adult", name: "Kolec" },
+  // latające
+  piorko: { stage: "baby", name: "Piórko" },
+  pterek: { stage: "child", name: "Pterek" },
+  lotek: { stage: "teen", name: "Lotek" },
   ptero: { stage: "adult", name: "Ptero" },
+  mewa: { stage: "adult", name: "Mewa" },
+  // zaniedbane - wspólne dla wszystkich linii
+  gapcio: { stage: "child", name: "Gapcio" },
+  mruk: { stage: "teen", name: "Mruk" },
   burczek: { stage: "adult", name: "Burczek" },
 };
-// Kolejność w kolekcji
-export const FORM_ORDER = ["pisklak", "tupek", "gapcio", "rogal", "kolec", "lobuz", "rex", "szyjek", "ptero", "burczek"];
+
+// Linie wybierane jajkiem. best = wzorowa opieka z dyscypliną, good = dobra opieka.
+export const LINES = {
+  rex: { name: "Drapieżniki", egg: "egg", baby: "pisklak", child: "tupek", teen: "lobuz", best: "rex", good: "allo" },
+  herb: { name: "Roślinożercy", egg: "eggh", baby: "kropek", child: "rozek", teen: "rogal", best: "szyjek", good: "kolec" },
+  fly: { name: "Latające", egg: "eggf", baby: "piorko", child: "pterek", teen: "lotek", best: "ptero", good: "mewa" },
+};
+export const LINE_ORDER = ["rex", "herb", "fly"];
+export const SHARED = ["gapcio", "mruk", "burczek"];
+
+export function lineOf(s) {
+  return LINES[s.line] ? s.line : "rex";
+}
+
+// Kolejność w kolekcji: linie (maluch -> dorosły), potem zaniedbane
+export const FORM_ORDER = LINE_ORDER.reduce((acc, id) => {
+  const L = LINES[id];
+  return acc.concat([L.baby, L.child, L.teen, L.best, L.good]);
+}, []).concat(SHARED);
+
+// Imiona do wyboru (na zegarku nie ma klawiatury). "" = bez imienia (pokazuje nazwę formy)
+export const NAMES = ["", "Dino", "Rexio", "Ząbek", "Pazur", "Kropka", "Bąbel", "Ogonek", "Gucio", "Tosia", "Fiona", "Zuzia", "Bruno", "Kiwi", "Mango", "Pestka", "Figa", "Smok"];
 
 // Ile czasu (czuwania) można zwlekać z potrzebą, zanim liczy się błąd opieki,
 // i co ile liczy się kolejny, jeśli potrzeba dalej trwa (0 = tylko raz).
@@ -123,11 +155,13 @@ function emptyCalls() {
   return { hunger: 0, happy: 0, sick: 0, light: 0 };
 }
 
-// Nowe jajo. prev = poprzedni pupil (zostaje kolekcja form i historia)
-export function newEgg(now, seed, prev) {
+// Nowe jajo. prev = poprzedni pupil (zostaje kolekcja form i historia), line = linia z LINES
+export function newEgg(now, seed, prev, line, name) {
   return {
     v: 1,
     gen: prev ? prev.gen + 1 : 1,
+    line: LINES[line] ? line : "rex",
+    name: name || "",
     rng: seed >>> 0,
     t: now,
     born: now,
@@ -201,7 +235,7 @@ function resetTimers(s) {
 function becomeForm(s, form, events) {
   const oldBase = baseWeight(s);
   s.form = form;
-  s.stageAt = s.t;
+  s.stageAt = s.t; // wylęganie liczy się od wyboru (stan jest już przewinięty do teraz)
   s.mistakes = 0;
   s.weight = Math.max(baseWeight(s), s.weight + baseWeight(s) - oldBase);
   if (s.seen.indexOf(form) < 0) s.seen.push(form);
@@ -212,16 +246,19 @@ function becomeForm(s, form, events) {
 // W co ewoluuje: decyduje liczba błędów opieki w kończącym się etapie
 export function nextForm(s) {
   const m = s.mistakes;
+  const L = LINES[lineOf(s)];
   switch (stageOf(s)) {
     case "egg":
-      return "pisklak";
+      return L.baby;
     case "baby":
-      return m === 0 ? "tupek" : "gapcio";
+      return m === 0 ? L.child : "gapcio";
     case "child":
-      return m <= 1 ? "rogal" : m <= 3 ? "kolec" : "lobuz";
+      if (s.form === "gapcio") return m <= 1 ? L.teen : "mruk";
+      return m <= 2 ? L.teen : "mruk";
     case "teen":
-      if (m <= 1 && s.discipline >= 2) return "rex";
-      return m <= 3 ? "szyjek" : m <= 6 ? "ptero" : "burczek";
+      if (s.form === "mruk") return m <= 1 ? L.good : "burczek";
+      if (m <= 1 && s.discipline >= 2) return L.best;
+      return m <= 4 ? L.good : "burczek";
     default:
       return null;
   }
@@ -533,8 +570,31 @@ export function scold(state) {
 }
 
 // Po odejściu: nowe jajo (kolekcja i historia zostają)
-export function restart(state, now, seed) {
-  return newEgg(now, seed, state);
+export function restart(state, now, seed, line, name) {
+  return newEgg(now, seed, state, line, name);
+}
+
+// Wybór jajka i imienia: po odejściu - nowe jajo; jeszcze jajo - zmiana linii (wylęganie od nowa)
+export function chooseEgg(state, now, seed, line, name) {
+  if (state.gone) return newEgg(now, seed, state, line, name);
+  if (stageOf(state) !== "egg") return setName(state, name);
+  const s = clone(state);
+  s.line = LINES[line] ? line : "rex";
+  s.name = name || "";
+  s.stageAt = s.t; // wylęganie liczy się od wyboru (stan jest już przewinięty do teraz)
+  s.born = s.t;
+  return s;
+}
+
+export function setName(state, name) {
+  const s = clone(state);
+  s.name = name || "";
+  return s;
+}
+
+// Imię albo nazwa formy
+export function displayName(s) {
+  return s.name || FORMS[s.form].name;
 }
 
 // --- opis dla ekranu -------------------------------------------------------------

@@ -5,7 +5,6 @@ import { px } from "@zos/utils";
 import { push } from "@zos/router";
 import { onKey, offKey, KEY_UP, KEY_DOWN, KEY_SELECT, KEY_EVENT_CLICK } from "@zos/interaction";
 import {
-  FORMS,
   STAGES,
   meal,
   snack,
@@ -13,7 +12,9 @@ import {
   medicine,
   clean,
   scold,
-  restart,
+  LINES,
+  lineOf,
+  displayName,
   canPlay,
   moodOf,
   statusText,
@@ -22,7 +23,7 @@ import {
   ageDays,
   stageOf,
 } from "../../../utils/pet";
-import { load, apply, save, rawState, tz, newSeed } from "../../../utils/store";
+import { load, apply, rawState, tz } from "../../../utils/store";
 import { openedByAlarm, scheduleReminder } from "../../../utils/reminder";
 import { createBuzzer } from "../../../utils/device";
 import { VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
@@ -67,6 +68,7 @@ const ANIM_FRAMES = {
 
 const GAMES_PAGE = "page/gt/games/index.page";
 const STATS_PAGE = "page/gt/stats/index.page";
+const CHOOSE_PAGE = "page/gt/choose/index.page";
 
 Page({
   state: {},
@@ -101,8 +103,9 @@ Page({
       return w;
     });
 
-    this.reload(true);
+    const fresh = this.reload(true);
     this.renderRing();
+    if (fresh) setTimeout(() => this.newEgg(), 300); // pierwsze uruchomienie: wybór jajka
     s.buzzer = createBuzzer();
     if (openedByAlarm(Date.now())) {
       s.buzzer.buzz(VIBRATOR_SCENE_NOTIFICATION);
@@ -159,6 +162,7 @@ Page({
     if (news) this.say(news);
     else if (first) s.msg = null;
     this.render();
+    return r.fresh;
   },
 
   sync() {
@@ -236,14 +240,9 @@ Page({
     this.renderPet();
   },
 
+  // Wybór jajka i imienia na osobnej stronie; po powrocie stan wczyta sync()
   newEgg() {
-    const s = this.state;
-    const egg = restart(s.pet_, Date.now(), newSeed());
-    s.raw = save(egg);
-    s.pet_ = egg;
-    s.anim = null;
-    this.say("Nowe jajo!");
-    this.render();
+    push({ url: CHOOSE_PAGE, params: "egg" });
   },
 
   render() {
@@ -266,7 +265,8 @@ Page({
     let title = "";
     if (!p.gone) {
       const stage = stageOf(p);
-      title = stage === "egg" ? "Jajo · pokolenie " + p.gen : FORMS[p.form].name + " · " + daysText(ageDays(p));
+      if (stage === "egg") title = (p.name ? p.name + " · jajo" : "Jajo") + " · pokolenie " + p.gen;
+      else title = displayName(p) + " · " + daysText(ageDays(p));
     }
     s.title.set(title);
     const status = s.msg ? s.msg.text : statusText(p, tz());
@@ -288,12 +288,13 @@ Page({
       s.bg.setProperty(hmUI.prop.MORE, { x: 0, y: 0, w: px(480), h: px(480), color: bg });
     }
 
+    const eggDir = LINES[lineOf(p)].egg;
     let src;
     if (p.gone) {
-      src = p.gone === "old" ? spriteSrc("egg", tick ? "egg1" : "egg0") : "ui/forest.png";
+      src = p.gone === "old" ? spriteSrc(eggDir, tick ? "egg1" : "egg0") : "ui/forest.png";
     } else if (stageOf(p) === "egg") {
       const hatching = now - p.stageAt > STAGES.egg.len - 60000;
-      src = spriteSrc("egg", hatching ? (tick ? "egg2" : "egg1") : Math.floor(s.frame / 2) % 2 ? "egg1" : "egg0");
+      src = spriteSrc(eggDir, hatching ? (tick ? "egg2" : "egg1") : Math.floor(s.frame / 2) % 2 ? "egg1" : "egg0");
     } else if (s.anim) {
       src = spriteSrc(p.form, ANIM_FRAMES[s.anim.kind][tick]);
     } else {

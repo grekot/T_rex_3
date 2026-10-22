@@ -260,3 +260,101 @@ def burczek(P):
 
 
 form("burczek", (152, 142, 174), (214, 208, 226), (112, 102, 134), (232, 124, 92), burczek)
+
+
+# --- warianty: przeskalowane i przemalowane kształty ----------------------------
+GROUND = (84, 158)
+
+
+def _scale_shape(sh, k, ox, oy):
+    from draw import Shape
+
+    kw = dict(sh.kw)
+
+    def P(x, y):
+        return (ox + (x - ox) * k, oy + (y - oy) * k)
+
+    if sh.kind == "ell":
+        kw["cx"], kw["cy"] = P(kw["cx"], kw["cy"])
+        kw["rx"] *= k
+        kw["ry"] *= k
+    elif sh.kind == "poly":
+        kw["pts"] = [P(x, y) for x, y in kw["pts"]]
+    elif sh.kind == "tube":
+        kw["pts"] = [P(x, y) for x, y in kw["pts"]]
+        kw["r0"] *= k
+        kw["r1"] *= k
+    elif sh.kind == "rrect":
+        kw["x0"], kw["y0"] = P(kw["x0"], kw["y0"])
+        kw["x1"], kw["y1"] = P(kw["x1"], kw["y1"])
+        kw["r"] *= k
+    return Shape(sh.kind, sh.color, **kw)
+
+
+def scaled(build, k):
+    """Ta sama postać w skali k; stopy zostają na ziemi (GROUND)."""
+    ox, oy = GROUND
+
+    def b(P):
+        parts = build(P)
+        out = {key: [_scale_shape(sh, k, ox, oy) for sh in parts[key]] for key in ("back", "body", "detail")}
+        f = parts["face"]
+        if f:
+            def Pt(x, y):
+                return (ox + (x - ox) * k, oy + (y - oy) * k)
+
+            nf = dict(f)
+            ex, ey, er = f["eye"]
+            nf["eye"] = Pt(ex, ey) + (er * max(k, 0.85),)  # oczy maleją wolniej - młode mają duże oczy
+            kind, x0, x1, y = f["mouth"]
+            nx0, ny = Pt(x0, y)
+            nx1, _ = Pt(x1, y)
+            nf["mouth"] = (kind, nx0, nx1, ny)
+            nf["cheek"] = Pt(*f["cheek"])
+            out["face"] = nf
+        else:
+            out["face"] = None
+        return out
+
+    return b
+
+
+# jajka pozostałych linii (ten sam kształt, inne kolory)
+form("eggh", (206, 228, 250), (240, 248, 255), (84, 146, 228), (84, 146, 228), egg)
+form("eggf", (255, 230, 196), (255, 246, 230), (240, 128, 64), (240, 128, 64), egg)
+
+# drapieżniki: Allo - dorosły, dobra opieka (Rex w paski, rdzawy)
+def allo(P):
+    parts = rex(P)
+    parts["detail"] = [d for d in parts["detail"] if d.kind != "poly"]  # bez złotych kolców
+    parts["detail"] += [tube([(46 + i * 14, 84 - i * 8), (54 + i * 14, 104 - i * 8)], 3, 2, P["D"]) for i in range(4)]
+    parts["detail"] += [tube([(108, 22), (116, 18), (124, 20)], 3, 2, P["A"])]  # grzebień nad okiem
+    return parts
+
+
+form("allo", (214, 120, 70), (246, 214, 170), (160, 80, 44), (250, 196, 90), allo)
+
+# roślinożercy: Kropek (maluch), Rożek (młody Rogal)
+form("kropek", (110, 176, 238), (214, 236, 252), (70, 128, 206), (255, 220, 110), pisklak)
+
+
+form("rozek", (126, 196, 240), (214, 238, 252), (84, 146, 214), (250, 238, 200), scaled(rogal, 0.78))
+
+
+# latające: Piórko (maluch ze skrzydełkami), Pterek (młody), Lotek (nastolatek), Mewa (dorosły)
+def piorko(P):
+    parts = pisklak(P)
+    wing = mix(P["B"], P["A"], 0.45)
+    parts["back"] = [ell(52, 76, 28, 12, wing, rot=-55), ell(42, 90, 22, 10, wing, rot=-30)] + parts["back"]
+    parts["detail"] = [d for d in parts["detail"] if not (d.kind == "ell" and d.color == P["D"])]
+    parts["detail"] += [poly([(96, 52), (86, 40), (102, 48)], P["A"])]
+    return parts
+
+
+form("piorko", (246, 160, 92), (252, 224, 186), (206, 112, 60), (255, 214, 96), piorko)
+form("pterek", (240, 170, 104), (252, 226, 190), (200, 120, 70), (255, 222, 120), scaled(ptero, 0.74))
+form("lotek", (96, 188, 196), (206, 238, 240), (60, 140, 152), (255, 206, 96), scaled(ptero, 0.88))
+form("mewa", (226, 230, 238), (250, 252, 255), (150, 160, 180), (252, 196, 72), ptero)
+
+# zaniedbany nastolatek: Mruk (mniejszy, bury Burczek)
+form("mruk", (150, 124, 104), (210, 192, 176), (110, 90, 74), (200, 120, 80), scaled(burczek, 0.82))

@@ -12,6 +12,7 @@ import {
   HEART_STEP,
   INFO,
   COLLECTION_BTN,
+  NAME_BTN,
 } from "zosLoader:./index.page.[pf].layout.js";
 
 const REFRESH_MS = 5000;
@@ -30,6 +31,7 @@ Page({
       return list;
     });
     s.info = INFO.map((o) => label({ ...o }));
+    button(NAME_BTN, () => push({ url: "page/gt/choose/index.page", params: "name" }));
     button(COLLECTION_BTN, () => push({ url: "page/gt/collection/index.page" }));
     this.render();
     s.timer = setInterval(() => this.render(), REFRESH_MS);
@@ -50,7 +52,7 @@ Page({
     const over = p.weight - baseWeight(p);
     const shape = egg ? "" : over >= 15 ? " · za gruby" : over >= 8 ? " · pulchny" : "";
     const lines = [
-      FORMS[p.form].name + (p.sick ? " · chory" : "") + shape,
+      (p.name ? p.name + " · " : "") + FORMS[p.form].name + (p.sick ? " · chory" : "") + shape,
       (egg ? "Jeszcze w jajku" : "Waga " + p.weight + " g") + " · " + daysText(ageDays(p)),
       "Pokolenie " + p.gen + " · błędy: " + p.totalMistakes,
     ];

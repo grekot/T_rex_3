@@ -13,4 +13,5 @@ export const INFO = [
   { x: 70, y: 282, w: 340, h: 34, size: 24 },
   { x: 70, y: 316, w: 340, h: 34, size: 24 },
 ];
-export const COLLECTION_BTN = { x: 130, y: 366, w: 220, h: 56, size: 26, text: "Kolekcja ›" };
+export const NAME_BTN = { x: 84, y: 366, w: 150, h: 56, size: 26, text: "Imię ›" };
+export const COLLECTION_BTN = { x: 246, y: 366, w: 150, h: 56, size: 26, text: "Kolekcja ›" };

@@ -28,7 +28,9 @@ FONT = "C:/Windows/Fonts/segoeui.ttf"
 FONT_B = "C:/Windows/Fonts/segoeuib.ttf"
 
 SPRITE = 168
-THUMB = 72
+THUMB = 64
+EGG_PICK = 112  # jajka na ekranie wyboru
+EGGS = {"rex": "egg", "herb": "eggh", "fly": "eggf"}
 DISC = 76
 ICON = 48
 OUTLINE = 2.6  # grubość obrysu postaci (px)
@@ -137,8 +139,8 @@ def render(fid, eyes="open", mouth="closed", cheek=False, tear=False, squash=Fal
     return img if big else img.resize((SPRITE, SPRITE), Image.LANCZOS)
 
 
-def egg_frame(angle=0, crack=False):
-    F = FORMS["egg"]
+def egg_frame(fid="egg", angle=0, crack=False, size=SPRITE):
+    F = FORMS[fid]
     P = F["P"]
     parts = F["build"](P)
     c = Canvas(SPRITE, SPRITE)
@@ -149,12 +151,12 @@ def egg_frame(angle=0, crack=False):
     img = c.img
     if angle:
         img = img.rotate(angle, resample=Image.BICUBIC, center=(84 * SS, 158 * SS))
-    return img.resize((SPRITE, SPRITE), Image.LANCZOS)
+    return img.resize((size, size), Image.LANCZOS)
 
 
 def frames_for(fid):
-    if fid == "egg":
-        return {"egg0": egg_frame(), "egg1": egg_frame(-7), "egg2": egg_frame(7, crack=True)}
+    if fid in EGGS.values():
+        return {"egg0": egg_frame(fid), "egg1": egg_frame(fid, -7), "egg2": egg_frame(fid, 7, crack=True)}
     return {
         "idle0": render(fid),
         "idle1": render(fid, squash=True),
@@ -283,6 +285,7 @@ def write_geometry():
         "export const HEART = 36;",
         "export const ARROW = 60;",
         "export const BALL = 32;",
+        "export const EGG_PICK = %d;" % EGG_PICK,
         "export const ZZZ = { w: 56, h: 48 };",
         "export const LOG = { w: 192, h: 36 };",
         "export const RING = [\n%s,\n];" % ring,
@@ -294,47 +297,57 @@ def write_geometry():
 # --- podglądy --------------------------------------------------------------------
 
 NAMES = {
-    "egg": "Jajo",
-    "pisklak": "Pisklak (maluch)",
-    "tupek": "Tupek (dziecko, dobra opieka)",
-    "gapcio": "Gapcio (dziecko, błędy)",
-    "rogal": "Rogal (nastolatek, wzorowo)",
-    "kolec": "Kolec (nastolatek, średnio)",
-    "lobuz": "Łobuz (nastolatek, zaniedbany)",
-    "rex": "Rex (dorosły, wzorowo + dyscyplina)",
-    "szyjek": "Szyjek (dorosły, dobrze)",
-    "ptero": "Ptero (dorosły, średnio)",
-    "burczek": "Burczek (dorosły, zaniedbany)",
+    "egg": "Jaja: drapieżniki, roślinożercy, latające",
+    "pisklak": "Drapieżniki: Pisklak, Tupek, Łobuz, Rex (wzorowo), Allo",
+    "kropek": "Roślinożercy: Kropek, Rożek, Rogal, Szyjek (wzorowo), Kolec",
+    "piorko": "Latające: Piórko, Pterek, Lotek, Ptero (wzorowo), Mewa",
+    "gapcio": "Zaniedbane (wspólne): Gapcio, Mruk, Burczek",
 }
-ORDER = ["egg", "pisklak", "tupek", "gapcio", "rogal", "kolec", "lobuz", "rex", "szyjek", "ptero", "burczek"]
+LINES_SHEET = [
+    ("egg", ["egg", "eggh", "eggf"]),
+    ("pisklak", ["pisklak", "tupek", "lobuz", "rex", "allo"]),
+    ("kropek", ["kropek", "rozek", "rogal", "szyjek", "kolec"]),
+    ("piorko", ["piorko", "pterek", "lotek", "ptero", "mewa"]),
+    ("gapcio", ["gapcio", "mruk", "burczek"]),
+]
+FRAME_ROWS = ["pisklak", "tupek", "lobuz", "rex", "allo", "kropek", "rozek", "rogal", "szyjek", "kolec", "piorko", "pterek", "lotek", "ptero", "mewa", "gapcio", "mruk", "burczek"]
 
 
 def sheet(all_frames):
     font = ImageFont.truetype(FONT, 18)
     bold = ImageFont.truetype(FONT_B, 22)
-    cell = 120
+    cell = 104
     shown = ["idle0", "idle1", "happy0", "happy1", "sad1", "sleep0", "dark0", "eat0", "left"]
     labels = ["spokój", "oddech", "radość", "podskok", "smutek", "sen", "ciemno", "je", "w lewo"]
-    left, top = 20, 70
-    row_h = cell + 44
-    W = left * 2 + cell * len(shown)
-    H = top + row_h * len(ORDER) + 60 + 2 * 110 + 20
+    left, top = 20, 60
+    W = left * 2 + 130 + cell * len(shown)
+    lines_h = len(LINES_SHEET) * 150
+    H = top + lines_h + 50 + len(FRAME_ROWS) * cell + 60 + 2 * 110 + 20
     img = Image.new("RGBA", (W, H), (0, 0, 0, 255))
     d = ImageDraw.Draw(img)
-    d.text((left, 18), "Pupil - wszystkie formy (gładka grafika, na zegarku 168 px)", font=bold, fill=(255, 255, 255))
+    d.text((left, 16), "Pupil - linie i formy (na zegarku 168 px)", font=bold, fill=(255, 255, 255))
+    y = top
+    for key, ids in LINES_SHEET:
+        d.text((left, y), NAMES[key], font=font, fill=(255, 200, 90))
+        for i, fid in enumerate(ids):
+            fr = all_frames[fid]
+            sp = fr["egg0" if fid in EGGS.values() else "idle0"].resize((120, 120), Image.LANCZOS)
+            img.alpha_composite(sp, (left + i * 150, y + 24))
+        y += 150
+    y += 10
+    d.text((left, y), "Klatki animacji", font=bold, fill=(255, 255, 255))
+    y += 40
     for i, lab in enumerate(labels):
-        d.text((left + i * cell + cell // 2, top - 8), lab, font=font, fill=(150, 150, 160), anchor="ms")
-    for r, fid in enumerate(ORDER):
-        y = top + r * row_h
-        d.text((left, y + 6), NAMES[fid], font=font, fill=(255, 200, 90))
-        keys = EGG_FRAMES if fid == "egg" else shown
-        for i, k in enumerate(keys):
-            x = left + i * cell
+        d.text((left + 130 + i * cell + cell // 2, y - 6), lab, font=font, fill=(150, 150, 160), anchor="ms")
+    for fid in FRAME_ROWS:
+        d.text((left, y + cell // 2), FORMS_NAMES.get(fid, fid), font=font, fill=(255, 200, 90), anchor="lm")
+        for i, k in enumerate(shown):
+            x = left + 130 + i * cell
             bg = (12, 14, 30) if k.startswith("dark") else (16, 16, 18)
-            d.rectangle([x + 4, y + 30, x + cell - 4, y + 30 + cell - 8], fill=bg)
-            sp = all_frames[fid][k].resize((104, 104), Image.LANCZOS)
-            img.alpha_composite(sp, (x + (cell - 104) // 2, y + 30 + (cell - 8 - 104) // 2))
-    y = top + row_h * len(ORDER) + 10
+            d.rectangle([x + 3, y + 3, x + cell - 3, y + cell - 3], fill=bg)
+            img.alpha_composite(all_frames[fid][k].resize((96, 96), Image.LANCZOS), (x + 4, y + 4))
+        y += cell
+    y += 10
     d.text((left, y), "Ikony akcji (zwykła / wybrana) i drobiazgi", font=bold, fill=(255, 255, 255))
     y += 40
     x = left
@@ -352,7 +365,15 @@ def sheet(all_frames):
     img.alpha_composite(icon_img("ball", 32), (x + 130, y + 112))
     img.alpha_composite(trees().resize((84, 84), Image.LANCZOS), (x + 180, y + 86))
     os.makedirs(DOCS, exist_ok=True)
-    img.convert("RGB").save(os.path.join(DOCS, "arkusz.png"), optimize=True)
+    img.convert("RGB").quantize(256, method=Image.Quantize.MEDIANCUT).save(os.path.join(DOCS, "arkusz.png"), optimize=True)  # mały - trafia do .ip-package
+
+
+FORMS_NAMES = {
+    "pisklak": "Pisklak", "tupek": "Tupek", "lobuz": "Łobuz", "rex": "Rex", "allo": "Allo",
+    "kropek": "Kropek", "rozek": "Rożek", "rogal": "Rogal", "szyjek": "Szyjek", "kolec": "Kolec",
+    "piorko": "Piórko", "pterek": "Pterek", "lotek": "Lotek", "ptero": "Ptero", "mewa": "Mewa",
+    "gapcio": "Gapcio", "mruk": "Mruk", "burczek": "Burczek",
+}
 
 
 def mock(all_frames, form, frame, selected, text, title):
@@ -380,7 +401,10 @@ def main():
         all_frames[fid] = fr
         for name, img in fr.items():
             save(img, "pet", fid, name + ".png")
-        if fid != "egg":
+        if fid in EGGS.values():
+            line = [k for k, v in EGGS.items() if v == fid][0]
+            save(egg_frame(fid, size=EGG_PICK), "ui", "egg_" + line + ".png")
+        else:
             th = render(fid, big=True).resize((THUMB, THUMB), Image.LANCZOS)
             save(th, "thumb", fid + ".png")
             save(silhouette(th), "thumb", fid + "_x.png")

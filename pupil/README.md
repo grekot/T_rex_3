@@ -21,7 +21,7 @@ wybierz ją przyciskami **góra/dół** i zatwierdź przyciskiem **wyboru** (`KE
 | Lekarstwo   | leczy chorobę (1–2 dawki) |
 | Sprzątanie  | usuwa kupy |
 | Zgań        | gdy marudzi bez powodu: +1 dyscypliny; zganiony bez powodu się smuci |
-| Statystyki  | serca, waga, wiek, pokolenie, błędy opieki → kolekcja form |
+| Statystyki  | serca, waga, wiek, pokolenie, błędy opieki → zmiana imienia, kolekcja form |
 
 Stuknięcie w dinozaura – krótka reakcja. Wykrzyknik = czegoś potrzebuje, czaszka = chory,
 kupy leżą obok niego.
@@ -46,14 +46,23 @@ albo marudzenie przeszło bez zganienia. Kupa leżąca ponad 6 h grozi chorobą,
 
 ![Formy](docs/arkusz.png)
 
-- maluch Pisklak → Tupek (0 błędów) albo Gapcio
-- dziecko → Rogal (≤1), Kolec (2–3), Łobuz (4+)
-- nastolatek → Rex (≤1 i dyscyplina ≥2), Szyjek (≤3), Ptero (≤6), Burczek
+Przy nowym jaju wybierasz jedno z trzech jajek (linię) i imię z listy (albo bez imienia –
+wtedy na górze ekranu jest nazwa formy). Imię można zmienić w statystykach.
+
+| Jajo          | maluch  | dziecko (0 błędów) | nastolatek (≤2) | dorosły: wzorowo (≤1 i dyscyplina ≥2) | dorosły: dobrze (≤4) |
+|---------------|---------|--------------------|-----------------|---------------------------------------|----------------------|
+| zielone – drapieżniki | Pisklak | Tupek | Łobuz | Rex | Allo |
+| niebieskie – roślinożercy | Kropek | Rożek | Rogal | Szyjek | Kolec |
+| pomarańczowe – latające | Piórko | Pterek | Lotek | Ptero | Mewa |
+
+Zaniedbane formy są wspólne: Gapcio (maluch z błędami), Mruk (dziecko z 3+ błędami;
+z Gapcia przy ≤1 błędzie wraca do linii), Burczek (nastolatek z 5+ błędami albo Mruk z 2+; Mruk przy ≤1 błędzie dorasta do formy „dobrze”).
+Razem 18 form w kolekcji.
 
 **Odejście jest łagodne**: ze starości (13 dni od wyklucia + do 8 dni premii, każde
 2 błędy przez całe życie zabierają dzień) dinozaur zostawia jajo; po długim
 zaniedbaniu (24 h czuwania w głodzie, smutku albo chorobie) ucieka do lasu. Wtedy
-stuknij ekran – zaczynasz od nowego jaja, kolekcja zdobytych form zostaje.
+stuknij ekran – wybierasz nowe jajo i imię, kolekcja zdobytych form zostaje.
 
 ### Minigry
 

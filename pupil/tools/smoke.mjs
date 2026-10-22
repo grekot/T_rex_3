@@ -236,9 +236,9 @@ function makePage(file) {
   const page = {
     opts: pageOpts,
     widgets,
-    start() {
-      if (pageOpts.onInit) pageOpts.onInit.call(pageOpts);
-      pageOpts.build.call(pageOpts);
+    start(params) {
+      if (pageOpts.onInit) pageOpts.onInit.call(pageOpts, params);
+      pageOpts.build.call(pageOpts, params);
       return page;
     },
     // przesuwa sztuczny zegar, odpalając timery po kolei
@@ -331,6 +331,8 @@ test("ekran główny: nowe jajo, wyklucie, karmienie, przyciski", () => {
   assert.equal(pet().form, "egg");
   assert.ok(p.imgs().includes("pet/egg/egg0.png"), p.imgs().join(","));
   assert.ok(p.hasText("Nowe jajo!"));
+  p.run(400);
+  assert.equal(log.push.pop(), "page/gt/choose/index.page", "pierwsze uruchomienie: wybór jajka");
   p.run(4 * 60000);
   assert.equal(pet().form, "pisklak");
   assert.ok(p.imgs().some((s) => s.startsWith("pet/pisklak/")), p.imgs().join(","));
@@ -428,10 +430,49 @@ test("ekran główny: noc, zgaszone światło, odejście i nowe jajo", () => {
   assert.ok(q.imgs().includes("ui/forest.png"));
   assert.ok(q.hasText("Stuknij: nowe jajo"));
   q.tap(q.find((w) => w.type === "IMG" && w.props.src === "ui/forest.png"));
+  assert.equal(log.push.pop(), "page/gt/choose/index.page");
+  // wybór: niebieskie jajo (roślinożercy), imię o dwa dalej
+  const ch = makePage("page_gt_choose_index.page.js").start("egg");
+  assert.ok(ch.hasText("Wybierz jajo"));
+  assert.ok(ch.imgs().includes("ui/egg_herb.png"));
+  ch.tap(ch.find((w) => w.props.src === "ui/egg_herb.png"));
+  assert.ok(ch.hasText("Kropek → Rożek → Rogal → Szyjek"), ch.texts().join("|"));
+  const backs = log.back;
+  ch.tapText("Dalej");
+  assert.ok(ch.hasText("bez imienia"), ch.texts().join("|"));
+  const arrowR = ch.find((w) => w.props.src === "ui/arrow_r.png");
+  assert.equal(arrowR.visible, true);
+  ch.tap(arrowR);
+  ch.tap(arrowR);
+  assert.ok(ch.hasText("Rexio"));
+  ch.tapText("Gotowe");
+  assert.equal(log.back, backs + 1);
   assert.equal(pet().form, "egg");
   assert.equal(pet().gen, 2);
+  assert.equal(pet().line, "herb");
+  assert.equal(pet().name, "Rexio");
   assert.ok(pet().seen.includes("pisklak"));
+  ch.destroy();
+  // ekran główny łapie zmianę: niebieskie jajo i imię w tytule
+  q.run(1100);
+  assert.ok(q.imgs().some((x) => x.startsWith("pet/eggh/")), q.imgs().join(","));
+  assert.ok(q.hasText("Rexio · jajo"), q.texts().join("|"));
+  q.run(4 * 60000);
+  assert.equal(pet().form, "kropek");
+  assert.ok(q.hasText("Rexio · 0 dni"), q.texts().join("|"));
   q.destroy();
+});
+
+test("zmiana imienia ze statystyk (przyciski)", () => {
+  const ch = makePage("page_gt_choose_index.page.js").start("name");
+  assert.ok(ch.hasText("Imię"));
+  assert.ok(ch.hasText("Rexio"));
+  assert.equal(ch.find((w) => w.props.src === "ui/egg_rex.png").visible, false);
+  ch.key("KEY_DOWN");
+  ch.key("KEY_SELECT");
+  assert.equal(pet().name, "Ząbek");
+  assert.equal(pet().line, "herb");
+  ch.destroy();
 });
 
 function hatchAdult() {
@@ -476,15 +517,19 @@ test("statystyki i kolekcja", () => {
   assert.equal(p.imgs().filter((s) => s === "ui/heart.png").length, 4 + 2 + pet().discipline);
   assert.ok(p.hasText("Rogal"), p.texts().join("|"));
   assert.ok(p.hasText("Waga 26 g"), p.texts().join("|"));
+  assert.ok(p.hasText("Ząbek · Rogal"), p.texts().join("|"));
+  p.tapText("Imię");
+  assert.equal(log.push.pop(), "page/gt/choose/index.page");
   p.tapText("Kolekcja");
   assert.equal(log.push.pop(), "page/gt/collection/index.page");
   p.destroy();
   const c = makePage("page_gt_collection_index.page.js").start();
-  assert.ok(c.hasText("Kolekcja 1/10"), c.texts().join("|"));
+  assert.ok(c.hasText("Kolekcja 2/18"), c.texts().join("|"));
+  assert.equal(c.imgs().filter((x) => x.startsWith("thumb/")).length, 18);
   assert.ok(c.imgs().includes("thumb/pisklak.png"));
   assert.ok(c.imgs().includes("thumb/rex_x.png"));
   c.tap(c.find((w) => w.props.src === "thumb/pisklak.png"));
-  assert.ok(c.hasText("Pisklak"));
+  assert.ok(c.hasText("Pisklak · drapieżniki"), c.texts().join("|"));
   c.tap(c.find((w) => w.props.src === "thumb/rex_x.png"));
   assert.ok(c.hasText("???"));
   c.destroy();
@@ -508,6 +553,7 @@ function screenRestored() {
 test("rzut piłką: machnięcia o sile pasującej do celu wygrywają", () => {
   hatchAdult();
   const before = pet();
+  const backs = log.back;
   const p = makePage("page_gt_throw_index.page.js").start();
   const game = () => p.opts.state.game;
   for (let i = 0; i < 3 && !game().done; i++) {
@@ -527,7 +573,7 @@ test("rzut piłką: machnięcia o sile pasującej do celu wygrywają", () => {
   assert.equal(pet().happy, before.happy + 1);
   assert.equal(pet().weight, before.weight - 1);
   p.tapText("Wróć");
-  assert.equal(log.back, 1);
+  assert.equal(log.back, backs + 1);
   assert.equal(p.destroy(), 0);
   screenRestored();
 });

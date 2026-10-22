@@ -28,6 +28,13 @@ import {
   ageDays,
   nextReminder,
   tzFrom,
+  LINES,
+  LINE_ORDER,
+  FORM_ORDER,
+  NAMES,
+  chooseEgg,
+  setName,
+  displayName,
   localMinute as lm,
 } from "../utils/pet.js";
 
@@ -90,8 +97,8 @@ function care(s) {
 }
 
 // Całe życie od jajka: opiekun zagląda o podanych godzinach
-function life(hours, seed, maxDays = 40) {
-  let s = newEgg(at(0, 9, 55), seed);
+function life(hours, seed, maxDays = 40, line = "rex") {
+  let s = newEgg(at(0, 9, 55), seed, null, line);
   const forms = [];
   const events = [];
   for (let d = 0; d < maxDays && !s.gone; d++) {
@@ -294,23 +301,81 @@ test("ewolucja według błędów opieki", () => {
   bad.mistakes = 1;
   assert.equal(nextForm(bad), "gapcio");
   for (const [m, form] of [
-    [0, "rogal"],
-    [1, "rogal"],
-    [2, "kolec"],
-    [3, "kolec"],
-    [4, "lobuz"],
+    [0, "lobuz"],
+    [2, "lobuz"],
+    [3, "mruk"],
   ])
     assert.equal(nextForm({ ...s, form: "tupek", mistakes: m }), form);
-  assert.equal(nextForm({ ...s, form: "rogal", mistakes: 0, discipline: 2 }), "rex");
-  assert.equal(nextForm({ ...s, form: "rogal", mistakes: 0, discipline: 1 }), "szyjek");
-  assert.equal(nextForm({ ...s, form: "kolec", mistakes: 5 }), "ptero");
-  assert.equal(nextForm({ ...s, form: "lobuz", mistakes: 9 }), "burczek");
+  assert.equal(nextForm({ ...s, form: "gapcio", mistakes: 1 }), "lobuz", "z Gapcia da się wyjść");
+  assert.equal(nextForm({ ...s, form: "gapcio", mistakes: 2 }), "mruk");
+  assert.equal(nextForm({ ...s, form: "lobuz", mistakes: 0, discipline: 2 }), "rex");
+  assert.equal(nextForm({ ...s, form: "lobuz", mistakes: 0, discipline: 1 }), "allo");
+  assert.equal(nextForm({ ...s, form: "lobuz", mistakes: 4 }), "allo");
+  assert.equal(nextForm({ ...s, form: "lobuz", mistakes: 5 }), "burczek");
+  assert.equal(nextForm({ ...s, form: "mruk", mistakes: 1 }), "allo");
+  assert.equal(nextForm({ ...s, form: "mruk", mistakes: 2 }), "burczek");
   assert.equal(nextForm({ ...s, form: "rex" }), null);
 });
 
 function clone(o) {
   return JSON.parse(JSON.stringify(o));
 }
+
+test("linie: każde jajko ma własne formy, zaniedbane są wspólne", () => {
+  for (const line of LINE_ORDER) {
+    const L = LINES[line];
+    const egg = newEgg(at(0, 10), 5, null, line, "Kiwi");
+    assert.equal(egg.line, line);
+    assert.equal(egg.name, "Kiwi");
+    const baby = run(egg, at(0, 10, 4));
+    assert.equal(baby.form, L.baby);
+    assert.equal(displayName(baby), "Kiwi");
+    assert.equal(nextForm({ ...baby, mistakes: 0 }), L.child);
+    assert.equal(nextForm({ ...baby, mistakes: 1 }), "gapcio");
+    assert.equal(nextForm({ ...baby, form: L.child, mistakes: 0 }), L.teen);
+    assert.equal(nextForm({ ...baby, form: L.teen, mistakes: 0, discipline: 3 }), L.best);
+    assert.equal(nextForm({ ...baby, form: L.teen, mistakes: 3 }), L.good);
+    assert.equal(nextForm({ ...baby, form: "mruk", mistakes: 0 }), L.good);
+    for (const f of [L.baby, L.child, L.teen, L.best, L.good]) assert.ok(FORMS[f], f);
+    // troskliwy opiekun dochodzi do formy z tej linii
+    const l = life([8, 13, 20.5], 3, 40, line);
+    assert.equal(l.s.gone, "old");
+    assert.deepEqual(l.forms.slice(0, 3), [L.baby, L.child, L.teen]);
+    assert.ok([L.best, L.good].includes(l.forms[3]), l.forms.join(">"));
+  }
+  assert.equal(FORM_ORDER.length, 18);
+  assert.equal(new Set(FORM_ORDER).size, 18);
+  // stary stan bez linii = drapieżniki, bez imienia = nazwa formy
+  const old = hatched();
+  delete old.line;
+  delete old.name;
+  assert.equal(nextForm({ ...old, mistakes: 0 }), "tupek");
+  assert.equal(displayName(old), "Pisklak");
+});
+
+test("wybór jajka i imienia", () => {
+  const egg = newEgg(at(0, 10), 5);
+  const chosen = chooseEgg(run(egg, at(0, 10, 2)), at(0, 10, 2), 9, "fly", "Figa");
+  assert.equal(chosen.line, "fly");
+  assert.equal(chosen.name, "Figa");
+  assert.equal(chosen.gen, 1);
+  assert.equal(run(chosen, at(0, 10, 4)).form, "egg", "wylęganie od nowa od wyboru");
+  assert.equal(run(chosen, at(0, 10, 5)).form, "piorko");
+  // dorosły pupil: tylko zmiana imienia
+  const s = adultAt(at(1, 10));
+  const renamed = chooseEgg(s, at(1, 10), 1, "herb", "Bruno");
+  assert.equal(renamed.form, "rex");
+  assert.equal(renamed.name, "Bruno");
+  assert.equal(setName(renamed, "").name, "");
+  // po odejściu: nowe jajo z wybranej linii, kolekcja zostaje
+  const gone = { ...s, gone: "old", seen: ["pisklak", "rex"] };
+  const next = chooseEgg(gone, at(20, 9), 4, "herb", "Pestka");
+  assert.equal(next.form, "egg");
+  assert.equal(next.line, "herb");
+  assert.equal(next.gen, s.gen + 1);
+  assert.deepEqual(next.seen, ["pisklak", "rex"]);
+  assert.ok(NAMES.includes("") && NAMES.length > 10);
+});
 
 test("ewolucja czeka, aż się obudzi", () => {
   const egg = newEgg(at(0, 21), 9);
@@ -366,7 +431,7 @@ test("zaniedbanie zeruje się po opiece", () => {
 
 test("nowe jajo zachowuje kolekcję i historię", () => {
   const s = adultAt(at(1, 8));
-  s.seen = ["pisklak", "tupek", "rogal", "rex"];
+  s.seen = ["pisklak", "tupek", "lobuz", "rex"];
   const gone = run(s, at(10, 8));
   const egg = restart(gone, at(10, 9), 77);
   assert.equal(egg.gen, gone.gen + 1);
@@ -407,10 +472,11 @@ test("troskliwy opiekun (3 razy dziennie): długie życie i najlepsze formy", ()
     assert.equal(l.s.gone, "old", "seed: " + l.s.gone + " " + l.forms);
     assert.ok(l.days >= 17 && l.days <= 22, "żył " + l.days.toFixed(1));
     assert.equal(l.forms[1], "tupek");
-    assert.equal(l.forms[2], "rogal");
+    assert.equal(l.forms[2], "lobuz");
   }
   const adults = lives.map((l) => l.forms[3]);
-  assert.ok(adults.filter((f) => f === "rex" || f === "szyjek").length >= 10, adults.join(","));
+  assert.ok(adults.every((f) => f === "rex" || f === "allo"), adults.join(","));
+  assert.ok(adults.filter((f) => f === "rex").length >= 4, adults.join(","));
 });
 
 test("zaglądanie raz dziennie wystarcza, żeby przeżył", () => {

@@ -1,11 +1,12 @@
 // Wygenerowane przez tools/gen_assets.py - nie edytować ręcznie.
 export const SPRITE = 168;
-export const THUMB = 72;
+export const THUMB = 64;
 export const DISC = 76;
 export const ICON = 48; // poop, skull, alert, meal, snack
 export const HEART = 36;
 export const ARROW = 60;
 export const BALL = 32;
+export const EGG_PICK = 112;
 export const ZZZ = { w: 56, h: 48 };
 export const LOG = { w: 192, h: 36 };
 export const RING = [

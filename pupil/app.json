@@ -12,7 +12,12 @@
     "vender": "grekot",
     "description": "Tamagotchi z dinozaurem - karm, baw sie, kladz spac"
   },
-  "permissions": ["data:os.device.info", "device:os.local_storage", "device:os.accelerometer", "device:os.alarm"],
+  "permissions": [
+    "data:os.device.info",
+    "device:os.local_storage",
+    "device:os.accelerometer",
+    "device:os.alarm"
+  ],
   "runtime": {
     "apiVersion": {
       "compatible": "3.0",
@@ -27,6 +32,7 @@
         "page": {
           "pages": [
             "page/gt/home/index.page",
+            "page/gt/choose/index.page",
             "page/gt/stats/index.page",
             "page/gt/collection/index.page",
             "page/gt/games/index.page",
