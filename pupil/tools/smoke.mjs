@@ -28,6 +28,7 @@ const files = new Map(); // /data aplikacji (@zos/fs)
 const log = { push: [], back: 0, toasts: [], buzz: [], display: [], errors: [], alarms: [], cancels: [] };
 let accelReading = { x: 0, y: 0, z: 980 };
 let vibrateAt = -1e12;
+const VIBRATION_SHAKE_MS = 450;
 // kompas (null = nieskalibrowany), barometr (m), GPS (null = szuka)
 const sensors = { heading: 0, altitude: 220, fix: { lat: 50.0614, lon: 19.9366 } };
 
@@ -190,9 +191,10 @@ function makePage(file) {
         getCurrent() {
           // wibracja zegarka trzęsie akcelerometrem (tak było na T-Rex 3: Refleks i
           // Wędkowanie zaliczały "reakcję" bez ruchu ręki)
-          if (clock.now - vibrateAt < 250) {
+          // drgania na wszystkich osiach, dłużej niż sama wibracja (silniczek wyhamowuje)
+          if (clock.now - vibrateAt < VIBRATION_SHAKE_MS) {
             const k = Math.floor(clock.now / 40) % 2 ? 1 : -1;
-            return { x: accelReading.x + k * 1500, y: accelReading.y, z: accelReading.z };
+            return { x: accelReading.x + k * 1500, y: accelReading.y - k * 1200, z: accelReading.z + k * 600 };
           }
           return { ...accelReading };
         }
@@ -1002,6 +1004,27 @@ test("drzewo: wibracja przy owocu nie strąca kolejnych", () => {
   }
   assert.equal(p.opts.state.game.fruits, 3);
   p.destroy();
+});
+
+test("balon i inne gry z powtórzeniami: jeden ruch ręką nie pompuje do końca", () => {
+  for (const id of ["balloon", "dig", "race", "warmup"]) {
+    freshPet();
+    accelReading = { x: 0, y: 0, z: 980 };
+    vibrateAt = -1e12;
+    const p = makePage("page_gt_" + id + "_index.page.js").start();
+    p.run(1000);
+    // jeden ruch w górę i w dół, potem ręka nieruchomo przez 8 s
+    for (let t = 0; t < 700; t += 40) {
+      accelReading = { x: 0, y: 800 * Math.sin((2 * Math.PI * t) / 700), z: 980 };
+      p.run(40);
+    }
+    accelReading = { x: 0, y: 0, z: 980 };
+    p.run(8000);
+    const g = p.opts.state.game;
+    const count = id === "balloon" ? Math.round(g.size / 5) : id === "dig" ? g.digs : id === "race" ? g.you : g.count + g.step * 8;
+    assert.ok(count <= 2, id + ": jeden ruch dał " + count + " powtórzeń");
+    p.destroy();
+  }
 });
 
 test("wędkowanie: poderwanie po wibracji łowi rybę", () => {

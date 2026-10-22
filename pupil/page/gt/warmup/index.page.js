@@ -1,6 +1,6 @@
 // Rozgrzewka poranna: trzy krótkie ćwiczenia razem z dinozaurem - krążenia ramion,
 // wymachy rąk i skłony do ziemi. Akcelerometr liczy powtórzenia.
-import { VIBRATOR_SCENE_SHORT_LIGHT, VIBRATOR_SCENE_SHORT_MIDDLE, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
+import { VIBRATOR_SCENE_SHORT_MIDDLE, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { WARMUP, newWarmup, feedWarmup } from "../../../utils/moves";
 import { COLOR, label, image, spriteSrc } from "../../../utils/ui";
 import { finishGame } from "../../../utils/gameui";
@@ -33,8 +33,7 @@ Page({
     const g = s.game;
     const ev = feedWarmup(g, a, now, dt);
     if (ev === "rep") {
-      buzz(s, VIBRATOR_SCENE_SHORT_LIGHT);
-      s.cheer = now + 500;
+      s.cheer = now + 500; // bez wibracji przy powtórzeniu
     } else if (ev === "next" && !g.done) {
       buzz(s, VIBRATOR_SCENE_SHORT_MIDDLE);
       s.cheer = now + 1200;

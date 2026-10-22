@@ -42,17 +42,30 @@ export function createTiltReader() {
 
 // Szarpnięcie / machnięcie: true w chwili przekroczenia progu, potem przerwa.
 // hits = ile kolejnych odczytów (co 40 ms) musi być ponad progiem - drgania silniczka
-// wibracji są krótkie, prawdziwe szarpnięcie ręką trwa dłużej. mute(t) = ignoruj do t
-// (np. w trakcie własnej wibracji zegarka, która trzęsie akcelerometrem).
+// wibracji są krótkie, prawdziwe szarpnięcie ręką trwa dłużej. mute(t) = po własnej
+// wibracji zegarka czekaj, aż odczyty się uspokoją (2 spokojne z rzędu), najdłużej do t.
 export function createFlick(threshold, cooldown, hits) {
   const need = hits || 1;
   let up = false;
   let quietUntil = 0;
   let run = 0;
+  let settling = false;
+  let calm = 0;
   return {
     feed(a, t) {
       if (!a) return false;
       const dev = Math.abs(mag(a) - G);
+      if (settling) {
+        if (t >= quietUntil) settling = false;
+        else {
+          calm = dev < threshold * 0.3 ? calm + 1 : 0;
+          if (calm >= 2) {
+            settling = false;
+            quietUntil = t;
+          }
+          return false;
+        }
+      }
       if (up) {
         if (dev < threshold * 0.5) up = false;
         return false;
@@ -70,6 +83,8 @@ export function createFlick(threshold, cooldown, hits) {
     mute(until) {
       quietUntil = Math.max(quietUntil, until);
       run = 0;
+      settling = true;
+      calm = 0;
     },
     dev(a) {
       return a ? Math.abs(mag(a) - G) : 0;
@@ -482,7 +497,7 @@ export function stepEggRoll(g, tx, ty, dt) {
 // Refleks: sygnał tylko na ekranie (bez wibracji). Wędkowanie: sygnałem jest wibracja,
 // przez mute ms po niej akcelerometr jest ignorowany, okno odpowiednio dłuższe.
 export const REFLEX = { rounds: 3, waitMin: 1500, waitMax: 4500, maxAvg: 650, flick: 700, timeout: 2000, hits: 2, vibrate: false, mute: 0 };
-export const FISH = { rounds: 3, waitMin: 2500, waitMax: 7000, window: 1700, need: 2, flick: 900, hits: 2, vibrate: true, mute: 400 };
+export const FISH = { rounds: 3, waitMin: 2500, waitMax: 7000, window: 2000, need: 2, flick: 900, hits: 2, vibrate: true, mute: 800 };
 
 export function newSignalGame(seed, cfg, now) {
   const rnd = makeRng(seed);

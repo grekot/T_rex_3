@@ -1,6 +1,6 @@
 // Potrząśnij drzewem: potrząsaj ręką, z drzewa spadają owoce (12 w 15 s).
 // Za mocne szarpnięcie strąca ul - dwa razy i pszczoły przeganiają dinozaura.
-import { VIBRATOR_SCENE_SHORT_LIGHT, VIBRATOR_SCENE_DURATION, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
+import { VIBRATOR_SCENE_DURATION, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { TREE, newTree, feedTree } from "../../../utils/moves";
 import { COLOR, label, image } from "../../../utils/ui";
 import { finishGame } from "../../../utils/gameui";
@@ -34,7 +34,6 @@ Page({
     const g = s.game;
     const ev = feedTree(g, a, now, dt);
     if (ev === "fruit") {
-      buzz(s, VIBRATOR_SCENE_SHORT_LIGHT);
       s.drop = { x: DROP.x0 + ((g.fruits * 37) % (DROP.x1 - DROP.x0)), t: now };
     } else if (ev === "bees") {
       buzz(s, VIBRATOR_SCENE_DURATION);

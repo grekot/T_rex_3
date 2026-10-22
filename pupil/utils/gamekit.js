@@ -8,9 +8,9 @@ import { load } from "./store.js";
 
 export const POLL_MS = 40;
 const CALIB_MS = 600;
-// Wibracja zegarka trzęsie akcelerometrem - przez tyle ms po buzz() gra dostaje ostatni
-// spokojny odczyt zamiast drgań (inaczej wibracja przy powtórzeniu nabijałaby kolejne)
-export const VIBRATION_HOLD_MS = 300;
+// Wibracja zegarka trzęsie akcelerometrem - po buzz() gra dostaje ostatni spokojny odczyt,
+// dopóki odczyty się nie uspokoją (co najmniej MIN, najwyżej MAX ms)
+export const VIBRATION_HOLD = { min: 150, max: 800, calm: 150 };
 
 export const HEAD = { x: 70, y: 28, w: 340, h: 44, size: 30 };
 export const HINT = { x: 60, y: 72, w: 360, h: 34, size: 22 };
@@ -39,12 +39,19 @@ export function startMotion(st, opts) {
   const t0 = Date.now();
   let last = t0;
   st.zero = opts.calibrate ? null : { x: 0, y: 0, z: 980, zSign: 1 };
-  st.vibUntil = 0;
+  st.vibFrom = 0;
+  st.vibCalm = 0;
   st.lastCalm = null;
   st.poll = setInterval(() => {
     const now = Date.now();
     let a = readAccel(st.accel);
-    if (now < st.vibUntil) a = st.lastCalm;
+    if (st.vibFrom) {
+      const dev = a ? Math.abs(Math.sqrt(a.x * a.x + a.y * a.y + a.z * a.z) - 980) : 0;
+      st.vibCalm = dev < VIBRATION_HOLD.calm ? st.vibCalm + 1 : 0;
+      const since = now - st.vibFrom;
+      if (since >= VIBRATION_HOLD.max || (since >= VIBRATION_HOLD.min && st.vibCalm >= 2)) st.vibFrom = 0;
+    }
+    if (st.vibFrom) a = st.lastCalm;
     else st.lastCalm = a;
     if (!st.zero) {
       samples.push(a);
@@ -72,5 +79,6 @@ export function stopMotion(st) {
 
 export function buzz(st, scene) {
   if (st.buzzer) st.buzzer.buzz(scene);
-  st.vibUntil = Date.now() + VIBRATION_HOLD_MS;
+  st.vibFrom = Date.now();
+  st.vibCalm = 0;
 }

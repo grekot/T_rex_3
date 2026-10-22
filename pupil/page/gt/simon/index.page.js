@@ -1,6 +1,6 @@
 // Powtórz ruch: dinozaur pokazuje strzałki, a ty powtarzasz je przechyłami zegarka
 // (lewo, prawo, od siebie = góra, do siebie = dół). Co rundę sekwencja dłuższa.
-import { VIBRATOR_SCENE_SHORT_LIGHT, VIBRATOR_SCENE_DURATION, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
+import { VIBRATOR_SCENE_DURATION, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { SIMON, newSimon, simonInput, createTiltReader } from "../../../utils/moves";
 import { newSeed } from "../../../utils/store";
 import { COLOR, label, image } from "../../../utils/ui";
@@ -80,8 +80,7 @@ Page({
     const r = simonInput(s.game, dir);
     s.game = r.game;
     this.renderRound();
-    if (r.event === "ok") buzz(s, VIBRATOR_SCENE_SHORT_LIGHT);
-    else if (r.event === "round") {
+    if (r.event === "round") {
       s.phase = "wait";
       s.status.set("Dobrze! Dłuższa sekwencja", COLOR.good);
       s.timer = setTimeout(() => this.showSequence(), 900);

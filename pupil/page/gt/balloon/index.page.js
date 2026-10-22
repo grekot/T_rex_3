@@ -3,7 +3,7 @@
 import * as hmUI from "@zos/ui";
 import { px } from "@zos/utils";
 import { onKey, offKey, KEY_SELECT, KEY_EVENT_CLICK } from "@zos/interaction";
-import { VIBRATOR_SCENE_SHORT_LIGHT, VIBRATOR_SCENE_DURATION, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
+import { VIBRATOR_SCENE_DURATION, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { newBalloon, pump, releaseBalloon } from "../../../utils/moves";
 import { newSeed } from "../../../utils/store";
 import { COLOR, label, rect, button } from "../../../utils/ui";
@@ -56,8 +56,7 @@ Page({
     const g = s.game;
     if (g.done) return;
     if (g.reps.feed(a, now)) {
-      pump(g, now);
-      buzz(s, VIBRATOR_SCENE_SHORT_LIGHT);
+      pump(g, now); // bez wibracji: drgania same "pompowałyby" dalej
       this.render();
       if (g.popped) this.end();
     }

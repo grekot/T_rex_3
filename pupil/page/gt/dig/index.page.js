@@ -1,7 +1,7 @@
 // Wykopywanie kości: rytmiczne ruchy ręką w górę i w dół jak łopatą. Co 5 "kopnięć"
 // znika warstwa ziemi, po 15 dinozaur znajduje skamielinę.
 import * as hmUI from "@zos/ui";
-import { VIBRATOR_SCENE_SHORT_LIGHT, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
+import { VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { DIG, newDig, feedDig } from "../../../utils/moves";
 import { COLOR, label, image, rect } from "../../../utils/ui";
 import { finishGame } from "../../../utils/gameui";
@@ -31,7 +31,7 @@ Page({
   tick(a, now, dt) {
     const s = this.state;
     const g = s.game;
-    if (feedDig(g, a, now, dt)) buzz(s, VIBRATOR_SCENE_SHORT_LIGHT);
+    feedDig(g, a, now, dt); // bez wibracji przy kopnięciu (drgania liczyłyby się jako ruch)
     const gone = Math.floor((g.digs * DIG.layers) / DIG.need);
     if (gone !== s.gone) {
       s.gone = gone;
