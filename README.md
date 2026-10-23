@@ -17,6 +17,7 @@ Każda aplikacja ma własny folder i buduje się niezależnie.
 | [lista-zakupow](lista-zakupow/README.md) | Zakupy – lista zakupów: aplikacja Flutter na telefon + odhaczanie na zegarku (Firebase) |
 | [powrot](powrot/README.md)          | Powrót – zapisz miejsce (np. parking) i wróć do niego ze strzałką kompasu (GPS, offline) + aplikacja na telefon (Google Maps, trasa GPX) |
 | [korona](korona/README.md)          | Na szczycie – zdobyte szczyty: Korona Gór Polski, Beskid Wyspowy, Sądecki, Gorce, Tatry (652); zegarek rozpoznaje szczyt po GPS i zapisuje datę, własne szczyty, najbliższe ze strzałką + aplikacja na telefon |
+| [waga](waga/README.md)              | Waga – poranne ważenie: start od ostatniego pomiaru, −/+ 0,1 kg, wykres 14 dni, historia (offline; telefon z wykresem i Health Connect w planie) |
 | [zdjecia](zdjecia/README.md)        | Zdjęcia – najciekawsze zdjęcia z galerii telefonu na zegarku (etap próbny: most 127.0.0.1, pomiar przesyłu) |
 | [wspolne](wspolne/README.md)        | kod Fluttera wspólny dla Zakupów i Powrotu (konto, znajomi, udostępnianie) – nie jest osobną aplikacją |
 
