@@ -5,14 +5,17 @@
     "appName": "Waga",
     "appType": "app",
     "version": {
-      "code": 1,
-      "name": "1.0.0"
+      "code": 2,
+      "name": "1.1.0"
     },
     "icon": "icon.png",
     "vender": "grekot",
     "description": "Poranne wazenie - szybki wpis wagi przyciskami +/- 0,1 kg, historia i trend"
   },
-  "permissions": ["data:os.device.info"],
+  "permissions": [
+    "data:os.device.info",
+    "device:os.local_storage"
+  ],
   "runtime": {
     "apiVersion": {
       "compatible": "3.0",
@@ -25,7 +28,16 @@
     "gt": {
       "module": {
         "page": {
-          "pages": ["page/gt/home/index.page", "page/gt/history/index.page"]
+          "pages": [
+            "page/gt/home/index.page",
+            "page/gt/history/index.page"
+          ]
+        },
+        "app-side": {
+          "path": "app-side/index"
+        },
+        "setting": {
+          "path": "setting/index"
         }
       },
       "platforms": [

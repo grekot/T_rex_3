@@ -23,6 +23,8 @@ import {
   repeatDelay,
   historyRows,
   periodChange,
+  mergeRemote,
+  syncPlan,
 } from "../utils/weight.js";
 
 let failed = 0;
@@ -156,6 +158,84 @@ test("historia: od najnowszego, różnica do poprzedniego pomiaru, limit; zmiana
   assert.equal(periodChange(d, "2026-10-23", 7), -3);
   assert.equal(periodChange(d, "2026-10-23", 60), -18);
   assert.equal(periodChange(d, "2026-10-23", 1), null);
+});
+
+test("nagrobki (w: 0): zostają w danych, ale nie ma ich w widoku", () => {
+  let d = normalize({
+    e: [
+      { d: "2026-10-20", w: 830, t: 1 },
+      { d: "2026-10-21", w: 0, t: 5 },
+      { d: "2026-10-22", w: 826, t: 1 },
+      { d: "2026-10-23", w: 0, t: 9 },
+    ],
+  });
+  assert.equal(d.e.length, 4);
+  assert.equal(entryFor(d, "2026-10-21"), null);
+  assert.equal(entryFor(d, "2026-10-23"), null);
+  assert.equal(lastBefore(d, "2026-10-22").w, 830);
+  assert.equal(startValue(d, "2026-10-23"), 826);
+  assert.deepEqual(series(d, "2026-10-23", 4), [830, null, 826, null]);
+  assert.deepEqual(
+    historyRows(d, 10).map((r) => r.d + ":" + r.delta),
+    ["2026-10-22:-4", "2026-10-20:null"],
+  );
+  assert.equal(periodChange(d, "2026-10-23", 7), -4);
+  // ponowny zapis dnia z nagrobkiem przywraca pomiar
+  d = upsert(d, "2026-10-23", 825, 20);
+  assert.equal(entryFor(d, "2026-10-23").w, 825);
+});
+
+test("scalanie z chmurą: nowszy wpis wygrywa, nagrobki, co wysłać", () => {
+  let local = emptyData();
+  local = upsert(local, "2026-10-20", 830, 100); // tylko lokalnie -> wysłać
+  local = upsert(local, "2026-10-21", 828, 300); // lokalnie nowszy -> wysłać
+  local = upsert(local, "2026-10-22", 826, 100); // w chmurze nowszy -> przyjąć
+  local = upsert(local, "2026-10-23", 825, 100); // w chmurze nagrobek nowszy -> usunąć
+  local = upsert(local, "2026-10-24", 824, 100); // to samo t -> bez zmian
+  const remote = {
+    "2026-10-19": { w: 835, t: 50 }, // tylko w chmurze -> przyjąć
+    "2026-10-21": { w: 829, t: 200 },
+    "2026-10-22": { w: 820, t: 200 },
+    "2026-10-23": { w: 0, t: 200 },
+    "2026-10-24": { w: 824, t: 100 },
+    "2026-10-25": { w: 5, t: 999 }, // zła waga - pomijana
+    zly: { w: 800, t: 1 },
+  };
+  const r = mergeRemote(local, remote);
+  assert.equal(r.changed, true);
+  assert.deepEqual(
+    r.data.e.map((x) => x.d + ":" + x.w + "@" + x.t),
+    ["2026-10-19:835@50", "2026-10-20:830@100", "2026-10-21:828@300", "2026-10-22:820@200", "2026-10-23:0@200", "2026-10-24:824@100"],
+  );
+  assert.deepEqual(r.push, [
+    { d: "2026-10-20", w: 830, t: 100 },
+    { d: "2026-10-21", w: 828, t: 300 },
+  ]);
+  assert.equal(entryFor(r.data, "2026-10-23"), null);
+  // drugie scalenie z tym samym stanem chmury po wysłaniu: nic nowego
+  const after = { ...remote, "2026-10-20": { w: 830, t: 100 }, "2026-10-21": { w: 828, t: 300 } };
+  const r2 = mergeRemote(r.data, after);
+  assert.equal(r2.changed, false);
+  assert.deepEqual(r2.push, []);
+  // pusta chmura / brak dokumentu: wysłać wszystko, nagrobki też
+  const r3 = mergeRemote(r.data, null);
+  assert.equal(r3.push.length, 6);
+  assert.equal(r3.changed, false);
+});
+
+test("plan Side Service: co zapisać w chmurze, co odesłać na zegarek", () => {
+  const sent = [
+    { d: "2026-10-22", w: 826, t: 100 },
+    { d: "2026-10-23", w: 825, t: 300 },
+  ];
+  const remote = { "2026-10-21": { w: 830, t: 50 }, "2026-10-22": { w: 0, t: 200 }, "2026-10-23": { w: 820, t: 200 } };
+  const p = syncPlan(sent, remote);
+  assert.deepEqual(p.push, [{ d: "2026-10-23", w: 825, t: 300 }]);
+  assert.deepEqual(p.apply, [
+    { d: "2026-10-21", w: 830, t: 50 },
+    { d: "2026-10-22", w: 0, t: 200 },
+  ]);
+  assert.deepEqual(syncPlan([], {}), { push: [], apply: [] });
 });
 
 test("przytrzymanie:najpierw pauza, potem coraz szybciej", () => {

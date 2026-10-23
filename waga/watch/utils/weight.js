@@ -5,6 +5,8 @@
 // jeden pomiar na dzień (ponowny zapis tego samego dnia nadpisuje).
 //
 // Dane: { v: 1, e: [{ d: "2026-10-23", w: 823, t: <ms zapisu> }, ...] } rosnąco po dniu.
+// w: 0 = pomiar usunięty (nagrobek z synchronizacji, waga/SYNC.md) - zostaje w danych, żeby
+// starszy wpis z chmury go nie przywrócił, ale nigdzie się nie pokazuje.
 
 export const MIN_W = 300; // 30,0 kg
 export const MAX_W = 2500; // 250,0 kg
@@ -78,12 +80,21 @@ export function emptyData() {
   return { v: 1, e: [] };
 }
 
+// Poprawna waga albo nagrobek (0)
+function validW(w) {
+  return typeof w === "number" && (w === 0 || (w >= MIN_W && w <= MAX_W));
+}
+
+function live(data) {
+  return data.e.filter((x) => x.w > 0);
+}
+
 // Cokolwiek przyszło z pliku -> poprawne dane (zły wpis odpada, duplikat dnia: późniejszy zapis wygrywa)
 export function normalize(raw) {
   const byDay = {};
   const list = raw && Array.isArray(raw.e) ? raw.e : [];
   list.forEach((x) => {
-    if (!x || !parseKey(x.d) || typeof x.w !== "number" || !(x.w >= MIN_W && x.w <= MAX_W)) return;
+    if (!x || !parseKey(x.d) || !validW(x.w)) return;
     const t = typeof x.t === "number" ? x.t : 0;
     const prev = byDay[x.d];
     if (!prev || t >= prev.t) byDay[x.d] = { d: x.d, w: Math.round(x.w), t };
@@ -101,14 +112,15 @@ export function upsert(data, day, w, t) {
   return { v: 1, e };
 }
 
+// Pomiar z danego dnia (nagrobek = brak pomiaru)
 export function entryFor(data, day) {
-  for (let i = 0; i < data.e.length; i++) if (data.e[i].d === day) return data.e[i];
+  for (let i = 0; i < data.e.length; i++) if (data.e[i].d === day) return data.e[i].w > 0 ? data.e[i] : null;
   return null;
 }
 
 // ostatni pomiar sprzed danego dnia
 export function lastBefore(data, day) {
-  for (let i = data.e.length - 1; i >= 0; i--) if (data.e[i].d < day) return data.e[i];
+  for (let i = data.e.length - 1; i >= 0; i--) if (data.e[i].d < day && data.e[i].w > 0) return data.e[i];
   return null;
 }
 
@@ -154,7 +166,7 @@ export function changeInfo(data, today, current) {
 
 // Wiersze historii, od najnowszego: { d, w, delta } (delta względem poprzedniego pomiaru, null dla pierwszego)
 export function historyRows(data, limit) {
-  const e = data.e;
+  const e = live(data);
   const out = [];
   for (let i = e.length - 1; i >= 0 && out.length < limit; i--) {
     out.push({ d: e[i].d, w: e[i].w, delta: i > 0 ? e[i].w - e[i - 1].w : null });
@@ -166,7 +178,7 @@ export function historyRows(data, limit) {
 // (null, gdy w okresie są mniej niż dwa pomiary)
 export function periodChange(data, today, days) {
   const from = addDays(today, -(days - 1));
-  const inRange = data.e.filter((x) => x.d >= from && x.d <= today);
+  const inRange = live(data).filter((x) => x.d >= from && x.d <= today);
   if (inRange.length < 2) return null;
   return inRange[inRange.length - 1].w - inRange[0].w;
 }
@@ -191,4 +203,52 @@ export function repeatDelay(n) {
   if (n <= 1) return 450;
   if (n <= 10) return 120;
   return 50;
+}
+
+// --- synchronizacja (waga/SYNC.md) ---
+
+// Scalenie z wpisami z chmury (remote: { "RRRR-MM-DD": { w, t } } albo null).
+// Dla każdego dnia wygrywa większe t (nagrobek w: 0 też). Wynik:
+//   data    - scalone dane do zapisania w pliku,
+//   push    - wpisy, w których lokalne dane są nowsze (do wysłania), [{ d, w, t }],
+//   changed - czy coś z chmury zmieniło lokalne dane.
+export function mergeRemote(local, remote) {
+  const byDay = {};
+  local.e.forEach((x) => {
+    byDay[x.d] = x;
+  });
+  const push = [];
+  let changed = false;
+  const r = remote && typeof remote === "object" ? remote : {};
+  Object.keys(r).forEach((d) => {
+    const x = r[d];
+    if (!parseKey(d) || !x || !validW(x.w) || typeof x.t !== "number") return;
+    const mine = byDay[d];
+    if (!mine || x.t > mine.t) {
+      if (!mine || mine.w !== x.w || mine.t !== x.t) changed = true;
+      byDay[d] = { d, w: Math.round(x.w), t: x.t };
+    }
+  });
+  Object.keys(byDay).forEach((d) => {
+    const mine = byDay[d];
+    const x = r[d];
+    const remoteT = x && typeof x.t === "number" && validW(x.w) ? x.t : -1;
+    if (mine.t > remoteT) push.push({ d, w: mine.w, t: mine.t });
+  });
+  push.sort((a, b) => (a.d < b.d ? -1 : a.d > b.d ? 1 : 0));
+  return { data: normalize({ e: Object.keys(byDay).map((d) => byDay[d]) }), push, changed };
+}
+
+// Plan synchronizacji w Side Service: sent = wpisy z zegarka, remote = mapa z chmury.
+// push - dni do zapisania w chmurze, apply - dni do odesłania zegarkowi (chmura nowsza albo
+// dzień, którego zegarek nie ma).
+export function syncPlan(sent, remote) {
+  const local = normalize({ e: sent });
+  const merged = mergeRemote(local, remote);
+  const mine = {};
+  local.e.forEach((x) => {
+    mine[x.d] = x;
+  });
+  const apply = merged.data.e.filter((x) => !mine[x.d] || mine[x.d].t !== x.t || mine[x.d].w !== x.w);
+  return { push: merged.push, apply };
 }
