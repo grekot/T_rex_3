@@ -1,6 +1,6 @@
-// Sprzęt zegarka: akcelerometr (minigry), ekran i wibracje. Każdy błąd jest łapany,
+// Sprzęt zegarka: akcelerometr (minigry), kroki (podróż Milano), ekran i wibracje. Każdy błąd jest łapany,
 // żeby brak jakiejś funkcji w systemie nie dał czarnego ekranu.
-import { Accelerometer, FREQ_MODE_HIGH, Vibrator } from "@zos/sensor";
+import { Accelerometer, FREQ_MODE_HIGH, Vibrator, Step } from "@zos/sensor";
 import {
   setPageBrightTime,
   resetPageBrightTime,
@@ -68,6 +68,16 @@ export function releaseScreen() {
   try {
     resetPageBrightTime();
   } catch (e) {}
+}
+
+// Dzisiejsze kroki z zegarka (uprawnienie data:user.hd.step) albo null, gdy nie da się odczytać
+export function readSteps() {
+  try {
+    const n = new Step().getCurrent();
+    return typeof n === "number" && n >= 0 ? n : null;
+  } catch (e) {
+    return null;
+  }
 }
 
 export function createBuzzer() {

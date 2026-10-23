@@ -19,7 +19,8 @@
     "device:os.alarm",
     "device:os.compass",
     "device:os.barometer",
-    "device:os.geolocation"
+    "device:os.geolocation",
+    "data:user.hd.step"
   ],
   "runtime": {
     "apiVersion": {
@@ -60,7 +61,10 @@
             "page/gt/marks/index.page",
             "page/gt/race/index.page",
             "page/gt/calm/index.page",
-            "page/gt/warmup/index.page"
+            "page/gt/warmup/index.page",
+            "page/gt/defend/index.page",
+            "page/gt/mix/index.page",
+            "page/gt/galaxy/index.page"
           ]
         }
       },

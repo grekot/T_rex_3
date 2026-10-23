@@ -33,7 +33,7 @@ const VIBRATION_SHAKE_MS = 450;
 // wędkowaniu na T-Rex 3, gdzie wyciszanie po wibracji nie wystarczało
 let shake = { ms: VIBRATION_SHAKE_MS, gaps: false };
 // kompas (null = nieskalibrowany), barometr (m), GPS (null = szuka)
-const sensors = { heading: 0, altitude: 220, fix: { lat: 50.0614, lon: 19.9366 } };
+const sensors = { heading: 0, altitude: 220, fix: { lat: 50.0614, lon: 19.9366 }, steps: 0 };
 
 class FakeDate extends Date {
   constructor(...a) {
@@ -162,6 +162,17 @@ function makePage(file) {
         getDirectionAngle() {
           return sensors.heading === null ? "INVALID" : sensors.heading;
         }
+      },
+      // kroki z całego dnia (podróż Milano, utils/galaxy.js)
+      Step: class {
+        getCurrent() {
+          return sensors.steps;
+        }
+        getTarget() {
+          return 8000;
+        }
+        onChange() {}
+        offChange() {}
       },
       Barometer: class {
         onChange() {}
@@ -732,7 +743,7 @@ test("menu zabaw: 22 gry w grupach, przewijana lista", () => {
 
 // Każda nowa gra: ładuje się, chodzi 3 s bez błędów, po zamknięciu nie zostają timery,
 // a gry ruchowe przywracają gaszenie ekranu
-const NEW_GAMES = ["simon", "catch", "runner", "tree", "dig", "balloon", "eggroll", "reflex", "fishing", "aim", "forage", "climb", "dive", "trip", "marks", "race", "calm", "warmup"];
+const NEW_GAMES = ["simon", "catch", "runner", "tree", "dig", "balloon", "eggroll", "reflex", "fishing", "aim", "forage", "climb", "dive", "trip", "marks", "race", "calm", "warmup", "defend", "mix", "galaxy"];
 for (const id of NEW_GAMES) {
   test("gra " + id + ": start, 3 s, zamknięcie", () => {
     freshPet();
@@ -1134,6 +1145,98 @@ test("nurkowanie: sama wibracja przy ekranie do góry nie nurkuje", () => {
   p.destroy();
   shake = { ms: VIBRATION_SHAKE_MS, gaps: false };
   vibrateAt = -1e12;
+});
+
+test("kroki: energia, lądowanie na Xandarze, tło planety, strona Galaktyka", () => {
+  freshPet();
+  setPet((s) => {
+    s.hunger = 1;
+    s.trip = undefined;
+  });
+  sensors.steps = 6500;
+  const q = makePage("page_gt_home_index.page.js").start();
+  q.run(500);
+  assert.equal(pet().hunger, 4, "3 x 2000 kroków = +3 energii");
+  assert.deepEqual(pet().trip.visited, ["xandar"]);
+  assert.ok(q.hasText("Xandar"), q.texts().join("|"));
+  assert.ok(q.imgs().includes("ui/bg_xandar.png"), q.imgs().join(","));
+  q.destroy();
+  const g = makePage("page_gt_galaxy_index.page.js").start();
+  assert.ok(g.hasText("Dziś 6 500 kroków"), g.texts().join("|"));
+  assert.ok(g.hasText("Contraxia"), g.texts().join("|"));
+  assert.ok(g.imgs().includes("ui/pc_xandar.png"));
+  assert.ok(g.imgs().includes("ui/pc_knowhere_x.png"));
+  g.tap(g.find((w) => w.props.src === "ui/pc_xandar.png"));
+  assert.ok(g.hasText("Imperium Nova"), g.texts().join("|"));
+  g.destroy();
+  // ze statystyk przycisk do podróży
+  const st = makePage("page_gt_stats_index.page.js").start();
+  st.tapText("Podróż");
+  assert.equal(log.push.pop(), "page/gt/galaxy/index.page");
+  st.destroy();
+  sensors.steps = 0;
+});
+
+test("Jestem Groot: stuknięcie, po chwili tłumaczenie Rocketa", () => {
+  freshPet();
+  setPet((s) => {
+    s.hunger = 0;
+    s.trip = undefined;
+  });
+  const q = makePage("page_gt_home_index.page.js").start();
+  q.run(3000);
+  q.tap(q.find((w) => w.type === "IMG" && String(w.props.src).startsWith("pet/grocik/")));
+  assert.ok(q.hasText("Jestem Groot."), q.texts().join("|"));
+  q.run(2000);
+  assert.ok(q.hasText("Rocket: brakuje mu słońca"), q.texts().join("|"));
+  q.destroy();
+});
+
+test("Obrona Milano: stukanie w statki wygrywa", () => {
+  freshPet();
+  const before = pet().happy;
+  const p = makePage("page_gt_defend_index.page.js").start();
+  for (let i = 0; i < 1200 && !p.opts.state.game.done; i++) {
+    p.run(50);
+    p.opts.state.pool.filter((sl) => sl.id).forEach((sl) => p.tap(sl.w.widget));
+  }
+  const g = p.opts.state.game;
+  assert.equal(g.win, true, "zestrzelone " + g.killed + ", Milano " + g.lives);
+  assert.ok(p.hasText("Wygrana!"));
+  assert.ok(pet().happy > before);
+  assert.equal(p.destroy(), 0);
+});
+
+test("Obrona Milano: bez stukania przegrana, wibracja przy trafieniu", () => {
+  freshPet();
+  const n = log.buzz.length;
+  const p = makePage("page_gt_defend_index.page.js").start();
+  p.run(50000);
+  assert.equal(p.opts.state.game.win, false);
+  assert.ok(log.buzz.length > n);
+  assert.ok(p.hasText("Tym razem nie"));
+  p.destroy();
+});
+
+test("Awesome Mix: wibracja rytmu, stukanie w tym samym rytmie wygrywa", () => {
+  freshPet();
+  const p = makePage("page_gt_mix_index.page.js").start();
+  const n0 = log.buzz.length;
+  for (let r = 0; r < 3 && !p.opts.state.game.done; r++) {
+    for (let i = 0; i < 300 && p.opts.state.phase !== "play"; i++) p.run(50);
+    assert.equal(p.opts.state.phase, "play");
+    const pat = p.opts.state.game.pattern;
+    p.tapText("Stukaj tu");
+    pat.forEach((u) => {
+      p.run(u * 480);
+      p.tapText("Stukaj tu");
+    });
+    p.run(2000);
+  }
+  assert.ok(log.buzz.length - n0 >= 9, "rytm wystukany wibracją");
+  assert.equal(p.opts.state.game.win, true);
+  assert.ok(p.hasText("Groot tańczy!"));
+  assert.equal(p.destroy(), 0);
 });
 
 if (failed) {

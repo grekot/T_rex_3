@@ -6,7 +6,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "node test/pet.test.mjs && node test/games.test.mjs && node test/moves.test.mjs && node test/walks.test.mjs && node test/idle.test.mjs",
+    "test": "node test/pet.test.mjs && node test/games.test.mjs && node test/moves.test.mjs && node test/walks.test.mjs && node test/idle.test.mjs && node test/galaxy.test.mjs",
     "assets": "python tools/gen_assets.py"
   },
   "devDependencies": {

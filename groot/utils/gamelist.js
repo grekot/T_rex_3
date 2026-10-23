@@ -6,7 +6,7 @@ export const GAME_GROUPS = [
   { name: "Spokój i ćwiczenia", games: ["rock", "calm", "race", "warmup"] },
   { name: "Kompas i barometr", games: ["forage", "climb"] },
   { name: "Na spacer (GPS)", games: ["trip", "marks"] },
-  { name: "Bez ruchu", games: ["guess"] },
+  { name: "Na dotyk (bez ruchu ręką)", games: ["defend", "mix", "guess"] },
 ];
 
 export const GAME_NAMES = {
@@ -32,13 +32,15 @@ export const GAME_NAMES = {
   trip: "Wyprawa po Orb",
   marks: "Nadajniki",
   guess: "Lewo czy prawo?",
+  defend: "Obrona Milano",
+  mix: "Awesome Mix",
 };
 
 // Zadania spacerowe (klucz w s.walks)
 export const WALK_GAMES = { climb: "climb", trip: "trip", marks: "marks" };
 
 // O te gry Groot sam prosi (krótkie, bez spaceru i bez eksperymentów)
-export const REQUEST_GAMES = ["simon", "catch", "eggroll", "aim", "balance", "reflex", "fishing", "throw", "runner", "tree", "balloon", "rock", "calm", "race", "forage", "guess"];
+export const REQUEST_GAMES = ["simon", "catch", "eggroll", "aim", "balance", "reflex", "fishing", "throw", "runner", "tree", "balloon", "rock", "calm", "race", "forage", "guess", "defend", "mix"];
 
 // Gra o premię po akcji: nawóz/lody, grabienie, oprysk
 export const ACTION_GAMES = {

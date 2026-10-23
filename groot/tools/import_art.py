@@ -334,7 +334,7 @@ PROPS = [
 EXTRA = {
     "fin": [("bone_big", 96)],
     "ball": [("orb", 36)],
-    "milano": [("egg_small", 34)],
+    "milano": [("egg_small", 34), ("milano_big", 72)],
     "fish": [("fish_big", 72)],
     "flag": [("flag_s", 40), ("beacon", 36)],
     "star": [("star_ok", 60)],
@@ -450,7 +450,7 @@ def import_icons2():
 
 
 # --- pojedyncze postacie: art/<nazwa>_sheet.jpg, jedna postać na białym tle ------------
-SINGLES = {"rocket": 64}  # rywal w Wyścigu z Rocketem (jak miniatura Groota, THUMB)
+SINGLES = {"rocket": 64, "ravager": 48}  # rywal w Wyścigu z Rocketem (THUMB), statek w Obronie Milano
 
 
 def import_single(name):
@@ -465,6 +465,9 @@ def import_single(name):
 
 # --- tła ekranu głównego: art/bg_<scena>_sheet.jpg -----------------------------------
 SCENES = ["kokpit", "poklad", "kacik", "knowhere", "ladownia"]
+# planety podróży Milano (utils/galaxy.js PLANETS): tło po przylocie i pocztówka w Galaktyce
+PLANET_IDS = ["xandar", "contraxia", "berhert", "ego", "nidavellir", "knowhere"]
+CARD = 72
 BG_DAY = 0.75  # jasność tła w dzień (Groot i ikony muszą odstawać)
 BG_NIGHT = 0.3
 
@@ -492,8 +495,34 @@ def import_bg(scene):
     return scene
 
 
+def postcard(scene):
+    """Okrągła pocztówka z tła planety (72 px) i jej przyciemniona, szara wersja (_x)."""
+    path = sheet_path("bg_" + scene)
+    if not path:
+        return None
+    im = Image.open(path).convert("RGB")
+    side = min(im.size)
+    im = im.crop(((im.width - side) // 2, (im.height - side) // 2, (im.width + side) // 2, (im.height + side) // 2))
+    S = CARD * WORK
+    big = im.resize((S, S), Image.LANCZOS).convert("RGBA")
+    mask = Image.new("L", (S, S), 0)
+    ImageDraw.Draw(mask).ellipse([0, 0, S - 1, S - 1], fill=255)
+    big.putalpha(mask)
+    ring = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    ImageDraw.Draw(ring).ellipse([2 * WORK, 2 * WORK, S - 1 - 2 * WORK, S - 1 - 2 * WORK], outline=(255, 200, 90, 255), width=3 * WORK)
+    card = Image.alpha_composite(big, ring).resize((CARD, CARD), Image.LANCZOS)
+    card.save(os.path.join(ASSETS, "ui", "pc_" + scene + ".png"), optimize=True)
+    grey = ImageOps.grayscale(card.convert("RGB")).point(lambda v: v * 30 // 100).convert("RGBA")
+    grey.putalpha(card.getchannel("A"))
+    grey.save(os.path.join(ASSETS, "ui", "pc_" + scene + "_x.png"), optimize=True)
+    return scene
+
+
 def import_bgs():
-    return [x for x in (import_bg(sc) for sc in SCENES) if x]
+    done = [x for x in (import_bg(sc) for sc in SCENES + [p for p in PLANET_IDS if p not in SCENES]) if x]
+    for p in PLANET_IDS:
+        postcard(p)
+    return done
 
 
 def sheet_path(name):

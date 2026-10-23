@@ -55,3 +55,9 @@ bg_ladownia	grok 17cc483d6761
 props	grok c552d83b05c3
 icons2	grok b140efed7b56
 rocket	grok a564be7632e4
+bg_xandar	grok ec5b75839a5a
+bg_contraxia	grok ebb904b487c2
+bg_berhert	grok b7d16db539bc
+ravager	schowek 8a38a2b953d9
+bg_ego	schowek f04b6c483c4b
+bg_nidavellir	schowek bfc18ca8a9d1

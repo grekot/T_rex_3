@@ -14,6 +14,7 @@ import {
   INFO,
   COLLECTION_BTN,
   NAME_BTN,
+  GALAXY_BTN,
 } from "zosLoader:./index.page.[pf].layout.js";
 
 const REFRESH_MS = 5000;
@@ -35,6 +36,7 @@ Page({
     s.info = INFO.map((o) => label({ ...o }));
     button(NAME_BTN, () => push({ url: "page/gt/choose/index.page", params: "name" }));
     button(COLLECTION_BTN, () => push({ url: "page/gt/collection/index.page" }));
+    button(GALAXY_BTN, () => push({ url: "page/gt/galaxy/index.page" }));
     this.render();
     s.timer = setInterval(() => this.render(), REFRESH_MS);
   },

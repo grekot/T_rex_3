@@ -98,3 +98,24 @@ Game icon sheet for a smartwatch game. Photorealistic 3D CGI render objects, sof
 
 Kolejność musi zostać (ICONS w import_art.py: konewka, nawóz, księżyc, oprysk, grabie,
 opadły liść = `poop`, mszyca = `skull`, kropla = `drop`/`meal`).
+
+## Planety podróży Milano i statek Ravagerów (Gemini, 23.10.2026)
+
+Kredyty Groka się skończyły, a planety i statek to nie postacie – zrobione w Gemini („Generate an image
+(square 1:1): …”, opis bez nazw z filmu). Chrome przestał zapisywać pobrania – obejście: przycisk
+„Kopiuj obraz” w Gemini (prawdziwe kliknięcie) i `python tools/grab_art.py <nazwa> --clip`.
+Wysyłanie promptu: `insertText` do `rich-textarea .ql-editor`, potem klik `button[aria-label*="Wyślij"]`
+(Enter bywa ignorowany).
+
+Początek: "Background art for a smartwatch game screen, photorealistic 3D CGI render like a Marvel space movie." Koniec: "Empty scene, no characters, no people, no text. Centered square composition, eye level view."
+
+| plik | planeta | opis |
+|---|---|---|
+| bg_xandar | Xandar | A gleaming futuristic alien capital city on a distant planet: white and gold round towers and domes, a plaza with smooth stone ground in the lower third of the picture, blue sky with a big ringed planet. |
+| bg_contraxia | Contraxia | A snowy icy alien pleasure planet at night: frozen ground with snow in the lower third of the picture, glowing pink, purple and blue neon buildings and signs in the distance, falling snow, dark starry sky. |
+| bg_berhert | Berhert | A dense green alien forest planet: a mossy clearing in the lower third of the picture, giant strange trees with glowing blue fungi, a crashed small orange and blue spaceship half hidden among the trees, soft misty daylight. |
+| bg_ego | planeta Ego | A colorful living fantasy planet: a garden path of smooth pale stone in the lower third of the picture, giant pastel flowers and fractal golden spires, a shining golden palace in the distance, floating glowing bubbles, rainbow pink and teal sky. |
+| bg_nidavellir | Nidavellir | A colossal ancient dwarf star forge in deep space: a dark metal platform in the lower third of the picture, a gigantic ring structure around a dying glowing star behind it, molten sparks and orange forge light, starry black space. |
+| ravager | statek | Photorealistic 3D CGI render like a Marvel space movie: one small rusty red and dark grey space pirate starfighter with angular wings and glowing orange engines, seen from the front and slightly above, isolated on a pure solid white background, no ground shadow, no text, the ship fills the center of the picture. |
+
+Knowhere używa tła `bg_knowhere` (dorosły).

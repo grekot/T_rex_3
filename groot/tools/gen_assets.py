@@ -337,6 +337,25 @@ def main():
             for k in ("egg0", "egg1", "egg2"):
                 idle.save(os.path.join(d, k + ".png"))
             idle.resize((EGG_PICK, EGG_PICK), Image.LANCZOS).save(os.path.join(ASSETS, "ui", "egg_" + EGG_LINE[e] + ".png"))
+    # zastępstwa, dopóki nie ma grafiki z arkuszy (aplikacja nie może sięgać po brakujące pliki)
+    ui = lambda n: os.path.join(ASSETS, "ui", n + ".png")
+    for p in import_art.PLANET_IDS:
+        for suf in ("", "_n"):
+            if not os.path.exists(ui("bg_" + p + suf)):
+                print("  UWAGA: brak tła planety", p + suf, "- zastępczo kokpit")
+                shutil.copyfile(ui("bg_kokpit" + suf), ui("bg_" + p + suf))
+        if not os.path.exists(ui("pc_" + p)):
+            card = Image.open(ui("bg_" + p)).convert("RGB").resize((import_art.CARD, import_art.CARD), Image.LANCZOS).convert("RGBA")
+            m = Image.new("L", card.size, 0)
+            ImageDraw.Draw(m).ellipse([0, 0, card.width - 1, card.height - 1], fill=255)
+            card.putalpha(m)
+            card.save(ui("pc_" + p))
+            import_art.silhouette(card, (40, 40, 48)).save(ui("pc_" + p + "_x"))
+    if not os.path.exists(ui("ravager")):
+        print("  UWAGA: brak statku Ravagerów - zastępczo asteroida")
+        Image.open(ui("rock")).convert("RGBA").resize((48, 48), Image.LANCZOS).save(ui("ravager"))
+    if not os.path.exists(ui("milano_big")):
+        Image.open(ui("egg_small")).convert("RGBA").resize((72, 72), Image.LANCZOS).save(ui("milano_big"))
     import_art.write_art_list()
     # słońce i lody (karmienie od etapu dziecka) zamiast konewki i worka nawozu
     for iid in RING_IDS + ["sun", "icecream"]:

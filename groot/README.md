@@ -39,6 +39,23 @@ w filmach), a statystyki zamiast wody – energię.
 Gdy nic mu nie trzeba, drzewko samo się czymś zajmuje: tańczy, wyczarowuje kwiatek na
 dłoni, gra na konsoli albo wypuszcza świecące zarodniki (`utils/idle.js`).
 
+**„Jestem Groot.”** Stuknięcie w Groota pokazuje dymek, a po chwili tłumaczenie Rocketa: czego
+Groot potrzebuje (picie, słońce, mszyce, bałagan, prośba o grę), a gdy nic – coś w stylu
+etapu (maluch słodki, nastolatek „zostaw mnie, gram”, dorosły „My jesteśmy Groot”) – `utils/rocket.js`.
+
+### Podróż Milano – kroki z zegarka
+
+Przy każdym otwarciu aplikacja odczytuje dzisiejsze kroki (`Step`, uprawnienie
+`data:user.hd.step`) i dopisuje przyrost (`utils/galaxy.js`):
+- co 2000 kroków Groot dostaje +1 wody/energii, najwyżej 3 razy dziennie;
+- wszystkie kroki pchają Milano do kolejnej planety z filmów: Xandar (6000), Contraxia (8000),
+  Berhert (10 000), planeta Ego (12 000), Nidavellir (15 000), Knowhere (18 000). Po
+  przylocie Groot przez dobę stoi na tle tej planety, a w kolekcji jest pocztówka; po
+  Knowhere podróż zaczyna się od nowa;
+- kroki z dnia, w którym aplikacja nie była otwarta, przepadają (zegarek podaje tylko dzisiejsze).
+
+Statystyki → **Podróż ›**: kroki dzisiaj, energia, cel lotu z paskiem i 6 pocztówek (stuknij = opis).
+
 Czasy, błędy opieki, ewolucja, odejście, przypomnienia i wyzwania (prośby o zabawę,
 gra o premię po akcji, poranna rozgrzewka) działają jak w Pupilu – szczegóły w
 [README Pupila](../pupil/README.md). Pod spodem „kupa” to opadłe liście, a „choroba” to mszyce.
@@ -88,6 +105,11 @@ Minigry mają mechanikę z Pupila (22 gry, logika w `utils/games.js`, `utils/mov
 | Wyprawa po Orb | GPS: dojdź do Orbu 200–500 m stąd |
 | Nadajniki | GPS: postaw 3 nadajniki 100 m od siebie |
 | Wspinaczka, Kołysanie do snu, Lewo czy prawo? | jak w Pupilu |
+| Obrona Milano | **dotyk**: statki Ravagerów lecą z brzegów do Milano – stukaj je; 12 zestrzelonych, zanim 3 dolecą (45 s) |
+| Awesome Mix | **dotyk + wibracja**: zegarek wystukuje rytm (krótkie i długie odstępy), ty go powtarzasz; liczą się proporcje, nie tempo; 2 z 3 rund |
+
+Obrona Milano i Awesome Mix nie wymagają ruchu ręką – ekran cały czas jest przed oczami
+(`utils/space.js`). Wibracja w Awesome Mix nie przeszkadza, bo gra nie czyta akcelerometru.
 
 ## Jak to działa
 
@@ -102,9 +124,11 @@ Minigry mają mechanikę z Pupila (22 gry, logika w `utils/games.js`, `utils/mov
     przy imporcie, z wersją nocną `_n`),
   - `props_sheet.jpg` – 16 rekwizytów gier ze Strażników, `icons_sheet.jpg` – 8 ikon akcji,
     `icons2_sheet.jpg` – słońce, lody, jabłko, walkman, strzała Yondu, bomba,
-  - `rocket_sheet.jpg` – Rocket, rywal w wyścigu.
+  - `rocket_sheet.jpg` – Rocket, rywal w wyścigu, `ravager_sheet.png` – statek w Obronie Milano,
+  - `bg_xandar/contraxia/berhert/ego/nidavellir_sheet.*` – planety podróży (Gemini, opisane bez nazw
+    z filmu); z teł powstają też okrągłe pocztówki `ui/pc_<planeta>.png` (+ szara `_x`).
 - Klatki Groota są w dwóch rozmiarach: `pet/` 240 px na ekran główny, `pets/` 168 px do gier
-  (`spriteSrc` / `gameSprite` w `utils/ui.js`). Zab ma przez to ok. 79 MB, paczka na T-Rex 3 ok. 9 MB.
+  (`spriteSrc` / `gameSprite` w `utils/ui.js`). Zab ma przez to ok. 93 MB, paczka na T-Rex 3 ok. 10,7 MB.
 - `tools/grab_art.py` – warianty z Pobranych (`grootv_<nazwa>_<k>.jpg`): `--show` składa je
   w `../groot-art/_warianty.png`, `<k>` bierze wybrany; `--clip` – obraz ze schowka.
 - `tools/import_art.py` wycina tło (także zamknięte białe dziury między rękami a tułowiem),

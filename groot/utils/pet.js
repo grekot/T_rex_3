@@ -86,9 +86,12 @@ export function feedOf(s) {
 }
 
 // Tło ekranu głównego - miejsca z filmów: doniczka na konsoli w kokpicie Milano, pokład
-// statku, kąt nastolatka z automatem do gier, Knowhere; zaniedbany siedzi w ładowni.
+// statku, kąt nastolatka z automatem do gier, Knowhere; zaniedbany siedzi w ładowni;
+// po przylocie na planetę z podróży (kroki) - ta planeta.
 export function sceneOf(s) {
   if (s.gone || potted(s)) return "kokpit";
+  // po przylocie Milano na planetę (kroki, utils/galaxy.js) przez dobę tło tej planety
+  if (s.trip && s.trip.visit && s.t < s.trip.visit.until) return s.trip.visit.id;
   if (SHARED.indexOf(s.form) >= 0) return "ladownia";
   return { child: "poklad", teen: "kacik", adult: "knowhere" }[stageOf(s)] || "kokpit";
 }

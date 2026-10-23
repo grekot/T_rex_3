@@ -7,7 +7,8 @@ import { HOME, ICON, ZZZ } from "../../../utils/geometry";
 export const PET_X = 240 - HOME / 2;
 export const PET_Y = 366 - Math.round((HOME * 160) / 168);
 
-export const STATUS = { x: 100, y: 100, w: 280, h: 36, size: 22 };
+// dwa wiersze - mieszczą się tłumaczenia Rocketa i nazwy planet
+export const STATUS = { x: 96, y: 90, w: 288, h: 56, size: 20, wrap: true };
 export const TITLE = { x: 170, y: 366, w: 140, h: 28, size: 20 };
 export const ACTION = { x: 170, y: 396, w: 140, h: 32, size: 20 };
 

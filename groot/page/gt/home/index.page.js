@@ -31,7 +31,9 @@ import {
 import { ACTION_GAMES, gamePage } from "../../../utils/gamelist";
 import { load, apply, rawState, tz } from "../../../utils/store";
 import { openedByAlarm, scheduleReminder } from "../../../utils/reminder";
-import { createBuzzer } from "../../../utils/device";
+import { createBuzzer, readSteps } from "../../../utils/device";
+import { addSteps } from "../../../utils/galaxy";
+import { GROOT, rocketSays } from "../../../utils/rocket";
 import { VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { RING, DISC } from "../../../utils/geometry";
 import { ACT_FORMS } from "../../../utils/art";
@@ -56,6 +58,7 @@ const ANIM_MS = 600;
 const SYNC_MS = 1000;
 const ADVANCE_EVERY = 15; // co tyle synchronizacji przewijamy czas (stan zmienia się co minutę)
 const MSG_MS = 2600;
+const ROCKET_MS = 1300; // po tylu ms od „Jestem Groot.” tłumaczenie Rocketa
 const ANIM_LEN = 2400;
 const OFFER_MS = 6000; // tyle widać przycisk "Gra o premię" po akcji
 
@@ -175,7 +178,19 @@ Page({
     const r = load();
     s.pet_ = r.state;
     s.raw = rawState();
-    const news = r.fresh ? "Nowy patyczek!" : lastNews(r.events);
+    let news = r.fresh ? "Nowy patyczek!" : lastNews(r.events);
+    // kroki z zegarka: energia i podróż Milano (zapis tylko, gdy przybyło kroków)
+    const steps = r.fresh ? null : readSteps();
+    const tr = s.pet_.trip;
+    if (steps !== null && (!tr || steps !== tr.seen)) {
+      const a = apply((p) => {
+        const x = addSteps(p, steps, Date.now(), tz());
+        return { state: x.state, msg: x.msgs.join(" ") };
+      });
+      s.pet_ = a.state;
+      s.raw = rawState();
+      if (a.msg) news = a.msg;
+    }
     if (news) this.say(news);
     else if (first) s.msg = null;
     this.render();
@@ -282,7 +297,11 @@ Page({
     if (stageOf(p) === "egg" || p.asleep) return;
     s.anim = { kind: moodOf(p) === "sad" ? "sad" : "happy", until: Date.now() + 1200 };
     s.frame = 0;
+    // „Jestem Groot.”, a po chwili tłumaczenie Rocketa: czego mu trzeba albo coś w stylu etapu
+    this.say(GROOT);
+    s.msgNext = { text: rocketSays(p, tz(), (n) => Math.floor(Math.random() * n)), at: Date.now() + ROCKET_MS };
     this.renderPet();
+    this.renderText();
   },
 
   // Wybór jajka i imienia na osobnej stronie; po powrocie stan wczyta sync()
@@ -318,6 +337,10 @@ Page({
     const p = s.pet_;
     if (!p) return;
     const now = Date.now();
+    if (s.msgNext && now >= s.msgNext.at) {
+      if (s.msgNext.text) this.say(s.msgNext.text);
+      s.msgNext = null;
+    }
     if (s.msg && now > s.msg.until) s.msg = null;
     // na dole między ikonami mieści się tylko imię (wiek i pokolenie są w statystykach)
     let title = "";
