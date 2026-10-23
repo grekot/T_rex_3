@@ -10,6 +10,7 @@ Każda aplikacja ma własny folder i buduje się niezależnie.
 | [labirynt](labirynt/README.md)      | Labirynt – kulka sterowana przechylaniem zegarka (akcelerometr), dziury, coraz większe plansze |
 | [kosci](kosci/README.md)            | Kości – 1–6 kości do planszówek (K6 z oczkami, K4–K20), rzut przyciskiem albo potrząśnięciem, zatrzymywanie kości |
 | [pupil](pupil/README.md)            | Pupil – tamagotchi z dinozaurem (pixel art): karmienie, sen, choroby, ewolucja w 10 form zależnie od opieki, czas płynie przy zamkniętej aplikacji, minigry ruchowe (rzut, kołysanie, balans) i „lewo czy prawo?” |
+| [groot](groot/README.md)            | Groot – tamagotchi z drzewkiem (realistyczne rendery z Grok Imagine, tylko do prywatnego użytku): od patyczka w doniczce do dorosłego drzewa, 3 linie, 18 form, podlewanie, nawóz, oprysk, grabienie liści, wszystkie minigry Pupila |
 | [szczyty](szczyty/README.md)        | Szczyty – co to za szczyt? Skieruj godzinę 12 na górę: nazwa, wysokość, odległość, sąsiedzi (GPS + kompas, offline, baza OSM) |
 | [youtube-subs](youtube-subs/README.md) | YouTube Subs – licznik subskrybentów (zegarek + telefon) |
 | [retro-lcd](retro-lcd/README.md)    | Retro LCD – tarcza w stylu starego zegarka cyfrowego |
