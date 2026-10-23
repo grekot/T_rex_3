@@ -218,6 +218,16 @@ zdjęcie dla zegarka (dociągane po trochu). Skąd kadr, widać na karcie zdjęc
   jasności piksela, kontrast ×1,08, gamma 0,94, każdy krok przycięty do 0..255 – `img.adjustColor` zawijał
   kanały przy nasyconych barwach). Wersja obróbki jest w nazwie PNG i w id na zegarku, więc zegarek
   wymieni zdjęcia na nowe.
+- **Telefon 0.9.0 (obróbka v3)**: jasne zdjęcia wyglądały na prześwietlone – liniowy kontrast robił biel ze wszystkiego
+  powyżej ok. 92% jasności, a gamma 0,94 i nasycenie dociskały jasne kanały do 255. Teraz obróbka zależy od zdjęcia:
+  - kontrast jako łagodna krzywa S (w środku ×1,08, czerń i biel zostają na miejscu – nic się nie przycina),
+  - gamma od średniej jasności koła na zegarku i udziału prawie białych pikseli: ciemne zdjęcie 0,92 (jaśniej),
+    przeciętne 1,0, jasne do 1,10 (ciemniej),
+  - nasycenie do ×1,2, słabnące w jasnych miejscach (jasność 180 → 240) i wykorzystujące najwyżej 60% zapasu
+    do granicy kanału, więc barwa zostaje, a jasne kolory nie robią się płaskie.
+
+  Na próbnych przejściach kolorów (prawie biel = jasność ≥ 245): śnieg 25% → v2 48%, v3 25%; niebo z chmurami
+  7,5% → v2 20%, v3 7,5%; ciemne wnętrze: średnia jasność 54 → v2 53, v3 58. Testy w `phone/test/photo_prep_test.dart`.
 
 ## Wydanie do Sklepu rodzinnego
 
