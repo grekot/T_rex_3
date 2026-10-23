@@ -17,8 +17,13 @@ export const COLOR = {
   night: 0x060918,
 };
 
+// Klatki Groota: duże (HOME) na ekranie głównym, mniejsze (SPRITE) w grach
 export function spriteSrc(form, frame) {
   return "pet/" + form + "/" + frame + ".png";
+}
+
+export function gameSprite(form, frame) {
+  return "pets/" + form + "/" + frame + ".png";
 }
 
 function textProps(o) {
@@ -41,6 +46,7 @@ export function label(o) {
   const props = textProps(o);
   const w = hmUI.createWidget(hmUI.widget.TEXT, props);
   let last = props.text + "/" + props.color;
+  let visible = true;
   return {
     widget: w,
     set(text, color) {
@@ -49,6 +55,11 @@ export function label(o) {
       if (key === last) return;
       last = key;
       w.setProperty(hmUI.prop.MORE, { ...props, text, color: c });
+    },
+    show(v) {
+      if (v === visible) return;
+      visible = v;
+      w.setProperty(hmUI.prop.VISIBLE, v);
     },
   };
 }

@@ -1,5 +1,6 @@
 // Wygenerowane przez tools/gen_assets.py - nie edytować ręcznie.
-export const SPRITE = 168;
+export const SPRITE = 168; // klatki w grach (pets/)
+export const HOME = 240; // klatki na ekranie głównym (pet/)
 export const THUMB = 64;
 export const DISC = 88;
 export const ICON = 48; // poop (opadłe liście), skull (mszyca), alert, meal, snack

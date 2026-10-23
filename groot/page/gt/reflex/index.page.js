@@ -17,7 +17,7 @@ Page({
       go: "TERAZ!",
       early: "Falstart!",
       late: "Za późno",
-      win: "Szybki jak raptor!",
+      win: "Szybki jak Rocket!",
       lose: "Tym razem nie",
     });
   },

@@ -47,3 +47,11 @@ grocik_act	grok 2c1f6bbc98a9
 kwiatus_act	grok 9cde3b5d7845
 rudzik_act	grok c286ee4c88d1
 suchar_act	grok 3b494c7a85d0
+bg_kokpit	grok 70eb1f35a6b8
+bg_poklad	grok 03587ba08426
+bg_kacik	grok 232c4a86bc30
+bg_knowhere	grok 342369c5b9c2
+bg_ladownia	grok 17cc483d6761
+props	grok c552d83b05c3
+icons2	grok b140efed7b56
+rocket	grok a564be7632e4

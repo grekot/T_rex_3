@@ -67,6 +67,31 @@ export const LINES = {
   autumn: { name: "Jesienny", egg: "egga", baby: "zoladz", child: "rudzik", teen: "klonik", best: "klon", good: "debisz" },
 };
 export const LINE_ORDER = ["classic", "bloom", "autumn"];
+
+// Do etapu malucha Groot siedzi w doniczce (jak tańczący patyczek z końca 1. części filmu):
+// podlewanie i nawóz. Potem chodzi sam (Baby Groot z 2. części): światło gwiazd zamiast
+// wody, lody zamiast nawozu. Pod spodem to te same akcje meal/snack i ten sam licznik hunger.
+export function potted(s) {
+  const stage = stageOf(s);
+  return stage === "egg" || stage === "baby";
+}
+
+export const FEED = {
+  pot: { meal: "Podlewanie", snack: "Nawóz", hunger: "Woda", mealIcon: "meal", snackIcon: "snack" },
+  free: { meal: "Światło gwiazd", snack: "Lody", hunger: "Energia", mealIcon: "sun", snackIcon: "icecream" },
+};
+
+export function feedOf(s) {
+  return potted(s) ? FEED.pot : FEED.free;
+}
+
+// Tło ekranu głównego - miejsca z filmów: doniczka na konsoli w kokpicie Milano, pokład
+// statku, kąt nastolatka z automatem do gier, Knowhere; zaniedbany siedzi w ładowni.
+export function sceneOf(s) {
+  if (s.gone || potted(s)) return "kokpit";
+  if (SHARED.indexOf(s.form) >= 0) return "ladownia";
+  return { child: "poklad", teen: "kacik", adult: "knowhere" }[stageOf(s)] || "kokpit";
+}
 export const SHARED = ["suchar", "kolczak", "prochniak"];
 
 export function lineOf(s) {
@@ -515,13 +540,13 @@ export function meal(state) {
   const s = clone(state);
   const b = blocked(s);
   if (b) return b;
-  if (s.hunger >= MAX_HEARTS) return result(s, "Już podlany", "no");
+  if (s.hunger >= MAX_HEARTS) return result(s, potted(s) ? "Już podlany" : "Już naładowany", "no");
   const stage = stageOf(s);
   if ((stage === "teen" || stage === "adult") && s.discipline < 2 && rand(s) < PICKY_CHANCE)
     return result(s, "Kręci nosem…", "no");
   s.hunger++;
   s.weight++;
-  return result(s, "Glug glug!", "eat");
+  return result(s, potted(s) ? "Glug glug!" : "Grzeje się w słońcu", "eat");
 }
 
 export function snack(state) {
@@ -531,7 +556,7 @@ export function snack(state) {
   if (s.sick) return result(s, "Mszyce mu dokuczają", "no");
   s.happy = Math.min(MAX_HEARTS, s.happy + 1);
   s.weight += 2;
-  return result(s, "Pycha!", "eat");
+  return result(s, potted(s) ? "Pycha!" : "Mniam, lody!", "eat");
 }
 
 // Czy można grać; gameId - chory może zagrać tylko w grę o premię po lekarstwie
@@ -714,7 +739,7 @@ export function statusText(s, tz) {
   if (stageOf(s) === "egg") return "Coś kiełkuje w doniczce";
   if (s.asleep) return s.light ? "Zgaś światło!" : "Zzz…";
   if (s.sick) return "Mszyce! Daj oprysk";
-  if (s.hunger === 0) return "Spragniony!";
+  if (s.hunger === 0) return potted(s) ? "Spragniony!" : "Brak energii!";
   if (s.happy === 0) return "Smutno mu";
   if (s.whim) return "Marudzi bez powodu";
   if (s.poops) return "Zgrab opadłe liście";

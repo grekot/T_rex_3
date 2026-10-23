@@ -14,7 +14,7 @@ Page({
   build() {
     const s = this.state;
     s.game = newDig();
-    s.hint = header("Wykopywanie żołędzi", "Kop: ręka w górę i w dół");
+    s.hint = header("Płetwa Yondu", "Szukaj: ręka w górę i w dół");
     image("ui/bone_big.png", BONE.x, BONE.y);
     s.layers = LAYERS.map((l) => rect(l.x, l.y, l.w, l.h, l.color, 6));
     s.gone = 0;
@@ -37,12 +37,12 @@ Page({
       s.gone = gone;
       s.layers.forEach((w, i) => w.setProperty(hmUI.prop.VISIBLE, i >= gone));
     }
-    s.status.set("Kopnięcia " + g.digs + "/" + DIG.need + " · " + Math.max(0, Math.ceil((DIG.time - g.elapsed) / 1000)) + " s");
+    s.status.set("Szukanie " + g.digs + "/" + DIG.need + " · " + Math.max(0, Math.ceil((DIG.time - g.elapsed) / 1000)) + " s");
     if (g.done) {
       stopMotion(s);
       s.status.set("");
       if (g.win) buzz(s, VIBRATOR_SCENE_NOTIFICATION);
-      finishGame(s, g.win, g.win ? "Skamielina!" : "Nic nie znalazł", "dig");
+      finishGame(s, g.win, g.win ? "Mamy płetwę!" : "Nie znalazł płetwy", "dig");
     }
   },
 });

@@ -14,12 +14,12 @@ Page({
   build() {
     const s = this.state;
     s.game = newDive();
-    s.hint = header("Nurkowanie", "Opuść rękę w dół, potem podnieś");
+    s.hint = header("Kamień Nieskończoności", "Opuść rękę w dół, potem podnieś");
     rect(WATER.x, WATER.y, WATER.w, WATER.h, 0x123a5a, 20);
     s.pearls = PEARLS.map((p) => image("ui/pearl.png", p.x, p.y)); // perły na dnie znikają po wyłowieniu
     s.petSrc = "thumb/" + petForm() + ".png";
     s.pet = image(s.petSrc, PET.x, PET.y);
-    s.status = label({ ...DELTA, text: "Ręka w dół = nurkuj" });
+    s.status = label({ ...DELTA, text: "Ręka w dół = szukaj" });
     s.count = label({ ...COUNT, color: COLOR.grey });
     const ok = startMotion(s, { tick: (a, now, dt) => this.tick(a, now, dt) });
     if (!ok) s.hint.set("Brak akcelerometru", COLOR.bad);
@@ -37,16 +37,16 @@ Page({
     if (ev === "pearl") buzz(s, VIBRATOR_SCENE_SHORT_MIDDLE); // ręka w dół, ekranu nie widać - czuć
     s.pet.set(s.petSrc, PET.x, g.under ? PET.y + 96 : PET.y);
     s.pearls.forEach((w, i) => w.show(i >= g.dives));
-    if (g.under) s.status.set(g.got ? "Perła! Do góry!" : "Szuka perły…", g.got ? COLOR.good : COLOR.text);
-    else if (ev === "empty") s.status.set("Za krótko pod wodą", COLOR.bad);
-    else if (ev === "dive") s.status.set("Mamy perłę!", COLOR.good);
-    s.count.set("Perły " + g.dives + "/" + DIVE.need + " · " + Math.max(0, Math.ceil((DIVE.time - g.elapsed) / 1000)) + " s");
+    if (g.under) s.status.set(g.got ? "Kamień! Do góry!" : "Szuka kamienia…", g.got ? COLOR.good : COLOR.text);
+    else if (ev === "empty") s.status.set("Za krótko", COLOR.bad);
+    else if (ev === "dive") s.status.set("Mamy kamień!", COLOR.good);
+    s.count.set("Kamienie " + g.dives + "/" + DIVE.need + " · " + Math.max(0, Math.ceil((DIVE.time - g.elapsed) / 1000)) + " s");
     if (g.done) {
       stopMotion(s);
       s.status.set("");
       s.count.set("");
       if (g.win) buzz(s, VIBRATOR_SCENE_NOTIFICATION);
-      finishGame(s, g.win, g.win ? "Trzy perły!" : "Koniec czasu", "dive");
+      finishGame(s, g.win, g.win ? "Trzy kamienie!" : "Koniec czasu", "dive");
     }
   },
 });

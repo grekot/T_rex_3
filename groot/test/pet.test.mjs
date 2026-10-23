@@ -44,6 +44,9 @@ import {
   requestText,
   canPlay as canPlayFor,
   localMinute as lm,
+  potted,
+  feedOf,
+  sceneOf,
 } from "../utils/pet.js";
 
 let failed = 0;
@@ -270,7 +273,7 @@ test("jedzenie, przekąska i zabawa zmieniają wagę", () => {
   s = play(play(s, false).state, false).state;
   assert.equal(s.weight, 30, "nie schodzi poniżej normy etapu");
   s.hunger = 4;
-  assert.equal(meal(s).msg, "Już podlany");
+  assert.equal(meal(s).msg, "Już naładowany");
 });
 
 test("dyscyplina: zganienie marudzenia pomaga, niesłuszne smuci, przeoczone to błąd", () => {
@@ -637,6 +640,32 @@ test("gra o premię po akcji", () => {
   const cured = play(sick, true, "aim");
   assert.equal(cured.state.sick, 0);
   assert.equal(cured.msg, "Bez mszyc!");
+});
+
+test("doniczka tylko do malucha: karmienie i tło zależą od etapu", () => {
+  const egg = newEgg(at(0, 10), 5);
+  assert.equal(potted(egg), true);
+  assert.equal(sceneOf(egg), "kokpit");
+  const baby = { ...hatched(), hunger: 1, happy: 1 };
+  assert.equal(baby.form, "kielek");
+  assert.equal(potted(baby), true);
+  assert.equal(feedOf(baby).meal, "Podlewanie");
+  assert.equal(meal(baby).msg, "Glug glug!");
+  assert.equal(snack(baby).msg, "Pycha!");
+  assert.equal(statusText({ ...baby, hunger: 0 }, TZ), "Spragniony!");
+  const child = { ...baby, form: "grocik" };
+  assert.equal(potted(child), false);
+  assert.equal(feedOf(child).meal, "Światło gwiazd");
+  assert.equal(feedOf(child).snack, "Lody");
+  assert.equal(meal(child).msg, "Grzeje się w słońcu");
+  assert.equal(snack(child).msg, "Mniam, lody!");
+  assert.equal(statusText({ ...child, hunger: 0 }, TZ), "Brak energii!");
+  assert.equal(sceneOf(child), "poklad");
+  assert.equal(sceneOf({ ...child, form: "wisienka" }), "kacik");
+  assert.equal(sceneOf({ ...child, form: "klon" }), "knowhere");
+  assert.equal(sceneOf({ ...child, form: "suchar" }), "ladownia");
+  assert.equal(sceneOf({ ...child, form: "prochniak" }), "ladownia");
+  assert.equal(sceneOf({ ...child, gone: "forest" }), "kokpit");
 });
 
 if (failed) {

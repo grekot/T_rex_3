@@ -4,7 +4,7 @@ import { VIBRATOR_SCENE_SHORT_LIGHT, VIBRATOR_SCENE_NOTIFICATION } from "@zos/se
 import { ROCK, createRocker } from "../../../utils/games";
 import { load } from "../../../utils/store";
 import { startAccel, readAccel, stopAccel, keepScreenOn, releaseScreen, createBuzzer } from "../../../utils/device";
-import { COLOR, label, image, rect, spriteSrc } from "../../../utils/ui";
+import { COLOR, label, image, rect, gameSprite } from "../../../utils/ui";
 import { finishGame } from "../../../utils/gameui";
 import { TITLE, HINT, PET, BAR, STRIKES } from "zosLoader:./index.page.[pf].layout.js";
 import * as hmUI from "@zos/ui";
@@ -33,7 +33,7 @@ Page({
 
     label({ ...TITLE, text: "Kołysanie do snu" });
     s.hint = label({ ...HINT, text: HINTS.still[0], color: HINTS.still[1] });
-    s.pet = image(spriteSrc(s.form, "idle0"), PET.x, PET.y);
+    s.pet = image(gameSprite(s.form, "idle0"), PET.x, PET.y);
     rect(BAR.x, BAR.y, BAR.w, BAR.h, 0x26262e, BAR.h / 2);
     s.bar = rect(BAR.x, BAR.y, BAR.h, BAR.h, 0x6f8cff, BAR.h / 2);
     s.barW = 0;
@@ -84,12 +84,12 @@ Page({
     if (st.level === "hard") frame = "sad" + slow;
     else if (st.progress > ROCK.need / 2) frame = "sleep" + slow;
     else if (st.level === "gentle") frame = "happy0";
-    s.pet.set(spriteSrc(s.form, frame), PET.x + swing, PET.y);
+    s.pet.set(gameSprite(s.form, frame), PET.x + swing, PET.y);
 
     if (st.done) {
       clearInterval(s.poll);
       s.poll = null;
-      s.pet.set(spriteSrc(s.form, st.win ? "dark0" : "sad0"), PET.x, PET.y);
+      s.pet.set(gameSprite(s.form, st.win ? "dark0" : "sad0"), PET.x, PET.y);
       s.hint.set(st.win ? "Śpi jak suseł" : "Nie chce spać", st.win ? COLOR.good : COLOR.bad);
       s.strikeText.set("");
       if (st.win) s.buzzer.buzz(VIBRATOR_SCENE_NOTIFICATION);

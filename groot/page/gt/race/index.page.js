@@ -1,5 +1,5 @@
 // Wyścig z Grootem: przez 15 s biegnij w miejscu albo machaj rękami jak przy biegu -
-// twój Groot biegnie w tempie ruchów. Rywal (Próchniak) biegnie równo; wyprzedź go.
+// twój Groot biegnie w tempie ruchów. Rywal (Rocket) biegnie równo; wyprzedź go.
 import { VIBRATOR_SCENE_NOTIFICATION, VIBRATOR_SCENE_DURATION } from "@zos/sensor";
 import { RACE, newRace, feedRace } from "../../../utils/moves";
 import { COLOR, label, image, rect } from "../../../utils/ui";
@@ -21,13 +21,13 @@ Page({
     const s = this.state;
     s.game = newRace();
     const form = petForm();
-    s.hint = header("Wyścig", "Biegnij w miejscu, machaj rękami!");
+    s.hint = header("Wyścig z Rocketem", "Biegnij w miejscu, machaj rękami!");
     rect(FINISH.x, FINISH.y, 6, FINISH.h, 0xffffff, 3);
     rect(TRACK.x0 - 40, TRACK.you + THUMB, TRACK.x1 - TRACK.x0 + 120, 3, 0x3f7a46, 1);
     rect(TRACK.x0 - 40, TRACK.rival + THUMB, TRACK.x1 - TRACK.x0 + 120, 3, 0x3f7a46, 1);
     s.youSrc = "thumb/" + form + ".png";
     s.you = image(s.youSrc, xFor(0), TRACK.you);
-    s.rivalSrc = form === "prochniak" ? "thumb/kolczak.png" : "thumb/prochniak.png";
+    s.rivalSrc = "ui/rocket.png";
     s.rival = image(s.rivalSrc, xFor(0), TRACK.rival);
     s.status = label({ ...STATUS });
     const ok = startMotion(s, { tick: (a, now, dt) => this.tick(a, now, dt) });

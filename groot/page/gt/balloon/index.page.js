@@ -22,7 +22,7 @@ Page({
     const s = this.state;
     s.game = newBalloon(newSeed());
     const g = s.game;
-    s.hint = header("Balon", "Pompuj ruchem ręki w górę i w dół");
+    s.hint = header("Bomba Rocketa", "Ładuj ruchem ręki w górę i w dół");
     s.balloon = image("ui/balloon0.png", BALLOON_C.x - balloonPx(0) / 2, BALLOON_C.y - balloonPx(0) / 2);
     rect(METER.x, METER.y, METER.w, METER.h, 0x26262e, 6);
     rect(METER.x, METER.y + (METER.h * (100 - g.hi)) / 100, METER.w, (METER.h * (g.hi - g.lo)) / 100, 0x3f9a56, 4);
@@ -97,6 +97,6 @@ Page({
     s.btn.txt.widget.setProperty(hmUI.prop.VISIBLE, false);
     s.target.set("");
     buzz(s, g.win ? VIBRATOR_SCENE_NOTIFICATION : VIBRATOR_SCENE_DURATION);
-    finishGame(s, g.win, g.win ? "Wygrana!" : g.popped ? "Pękł!" : "Za mały", "balloon");
+    finishGame(s, g.win, g.win ? "Wygrana!" : g.popped ? "Przeładowana!" : "Za słaba", "balloon");
   },
 });

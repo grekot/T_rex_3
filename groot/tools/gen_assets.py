@@ -3,7 +3,7 @@
 pierścienia akcji, drobiazgi, utils/geometry.js, arkusz podglądu docs/arkusz.png
 i makietę docs/podglad.png.
 
-Postacie, doniczki, zajęcia, rekwizyty gier i ikony akcji pochodzą z arkuszy w
+Postacie, doniczki, zajęcia, tła, rekwizyty gier i ikony akcji pochodzą z arkuszy w
 ../groot-art/ (opis w ../groot-art/prompts.md). Tu rysowane są tylko krążki pierścienia,
 serca, strzałki i podobne drobiazgi (tools/icons.py, tools/draw.py). Forma bez arkusza
 dostaje zastępczo klatki innej formy tego samego etapu (z ostrzeżeniem).
@@ -29,7 +29,8 @@ DOCS = os.path.join(ROOT, "docs")
 FONT = "C:/Windows/Fonts/segoeui.ttf"
 FONT_B = "C:/Windows/Fonts/segoeuib.ttf"
 
-SPRITE = 168
+SPRITE = 168  # klatki w grach (pets/)
+HOME = 240  # klatki na ekranie głównym (pet/) - jak HOME w import_art.py
 THUMB = 64
 EGG_PICK = 112  # doniczki na ekranie wyboru
 DISC = 88  # krążek przycisku akcji w pierścieniu
@@ -169,7 +170,8 @@ def write_geometry():
     ring = ",\n".join('  { id: "%s", cx: %d, cy: %d }' % (iid, cx, cy) for iid, (cx, cy) in zip(RING_IDS, ring_positions()))
     lines = [
         "// Wygenerowane przez tools/gen_assets.py - nie edytować ręcznie.",
-        "export const SPRITE = %d;" % SPRITE,
+        "export const SPRITE = %d; // klatki w grach (pets/)" % SPRITE,
+        "export const HOME = %d; // klatki na ekranie głównym (pet/)" % HOME,
         "export const THUMB = %d;" % THUMB,
         "export const DISC = %d;" % DISC,
         "export const ICON = %d; // poop (opadłe liście), skull (mszyca), alert, meal, snack" % ICON,
@@ -204,9 +206,10 @@ def stand_in(missing, have):
         if not donor:
             raise SystemExit("brak jakiegokolwiek arkusza postaci w ../groot-art")
         print("  UWAGA: %s nie ma arkusza - zastępczo klatki %s" % (fid, donor))
-        dst = os.path.join(ASSETS, "pet", fid)
-        shutil.rmtree(dst, ignore_errors=True)
-        shutil.copytree(os.path.join(ASSETS, "pet", donor), dst)
+        for sub in ("pet", "pets"):
+            dst = os.path.join(ASSETS, sub, fid)
+            shutil.rmtree(dst, ignore_errors=True)
+            shutil.copytree(os.path.join(ASSETS, sub, donor), dst)
         for suf in ("", "_x"):
             shutil.copyfile(os.path.join(ASSETS, "thumb", donor + suf + ".png"), os.path.join(ASSETS, "thumb", fid + suf + ".png"))
 
@@ -266,20 +269,25 @@ def sheet(all_frames):
     img.convert("RGB").quantize(256, method=Image.Quantize.MEDIANCUT).save(os.path.join(DOCS, "arkusz.png"), optimize=True)  # mały - trafia do .ip-package
 
 
-def mock(all_frames, form, frame, selected, text, title):
+def mock(all_frames, form, frame, selected, text, title, scene, feed, label):
     big = Image.new("RGBA", (480 * SS, 480 * SS), (0, 0, 0, 0))
     ImageDraw.Draw(big).ellipse([0, 0, 480 * SS - 1, 480 * SS - 1], fill=(0, 0, 0, 255))
     img = big.resize((480, 480), Image.LANCZOS)
+    bg = os.path.join(ASSETS, "ui", "bg_" + scene + ".png")
+    if os.path.exists(bg):
+        img.paste(Image.open(bg).convert("RGBA"), (0, 0), mask=img.getchannel("A"))
     d = ImageDraw.Draw(img)
-    font = ImageFont.truetype(FONT, 26)
     small = ImageFont.truetype(FONT, 22)
+    tiny = ImageFont.truetype(FONT, 20)
     for i, (cx, cy) in enumerate(ring_positions()):
-        img.alpha_composite(action_icon(RING_IDS[i], i == selected), (cx - DISC // 2, cy - DISC // 2))
-    img.alpha_composite(all_frames[form][frame], (240 - SPRITE // 2, 232 - SPRITE // 2))
-    img.alpha_composite(Image.open(os.path.join(ASSETS, "ui", "poop.png")).convert("RGBA"), (324, 272))
-    d.text((240, 122), title, font=small, fill=(150, 150, 160), anchor="mm")
-    d.text((240, 338), text, font=font, fill=(255, 200, 90), anchor="mm")
-    d.text((240, 424), RING_LABELS[selected], font=small, fill=(255, 255, 255), anchor="mm")
+        iid = feed.get(RING_IDS[i], RING_IDS[i])
+        img.alpha_composite(action_icon(iid, i == selected), (cx - DISC // 2, cy - DISC // 2))
+    # jak w page/gt/home/index.page.r.layout.js: stopy na 366 px
+    img.alpha_composite(all_frames[form][frame], (240 - HOME // 2, 366 - round(HOME * 160 / 168)))
+    img.alpha_composite(Image.open(os.path.join(ASSETS, "ui", "poop.png")).convert("RGBA"), (334, 300))
+    d.text((240, 118), text, font=small, fill=(255, 200, 90), anchor="mm")
+    d.text((240, 380), title, font=tiny, fill=(150, 150, 160), anchor="mm")
+    d.text((240, 412), label, font=tiny, fill=(255, 255, 255), anchor="mm")
     return img
 
 
@@ -315,6 +323,10 @@ def main():
     eggs = import_art.import_eggs()
     import_art.import_props()
     import_art.import_icons()
+    import_art.import_icons2()
+    import_art.import_bgs()
+    for name in import_art.SINGLES:
+        import_art.import_single(name)
     stand_in([f for f in FRAME_ROWS if f not in have], have)
     for e in EGGS:
         if e not in eggs:
@@ -326,16 +338,20 @@ def main():
                 idle.save(os.path.join(d, k + ".png"))
             idle.resize((EGG_PICK, EGG_PICK), Image.LANCZOS).save(os.path.join(ASSETS, "ui", "egg_" + EGG_LINE[e] + ".png"))
     import_art.write_art_list()
-    for iid in RING_IDS:
-        save(action_icon(iid, False), "ring", iid + ".png")
-        save(action_icon(iid, True), "ring", iid + "_sel.png")
+    # słońce i lody (karmienie od etapu dziecka) zamiast konewki i worka nawozu
+    for iid in RING_IDS + ["sun", "icecream"]:
+        if iid in ICONS or os.path.exists(os.path.join(ASSETS, "ui", "ic_" + iid + ".png")):
+            save(action_icon(iid, False), "ring", iid + ".png")
+            save(action_icon(iid, True), "ring", iid + "_sel.png")
     app_icon().save(os.path.join(ASSETS, "icon.png"), optimize=True)
 
     all_frames = {fid: load_frames(fid) for fid in FRAME_ROWS + EGGS}
     sheet(all_frames)
     m = Image.new("RGBA", (980, 480), (40, 40, 40, 255))
-    m.alpha_composite(mock(all_frames, "grocik", "idle0", 0, "Zgrab opadłe liście", "Grocik · 1 dzień"), (0, 0))
-    m.alpha_composite(mock(all_frames, "groot", "happy0", 3, "Wygrana!", "Groot · 9 dni"), (500, 0))
+    potted = {}
+    free = {"meal": "sun", "snack": "icecream"}
+    m.alpha_composite(mock(all_frames, "kielek", "idle0", 0, "Zgrab opadłe liście", "Kiełek", "kokpit", potted, "Podlewanie"), (0, 0))
+    m.alpha_composite(mock(all_frames, "groot", "happy0", 0, "Grzeje się w słońcu", "Groot", "knowhere", free, "Światło gwiazd"), (500, 0))
     m.convert("RGB").save(os.path.join(DOCS, "podglad.png"), optimize=True)
     print("gotowe:", len(have), "form z arkuszy")
 

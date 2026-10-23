@@ -5,6 +5,8 @@ export const HEART_ROWS = [
   { label: "Humor", y: 146, full: "ui/heart.png", empty: "ui/heart_empty.png" },
   { label: "Dyscyplina", y: 196, full: "ui/heart.png", empty: "ui/heart_empty.png" },
 ];
+// od etapu dziecka zamiast kropli wody: słoneczka energii
+export const HUNGER_FREE = { full: "ui/sunpt.png", empty: "ui/sunpt_empty.png" };
 export const ROW_LABEL = { x: 56, w: 150, h: 36, size: 24 };
 export const HEARTS_X = 214; // pierwsze serce, kolejne co 46 px
 export const HEART_STEP = 46;

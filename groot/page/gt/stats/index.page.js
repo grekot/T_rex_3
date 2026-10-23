@@ -1,12 +1,13 @@
 // Statystyki Groota: woda, humor, dyscyplina (0-4 serc), waga, wiek, forma, błędy opieki.
 import { push } from "@zos/router";
-import { FORMS, MAX_HEARTS, ageDays, stageOf, baseWeight } from "../../../utils/pet";
+import { FORMS, MAX_HEARTS, ageDays, stageOf, baseWeight, potted, feedOf } from "../../../utils/pet";
 import { load } from "../../../utils/store";
 import { COLOR, label, image, button, daysText } from "../../../utils/ui";
 import { HEART } from "../../../utils/geometry";
 import {
   TITLE,
   HEART_ROWS,
+  HUNGER_FREE,
   ROW_LABEL,
   HEARTS_X,
   HEART_STEP,
@@ -23,8 +24,9 @@ Page({
   build() {
     const s = this.state;
     label({ ...TITLE, text: "Statystyki" });
+    s.rowLabels = [];
     s.hearts = HEART_ROWS.map((row) => {
-      label({ ...ROW_LABEL, y: row.y, text: row.label, color: COLOR.grey, left: true });
+      s.rowLabels.push(label({ ...ROW_LABEL, y: row.y, text: row.label, color: COLOR.grey, left: true }));
       const list = [];
       for (let i = 0; i < MAX_HEARTS; i++)
         list.push(image(row.empty, HEARTS_X + i * HEART_STEP, row.y + (ROW_LABEL.h - HEART) / 2));
@@ -46,8 +48,11 @@ Page({
     const p = load().state;
     const egg = stageOf(p) === "egg";
     const values = [p.hunger, p.happy, p.discipline];
+    // pierwszy wiersz: woda w doniczce, potem energia ze światła gwiazd
+    const rows = HEART_ROWS.map((row, r) => (r === 0 && !potted(p) ? { ...row, ...HUNGER_FREE } : row));
+    s.rowLabels[0].set(potted(p) ? HEART_ROWS[0].label : feedOf(p).hunger);
     s.hearts.forEach((list, r) =>
-      list.forEach((w, i) => w.set(!egg && !p.gone && i < values[r] ? HEART_ROWS[r].full : HEART_ROWS[r].empty)),
+      list.forEach((w, i) => w.set(!egg && !p.gone && i < values[r] ? rows[r].full : rows[r].empty)),
     );
     const over = p.weight - baseWeight(p);
     const shape = egg ? "" : over >= 15 ? " · za gruby" : over >= 8 ? " · pulchny" : "";

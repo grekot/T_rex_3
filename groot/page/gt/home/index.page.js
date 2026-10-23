@@ -1,9 +1,9 @@
-// Ekran główny: Groot z animacją, pierścień ikon akcji (dotyk albo przyciski
-// góra/dół + zatwierdzenie), kupy, czaszka przy chorobie, wykrzyknik, gdy czegoś potrzebuje,
-// dymek z prośbą o zabawę i przycisk "Gra o premię" po przekąsce, sprzątaniu i lekarstwie.
-// Gdy nic mu nie trzeba, Groot sam się czymś zajmuje (spacer, klocki, książka... - utils/idle.js).
+// Ekran główny: duży Groot z animacją na tle sceny z filmów (sceneOf), pierścień ikon akcji
+// (dotyk albo przyciski góra/dół + zatwierdzenie), opadłe liście, mszyca przy chorobie,
+// wykrzyknik, gdy czegoś potrzebuje, dymek z prośbą o zabawę i przycisk "Gra o premię" po
+// nawozie/lodach, grabieniu i oprysku. W doniczce podlewanie i nawóz, potem światło gwiazd
+// i lody (feedOf). Gdy nic mu nie trzeba, Groot sam się czymś zajmuje (utils/idle.js).
 import * as hmUI from "@zos/ui";
-import { px } from "@zos/utils";
 import { push } from "@zos/router";
 import { onKey, offKey, KEY_UP, KEY_DOWN, KEY_SELECT, KEY_EVENT_CLICK } from "@zos/interaction";
 import {
@@ -22,10 +22,11 @@ import {
   statusText,
   needsAttention,
   lastNews,
-  ageDays,
   stageOf,
   activeRequest,
   setBonus,
+  feedOf,
+  sceneOf,
 } from "../../../utils/pet";
 import { ACTION_GAMES, gamePage } from "../../../utils/gamelist";
 import { load, apply, rawState, tz } from "../../../utils/store";
@@ -35,7 +36,7 @@ import { VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { RING, DISC } from "../../../utils/geometry";
 import { ACT_FORMS } from "../../../utils/art";
 import { newIdle, stepIdle, idleSprite, resetIdle } from "../../../utils/idle";
-import { COLOR, spriteSrc, label, image, rect, button, onTap, toast, daysText } from "../../../utils/ui";
+import { COLOR, spriteSrc, label, image, button, onTap, toast } from "../../../utils/ui";
 import {
   PET_X,
   PET_Y,
@@ -58,9 +59,8 @@ const MSG_MS = 2600;
 const ANIM_LEN = 2400;
 const OFFER_MS = 6000; // tyle widać przycisk "Gra o premię" po akcji
 
+// meal i snack zależą od etapu (feedOf): podlewanie/nawóz albo światło gwiazd/lody
 const ACTION_NAMES = {
-  meal: "Podlewanie",
-  snack: "Nawóz",
   light: "Noc",
   play: "Zabawa",
   medicine: "Oprysk",
@@ -92,8 +92,8 @@ Page({
     s.syncCount = 0;
     s.idle = newIdle();
 
-    s.bg = rect(0, 0, 480, 480, 0x000000);
-    s.bgColor = 0x000000;
+    s.bgSrc = "ui/bg_kokpit.png";
+    s.bg = image(s.bgSrc, 0, 0);
     s.title = label({ ...TITLE, color: COLOR.grey });
     s.pet = image(spriteSrc("egg", "egg0"), PET_X, PET_Y);
     onTap([s.pet.widget], () => this.tapPet());
@@ -240,7 +240,8 @@ Page({
     s.raw = rawState();
     this.say(r.msg);
     s.offer = ACTION_GAMES[id] && r.anim !== "no" ? { action: id, until: Date.now() + OFFER_MS } : null;
-    s.anim = r.anim ? { kind: r.anim, until: Date.now() + ANIM_LEN, food: id === "snack" ? "snack" : "meal" } : null;
+    const feed = feedOf(r.state);
+    s.anim = r.anim ? { kind: r.anim, until: Date.now() + ANIM_LEN, food: id === "snack" ? feed.snackIcon : feed.mealIcon } : null;
     s.frame = 0;
     this.render();
   },
@@ -294,9 +295,21 @@ Page({
     this.renderText();
   },
 
+  // Ikona akcji w pierścieniu: karmienie zależy od etapu (konewka/worek albo słońce/lody)
+  ringIcon(id) {
+    const p = this.state.pet_;
+    if (p && (id === "meal" || id === "snack")) return feedOf(p)[id + "Icon"];
+    return id;
+  },
+
+  actionName(id) {
+    const p = this.state.pet_;
+    return ACTION_NAMES[id] || (p ? feedOf(p)[id] : "");
+  },
+
   renderRing() {
     const s = this.state;
-    s.ring.forEach((w, i) => w.set("ring/" + RING[i].id + (i === s.sel ? "_sel" : "") + ".png"));
+    s.ring.forEach((w, i) => w.set("ring/" + this.ringIcon(RING[i].id) + (i === s.sel ? "_sel" : "") + ".png"));
     this.renderText();
   },
 
@@ -306,22 +319,20 @@ Page({
     if (!p) return;
     const now = Date.now();
     if (s.msg && now > s.msg.until) s.msg = null;
+    // na dole między ikonami mieści się tylko imię (wiek i pokolenie są w statystykach)
     let title = "";
-    if (!p.gone) {
-      const stage = stageOf(p);
-      if (stage === "egg") title = (p.name ? p.name + " · patyczek" : "Patyczek") + " · pokolenie " + p.gen;
-      else title = displayName(p) + " · " + daysText(ageDays(p));
-    }
+    if (!p.gone) title = stageOf(p) === "egg" ? p.name || "Patyczek" : displayName(p);
     s.title.set(title);
     const status = s.msg ? s.msg.text : statusText(p, tz());
     s.status.set(status, s.msg ? COLOR.text : COLOR.accent);
-    s.action.set(p.gone ? "Stuknij: nowy patyczek" : ACTION_NAMES[RING[s.sel].id], p.gone ? COLOR.accent : COLOR.text);
+    s.action.set(p.gone ? "Stuknij: nowy" : this.actionName(RING[s.sel].id), p.gone ? COLOR.accent : COLOR.text);
     const offer = !!(s.offer && now < s.offer.until && !p.gone);
     if (!offer) s.offer = null;
     if (offer !== s.offerShown) {
       s.offerShown = offer;
       s.offerBtn.bg.setProperty(hmUI.prop.VISIBLE, offer);
       s.offerBtn.txt.widget.setProperty(hmUI.prop.VISIBLE, offer);
+      s.action.show(!offer); // przycisk premii stoi w miejscu nazwy akcji
     }
   },
 
@@ -333,10 +344,16 @@ Page({
     if (s.anim && now > s.anim.until) s.anim = null;
     const tick = s.frame % 2;
     const dark = p.asleep && !p.light;
-    const bg = dark ? COLOR.night : 0x000000;
-    if (bg !== s.bgColor) {
-      s.bgColor = bg;
-      s.bg.setProperty(hmUI.prop.MORE, { x: 0, y: 0, w: px(480), h: px(480), color: bg });
+    const bg = "ui/bg_" + sceneOf(p) + (dark ? "_n" : "") + ".png";
+    if (bg !== s.bgSrc) {
+      s.bgSrc = bg;
+      s.bg.set(bg, 0, 0);
+    }
+    // etap się zmienił (wyszedł z doniczki): inne ikony karmienia
+    const feedKind = feedOf(p).mealIcon;
+    if (feedKind !== s.feedKind) {
+      s.feedKind = feedKind;
+      this.renderRing();
     }
 
     const eggDir = LINES[lineOf(p)].egg;

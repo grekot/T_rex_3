@@ -36,7 +36,7 @@ Page({
   build() {
     const s = this.state;
     s.buzzer = createBuzzer();
-    s.hint = header("Wyprawa", "Skarb " + TRIP.min + "-" + TRIP.max + " m stąd");
+    s.hint = header("Wyprawa po Orb", "Orb " + TRIP.min + "-" + TRIP.max + " m stąd");
     s.arrow = hmUI.createWidget(hmUI.widget.IMG, arrowProps(0));
     s.arrow.setProperty(hmUI.prop.VISIBLE, false);
     s.dist = label({ ...DIST, color: COLOR.accent });
@@ -82,7 +82,7 @@ Page({
     if (st.state === "none" || st.state === "expired") {
       if (st.state === "expired") apply((p) => ({ state: setWalk(p, KEY, null) }));
       s.arrow.setProperty(hmUI.prop.VISIBLE, false);
-      s.dist.set(st.state === "expired" ? "Skarb przepadł" : "");
+      s.dist.set(st.state === "expired" ? "Orb przepadł" : "");
       s.info.set(fix ? "Gotowe do drogi" : "Szukam GPS…");
       this.showButton(true);
       return;
@@ -101,7 +101,7 @@ Page({
       s.dist.set("");
       s.info.set("");
       s.buzzer.buzz(VIBRATOR_SCENE_NOTIFICATION);
-      finishWalk(s, KEY, "Skarb znaleziony!");
+      finishWalk(s, KEY, "Orb zdobyty!");
       return;
     }
     const heading = s.compass.read();

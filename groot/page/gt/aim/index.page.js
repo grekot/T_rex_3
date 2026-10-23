@@ -22,10 +22,10 @@ Page({
     s.game = newAim(newSeed());
     const tapZone = rect(0, 0, 480, 480, 0x000000);
     onTap([tapZone], () => this.fire());
-    s.hint = header("Celowanie", "Trzymaj zegarek poziomo…");
+    s.hint = header("Strzała Yondu", "Trzymaj zegarek poziomo…");
     s.arena = rect(CENTER.x - ARENA, CENTER.y - ARENA * 0.75, ARENA * 2, ARENA * 1.5, 0x15201a, 24);
     onTap([s.arena], () => this.fire());
-    s.target = image("ui/apple.png", CENTER.x - ITEM / 2, CENTER.y - ITEM / 2);
+    s.target = image("ui/orb.png", CENTER.x - ITEM / 2, CENTER.y - ITEM / 2);
     s.h = rect(0, 0, CROSS.len, CROSS.thick, CROSS.color, 2);
     s.v = rect(0, 0, CROSS.thick, CROSS.len, CROSS.color, 2);
     [s.h, s.v].forEach((w) => onTap([w], () => this.fire()));
@@ -43,7 +43,7 @@ Page({
     this.render();
     const ok = startMotion(s, {
       calibrate: true,
-      ready: () => s.hint.set("Celuj przechyłem, stuknij = rzut", COLOR.grey),
+      ready: () => s.hint.set("Celuj przechyłem, stuknij = gwizd", COLOR.grey),
       tick: (a, now, dt, tilt) => {
         aimStep(s.game, tilt.x, tilt.y);
         this.render();
@@ -69,8 +69,8 @@ Page({
     const cy = Math.round(CENTER.y + Math.max(-ARENA * 0.75, Math.min(ARENA * 0.75, g.y)));
     s.h.setProperty(hmUI.prop.MORE, { x: px(cx - CROSS.len / 2), y: px(cy - CROSS.thick / 2), w: px(CROSS.len), h: px(CROSS.thick), radius: px(2), color: CROSS.color });
     s.v.setProperty(hmUI.prop.MORE, { x: px(cx - CROSS.thick / 2), y: px(cy - CROSS.len / 2), w: px(CROSS.thick), h: px(CROSS.len), radius: px(2), color: CROSS.color });
-    s.target.set("ui/apple.png", Math.round(CENTER.x + g.tx - ITEM / 2), Math.round(CENTER.y + g.ty - ITEM / 2));
-    s.status.set("Trafienia " + g.hits + "/" + AIM.need + " · rzuty " + g.shots + "/" + AIM.shots);
+    s.target.set("ui/orb.png", Math.round(CENTER.x + g.tx - ITEM / 2), Math.round(CENTER.y + g.ty - ITEM / 2));
+    s.status.set("Trafienia " + g.hits + "/" + AIM.need + " · strzały " + g.shots + "/" + AIM.shots);
   },
 
   fire() {
@@ -87,7 +87,7 @@ Page({
       [s.arena, s.h, s.v].forEach((w) => w.setProperty(hmUI.prop.VISIBLE, false));
       s.target.show(false);
       if (g.win) buzz(s, VIBRATOR_SCENE_NOTIFICATION);
-      finishGame(s, g.win, g.win ? "Celne oko!" : "Tym razem nie", "aim");
+      finishGame(s, g.win, g.win ? "Jak Yondu!" : "Tym razem nie", "aim");
     }
   },
 });

@@ -22,7 +22,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ART = os.path.join(os.path.dirname(ROOT), "groot-art")
 ASSETS = os.path.join(ROOT, "assets", "gt.r")
 
-SPRITE = 168
+SPRITE = 168  # klatki do gier (pets/<forma>/)
+HOME = 240  # klatki na ekranie głównym (pet/<forma>/) - Groot ma być duży
+# klatki potrzebne w grach (balans, kołysanie, medytacja, zgadywanie, rozgrzewka)
+GAME_FRAMES = ["idle0", "idle1", "happy0", "happy1", "sad0", "sad1", "sleep0", "sleep1", "dark0", "left"]
 THUMB = 64
 FEET_Y = 160  # stopy na tej wysokości (jak w rysowanych postaciach)
 MAX_H = 150  # najwyższa mina ma tyle px
@@ -172,7 +175,15 @@ def frames(big):
         "eat1": squash(big["happy"]),
         "left": ImageOps.mirror(big["idle"]),
     }
-    return {k: v.resize((SPRITE, SPRITE), Image.LANCZOS) for k, v in f.items()}
+    return f
+
+
+def save_frames(fid, fr, size, sub, only=None):
+    d = os.path.join(ASSETS, sub, fid)
+    os.makedirs(d, exist_ok=True)
+    for name, img in fr.items():
+        if only is None or name in only:
+            img.resize((size, size), Image.LANCZOS).save(os.path.join(d, name + ".png"), optimize=True)
 
 
 def silhouette(img, color=(46, 46, 56)):
@@ -189,10 +200,8 @@ def import_form(fid):
         return None
     big = place(load_sheet(path), TAIL_KEEP.get(fid, TAIL_OVER))
     fr = frames(big)
-    d = os.path.join(ASSETS, "pet", fid)
-    os.makedirs(d, exist_ok=True)
-    for name, img in fr.items():
-        img.save(os.path.join(d, name + ".png"), optimize=True)
+    save_frames(fid, fr, HOME, "pet")
+    save_frames(fid, fr, SPRITE, "pets", GAME_FRAMES)
     th = big["idle"].resize((THUMB, THUMB), Image.LANCZOS)
     th.save(os.path.join(ASSETS, "thumb", fid + ".png"), optimize=True)
     silhouette(th).save(os.path.join(ASSETS, "thumb", fid + "_x.png"), optimize=True)
@@ -244,11 +253,7 @@ def import_eggs():
             "egg1": big.rotate(-4, resample=Image.BICUBIC, center=center),
             "egg2": big.rotate(4, resample=Image.BICUBIC, center=center),
         }
-        fr = {k: v.resize((SPRITE, SPRITE), Image.LANCZOS) for k, v in fr.items()}
-        d = os.path.join(ASSETS, "pet", fid)
-        os.makedirs(d, exist_ok=True)
-        for name, img in fr.items():
-            img.save(os.path.join(d, name + ".png"), optimize=True)
+        save_frames(fid, fr, HOME, "pet")
         big.resize((EGG_PICK, EGG_PICK), Image.LANCZOS).save(os.path.join(ASSETS, "ui", "egg_" + EGG_LINE[fid] + ".png"), optimize=True)
         out[fid] = fr
     return out
@@ -295,7 +300,7 @@ def import_acts(fid):
     # sticker: jasnoszary cień pod stopami (Gemini czasem go dorysowuje) też jest tłem
     cuts = {name: cut_cell(cell, keep_all=True, sticker=True) for name, cell in zip(ACTS, grid(path, 2))}
     # nie większy niż w spoczynku (formy z długim ogonem są w kadrze pomniejszone)
-    idle = os.path.join(ASSETS, "pet", fid, "idle0.png")
+    idle = os.path.join(ASSETS, "pets", fid, "idle0.png")  # 168 px, jak SPRITE
     max_h = MAX_H
     if os.path.exists(idle):
         box = Image.open(idle).getchannel("A").point(lambda v: 255 if v > 40 else 0).getbbox()
@@ -312,21 +317,28 @@ def import_acts(fid):
         "act_spores0": glow(big["spores"], 0),
         "act_spores1": glow(big["spores"], 1),
     }
-    d = os.path.join(ASSETS, "pet", fid)
-    for name, img in f.items():
-        img.resize((SPRITE, SPRITE), Image.LANCZOS).save(os.path.join(d, name + ".png"), optimize=True)
+    save_frames(fid, f, HOME, "pet")
     return f
 
 
 # --- rekwizyty gier: art/props_sheet.jpg, siatka 4 x 4 ---------------------------
 # (nazwa w ui/, rozmiar kadru); kolejność jak w prompcie, wierszami
 PROPS = [
-    ("apple", 36), ("rock", 36), ("bone", 36), ("fish", 36),  # bone = żołądź, nest = doniczka
-    ("nest", 36), ("hive", 36), ("ball", 32), ("log", (192, 36)),
-    ("forest", 168), ("balloon", 0), ("pearl", 48), ("chest", 72),
-    ("flag", 56), ("star", 40), ("bobber", 40), ("stump", 36),
+    ("part", 36), ("rock", 36), ("fin", 36), ("fish", 36),  # część statku, asteroida, płetwa Yondu, kosmiczna ryba
+    ("nest", 36), ("hive", 36), ("ball", 32), ("log", (192, 36)),  # lądowisko, ul, Orb, belka
+    ("forest", 168), ("balloon", 0), ("pearl", 48), ("milano", 36),  # drzewo, kula energii, Kamień Nieskończoności, Milano
+    ("flag", 56), ("star", 40), ("bobber", 40), ("stump", 36),  # nadajnik, gwiazdka, spławik, skrzynia
 ]
-EXTRA = {"bone": [("bone_big", 96), ("egg_small", 34)], "apple": [("apple_big", 72)], "fish": [("fish_big", 72)], "flag": [("flag_s", 40)], "star": [("star_ok", 60)]}
+# nazwy plików zostały z Pupila (rock = asteroida, bone_big = płetwa Yondu, nest = lądowisko,
+# ball = Orb, log = belka, balloon = kula energii, pearl = kamień, flag = nadajnik, stump = skrzynia)
+EXTRA = {
+    "fin": [("bone_big", 96)],
+    "ball": [("orb", 36)],
+    "milano": [("egg_small", 34)],
+    "fish": [("fish_big", 72)],
+    "flag": [("flag_s", 40), ("beacon", 36)],
+    "star": [("star_ok", 60)],
+}
 SHADOW = {"flag": ("flag_x", 40)}  # nieodblokowane: szary cień
 BALLOON_SIZES = [28 + round(148 * i / 10) for i in range(11)]  # balon rośnie przy pompowaniu (średnica 28-176 jak w grze)
 
@@ -410,6 +422,80 @@ def import_icons():
     return done
 
 
+# --- ikony 2: art/icons2_sheet.jpg, 2 rzędy po 3 --------------------------------------
+# słońce i lody (karmienie od etapu dziecka), jabłko (drzewo), walkman, strzała Yondu, bomba
+ICONS2 = [
+    ("sun", [("ic_sun", 58), ("sun", 48), ("sunpt", 36)]),
+    ("icecream", [("ic_icecream", 58), ("icecream", 48)]),
+    ("apple", [("apple", 36), ("apple_big", 72)]),
+    ("walkman", [("walkman", 48)]),
+    ("yaka", [("yaka", 48)]),
+    ("bomb", [("bomb", 48)]),
+]
+
+
+def import_icons2():
+    path = sheet_path("icons2")
+    if not path:
+        return []
+    done = []
+    for (name, outs), cell in zip(ICONS2, stickers(path, len(ICONS2), 3)):
+        im = cut_cell(cell, keep_all=True, sticker=True, holes=False)
+        for fname, size in outs:
+            fit(im, size).save(os.path.join(ASSETS, "ui", fname + ".png"), optimize=True)
+        if name == "sun":
+            silhouette(fit(im, 36), (70, 70, 82)).save(os.path.join(ASSETS, "ui", "sunpt_empty.png"), optimize=True)
+        done.append(name)
+    return done
+
+
+# --- pojedyncze postacie: art/<nazwa>_sheet.jpg, jedna postać na białym tle ------------
+SINGLES = {"rocket": 64}  # rywal w Wyścigu z Rocketem (jak miniatura Groota, THUMB)
+
+
+def import_single(name):
+    path = sheet_path(name)
+    if not path:
+        return None
+    im = cut_cell(Image.open(path).convert("RGB"), holes=False)
+    size = SINGLES[name]
+    fit(im, size).save(os.path.join(ASSETS, "ui", name + ".png"), optimize=True)
+    return name
+
+
+# --- tła ekranu głównego: art/bg_<scena>_sheet.jpg -----------------------------------
+SCENES = ["kokpit", "poklad", "kacik", "knowhere", "ladownia"]
+BG_DAY = 0.75  # jasność tła w dzień (Groot i ikony muszą odstawać)
+BG_NIGHT = 0.3
+
+
+def vignette(size):
+    """Maska przyciemnienia brzegów: środek 1, krawędź koła ok. 0.45."""
+    yy, xx = np.mgrid[0:size, 0:size]
+    r = np.hypot(xx - size / 2, yy - size / 2) / (size / 2)
+    return np.clip(1.0 - 0.55 * np.clip((r - 0.45) / 0.55, 0, 1), 0, 1)
+
+
+def import_bg(scene):
+    path = sheet_path("bg_" + scene)
+    if not path:
+        return None
+    im = Image.open(path).convert("RGB")
+    side = min(im.size)
+    im = im.crop(((im.width - side) // 2, (im.height - side) // 2, (im.width + side) // 2, (im.height + side) // 2))
+    a = np.asarray(im.resize((480, 480), Image.LANCZOS)).astype(np.float32)
+    v = vignette(480)[..., None]
+    day = a * BG_DAY * v
+    night = a * BG_NIGHT * v * np.array([0.7, 0.8, 1.15], dtype=np.float32)
+    for arr, suf in ((day, ""), (night, "_n")):
+        Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8), "RGB").save(os.path.join(ASSETS, "ui", "bg_" + scene + suf + ".png"), optimize=True)
+    return scene
+
+
+def import_bgs():
+    return [x for x in (import_bg(sc) for sc in SCENES) if x]
+
+
 def sheet_path(name):
     for ext in (".jpg", ".png"):
         p = os.path.join(ART, name + "_sheet" + ext)
@@ -434,16 +520,22 @@ def available():
     if not os.path.isdir(ART):
         return []
     names = {n.split("_sheet")[0] for n in os.listdir(ART) if "_sheet." in n}
-    return sorted(n for n in names if n not in ("pots", "props", "icons") and not n.endswith("_act"))
+    return sorted(n for n in names if n not in ("pots", "props", "icons", "icons2") and n not in SINGLES and not n.endswith("_act") and not n.startswith("bg_"))
 
 
 def main(ids):
     done = []
-    for fid in ids or available() + ["pots", "props", "icons"]:
+    for fid in ids or available() + ["pots", "props", "icons", "icons2", "bg"] + list(SINGLES):
         if fid == "pots":
             ok = import_eggs()
         elif fid == "icons":
             ok = import_icons()
+        elif fid == "icons2":
+            ok = import_icons2()
+        elif fid == "bg":
+            ok = import_bgs()
+        elif fid in SINGLES:
+            ok = import_single(fid)
         elif fid == "props":
             ok = import_props()
         elif fid.endswith("_act"):

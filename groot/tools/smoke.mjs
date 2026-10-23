@@ -463,8 +463,8 @@ test("ekran główny: noc, zgaszone światło, odejście i nowe jajo", () => {
   p.run(1000);
   assert.ok(p.imgs().some((s) => /groot\/dark[01]\.png$/.test(s)), p.imgs().join(","));
   assert.ok(p.imgs().includes("ui/zzz.png"));
-  const bg = p.widgets[0];
-  assert.equal(bg.props.color, 0x060918);
+  // tło sceny w wersji nocnej (dorosły Groot: Knowhere)
+  assert.ok(p.imgs().includes("ui/bg_knowhere_n.png"), p.imgs().join(","));
   p.destroy();
   // po ponownym otwarciu o 23:00 dalej śpi przy zgaszonym świetle
   clock.now += 2.5 * 3600000;
@@ -479,7 +479,7 @@ test("ekran główny: noc, zgaszone światło, odejście i nowe jajo", () => {
   const q = makePage("page_gt_home_index.page.js").start();
   assert.equal(pet().gone, "forest");
   assert.ok(q.imgs().includes("ui/forest.png"));
-  assert.ok(q.hasText("Stuknij: nowy patyczek"));
+  assert.ok(q.hasText("Stuknij: nowy"));
   q.tap(q.find((w) => w.type === "IMG" && w.props.src === "ui/forest.png"));
   assert.equal(log.push.pop(), "page/gt/choose/index.page");
   // wybór: niebieskie jajo (roślinożercy), imię o dwa dalej
@@ -507,10 +507,13 @@ test("ekran główny: noc, zgaszone światło, odejście i nowe jajo", () => {
   // ekran główny łapie zmianę: niebieskie jajo i imię w tytule
   q.run(1100);
   assert.ok(q.imgs().some((x) => x.startsWith("pet/eggb/")), q.imgs().join(","));
-  assert.ok(q.hasText("Grucio · patyczek"), q.texts().join("|"));
+  assert.ok(q.hasText("Grucio"), q.texts().join("|"));
+  assert.ok(q.imgs().includes("ui/bg_kokpit.png"), q.imgs().join(","));
+  assert.ok(q.imgs().includes("ring/meal_sel.png"), q.imgs().join(","));
   q.run(4 * 60000);
   assert.equal(pet().form, "pak");
-  assert.ok(q.hasText("Grucio · 0 dni"), q.texts().join("|"));
+  assert.ok(q.hasText("Grucio"), q.texts().join("|"));
+  assert.ok(q.hasText("Podlewanie"), q.texts().join("|"));
   q.destroy();
 });
 
@@ -565,7 +568,9 @@ test("przypomnienie: alarm przy wyjściu, wibracja, gdy alarm otworzy aplikację
 test("statystyki i kolekcja", () => {
   hatchAdult();
   const p = makePage("page_gt_stats_index.page.js").start();
-  assert.equal(p.imgs().filter((s) => s === "ui/drop.png").length, 4);
+  // dorosły chodzi sam: zamiast kropli wody słoneczka energii
+  assert.ok(p.hasText("Energia"), p.texts().join("|"));
+  assert.equal(p.imgs().filter((s) => s === "ui/sunpt.png").length, 4);
   assert.equal(p.imgs().filter((s) => s === "ui/heart.png").length, 2 + pet().discipline);
   assert.ok(p.hasText("Wisienka"), p.texts().join("|"));
   assert.ok(p.hasText("Waga 26 g"), p.texts().join("|"));
@@ -589,7 +594,7 @@ test("statystyki i kolekcja", () => {
 
 test("menu zabaw", () => {
   const p = makePage("page_gt_games_index.page.js").start();
-  ["Rzut piłką", "Kołysanie do snu", "Balans na kłodzie", "Lewo czy prawo?"].forEach((t, i) => {
+  ["Rzut Orbem", "Kołysanie do snu", "Balans na belce", "Lewo czy prawo?"].forEach((t, i) => {
     p.tapText(t);
     assert.equal(log.push.pop(), "page/gt/" + ["throw", "rock", "balance", "guess"][i] + "/index.page");
   });
@@ -717,7 +722,7 @@ function freshPet() {
 
 test("menu zabaw: 22 gry w grupach, przewijana lista", () => {
   const p = makePage("page_gt_games_index.page.js").start();
-  const names = ["Powtórz ruch", "Łapanie owoców", "Labirynt żołędzia", "Celowanie", "Refleks", "Wędkowanie", "Skoki", "Potrząśnij drzewem", "Wykopywanie żołędzi", "Balon", "Medytacja", "Wyścig", "Rozgrzewka", "Szukanie wody", "Wspinaczka", "Nurkowanie", "Wyprawa", "Znaczenie terenu", "Lewo czy prawo?", "Rzut piłką", "Kołysanie do snu", "Balans na kłodzie"];
+  const names = ["Taniec Groota", "Części dla Rocketa", "Pilotaż Milano", "Strzała Yondu", "Refleks", "Ryby na Knowhere", "Ucieczka przed Abiliskiem", "Potrząśnij drzewem", "Płetwa Yondu", "Bomba Rocketa", "Medytacja z Mantis", "Wyścig z Rocketem", "Trening z Draxem", "Łapanie sygnału", "Wspinaczka", "Kamień Nieskończoności", "Wyprawa po Orb", "Nadajniki", "Lewo czy prawo?", "Rzut Orbem", "Kołysanie do snu", "Balans na belce"];
   for (const n of names) assert.ok(p.hasText(n), "brak " + n);
   p.tapText("Wyprawa");
   assert.equal(log.push.pop(), "page/gt/trip/index.page");
@@ -797,7 +802,7 @@ test("powtórz ruch: po rundzie gwiazdka i czekanie, aż ręka wróci do poziomu
   p.destroy();
 });
 
-test("szukanie jedzenia: obrót w stronę jedzenia znajduje je", () => {
+test("łapanie sygnału: obrót w stronę sygnału łapie go", () => {
   freshPet();
   const p = makePage("page_gt_forage_index.page.js").start();
   sensors.heading = null;
@@ -809,7 +814,7 @@ test("szukanie jedzenia: obrót w stronę jedzenia znajduje je", () => {
     p.run(100);
   }
   assert.equal(p.opts.state.game.win, true);
-  assert.ok(p.hasText("Najedzony!"));
+  assert.ok(p.hasText("Sygnał złapany!"));
   p.destroy();
   sensors.heading = 0;
 });
@@ -850,7 +855,7 @@ test("wyprawa: cel zapamiętany, strzałka, dotarcie = nagroda", () => {
   // dotarcie do celu, aplikacja otwarta ponownie
   sensors.fix = { lat: trip.lat + 0.00005, lon: trip.lon };
   const q = makePage("page_gt_trip_index.page.js").start();
-  assert.ok(q.hasText("Skarb znaleziony!"), q.texts().join("|"));
+  assert.ok(q.hasText("Orb zdobyty!"), q.texts().join("|"));
   assert.equal(pet().walks.trip, undefined);
   q.destroy();
   sensors.fix = { lat: 50.0614, lon: 19.9366 };
@@ -860,16 +865,16 @@ test("znaczenie terenu: za blisko, potem 3 miejsca", () => {
   freshPet();
   const p = makePage("page_gt_marks_index.page.js").start();
   sensors.fix = { lat: 50.0, lon: 20.0 };
-  p.tapText("Oznacz tu");
+  p.tapText("Postaw nadajnik");
   sensors.fix = { lat: 50.0003, lon: 20.0 }; // ok. 33 m
-  p.tapText("Oznacz tu");
+  p.tapText("Postaw nadajnik");
   assert.ok(p.hasText("Za blisko"), p.texts().join("|"));
   sensors.fix = { lat: 50.002, lon: 20.0 };
-  p.tapText("Oznacz tu");
+  p.tapText("Postaw nadajnik");
   sensors.fix = { lat: 50.004, lon: 20.0 };
-  p.tapText("Oznacz tu");
+  p.tapText("Postaw nadajnik");
   p.run(1000);
-  assert.ok(p.hasText("Teren oznaczony!"), p.texts().join("|"));
+  assert.ok(p.hasText("Nadajniki stoją!"), p.texts().join("|"));
   p.destroy();
   sensors.fix = { lat: 50.0614, lon: 19.9366 };
 });
@@ -1111,7 +1116,7 @@ test("nurkowanie: ręka w dół, perła (wibracja), do góry - trzy razy = wygra
   const g = p.opts.state.game;
   assert.equal(g.dives, 3);
   assert.equal(g.win, true);
-  assert.ok(p.hasText("Trzy perły!"), p.texts().join("|"));
+  assert.ok(p.hasText("Trzy kamienie!"), p.texts().join("|"));
   assert.ok(pet().happy >= before);
   assert.equal(p.destroy(), 0);
 });

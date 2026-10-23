@@ -15,11 +15,11 @@ Page({
   build() {
     const s = this.state;
     s.game = newCatch(newSeed());
-    s.hint = header("Łapanie owoców", "Trzymaj zegarek poziomo…");
+    s.hint = header("Części dla Rocketa", "Trzymaj zegarek poziomo…");
     rect(FIELD.x - 10, FIELD.y + CATCH.h + 2, CATCH.w + 20, 4, 0x3f7a46, 2);
     s.items = [];
     for (let i = 0; i < POOL; i++) {
-      const w = image("ui/apple.png", FIELD.x, FIELD.y);
+      const w = image("ui/part.png", FIELD.x, FIELD.y);
       w.show(false);
       s.items.push(w);
     }
@@ -60,10 +60,10 @@ Page({
     s.items.forEach((w, i) => {
       const it = g.items[i];
       if (!it) return w.show(false);
-      w.set(it.kind === "rock" ? "ui/rock.png" : "ui/apple.png", Math.round(FIELD.x + it.x - ITEM / 2), Math.round(FIELD.y + it.y - ITEM / 2));
+      w.set(it.kind === "rock" ? "ui/rock.png" : "ui/part.png", Math.round(FIELD.x + it.x - ITEM / 2), Math.round(FIELD.y + it.y - ITEM / 2));
       w.show(true);
     });
     s.dino.set(s.dinoSrc, Math.round(FIELD.x + g.x - THUMB / 2), FIELD.y + CATCH.h - THUMB);
-    s.status.set("Owoce " + g.caught + "/" + CATCH.need + " · życia " + g.lives + " · " + Math.max(0, Math.ceil((CATCH.time - g.elapsed) / 1000)) + " s");
+    s.status.set("Części " + g.caught + "/" + CATCH.need + " · życia " + g.lives + " · " + Math.max(0, Math.ceil((CATCH.time - g.elapsed) / 1000)) + " s");
   },
 });

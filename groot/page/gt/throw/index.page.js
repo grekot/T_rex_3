@@ -27,7 +27,7 @@ Page({
     s.game = newThrowGame(newSeed());
     s.detector = createThrowDetector();
 
-    label({ ...TITLE, text: "Rzut piłką" });
+    label({ ...TITLE, text: "Rzut Orbem" });
     s.hint = label({ ...HINT, text: "Machnij ręką jak przy rzucie", color: COLOR.grey });
     s.round = label({ ...ROUND });
     rect(FIELD.x0 - 10, FIELD.y, FIELD.x1 - FIELD.x0 + 20, 4, 0x3f7a46, 2);

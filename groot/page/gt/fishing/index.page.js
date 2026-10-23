@@ -12,7 +12,7 @@ Page({
   build() {
     buildSignalPage(this, FISH, { LAMP, LAMP_TEXT, RESULTS }, {
       id: "fishing",
-      title: "Wędkowanie",
+      title: "Ryby na Knowhere",
       hint: "Ciągnij, gdy spławik zanurkuje",
       wait: "Czekamy…",
       nibble: "Podgryza…",
@@ -20,7 +20,7 @@ Page({
       early: "Spłoszona!",
       late: "Uciekła",
       win: "Dobry połów!",
-      lose: "Ryby górą",
+      lose: "Kosmiczne ryby górą",
     });
   },
 

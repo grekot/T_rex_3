@@ -26,7 +26,7 @@ Page({
     const s = this.state;
     s.game = newSimon(newSeed());
     s.reader = createTiltReader();
-    s.hint = header("Powtórz ruch", "Trzymaj zegarek poziomo…");
+    s.hint = header("Taniec Groota", "Trzymaj zegarek poziomo…");
     s.arrow = image(ARROWS.left, ARROW_POS.x, ARROW_POS.y);
     s.arrow.show(false);
     s.round = label({ ...ROUND });
@@ -69,7 +69,7 @@ Page({
   showSequence() {
     const s = this.state;
     s.phase = "show";
-    s.hint.set("Patrz i zapamiętaj", COLOR.grey);
+    s.hint.set("Patrz, jak tańczy", COLOR.grey);
     s.arrow.show(false);
     s.status.set("");
     let i = 0;
@@ -78,7 +78,7 @@ Page({
         s.arrow.show(false);
         s.phase = "input";
         s.reader = createTiltReader();
-        s.hint.set("Teraz ty: przechylaj!", COLOR.accent);
+        s.hint.set("Teraz ty: tańcz przechyłami!", COLOR.accent);
         return;
       }
       s.arrow.set(ARROWS[s.game.seq[i]]);

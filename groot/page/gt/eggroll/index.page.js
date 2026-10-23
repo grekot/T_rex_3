@@ -16,7 +16,7 @@ Page({
     const s = this.state;
     s.game = newEggRoll(newSeed());
     const L = s.game.level;
-    s.hint = header("Labirynt żołędzia", "Trzymaj zegarek poziomo…");
+    s.hint = header("Pilotaż Milano", "Trzymaj zegarek poziomo…");
     s.field = [rect(FIELD.x, FIELD.y, EGGROLL.size, EGGROLL.size, 0x2a1f14, 18)];
     L.walls.forEach(([x, y, w, h]) => s.field.push(rect(FIELD.x + x, FIELD.y + y, w, h, 0xc89a5a, 6)));
     s.nest = image("ui/nest.png", FIELD.x + L.nest[0] - ITEM / 2, FIELD.y + L.nest[1] - ITEM / 2);
@@ -24,7 +24,7 @@ Page({
     s.time = label({ ...HINT, y: HINT.y + 32, size: 20 });
     const ok = startMotion(s, {
       calibrate: true,
-      ready: () => s.hint.set("Przechylaj, toczy się do gniazda", COLOR.grey),
+      ready: () => s.hint.set("Przechylaj, leć do lądowiska", COLOR.grey),
       tick: (a, now, dt, tilt) => this.tick(tilt, dt),
     });
     if (!ok) s.hint.set("Brak akcelerometru", COLOR.bad);
@@ -49,7 +49,7 @@ Page({
       s.egg.show(false);
       s.nest.show(false);
       buzz(s, g.win ? VIBRATOR_SCENE_NOTIFICATION : VIBRATOR_SCENE_DURATION);
-      finishGame(s, g.win, g.win ? "Żołądź w doniczce!" : "Zabrakło czasu", "eggroll");
+      finishGame(s, g.win, g.win ? "Wylądował!" : "Zabrakło czasu", "eggroll");
     }
   },
 });

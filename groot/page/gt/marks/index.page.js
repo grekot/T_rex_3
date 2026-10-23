@@ -1,6 +1,6 @@
 // Znaczenie terenu (GPS, zadanie spacerowe): oznacz 3 miejsca oddalone od siebie
 // o co najmniej 100 m (w ciągu doby). Na spacerze otwórz tę grę w nowym miejscu
-// i stuknij "Oznacz tu".
+// i stuknij "Postaw nadajnik".
 import * as hmUI from "@zos/ui";
 import { VIBRATOR_SCENE_SHORT_MIDDLE, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { MARKS, marksStatus, addMark } from "../../../utils/walks";
@@ -22,7 +22,7 @@ Page({
   build() {
     const s = this.state;
     s.buzzer = createBuzzer();
-    s.hint = header("Znaczenie terenu", MARKS.need + " miejsca, co najmniej " + MARKS.spacing + " m od siebie");
+    s.hint = header("Nadajniki", MARKS.need + " nadajniki, co najmniej " + MARKS.spacing + " m od siebie");
     image("thumb/" + petForm() + ".png", PET.x, PET.y);
     s.flags = [];
     for (let i = 0; i < MARKS.need; i++) s.flags.push(image("ui/flag_x.png", FLAGS.x + i * FLAGS.step, FLAGS.y));
@@ -56,7 +56,7 @@ Page({
     });
     if (res.result === "near") s.msg = "Za blisko poprzedniego (" + res.nearest + " m) - przejdź dalej";
     else {
-      s.msg = "Oznaczone!";
+      s.msg = "Nadajnik stoi!";
       s.buzzer.buzz(VIBRATOR_SCENE_SHORT_MIDDLE);
     }
     this.tick();
@@ -74,11 +74,11 @@ Page({
       s.btn.bg.setProperty(hmUI.prop.VISIBLE, false);
       s.btn.txt.widget.setProperty(hmUI.prop.VISIBLE, false);
       s.buzzer.buzz(VIBRATOR_SCENE_NOTIFICATION);
-      finishWalk(s, KEY, "Teren oznaczony!");
+      finishWalk(s, KEY, "Nadajniki stoją!");
       return;
     }
     const fix = s.gps.read();
-    const base = "Oznaczone " + st.count + "/" + MARKS.need + ". " + (fix ? "GPS gotowy." : "Szukam GPS…");
-    s.info.set(s.msg ? s.msg + " " + base : base, s.msg === "Oznaczone!" ? COLOR.good : COLOR.grey);
+    const base = "Nadajniki " + st.count + "/" + MARKS.need + ". " + (fix ? "GPS gotowy." : "Szukam GPS…");
+    s.info.set(s.msg ? s.msg + " " + base : base, s.msg === "Nadajnik stoi!" ? COLOR.good : COLOR.grey);
   },
 });

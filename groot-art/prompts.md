@@ -62,11 +62,35 @@ Sucharowi „a small wilted flower”)
 
 Three flower pots side by side in one row, evenly spaced with clear white gaps between them, photorealistic 3D CGI render like in the Marvel movie Guardians of the Galaxy, soft studio lighting, isolated on a pure solid white background, no ground shadow, no text: left a terracotta clay pot, middle a pink ceramic pot, right a bright orange ceramic pot. Each pot is filled with dark soil with one small bare brown wooden twig stick standing upright in it, like the tiny twig Groot was regrown from at the end of the movie, with no face. Same size, upright, front view.
 
-## Rekwizyty gier (`props`, 4x4)
+## Rekwizyty gier (`props`, 4x4, motyw Strażników Galaktyki)
 
-Game item sheet for a smartwatch game. Photorealistic 3D CGI render objects, soft studio lighting, isolated on a pure solid white background. A 4x4 grid of 16 separate items, each item centered in its own cell with plenty of empty white space around it, all items about the same visual size, nothing touching. Row 1: a shiny red apple with a leaf, a grey rock, a brown acorn with a cap, a blue fish facing right. Row 2: a small terracotta flower pot filled with soil, a yellow beehive, a red and white ball, a wooden log lying horizontally. Row 3: a round green fruit tree with red apples, a red balloon with a short string, a white pearl in an open pink seashell, a wooden treasure chest with gold. Row 4: a red flag on a short pole, a shiny golden star, a red and white fishing bobber, a small tree stump. No text, no letters, no numbers, no ground shadows, no frames, no grid lines.
+Game item sheet for a smartwatch game. Photorealistic 3D CGI render objects in the style of the Marvel movie Guardians of the Galaxy, soft studio lighting, isolated on a pure solid white background. A 4x4 grid of 16 separate items, each item centered in its own cell with plenty of empty white space around it, all items about the same visual size, nothing touching. Row 1: a shiny metal spaceship engine part gear with bolts, a grey cratered asteroid rock, a red metal head fin implant like Yondu's, a glowing blue alien fish facing right. Row 2: a glowing round spaceship landing pad seen from above, a yellow beehive, the Orb (a small silver metal sphere with a golden band), a long metal spaceship girder lying horizontally. Row 3: a round green fruit tree with red apples, a glowing blue energy sphere, a glowing purple Infinity Stone gem, a small orange and blue Milano spaceship seen from above facing right. Row 4: a small signal beacon with a red light on a short pole, a shiny golden star, a red and white fishing bobber, a broken metal cargo crate. No text, no letters, no numbers, no ground shadows, no frames, no grid lines.
 
-Kolejność musi zostać (PROPS w import_art.py; żołądź trafia do `bone*` i `egg_small`, doniczka do `nest`).
+Kolejność musi zostać (PROPS w import_art.py; nazwy plików zostały z Pupila: rock = asteroida,
+bone_big = płetwa, nest = lądowisko, ball/orb = Orb, log = belka, balloon = kula energii,
+pearl = kamień, egg_small = Milano, flag/beacon = nadajnik, stump = skrzynia).
+
+## Ikony 2 (`icons2`, 2 rzędy po 3)
+
+Game icon sheet for a smartwatch game. Photorealistic 3D CGI render objects in the style of the Marvel movie Guardians of the Galaxy, soft studio lighting, isolated on a pure solid white background. 6 separate items in 2 rows of 3, each centered with plenty of empty white space around it, all about the same visual size, nothing touching. Row 1: a bright glowing yellow star sun with rays, a pink and white ice cream cone with a waffle, a shiny red apple with a leaf. Row 2: a retro orange and silver cassette walkman with orange headphones, a glowing red arrow like Yondu's yaka arrow pointing right, a round black bomb with a glowing red button on top. No text, no letters, no ground shadows, no frames, no grid lines.
+
+Słońce i lody to karmienie od etapu dziecka, jabłko spada w grze z drzewem.
+
+## Rocket (`rocket`, rywal w Wyścigu z Rocketem)
+
+Photorealistic 3D CGI render exactly like in the Marvel movie Guardians of the Galaxy: Rocket Raccoon running fast to the right, full body, side view, in his orange flight suit, determined grin, isolated on a pure solid white background, no ground shadow, no text.
+
+## Tła ekranu głównego (`bg_<scena>`, jedno ujęcie 1:1)
+
+Początek każdego: "Background art for a round smartwatch game screen. Photorealistic 3D CGI render exactly like in the Marvel movie Guardians of the Galaxy." Koniec: "Empty scene, no characters, no people, no plants, no text. Centered square composition, eye level view." Podłoga albo blat w dolnej jednej trzeciej (tam stoi Groot). Import przyciemnia (BG_DAY, BG_NIGHT, winieta).
+
+| scena | etap | opis |
+|---|---|---|
+| kokpit | patyczek, maluch | Interior of the Milano spaceship cockpit: a flat metal console shelf runs across the lower third of the picture, a big cockpit window behind it shows stars and a colorful nebula, soft blue and orange control lights. |
+| poklad | dziecko | Inside the Milano spaceship: a metal deck floor in the lower third of the picture, walls with pipes, cables, small blue and orange lights and hanging cargo nets, a round porthole with stars. |
+| kacik | nastolatek | A messy teenager's corner inside a spaceship: metal floor in the lower third of the picture, an old arcade-style video game console with a glowing screen against the wall, scattered blankets, a cassette tape walkman, posters, cables and small neon lights, a small porthole with stars. |
+| knowhere | dorosły | Knowhere, the mining colony inside a giant severed celestial head floating in space: a rocky ground with metal walkways in the lower third of the picture, colorful neon shop lights, the huge ancient skull rising behind, stars and nebula in the sky. |
+| ladownia | zaniedbane | A dark dusty neglected cargo hold of an old spaceship: dirty metal floor in the lower third of the picture, rusty crates, broken flickering lamp, cobwebs, a cracked porthole with dim stars, gloomy grey-green light. |
 
 ## Ikony akcji (`icons`, 2 rzędy po 4)
 

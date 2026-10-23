@@ -4,7 +4,7 @@ import * as hmUI from "@zos/ui";
 import { onKey, offKey, KEY_UP, KEY_DOWN, KEY_EVENT_CLICK } from "@zos/interaction";
 import { GUESS, newGuess, guess } from "../../../utils/games";
 import { load, newSeed } from "../../../utils/store";
-import { COLOR, label, image, rect, onTap, spriteSrc } from "../../../utils/ui";
+import { COLOR, label, image, rect, onTap, gameSprite } from "../../../utils/ui";
 import { finishGame } from "../../../utils/gameui";
 import { TITLE, ROUND, PET, FEEDBACK, LEFT_BTN, RIGHT_BTN, ARROW_SIZE } from "zosLoader:./index.page.[pf].layout.js";
 
@@ -21,7 +21,7 @@ Page({
 
     label({ ...TITLE, text: "Lewo czy prawo?" });
     s.round = label({ ...ROUND });
-    s.pet = image(spriteSrc(s.form, "idle0"), PET.x, PET.y);
+    s.pet = image(gameSprite(s.form, "idle0"), PET.x, PET.y);
     s.feedback = label({ ...FEEDBACK, text: "Gdzie spojrzy?", color: COLOR.grey });
     s.buttons = [
       [LEFT_BTN, "ui/arrow_l.png", "left"],
@@ -68,7 +68,7 @@ Page({
     s.game = guess(s.game, side);
     const l = s.game.last;
     // sprite domyślnie patrzy w prawo, "left" to odbicie
-    s.pet.set(spriteSrc(s.form, l.ok ? (l.dir === "left" ? "left" : "happy0") : l.dir === "left" ? "left" : "idle0"));
+    s.pet.set(gameSprite(s.form, l.ok ? (l.dir === "left" ? "left" : "happy0") : l.dir === "left" ? "left" : "idle0"));
     s.feedback.set(l.ok ? "Trafione!" : "Pudło - patrzy w " + (l.dir === "left" ? "lewo" : "prawo"), l.ok ? COLOR.good : COLOR.accent);
     this.renderRound();
     s.timer = setTimeout(() => {
@@ -79,12 +79,12 @@ Page({
           b.arrow.show(false);
         });
         s.feedback.set("");
-        s.pet.set(spriteSrc(s.form, s.game.win ? "happy0" : "sad0"));
+        s.pet.set(gameSprite(s.form, s.game.win ? "happy0" : "sad0"));
         finishGame(s, s.game.win, s.game.win ? "Wygrana!" : "Tym razem nie", "guess");
         return;
       }
       s.busy = false;
-      s.pet.set(spriteSrc(s.form, "idle0"));
+      s.pet.set(gameSprite(s.form, "idle0"));
       s.feedback.set("Gdzie spojrzy?", COLOR.grey);
     }, SHOW_MS);
   },

@@ -18,7 +18,7 @@ Page({
     onTap([tapZone], () => jump(s.game));
     s.game = newRunner(newSeed());
     s.flick = createFlick(RUNNER.flick, 450);
-    s.hint = header("Skoki", "Podrzuć nadgarstek albo stuknij");
+    s.hint = header("Ucieczka przed Abiliskiem", "Podrzuć nadgarstek albo stuknij");
     rect(TRACK.x - 10, TRACK.y, RUNNER.w + 20, 4, 0x8a6a3e, 2);
     s.rocks = [];
     for (let i = 0; i < POOL; i++) {
@@ -54,7 +54,7 @@ Page({
       stopMotion(s);
       s.status.set("");
       buzz(s, g.win ? VIBRATOR_SCENE_NOTIFICATION : VIBRATOR_SCENE_DURATION);
-      finishGame(s, g.win, g.win ? "Wygrana!" : "Potknął się", "runner");
+      finishGame(s, g.win, g.win ? "Wygrana!" : "Abilisk go dopadł", "runner");
     }
   },
 });

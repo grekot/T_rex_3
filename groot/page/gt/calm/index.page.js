@@ -4,7 +4,7 @@ import * as hmUI from "@zos/ui";
 import { px } from "@zos/utils";
 import { VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { CALM, newCalm, feedCalm } from "../../../utils/moves";
-import { COLOR, label, image, rect, spriteSrc } from "../../../utils/ui";
+import { COLOR, label, image, rect, gameSprite } from "../../../utils/ui";
 import { finishGame } from "../../../utils/gameui";
 import { header, petForm, startMotion, stopMotion, buzz, STATUS } from "../../../utils/gamekit";
 import { PET, BAR } from "zosLoader:./index.page.[pf].layout.js";
@@ -18,8 +18,8 @@ Page({
     const s = this.state;
     s.game = newCalm();
     s.form = petForm();
-    s.hint = header("Medytacja", "Trzymaj rękę zupełnie nieruchomo");
-    s.pet = image(spriteSrc(s.form, "idle0"), PET.x, PET.y);
+    s.hint = header("Medytacja z Mantis", "Trzymaj rękę zupełnie nieruchomo");
+    s.pet = image(gameSprite(s.form, "idle0"), PET.x, PET.y);
     rect(BAR.x, BAR.y, BAR.w, BAR.h, 0x26262e, BAR.h / 2);
     s.bar = rect(BAR.x, BAR.y, BAR.h, BAR.h, BAR_COLOR, BAR.h / 2);
     s.barW = 0;
@@ -39,7 +39,7 @@ Page({
     feedCalm(g, a, now, dt);
     const calm = g.energy <= CALM.max;
     const slow = Math.floor((now - s.t0) / 900) % 2;
-    s.pet.set(spriteSrc(s.form, calm ? "sleep" + slow : "sad" + slow));
+    s.pet.set(gameSprite(s.form, calm ? "sleep" + slow : "sad" + slow));
     const w = Math.max(BAR.h, Math.round((BAR.w * g.progress) / CALM.need));
     if (w !== s.barW) {
       s.barW = w;

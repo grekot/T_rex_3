@@ -30,13 +30,13 @@ Page({
     keepScreenOn();
     s.buzzer = createBuzzer();
     s.game = newForage(newSeed());
-    s.hint = header("Szukanie jedzenia", "Obracaj się z zegarkiem przed sobą");
+    s.hint = header("Łapanie sygnału", "Obracaj się z zegarkiem przed sobą");
     image("thumb/" + petForm() + ".png", PET.x, PET.y);
     s.temp = label({ ...TEMP });
     s.found = label({ ...FOUND, color: COLOR.grey });
     s.foods = [];
     for (let i = 0; i < FORAGE.foods; i++) {
-      const w = image("ui/apple.png", FOOD.x + i * FOOD.step, FOOD.y);
+      const w = image("ui/beacon.png", FOOD.x + i * FOOD.step, FOOD.y);
       w.show(false);
       s.foods.push(w);
     }
@@ -63,7 +63,7 @@ Page({
     else s.hint.set("Obracaj się z zegarkiem przed sobą", COLOR.grey);
     const [txt, color] = warmth(g.diff);
     s.temp.set(txt, color);
-    s.found.set("Znalezione " + g.found + "/" + FORAGE.foods + " · " + Math.max(0, Math.ceil((FORAGE.time - g.elapsed) / 1000)) + " s");
+    s.found.set("Sygnały " + g.found + "/" + FORAGE.foods + " · " + Math.max(0, Math.ceil((FORAGE.time - g.elapsed) / 1000)) + " s");
     s.foods.forEach((w, i) => w.show(i < g.found));
     if (ev === "found") s.buzzer.buzz(VIBRATOR_SCENE_SHORT_MIDDLE);
     else {
@@ -79,7 +79,7 @@ Page({
       s.temp.set("");
       s.found.set("");
       if (g.win) s.buzzer.buzz(VIBRATOR_SCENE_NOTIFICATION);
-      finishGame(s, g.win, g.win ? "Najedzony!" : "Nie znalazł", "forage");
+      finishGame(s, g.win, g.win ? "Sygnał złapany!" : "Brak sygnału", "forage");
     }
   },
 });

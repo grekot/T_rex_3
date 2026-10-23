@@ -13,19 +13,28 @@ prywatnego użytku na własnym zegarku (`zeus preview`), nie do sklepu Zepp.
 
 ## Jak grać
 
-Drzewko stoi na środku tarczy, dookoła jest pierścień ikon akcji. Stuknij ikonę albo
-wybierz ją przyciskami **góra/dół** i zatwierdź przyciskiem **wyboru** (`KEY_SELECT`).
+Duży Groot (240 px) stoi na środku tarczy na tle miejsca z filmów, dookoła jest pierścień
+ikon akcji. Komunikat jest nad jego głową, imię i nazwa wybranej akcji na dole. Stuknij
+ikonę albo wybierz ją przyciskami **góra/dół** i zatwierdź przyciskiem **wyboru** (`KEY_SELECT`).
+
+Tło zmienia się z etapem: patyczek i maluch – doniczka na konsoli w kokpicie Milano,
+dziecko – pokład statku, nastolatek – jego kąt z automatem do gier, dorosły – Knowhere,
+formy zaniedbane – zakurzona ładownia. W nocy przy zgaszonym świetle tło ciemnieje.
 
 | Ikona       | Co robi |
 |-------------|---------|
-| Podlewanie (konewka) | +1 kropla wody, +1 g. Podlany odmawia. Przy słabej dyscyplinie nastolatek i dorosły czasem kręcą nosem |
-| Nawóz (worek) | +1 serce humoru, +2 g (z mszycami nie chce) |
+| Podlewanie (konewka) / Światło gwiazd (słońce) | +1 kropla wody / energii, +1 g. Najedzony odmawia. Przy słabej dyscyplinie nastolatek i dorosły czasem kręcą nosem |
+| Nawóz (worek) / Lody | +1 serce humoru, +2 g (z mszycami nie chce) |
 | Noc (księżyc) | od 20:00 robi się senny – zgaś światło; o 21:30 zasypia sam, o 7:30 wstaje |
 | Zabawa      | minigry (jak w Pupilu); wygrana +1 humoru, każda gra −1 g |
 | Oprysk      | usuwa mszyce (1–2 opryski) |
 | Grabie      | zgrabia opadłe liście |
 | Zgań        | gdy marudzi bez powodu: +1 dyscypliny; zganiony bez powodu się smuci |
-| Statystyki  | woda, humor, dyscyplina, waga, wiek, pokolenie, błędy opieki → zmiana imienia, kolekcja form |
+| Statystyki  | woda albo energia, humor, dyscyplina, waga, wiek, pokolenie, błędy opieki → zmiana imienia, kolekcja form |
+
+Podlewanie i nawóz są tylko w doniczce (patyczek, maluch). Gdy wyjdzie z doniczki, pierścień
+pokazuje **Światło gwiazd** (grzeje się przy oknie statku) i **Lody** (jedyne jedzenie Groota
+w filmach), a statystyki zamiast wody – energię.
 
 Gdy nic mu nie trzeba, drzewko samo się czymś zajmuje: tańczy, wyczarowuje kwiatek na
 dłoni, gra na konsoli albo wypuszcza świecące zarodniki (`utils/idle.js`).
@@ -54,9 +63,31 @@ Próchniak (nastolatek z 5+ błędami albo Kolczak z 2+). Razem 18 form w kolekc
 **Odejście jest łagodne**: ze starości drzewko zostawia patyczek; po długim zaniedbaniu
 odchodzi do lasu. Kolekcja zdobytych form zostaje.
 
-Minigry są te same co w Pupilu (22 gry, logika w `utils/games.js`, `utils/moves.js`,
-`utils/walks.js`); zmienione są tylko nazwy i rekwizyty: Wykopywanie żołędzi, Labirynt
-żołędzia (do doniczki), Szukanie wody, Celowanie opryskiem.
+Minigry mają mechanikę z Pupila (22 gry, logika w `utils/games.js`, `utils/moves.js`,
+`utils/walks.js`), ale motyw Strażników Galaktyki – nazwy, opisy i rekwizyty z filmów:
+
+| Gra | Co robisz |
+|-----|-----------|
+| Taniec Groota | powtarzasz przechyłami jego taneczne ruchy (Powtórz ruch) |
+| Części dla Rocketa | łapiesz części statku, omijasz asteroidy |
+| Pilotaż Milano | przechyłami prowadzisz statek do lądowiska |
+| Strzała Yondu | celujesz przechyłem w Orb, stuknięcie = gwizd |
+| Balans na belce | utrzymujesz Groota na belce statku |
+| Refleks | machnięcie, gdy kółko zzielenieje |
+| Ryby na Knowhere | wędkowanie: podgryza, spławik nurkuje, poderwij |
+| Rzut Orbem | rzut machnięciem, Groot łapie |
+| Ucieczka przed Abiliskiem | skoki nad asteroidami i skrzyniami |
+| Potrząśnij drzewem | strząsasz jabłka, nie ul |
+| Płetwa Yondu | szukasz ruchem ręki w górę i w dół |
+| Bomba Rocketa | ładujesz ruchem ręki, puść w zielonym przedziale |
+| Kamień Nieskończoności | ręka w dół, po drgnięciu do góry – 3 kamienie |
+| Medytacja z Mantis | 20 s bezruchu |
+| Wyścig z Rocketem | bieg w miejscu szybciej niż Rocket |
+| Trening z Draxem | poranna rozgrzewka |
+| Łapanie sygnału | kompas: „ciepło – gorąco” |
+| Wyprawa po Orb | GPS: dojdź do Orbu 200–500 m stąd |
+| Nadajniki | GPS: postaw 3 nadajniki 100 m od siebie |
+| Wspinaczka, Kołysanie do snu, Lewo czy prawo? | jak w Pupilu |
 
 ## Jak to działa
 
@@ -67,7 +98,13 @@ Minigry są te same co w Pupilu (22 gry, logika w `utils/games.js`, `utils/moves
   - `<forma>_sheet.jpg` – 2×2: spokój, radość, smutek, sen,
   - `<forma>_act_sheet.jpg` – 2×2 zajęcia: taniec, kwiatek, konsola, świetliki,
   - `pots_sheet.jpg` – trzy doniczki z patyczkiem (start),
-  - `props_sheet.jpg` – 16 rekwizytów gier, `icons_sheet.jpg` – 8 ikon akcji.
+  - `bg_<scena>_sheet.jpg` – tła: kokpit, pokład, kącik, Knowhere, ładownia (przyciemniane
+    przy imporcie, z wersją nocną `_n`),
+  - `props_sheet.jpg` – 16 rekwizytów gier ze Strażników, `icons_sheet.jpg` – 8 ikon akcji,
+    `icons2_sheet.jpg` – słońce, lody, jabłko, walkman, strzała Yondu, bomba,
+  - `rocket_sheet.jpg` – Rocket, rywal w wyścigu.
+- Klatki Groota są w dwóch rozmiarach: `pet/` 240 px na ekran główny, `pets/` 168 px do gier
+  (`spriteSrc` / `gameSprite` w `utils/ui.js`). Zab ma przez to ok. 79 MB, paczka na T-Rex 3 ok. 9 MB.
 - `tools/grab_art.py` – warianty z Pobranych (`grootv_<nazwa>_<k>.jpg`): `--show` składa je
   w `../groot-art/_warianty.png`, `<k>` bierze wybrany; `--clip` – obraz ze schowka.
 - `tools/import_art.py` wycina tło (także zamknięte białe dziury między rękami a tułowiem),
