@@ -1,0 +1,30 @@
+// Wędkowanie: zegarek drgnie - ryba podgryza (jeszcze nie ciągnij!). Gdy spławik zanurkuje
+// (branie, już bez wibracji), szybko poderwij rękę. Za wcześnie - ryba ucieka, za późno -
+// zjada przynętę. 2 ryby z 3 = wygrana.
+import { FISH } from "../../../utils/moves";
+import { buildSignalPage } from "../../../utils/signalpage";
+import { stopMotion } from "../../../utils/gamekit";
+import { LAMP, LAMP_TEXT, RESULTS } from "zosLoader:./index.page.[pf].layout.js";
+
+Page({
+  state: {},
+
+  build() {
+    buildSignalPage(this, FISH, { LAMP, LAMP_TEXT, RESULTS }, {
+      id: "fishing",
+      title: "Wędkowanie",
+      hint: "Ciągnij, gdy spławik zanurkuje",
+      wait: "Czekamy…",
+      nibble: "Podgryza…",
+      go: "Bierze!",
+      early: "Spłoszona!",
+      late: "Uciekła",
+      win: "Dobry połów!",
+      lose: "Ryby górą",
+    });
+  },
+
+  onDestroy() {
+    stopMotion(this.state);
+  },
+});
