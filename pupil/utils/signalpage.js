@@ -2,7 +2,7 @@
 // zegarek wibruje), potem jak najszybciej machasz / podrywasz rękę.
 import * as hmUI from "@zos/ui";
 import { px } from "@zos/utils";
-import { VIBRATOR_SCENE_SHORT_STRONG, VIBRATOR_SCENE_DURATION, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
+import { VIBRATOR_SCENE_SHORT_STRONG, VIBRATOR_SCENE_SHORT_LIGHT, VIBRATOR_SCENE_DURATION, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { newSignalGame, stepSignal, resumeSignal, createFlick, FISH } from "./moves.js";
 import { newSeed } from "./store.js";
 import { COLOR, label, rect, image } from "./ui.js";
@@ -25,12 +25,15 @@ export function buildSignalPage(page, cfg, ui, texts) {
   s.lampText = label({ ...ui.LAMP_TEXT, text: texts.wait });
   s.fish = cfg === FISH ? image("ui/fish.png", L.cx - 18, L.cy + 26) : null;
   if (s.fish) s.fish.show(false);
-  // spławik na wodzie: kołysze się, przy braniu zanurza
+  // spławik na wodzie: kołysze się, przy podgryzaniu drga, przy braniu nurkuje
   const BOB = { x: L.cx - 20, y: L.cy - L.r - 18 };
   s.bobber = cfg === FISH ? image("ui/bobber.png", BOB.x, BOB.y) : null;
   s.bite = false;
+  s.nibbling = false;
   const moveBobber = (t) => {
-    if (s.bobber) s.bobber.set("ui/bobber.png", BOB.x, BOB.y + (Math.floor(t / 500) % 2) * 3 + (s.bite ? 14 : 0));
+    if (!s.bobber) return;
+    const dy = s.bite ? 22 : s.nibbling ? (Math.floor(t / 120) % 2) * 6 : (Math.floor(t / 500) % 2) * 3;
+    s.bobber.set("ui/bobber.png", BOB.x, BOB.y + dy);
   };
   s.results = label({ ...ui.RESULTS, color: COLOR.grey });
   const setLamp = (color, text) => {
@@ -50,9 +53,16 @@ export function buildSignalPage(page, cfg, ui, texts) {
         if (s.fish) s.fish.show(false);
       }
       const ev = stepSignal(g, t, s.flick.feed(a, t));
-      if (ev) s.bite = ev === "go";
+      if (ev) {
+        s.bite = ev === "go";
+        s.nibbling = ev === "nibble";
+      }
       moveBobber(t);
-      if (ev === "go") {
+      if (ev === "nibble") {
+        s.lampText.set(texts.nibble || "");
+        buzz(s, VIBRATOR_SCENE_SHORT_LIGHT);
+        s.flick.mute(g.quietUntil);
+      } else if (ev === "go") {
         setLamp(GO_COLOR, texts.go);
         if (s.fish) s.fish.show(true);
         if (cfg.vibrate) {

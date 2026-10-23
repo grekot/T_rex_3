@@ -118,48 +118,6 @@ export function climbStatus(task, alt, now) {
   return { state: gain >= CLIMB.need ? "done" : "climbing", gain };
 }
 
-// --- 19. Nurkowanie (barometr, eksperyment) --------------------------------------------
-
-export const DIVE = { drop: 0.6, back: 0.25, window: 3500, need: 3, tau: 6000, time: 60000 };
-
-export function newDive() {
-  return { base: null, dives: 0, low: false, lowAt: 0, elapsed: 0, last: 0, done: false, win: false, delta: 0 };
-}
-
-// alt = wysokość z barometru (m) albo null. Zwraca "down" | "dive" | ""
-export function feedDive(g, alt, now, dt) {
-  if (g.done) return "";
-  g.elapsed += dt;
-  let ev = "";
-  if (alt !== null && alt !== undefined) {
-    if (g.base === null) g.base = alt;
-    g.delta = Math.round((alt - g.base) * 100) / 100;
-    if (!g.low && g.delta <= -DIVE.drop) {
-      g.low = true;
-      g.lowAt = now;
-      ev = "down";
-    } else if (g.low && g.delta >= -DIVE.back) {
-      g.low = false;
-      if (now - g.lowAt <= DIVE.window) {
-        g.dives++;
-        ev = "dive";
-      }
-    } else if (g.low && now - g.lowAt > DIVE.window) {
-      g.low = false;
-    }
-    // tło dopasowuje się powoli tylko, gdy ręka nie jest "pod wodą" (pogoda, wolne zmiany)
-    if (!g.low) g.base += (alt - g.base) * Math.min(1, dt / DIVE.tau);
-  }
-  if (g.dives >= DIVE.need) {
-    g.done = true;
-    g.win = true;
-  } else if (g.elapsed >= DIVE.time) {
-    g.done = true;
-    g.win = false;
-  }
-  return ev;
-}
-
 // --- 20. Wyprawa (GPS, zadanie spacerowe) -----------------------------------------------
 
 export const TRIP = { min: 200, max: 500, arrive: 25, ttl: 3 * HOUR };

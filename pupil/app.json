@@ -5,8 +5,8 @@
     "appName": "Pupil",
     "appType": "app",
     "version": {
-      "code": 5,
-      "name": "1.2.2"
+      "code": 6,
+      "name": "1.3.0"
     },
     "icon": "icon.png",
     "vender": "grekot",

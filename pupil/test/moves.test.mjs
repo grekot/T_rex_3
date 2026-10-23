@@ -31,6 +31,9 @@ import {
   stepEggRoll,
   REFLEX,
   FISH,
+  DIVE,
+  newDive,
+  feedDive,
   newSignalGame,
   stepSignal,
   resumeSignal,
@@ -275,18 +278,27 @@ test("refleks: szybkie reakcje wygrywają, falstarty i spóźnienia przegrywają
   assert.equal(ev, "early");
 });
 
-test("wędkowanie: poderwanie w oknie łowi rybę", () => {
+test("wędkowanie: najpierw podgryza (wibracja), drgania po niej to nie szarpnięcie, branie bez wibracji", () => {
   let now = T;
   const g = newSignalGame(3, FISH, now);
   const events = [];
+  let nibbleAt = 0;
   while (!g.done) {
     now += 20;
     resumeSignal(g, now);
-    const e = stepSignal(g, now, g.phase === "go" && now - g.goAt >= 500);
+    // przez 1,2 s po podgryzaniu "szarpnięcia" z drgań silniczka, potem spokój do brania
+    const shaking = nibbleAt && now - nibbleAt < 1200 && g.phase === "wait";
+    const e = stepSignal(g, now, shaking || (g.phase === "go" && now - g.goAt >= 500));
+    if (e === "nibble") nibbleAt = now;
+    if (e === "go") {
+      assert.ok(now - nibbleAt >= FISH.nibble.leadMin - 20, "branie za szybko po podgryzaniu");
+      nibbleAt = 0;
+    }
     if (e) events.push(e);
   }
-  assert.equal(g.win, true);
-  assert.deepEqual(events.filter((e) => e !== "go"), ["ok", "ok", "ok"]);
+  assert.equal(g.win, true, events.join(","));
+  assert.deepEqual(events.filter((e) => e !== "go" && e !== "nibble"), ["ok", "ok", "ok"]);
+  assert.equal(events.filter((e) => e === "nibble").length, 3);
   now = T;
   const late = newSignalGame(3, FISH, now);
   while (!late.done) {
@@ -296,6 +308,52 @@ test("wędkowanie: poderwanie w oknie łowi rybę", () => {
   }
   assert.equal(late.win, false);
   assert.ok(late.results.every((r) => r.late));
+  // szarpnięcie po wyciszeniu, a przed braniem = spłoszona
+  now = T;
+  const eager = newSignalGame(5, FISH, now);
+  let ev = "";
+  while (ev !== "nibble") ev = stepSignal(eager, (now += 20), false);
+  now += FISH.nibble.quiet + 40;
+  assert.equal(stepSignal(eager, now, true), "early");
+});
+
+const HANG = { x: 960, y: 60, z: 120 }; // ręka zwisa: grawitacja wzdłuż ręki
+const FLAT = { x: 30, y: 40, z: 975 }; // ekran do góry
+
+test("nurkowanie: ręka w dół, chwila pod wodą, do góry = perła; za krótko = pusto", () => {
+  const g = newDive();
+  let t = 0;
+  const events = [];
+  const feed = (a, ms) => {
+    for (let i = 0; i < ms; i += 40) {
+      const e = feedDive(g, a, (t += 40), 40);
+      if (e) events.push(e);
+    }
+  };
+  feed(FLAT, 1000);
+  feed(HANG, 300); // za krótko
+  feed(FLAT, 800);
+  assert.deepEqual(events, ["down", "empty"]);
+  for (let i = 0; i < 3; i++) {
+    feed(HANG, 1500);
+    feed(FLAT, 1000);
+  }
+  assert.equal(g.dives, 3);
+  assert.equal(g.win, true);
+  assert.ok(events.includes("pearl"));
+});
+
+test("nurkowanie: drgania wibracji i trzymanie ekranem do góry nic nie dają", () => {
+  const g = newDive();
+  let t = 0;
+  for (let i = 0; i < 1600; i++) {
+    const k = i % 2 ? 1 : -1;
+    const a = i % 50 < 10 ? { x: FLAT.x + k * 1500, y: FLAT.y - k * 1200, z: FLAT.z + k * 600 } : FLAT;
+    feedDive(g, a, (t += 40), 40);
+  }
+  assert.equal(g.dives, 0);
+  assert.equal(g.done, true);
+  assert.equal(g.win, false);
 });
 
 test("celowanie: celownik idzie za przechyłem, trafienia liczą się", () => {

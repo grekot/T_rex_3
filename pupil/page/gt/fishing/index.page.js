@@ -1,5 +1,6 @@
-// Wędkowanie: czekasz, aż zegarek zawibruje (branie!), wtedy szybko poderwij rękę.
-// Za wcześnie - ryba ucieka, za późno - zjada przynętę. 2 ryby z 3 = wygrana.
+// Wędkowanie: zegarek drgnie - ryba podgryza (jeszcze nie ciągnij!). Gdy spławik zanurkuje
+// (branie, już bez wibracji), szybko poderwij rękę. Za wcześnie - ryba ucieka, za późno -
+// zjada przynętę. 2 ryby z 3 = wygrana.
 import { FISH } from "../../../utils/moves";
 import { buildSignalPage } from "../../../utils/signalpage";
 import { stopMotion } from "../../../utils/gamekit";
@@ -12,8 +13,9 @@ Page({
     buildSignalPage(this, FISH, { LAMP, LAMP_TEXT, RESULTS }, {
       id: "fishing",
       title: "Wędkowanie",
-      hint: "Poderwij rękę, gdy zawibruje",
+      hint: "Ciągnij, gdy spławik zanurkuje",
       wait: "Czekamy…",
+      nibble: "Podgryza…",
       go: "Bierze!",
       early: "Spłoszona!",
       late: "Uciekła",

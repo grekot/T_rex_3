@@ -29,6 +29,9 @@ const log = { push: [], back: 0, toasts: [], buzz: [], display: [], errors: [], 
 let accelReading = { x: 0, y: 0, z: 980 };
 let vibrateAt = -1e12;
 const VIBRATION_SHAKE_MS = 450;
+// "zły" zegarek: drgania dłużej i nieregularnie (co trzeci odczyt spokojny), jak przy
+// wędkowaniu na T-Rex 3, gdzie wyciszanie po wibracji nie wystarczało
+let shake = { ms: VIBRATION_SHAKE_MS, gaps: false };
 // kompas (null = nieskalibrowany), barometr (m), GPS (null = szuka)
 const sensors = { heading: 0, altitude: 220, fix: { lat: 50.0614, lon: 19.9366 } };
 
@@ -192,7 +195,7 @@ function makePage(file) {
           // wibracja zegarka trzęsie akcelerometrem (tak było na T-Rex 3: Refleks i
           // Wędkowanie zaliczały "reakcję" bez ruchu ręki)
           // drgania na wszystkich osiach, dłużej niż sama wibracja (silniczek wyhamowuje)
-          if (clock.now - vibrateAt < VIBRATION_SHAKE_MS) {
+          if (clock.now - vibrateAt < shake.ms && !(shake.gaps && Math.floor(clock.now / 40) % 3 === 2)) {
             const k = Math.floor(clock.now / 40) % 2 ? 1 : -1;
             return { x: accelReading.x + k * 1500, y: accelReading.y - k * 1200, z: accelReading.z + k * 600 };
           }
@@ -1027,8 +1030,9 @@ test("balon i inne gry z powtórzeniami: jeden ruch ręką nie pompuje do końca
   }
 });
 
-test("wędkowanie: poderwanie po wibracji łowi rybę", () => {
+test("wędkowanie: podgryza (wibracja), spławik nurkuje, poderwanie łowi rybę", () => {
   freshPet();
+  shake = { ms: 1200, gaps: true };
   const p = makePage("page_gt_fishing_index.page.js").start();
   for (let i = 0; i < 3000 && !p.opts.state.game.done; i++) {
     const st = p.opts.state.game;
@@ -1038,7 +1042,61 @@ test("wędkowanie: poderwanie po wibracji łowi rybę", () => {
   }
   const g = p.opts.state.game;
   assert.equal(g.win, true, JSON.stringify(g.results));
+  assert.ok(g.results.every((r) => r.ok), JSON.stringify(g.results));
+  assert.equal(log.buzz.length > 0, true);
   p.destroy();
+  shake = { ms: VIBRATION_SHAKE_MS, gaps: false };
+});
+
+test("wędkowanie: długie, nieregularne drgania po wibracji nie łowią ani nie płoszą ryby", () => {
+  freshPet();
+  shake = { ms: 1400, gaps: true };
+  accelReading = { x: 0, y: 0, z: 980 };
+  vibrateAt = -1e12;
+  const p = makePage("page_gt_fishing_index.page.js").start();
+  for (let i = 0; i < 3000 && !p.opts.state.game.done; i++) p.run(40);
+  const g = p.opts.state.game;
+  assert.equal(g.done, true);
+  assert.ok(g.results.every((r) => r.late), JSON.stringify(g.results));
+  p.destroy();
+  shake = { ms: VIBRATION_SHAKE_MS, gaps: false };
+});
+
+test("nurkowanie: ręka w dół, perła (wibracja), do góry - trzy razy = wygrana", () => {
+  freshPet();
+  const before = pet().happy;
+  const HANG = { x: 960, y: 60, z: 120 };
+  const FLAT = { x: 30, y: 40, z: 975 };
+  accelReading = FLAT;
+  const p = makePage("page_gt_dive_index.page.js").start();
+  p.run(1000);
+  for (let i = 0; i < 3; i++) {
+    accelReading = HANG;
+    p.run(1500);
+    accelReading = FLAT;
+    p.run(1000);
+  }
+  const g = p.opts.state.game;
+  assert.equal(g.dives, 3);
+  assert.equal(g.win, true);
+  assert.ok(p.hasText("Trzy perły!"), p.texts().join("|"));
+  assert.ok(pet().happy >= before);
+  assert.equal(p.destroy(), 0);
+});
+
+test("nurkowanie: sama wibracja przy ekranie do góry nie nurkuje", () => {
+  freshPet();
+  shake = { ms: 1400, gaps: true };
+  accelReading = { x: 30, y: 40, z: 975 };
+  const p = makePage("page_gt_dive_index.page.js").start();
+  for (let t = 0; t < 10000; t += 1000) {
+    vibrateAt = clock.now;
+    p.run(1000);
+  }
+  assert.equal(p.opts.state.game.dives, 0);
+  p.destroy();
+  shake = { ms: VIBRATION_SHAKE_MS, gaps: false };
+  vibrateAt = -1e12;
 });
 
 if (failed) {

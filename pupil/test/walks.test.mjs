@@ -13,9 +13,6 @@ import {
   CLIMB,
   newClimb,
   climbStatus,
-  DIVE,
-  newDive,
-  feedDive,
   TRIP,
   newTrip,
   tripStatus,
@@ -74,26 +71,6 @@ test("wspinaczka: 3 m w górę w ciągu kilku godzin", () => {
   assert.equal(climbStatus(task, null, H).state, "wait");
   assert.equal(climbStatus(task, 230, CLIMB.ttl + 1).state, "expired");
   assert.equal(climbStatus(null, 230, 0).state, "none");
-});
-
-test("nurkowanie: szybkie opuszczenie i podniesienie ręki", () => {
-  const g = newDive();
-  let t = 0;
-  const alt = (dt) => {
-    // co 4 s nurek: przez 1,2 s wysokość niższa o 0,8 m; szum ±0,1 m
-    const phase = t % 4000;
-    return 200 + (phase > 1000 && phase < 2200 ? -0.8 : 0) + Math.sin(t / 97) * 0.1;
-  };
-  while (!g.done) {
-    feedDive(g, alt(), t, 100);
-    t += 100;
-  }
-  assert.equal(g.win, true, "nurków " + g.dives);
-  // powolne opadanie (pogoda) nie liczy się jako nurek
-  const w = newDive();
-  for (t = 0; !w.done; t += 100) feedDive(w, 200 - t / 60000, t, 100);
-  assert.equal(w.dives, 0);
-  assert.equal(w.win, false);
 });
 
 test("wyprawa: punkt 200-500 m, dotarcie do 25 m", () => {

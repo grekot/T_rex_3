@@ -494,10 +494,23 @@ export function stepEggRoll(g, tx, ty, dt) {
 
 // --- 8. Refleks i 10. Wędkowanie (czekaj na sygnał, potem szybko) ---------------------
 
-// Refleks: sygnał tylko na ekranie (bez wibracji). Wędkowanie: sygnałem jest wibracja,
-// przez mute ms po niej akcelerometr jest ignorowany, okno odpowiednio dłuższe.
+// Refleks: sygnał tylko na ekranie (bez wibracji). Wędkowanie: najpierw ryba "podgryza" -
+// krótka wibracja (nibble), przez quiet ms po niej ruch ręki się nie liczy (to drgania
+// silniczka, nie ręka); samo branie (spławik nurkuje) jest już bez wibracji, lead ms później.
+// Na T-Rex 3 drgania po wibracji udawały szarpnięcie mimo wyciszania - stąd ten podział.
 export const REFLEX = { rounds: 3, waitMin: 1500, waitMax: 4500, maxAvg: 650, flick: 700, timeout: 2000, hits: 2, vibrate: false, mute: 0 };
-export const FISH = { rounds: 3, waitMin: 2500, waitMax: 7000, window: 2000, need: 2, flick: 900, hits: 2, vibrate: true, mute: 800 };
+export const FISH = {
+  rounds: 3,
+  waitMin: 4000,
+  waitMax: 8000,
+  window: 2000,
+  need: 2,
+  flick: 900,
+  hits: 2,
+  vibrate: false,
+  mute: 0,
+  nibble: { leadMin: 2000, leadMax: 3200, quiet: 1500 },
+};
 
 export function newSignalGame(seed, cfg, now) {
   const rnd = makeRng(seed);
@@ -509,6 +522,12 @@ export function newSignalGame(seed, cfg, now) {
 function scheduleSignal(g, now) {
   g.phase = "wait";
   g.goAt = now + g.cfg.waitMin + g.rnd() * (g.cfg.waitMax - g.cfg.waitMin);
+  const n = g.cfg.nibble;
+  if (n) {
+    g.nibbled = false;
+    g.nibbleAt = g.goAt - (n.leadMin + g.rnd() * (n.leadMax - n.leadMin));
+    g.quietUntil = 0;
+  }
 }
 
 function finishSignal(g) {
@@ -525,10 +544,19 @@ function finishSignal(g) {
 }
 
 // Krok gry: flicked = było szarpnięcie w tej chwili. Zwraca zdarzenie:
-// "go" (sygnał), "ok" (w porę), "early" (za wcześnie), "late" (za późno), ""
+// "nibble" (podgryza - czas na wibrację), "go" (sygnał), "ok" (w porę), "early" (za wcześnie),
+// "late" (za późno), ""
 export function stepSignal(g, now, flicked) {
   if (g.done) return "";
   const cfg = g.cfg;
+  if (cfg.nibble && g.phase === "wait") {
+    if (!g.nibbled && now >= g.nibbleAt) {
+      g.nibbled = true;
+      g.quietUntil = now + cfg.nibble.quiet;
+      return "nibble";
+    }
+    if (now < g.quietUntil) flicked = false; // drgania własnej wibracji to nie ręka
+  }
   const limit = cfg === FISH ? FISH.window : REFLEX.timeout;
   let ev = "";
   if (g.phase === "wait") {
@@ -564,6 +592,54 @@ export function resumeSignal(g, now) {
     return true;
   }
   return false;
+}
+
+// --- 19. Nurkowanie (akcelerometr) ------------------------------------------------------
+// Ręka opuszczona luźno wzdłuż ciała = pod wodą: grawitacja idzie wtedy wzdłuż ręki (oś x
+// albo y zegarka), nie przez ekran (z). Po hold ms pod wodą dinozaur ma perłę; ręka
+// podniesiona ekranem do góry = wynurzenie. Odczyty wygładzone, więc drgania wibracji
+// (perła!) nie przełączają pozycji. Na T-Rex 3 barometr nie czuł opuszczenia ręki.
+
+export const DIVE = { down: 0.7, flat: 0.5, up: 0.7, hold: 800, need: 3, time: 60000, smooth: 0.3 };
+
+export function newDive() {
+  return { s: null, under: false, underAt: 0, got: false, dives: 0, elapsed: 0, done: false, win: false };
+}
+
+// a = odczyt akcelerometru (cm/s^2) albo null. Zwraca "down" | "pearl" | "dive" | "empty" | ""
+export function feedDive(g, a, now, dt) {
+  if (g.done) return "";
+  g.elapsed += dt;
+  let ev = "";
+  if (a) {
+    const k = DIVE.smooth;
+    g.s = g.s ? { x: g.s.x + (a.x - g.s.x) * k, y: g.s.y + (a.y - g.s.y) * k, z: g.s.z + (a.z - g.s.z) * k } : { ...a };
+    const along = Math.max(Math.abs(g.s.x), Math.abs(g.s.y)) / G;
+    const face = Math.abs(g.s.z) / G;
+    if (!g.under && along > DIVE.down && face < DIVE.flat) {
+      g.under = true;
+      g.underAt = now;
+      g.got = false;
+      ev = "down";
+    } else if (g.under && !g.got && now - g.underAt >= DIVE.hold) {
+      g.got = true;
+      ev = "pearl";
+    } else if (g.under && face > DIVE.up) {
+      g.under = false;
+      if (g.got) {
+        g.dives++;
+        ev = "dive";
+      } else ev = "empty";
+    }
+  }
+  if (g.dives >= DIVE.need) {
+    g.done = true;
+    g.win = true;
+  } else if (g.elapsed >= DIVE.time) {
+    g.done = true;
+    g.win = false;
+  }
+  return ev;
 }
 
 // --- 12. Celowanie -------------------------------------------------------------------

@@ -2,9 +2,9 @@
 // Klucz = folder strony (page/gt/<id>/index.page).
 
 export const GAME_GROUPS = [
-  { name: "Ruch ręką", games: ["simon", "catch", "eggroll", "aim", "balance", "reflex", "fishing", "throw", "runner", "tree", "dig", "balloon"] },
+  { name: "Ruch ręką", games: ["simon", "catch", "eggroll", "aim", "balance", "reflex", "fishing", "throw", "runner", "tree", "dig", "balloon", "dive"] },
   { name: "Spokój i ćwiczenia", games: ["rock", "calm", "race", "warmup"] },
-  { name: "Kompas i barometr", games: ["forage", "climb", "dive"] },
+  { name: "Kompas i barometr", games: ["forage", "climb"] },
   { name: "Na spacer (GPS)", games: ["trip", "marks"] },
   { name: "Bez ruchu", games: ["guess"] },
 ];
@@ -28,7 +28,7 @@ export const GAME_NAMES = {
   warmup: "Rozgrzewka",
   forage: "Szukanie jedzenia",
   climb: "Wspinaczka",
-  dive: "Nurkowanie (próba)",
+  dive: "Nurkowanie",
   trip: "Wyprawa",
   marks: "Znaczenie terenu",
   guess: "Lewo czy prawo?",
