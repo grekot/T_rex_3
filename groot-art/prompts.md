@@ -24,24 +24,30 @@ Character sheet for a smartwatch game. Photorealistic 3D CGI render exactly like
 
 ## Postaci (dopisz po STYLU: "Character: ...")
 
+Doniczka tylko na krótki początek, jak w filmach: patyczek na start i maluch (Kiełek, Pąk, Żołądź) -
+tańczący patyczek z końca 1. części. Od dziecka (Baby Groot z 2. części) chodzi sam, bez doniczki.
+
+Limit: tryb „Jakość” ma pulę zapytań w oknie 18 h (POST /rest/media/imagine/quota_info, `imagePro`);
+po jej wyczerpaniu Grok po cichu nic nie zwraca - pomagają dokupione kredyty.
+
 | forma | opis |
 |---|---|
 | kielek | tiny Twig Groot from the end of Guardians of the Galaxy (2014): a thin little brown twig with a tiny cute wooden face with small dark eyes, two thin twig arms and one tiny green leaf on top, standing in the soil of a small terracotta clay flower pot. |
-| grocik | Baby Groot from Guardians of the Galaxy Vol. 2, small brown bark body, big round dark eyes, a few small green leaves sprouting from his head, sitting in a small terracotta clay flower pot. |
+| grocik | Baby Groot from Guardians of the Galaxy Vol. 2, about 10 inches tall, small brown bark body with a big head, big round dark eyes, a few small green leaves sprouting from his head, standing on his own two little feet, no flower pot. |
 | nastek | Teen Groot from Avengers: Infinity War, slim lanky brown bark body, big dark eyes, small green leaves on his head, standing on his own feet, a bit moody teenage look. |
 | groot | adult Groot from Guardians of the Galaxy (2014), tall strong broad-shouldered brown bark tree body, long arms, kind eyes, small green leaves and twigs on his head and shoulders, standing. |
 | mszak | adult Groot-like tree creature, bulky stocky brown bark body covered with thick patches of green moss and a few small mushrooms, kind eyes, small green leaves on his head, standing. |
 | pak | tiny Twig Groot-like sprout: a thin little light brown twig with a tiny cute wooden face with small dark eyes, two thin twig arms and one small pink flower bud on top, standing in the soil of a small pink ceramic flower pot. |
-| kwiatus | a Baby Groot-like tree creature, small light brown bark body, big round dark eyes, small pink blossoms and green leaves sprouting from his head, sitting in a small pink ceramic flower pot. |
+| kwiatus | a Baby Groot-like tree creature like in Guardians of the Galaxy Vol. 2, about 10 inches tall, small light brown bark body with a big head, big round dark eyes, small pink blossoms and green leaves sprouting from his head, standing on his own two little feet, no flower pot. |
 | wisienka | a Teen Groot-like tree creature, slim lanky light brown bark body, big dark eyes, a cluster of pink cherry blossoms and two small red cherries on his head, standing on his own feet. |
 | sakura | an adult Groot-like tree creature, tall strong light brown bark body, kind eyes, a big fluffy crown of pink cherry blossoms on his head and shoulders, standing. |
 | jablon | an adult Groot-like tree creature, sturdy brown bark body, kind eyes, a crown of green leaves with several small red apples on his head and shoulders, standing. |
 | zoladz | tiny Twig Groot-like sprout: a thin little brown twig with a tiny cute wooden face with small dark eyes, two thin twig arms, wearing a small acorn cap on its head with one tiny orange leaf, standing in the soil of a small orange ceramic flower pot. |
-| rudzik | a Baby Groot-like tree creature, small reddish-brown bark body, big round dark eyes, small orange and red autumn leaves sprouting from his head, sitting in a small bright orange ceramic flower pot. |
+| rudzik | a Baby Groot-like tree creature like in Guardians of the Galaxy Vol. 2, about 10 inches tall, small reddish-brown bark body with a big head, big round dark eyes, small orange and red autumn maple leaves sprouting from his head, standing on his own two little feet, no flower pot. |
 | klonik | a Teen Groot-like tree creature, slim lanky reddish-brown bark body, big dark eyes, a few red and orange maple leaves on his head, standing on his own feet. |
 | klon | an adult Groot-like tree creature, tall strong reddish-brown bark body, kind eyes, a big crown of bright red and orange maple leaves on his head and shoulders, standing. |
 | debisz | an adult Groot-like tree creature, stocky broad dark brown oak bark body, kind eyes, a crown of golden-brown oak leaves and acorns on his head and shoulders, standing. |
-| suchar | a dried-out wilted Baby Groot-like tree creature, pale grey-brown cracked dry bark, droopy tired eyes, a few dry curled brown leaves on his head, sitting in a small cracked grey clay flower pot with dry soil. |
+| suchar | a dried-out wilted Baby Groot-like tree creature like in Guardians of the Galaxy Vol. 2, about 10 inches tall, pale grey-brown cracked dry bark, a big head, droopy tired eyes, a few dry curled brown leaves on his head, standing on his own two little feet, no flower pot. |
 | kolczak | a grumpy Teen Groot-like tree creature, twisted gnarled dark bark body covered with small sharp thorns, heavy grumpy brows, a few dark green holly leaves on his head, standing on his own feet. |
 | prochniak | a grumpy old adult Groot-like tree creature, bulky grey rotten hollow bark with deep cracks, two bracket mushrooms growing on his side, heavy grumpy brows, no leaves, standing. |
 

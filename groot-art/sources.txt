@@ -39,3 +39,11 @@ kolczak_act	grok e1d6bd5bb808
 prochniak_act	grok c0ac1f2785ac
 props	grok 02658b003428
 icons	grok 7756ac7a615c
+grocik	grok ade7e1608e23
+kwiatus	grok 2bafa9516261
+rudzik	grok cfd9cafa505d
+suchar	grok db95484ce24e
+grocik_act	grok 2c1f6bbc98a9
+kwiatus_act	grok 9cde3b5d7845
+rudzik_act	grok c286ee4c88d1
+suchar_act	grok 3b494c7a85d0

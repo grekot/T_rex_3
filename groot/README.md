@@ -39,6 +39,8 @@ gra o premię po akcji, poranna rozgrzewka) działają jak w Pupilu – szczegó
 ![Formy](docs/arkusz.png)
 
 Przy nowym patyczku wybierasz jedną z trzech doniczek (linię) i imię z listy.
+Doniczka to tylko krótki początek, jak w filmach: patyczek na start i maluch (tańczący
+patyczek z końca 1. części). Od dziecka (Baby Groot z 2. części) chodzi już sam.
 
 | Doniczka      | maluch  | dziecko (0 błędów) | nastolatek (≤2) | dorosły: wzorowo (≤1 i dyscyplina ≥2) | dorosły: dobrze (≤4) |
 |---------------|---------|--------------------|-----------------|---------------------------------------|----------------------|
