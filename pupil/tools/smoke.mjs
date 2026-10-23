@@ -765,6 +765,37 @@ test("powtórz ruch: przechyły zgodne z sekwencją wygrywają", () => {
   p.destroy();
 });
 
+test("powtórz ruch: po rundzie gwiazdka i czekanie, aż ręka wróci do poziomu", () => {
+  freshPet();
+  accelReading = { x: 0, y: 0, z: 980 };
+  const p = makePage("page_gt_simon_index.page.js").start();
+  const tiltFor = { left: { x: 500, y: 0 }, right: { x: -500, y: 0 }, up: { x: 0, y: -500 }, down: { x: 0, y: 500 } };
+  for (let guard = 0; guard < 400 && p.opts.state.phase !== "input"; guard++) p.run(100);
+  const st = p.opts.state;
+  // cała pierwsza sekwencja; ostatni przechył zostaje (ręka nie wraca od razu)
+  let d;
+  for (let i = 0; i < st.game.level; i++) {
+    d = st.game.seq[st.game.pos];
+    accelReading = { x: tiltFor[d].x, y: tiltFor[d].y, z: 850 };
+    p.run(80);
+    if (i < st.game.level - 1) {
+      accelReading = { x: 0, y: 0, z: 980 };
+      p.run(80);
+    }
+  }
+  assert.equal(st.phase, "wait");
+  assert.ok(p.hasText("Dobrze! Dłuższa sekwencja"));
+  p.run(3000); // nadal przechylony - nowy pokaz nie rusza
+  assert.equal(st.phase, "wait", "pokaz ruszył przy przechylonym zegarku");
+  accelReading = { x: 0, y: 0, z: 980 };
+  p.run(400);
+  assert.equal(st.phase, "wait", "za szybko po powrocie do poziomu");
+  p.run(600);
+  assert.equal(st.phase, "show");
+  assert.equal(st.game.level, 3);
+  p.destroy();
+});
+
 test("szukanie jedzenia: obrót w stronę jedzenia znajduje je", () => {
   freshPet();
   const p = makePage("page_gt_forage_index.page.js").start();

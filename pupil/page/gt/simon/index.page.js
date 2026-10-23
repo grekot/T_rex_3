@@ -1,5 +1,7 @@
 // Powtórz ruch: dinozaur pokazuje strzałki, a ty powtarzasz je przechyłami zegarka
 // (lewo, prawo, od siebie = góra, do siebie = dół). Co rundę sekwencja dłuższa.
+// Zegarek jest na ręce: po każdej rundzie gwiazdka (albo pomyłka) i czekanie, aż ręka
+// wróci do poziomu i chwilę tak zostanie - dopiero wtedy pokaz kolejnej sekwencji.
 import { VIBRATOR_SCENE_DURATION, VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
 import { SIMON, newSimon, simonInput, createTiltReader } from "../../../utils/moves";
 import { newSeed } from "../../../utils/store";
@@ -8,8 +10,13 @@ import { finishGame } from "../../../utils/gameui";
 import { header, petForm, startMotion, stopMotion, buzz, STATUS } from "../../../utils/gamekit";
 import { ARROW_POS, ROUND, PET } from "zosLoader:./index.page.[pf].layout.js";
 
-const SHOW_MS = 650;
-const GAP_MS = 250;
+const SHOW_MS = 900; // tyle widać każdą strzałkę
+const GAP_MS = 350;
+const RESULT_MS = 1200; // gwiazdka / pomyłka co najmniej tyle
+const LEVEL = 0.15; // g - przechył uznany za poziom
+const LEVEL_MS = 700; // tyle trzeba trzymać poziomo przed pokazem
+const LEVEL_MAX_MS = 6000; // potem pokaz i tak rusza
+const LEAD_MS = 800; // od "Patrz" do pierwszej strzałki
 const ARROWS = { left: "ui/arrow_l.png", right: "ui/arrow_r.png", up: "ui/arrow_u.png", down: "ui/arrow_d.png" };
 
 Page({
@@ -28,7 +35,7 @@ Page({
     s.phase = "calib";
     const ok = startMotion(s, {
       calibrate: true,
-      ready: () => this.showSequence(),
+      ready: () => this.waitLevel(0, ""),
       tick: (a, now, dt, tilt) => this.tick(tilt),
     });
     if (!ok) s.hint.set("Brak akcelerometru", COLOR.bad);
@@ -45,10 +52,25 @@ Page({
     this.state.round.set("Długość " + g.level + "/" + SIMON.win + " · życia " + g.lives);
   },
 
+  // Pauza po rundzie: wynik na ekranie, potem pokaz, gdy ręka wróci do poziomu
+  waitLevel(minMs, icon) {
+    const s = this.state;
+    s.phase = "wait";
+    s.waitFrom = Date.now();
+    s.waitMin = minMs;
+    s.levelSince = 0;
+    if (icon) {
+      s.arrow.set(icon);
+      s.arrow.show(true);
+    } else s.arrow.show(false);
+    s.hint.set("Wróć zegarkiem do poziomu", COLOR.grey);
+  },
+
   showSequence() {
     const s = this.state;
     s.phase = "show";
     s.hint.set("Patrz i zapamiętaj", COLOR.grey);
+    s.arrow.show(false);
     s.status.set("");
     let i = 0;
     const step = () => {
@@ -67,11 +89,21 @@ Page({
         s.timer = setTimeout(step, GAP_MS);
       }, SHOW_MS);
     };
-    s.timer = setTimeout(step, 600);
+    s.timer = setTimeout(step, LEAD_MS);
   },
 
   tick(tilt) {
     const s = this.state;
+    if (s.phase === "wait") {
+      const now = Date.now();
+      const level = Math.abs(tilt.x) < LEVEL && Math.abs(tilt.y) < LEVEL;
+      if (!level) s.levelSince = 0;
+      else if (!s.levelSince) s.levelSince = now;
+      const waited = now - s.waitFrom;
+      if (waited < s.waitMin) return;
+      if ((s.levelSince && now - s.levelSince >= LEVEL_MS) || waited >= LEVEL_MAX_MS) this.showSequence();
+      return;
+    }
     if (s.phase !== "input") return;
     const dir = s.reader.feed(tilt.x, tilt.y);
     if (!dir) return;
@@ -81,14 +113,12 @@ Page({
     s.game = r.game;
     this.renderRound();
     if (r.event === "round") {
-      s.phase = "wait";
       s.status.set("Dobrze! Dłuższa sekwencja", COLOR.good);
-      s.timer = setTimeout(() => this.showSequence(), 900);
+      this.waitLevel(RESULT_MS, "ui/star_ok.png");
     } else if (r.event === "wrong") {
       buzz(s, VIBRATOR_SCENE_DURATION);
-      s.phase = "wait";
       s.status.set("Pomyłka - jeszcze raz", COLOR.bad);
-      s.timer = setTimeout(() => this.showSequence(), 1200);
+      this.waitLevel(RESULT_MS, "");
     } else if (r.event === "win" || r.event === "lose") {
       s.phase = "done";
       s.status.set("");

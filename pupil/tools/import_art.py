@@ -310,7 +310,7 @@ PROPS = [
     ("forest", 168), ("balloon", 0), ("pearl", 48), ("chest", 72),
     ("flag", 56), ("star", 40), ("bobber", 40), ("stump", 36),
 ]
-EXTRA = {"bone": [("bone_big", 96)], "apple": [("apple_big", 72)], "fish": [("fish_big", 72)], "flag": [("flag_s", 40)]}
+EXTRA = {"bone": [("bone_big", 96)], "apple": [("apple_big", 72)], "fish": [("fish_big", 72)], "flag": [("flag_s", 40)], "star": [("star_ok", 60)]}
 SHADOW = {"flag": ("flag_x", 40)}  # nieodblokowane: szary cień
 BALLOON_SIZES = [28 + round(148 * i / 10) for i in range(11)]  # balon rośnie przy pompowaniu (średnica 28-176 jak w grze)
 
