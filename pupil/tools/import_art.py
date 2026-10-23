@@ -276,7 +276,8 @@ def import_acts(fid):
     path = sheet_path(fid + "_act")
     if not path:
         return None
-    cuts = {name: cut_cell(cell, keep_all=True) for name, cell in zip(ACTS, grid(path, 2))}
+    # sticker: jasnoszary cień pod stopami (Gemini czasem go dorysowuje) też jest tłem
+    cuts = {name: cut_cell(cell, keep_all=True, sticker=True) for name, cell in zip(ACTS, grid(path, 2))}
     # nie większy niż w spoczynku (formy z długim ogonem są w kadrze pomniejszone)
     idle = os.path.join(ASSETS, "pet", fid, "idle0.png")
     max_h = MAX_H

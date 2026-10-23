@@ -35,3 +35,4 @@ ptero_act	schowek d73afbf95672
 mewa_act	schowek e7208fa1fefc
 gapcio_act	schowek 428a0005f307
 mruk_act	schowek 50c77fcaa09e
+burczek_act	Gemini_Generated_Image_ofbkkwofbkkwofbk.jpg
