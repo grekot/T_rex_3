@@ -84,7 +84,7 @@ Od wersji 1.1 jest 22 gier w przewijanym menu (logika w `utils/moves.js` i `util
 | Labirynt jajka | akcelerometr | dotocz jajko do gniazda w 40 s (3 plansze) |
 | Celowanie | akcelerometr | celuj przechyłem, stuknij = rzut; 3 trafienia z 5 |
 | Refleks | akcelerometr | machnij, gdy kółko zzielenieje; średnio poniżej 0,65 s, bez falstartów |
-| Wędkowanie | akcelerometr | poderwij rękę w 1,3 s po wibracji; 2 ryby z 3 |
+| Wędkowanie | akcelerometr | drgnięcie = ryba podgryza (jeszcze nie ciągnij); gdy spławik zanurkuje, poderwij rękę w 2 s; 2 ryby z 3 |
 | Skoki | akcelerometr | podrzut nadgarstka (albo stuknięcie) = skok; wytrzymaj 25 s |
 | Potrząśnij drzewem | akcelerometr | 12 owoców w 15 s; za mocno 2 razy = pszczoły |
 | Wykopywanie kości | akcelerometr | 15 ruchów łopatą w 25 s |
@@ -94,7 +94,7 @@ Od wersji 1.1 jest 22 gier w przewijanym menu (logika w `utils/moves.js` i `util
 | Rozgrzewka | akcelerometr | 8 krążeń ramion, 8 wymachów, 5 skłonów |
 | Szukanie jedzenia | kompas | „ciepło – gorąco” i wibracje; 3 kierunki w 90 s |
 | Wspinaczka | barometr | Start, potem 3 m wyżej w ciągu 6 h (zadanie spacerowe) |
-| Nurkowanie | barometr | 3 razy szybko opuść i podnieś rękę (eksperyment – pokazuje zmianę wysokości) |
+| Nurkowanie | akcelerometr | Opuść rękę luźno w dół, po drgnięciu (perła) podnieś ekranem do góry – 3 perły w minutę |
 | Wyprawa | GPS + kompas | dojdź do skarbu 200–500 m stąd w ciągu 3 h (zadanie spacerowe) |
 | Znaczenie terenu | GPS | oznacz 3 miejsca co najmniej 100 m od siebie w ciągu doby |
 
