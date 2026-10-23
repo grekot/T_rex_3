@@ -33,6 +33,18 @@ export const DATE_STYLE = {
   color: COLOR_GREY,
 };
 
+// Stan synchronizacji z telefonem pod datą (pusty, gdy wszystko w porządku)
+export const SYNC_STYLE = {
+  ...CENTERED,
+  x: CX - px(150),
+  y: px(70),
+  w: px(300),
+  h: px(26),
+  text: "",
+  text_size: px(18),
+  color: COLOR_GREY,
+};
+
 // Duża liczba: "82,3"
 export const VALUE_STYLE = {
   ...CENTERED,

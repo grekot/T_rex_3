@@ -8,6 +8,9 @@ powrot/watch/utils/firebase-config.js
 powrot/phone/android/app/google-services.json
 powrot/phone/lib/firebase_options.dart
 korona/watch/utils/firebase-config.js
+waga/watch/utils/firebase-config.js
+waga/phone/android/app/google-services.json
+waga/phone/lib/firebase_options.dart
 korona/phone/android/app/google-services.json
 korona/phone/lib/firebase_options.dart
 

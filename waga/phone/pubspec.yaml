@@ -1,0 +1,29 @@
+name: waga
+description: "Waga - pomiary z zegarka: wykres, trend, cel, kalorie i aktywności z Health Connect"
+publish_to: 'none'
+
+# versionName+versionCode (przy --split-per-abi Flutter dodaje 2000 dla arm64)
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  firebase_core: ^5.0.0
+  firebase_auth: ^7.0.0
+  cloud_firestore: ^7.0.0
+  wspolne:
+    path: ../../wspolne
+  fl_chart: ^1.3.0
+  health: ^13.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

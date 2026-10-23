@@ -1,12 +1,12 @@
 # Waga
 
-Codzienne poranne ważenie na zegarku + (w planie) aplikacja na telefon z wykresem,
-kaloriami i aktywnościami z Health Connect.
+Codzienne poranne ważenie na zegarku + aplikacja na telefon z wykresem, trendem, celem,
+kaloriami i aktywnościami z Health Connect. Kontrakt danych: [SYNC.md](SYNC.md).
 
 | Folder   | Co to                                                        | Stan            |
 | -------- | ------------------------------------------------------------ | --------------- |
-| `watch/` | Aplikacja Zepp OS na Amazfit T-Rex 3 (appId 1087168), offline | etap 1 – gotowa |
-| `phone/` | Aplikacja Flutter: wykres wagi, trend, kalorie, aktywności   | etap 3–4        |
+| `watch/` | Aplikacja Zepp OS na Amazfit T-Rex 3 (appId 1087168) + synchronizacja z Firestore | etapy 1–2 |
+| `phone/` | Aplikacja Flutter: wykres wagi, trend, cel, kalorie, aktywności – [README](phone/README.md) | etapy 3–4 |
 
 ## Zegarek (`watch/`)
 
@@ -32,10 +32,7 @@ zeus preview
 
 Testy logiki: `npm test` w `waga/watch`. Ikona i podgląd: `python tools/gen_assets.py`.
 
-## Plan dalej
+## Dalej
 
-2. Synchronizacja zegarek → Firestore `waga/{uid}/pomiary/{RRRR-MM-DD}` przez Side Service
-   (logowanie w ustawieniach Zepp, to samo konto co Zakupy/Powrót).
-3. Telefon: wykres wagi z trendem, zmiana tygodniowa, cel i prognoza, edycja pomiarów.
-4. Telefon: kalorie, kroki i treningi z Health Connect (wysyła je tam aplikacja Zepp).
-5. Przypomnienie rano (`@zos/alarm`), eksport CSV, wydanie w sklepie.
+5. Przypomnienie rano (`@zos/alarm`), eksport CSV, wydanie telefonu w sklepie rodzinnym
+   (workflow `release-waga.yml`, sekret `FIREBASE_OPTIONS_WAGA_B64`).

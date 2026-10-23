@@ -6,11 +6,15 @@
 // 2. node tools/smoke.mjs <ten folder>
 //
 // Każda strona dostaje atrapy modułów @zos/*, sztuczny zegar i timery; test naciska −/+,
-// przytrzymuje, zapisuje i sprawdza plik waga.json.
+// przytrzymuje, zapisuje i sprawdza plik waga.json. Komunikację zml (getApp().globalData.messaging)
+// obsługuje udawany Side Service z prawdziwym planem scalania (utils/weight.js) i zapisem
+// Firestore (utils/firestore.js) na „chmurze” w pamięci.
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import assert from "node:assert/strict";
+import { syncPlan } from "../utils/weight.js";
+import { wagaWrites } from "../utils/firestore.js";
 
 const dir = process.argv[2];
 if (!dir) {
@@ -23,6 +27,42 @@ const TZ_MS = 2 * 3600000;
 const clock = { now: Date.UTC(2026, 9, 23, 7, 0) - TZ_MS }; // pt 23.10, 7:00 lokalnie
 const files = new Map();
 const log = { push: [], toasts: [], buzz: 0, errors: [] };
+
+// Udawany Side Service + Firestore: cloud = mapa e z dokumentu waga/{uid}
+const side = { loggedIn: false, online: true, cloud: {}, commits: [], requests: 0 };
+let callFn = null; // onCall strony (np. LOGGED_IN z ustawień)
+const messaging = {
+  onCall(fn) {
+    callFn = fn;
+    return messaging;
+  },
+  onRequest() {
+    return messaging;
+  },
+  offOnCall() {
+    callFn = null;
+  },
+  offOnRequest() {},
+  call() {},
+  request(data) {
+    side.requests++;
+    const req = JSON.parse(JSON.stringify(data)); // inny realm
+    return new Promise((resolve, reject) => {
+      if (!side.online) return reject(new Error("timeout"));
+      if (req.method !== "SYNC") return resolve({ ok: false, error: "?" });
+      if (!side.loggedIn) return resolve({ ok: false, needsLogin: true, error: "Nie zalogowano" });
+      const plan = syncPlan(req.params.e, side.cloud);
+      if (plan.push.length) {
+        side.commits.push(wagaWrites("proj", "u1", plan.push, clock.now)[0]);
+        plan.push.forEach((x) => {
+          side.cloud[x.d] = { w: x.w, t: x.t };
+        });
+      }
+      resolve({ ok: true, apply: plan.apply });
+    });
+  },
+};
+const flush = () => new Promise((r) => setImmediate(r));
 
 class FakeDate extends Date {
   constructor(...a) {
@@ -40,7 +80,10 @@ function local() {
   return new Date(clock.now + TZ_MS);
 }
 
+const ZML_MODULES = ["@zos/app", "@zos/ble", "@zos/i18n", "@zos/timer", "@zos/page"];
+
 function makePage(file) {
+  log.errors = [];
   const widgets = [];
   const timers = [];
   let timerId = 1;
@@ -75,7 +118,22 @@ function makePage(file) {
       text_style: { NONE: "NONE" },
     },
     "@zos/device": { getDeviceInfo: () => ({ width: 480, height: 480 }) },
-    "@zos/utils": { px: (v) => v },
+    "@zos/utils": {
+      px: (v) => v,
+      // zml: logger i EventBus
+      log: { getLogger: () => ({ log() {}, debug() {}, info() {}, warn() {}, error() {} }) },
+      EventBus: class {
+        on() {}
+        off() {}
+        emit() {}
+      },
+    },
+    "@zos/ble/TransferFile": class {
+      constructor() {
+        this.inbox = { on() {}, off() {}, getNextFile() {} };
+        this.outbox = { enqueueFile() {} };
+      }
+    },
     "@zos/router": {
       push(o) {
         log.push.push(o.url);
@@ -132,7 +190,12 @@ function makePage(file) {
 
   const G = {
     __$$R$$__(name) {
-      if (!modules[name]) throw new Error("brak atrapy " + name);
+      // zml (BasePage) przy ładowaniu sięga po @zos/app, @zos/ble, @zos/i18n, @zos/timer... -
+      // tych funkcji strona nie używa, wystarczą puste
+      if (!modules[name]) {
+        if (!ZML_MODULES.includes(name)) throw new Error("brak atrapy " + name);
+        return new Proxy({}, { get: () => () => undefined });
+      }
       return modules[name];
     },
     Page(opts) {
@@ -156,6 +219,7 @@ function makePage(file) {
       G.clearTimeout(id);
     },
     Date: FakeDate,
+    getApp: () => ({ _options: { globalData: { messaging } } }),
     console: {
       log(...a) {
         if (String(a[0]).includes("Mini Program Error") || String(a[0]).includes("error stack")) log.errors.push(a.join(" "));
@@ -177,6 +241,7 @@ function makePage(file) {
   const page = {
     widgets,
     start() {
+      if (pageOpts.onInit) pageOpts.onInit.call(pageOpts);
       pageOpts.build.call(pageOpts);
       return page;
     },
@@ -246,14 +311,9 @@ const HISTORY = "page_gt_history_index.page.js";
 const data = () => JSON.parse(files.get("waga.json"));
 
 let failed = 0;
+const tests = [];
 function test(name, fn) {
-  try {
-    fn();
-    console.log("ok   " + name);
-  } catch (e) {
-    failed++;
-    console.error("BŁĄD " + name + "\n  " + (e.stack || e.message).split("\n").slice(0, 4).join("\n  "));
-  }
+  tests.push([name, fn]);
 }
 
 test("pierwsze uruchomienie: 80,0, + trzy razy, zapis", () => {
@@ -371,6 +431,107 @@ test("uszkodzony plik: odczyt z kopii .bak", () => {
   files.set("waga.json", good);
   p.destroy();
 });
+
+// --- synchronizacja z telefonem (zml -> Side Service -> Firestore) ---
+
+function todayLocal() {
+  const d = local();
+  const two = (n) => (n < 10 ? "0" : "") + n;
+  return d.getUTCFullYear() + "-" + two(d.getUTCMonth() + 1) + "-" + two(d.getUTCDate());
+}
+const LOGIN_HINT = "Zaloguj: Zepp → Waga → ustawienia";
+
+test("synchronizacja bez logowania: podpowiedź, nic nie wysłane", async () => {
+  side.loggedIn = false;
+  const p = makePage(HOME).start();
+  await flush();
+  assert.ok(p.has(LOGIN_HINT));
+  assert.equal(side.commits.length, 0);
+  p.destroy();
+});
+
+test("logowanie w ustawieniach (LOGGED_IN): wysyła wszystkie dni z maską pól", async () => {
+  const p = makePage(HOME).start();
+  await flush();
+  side.loggedIn = true;
+  assert.ok(callFn, "strona nie słucha onCall");
+  callFn({ type: "LOGGED_IN" });
+  await flush();
+  assert.equal(side.commits.length, 1);
+  const days = data().e.map((x) => x.d);
+  assert.deepEqual(side.commits[0].updateMask.fieldPaths, days.map((d) => "e.`" + d + "`").concat(["updatedAt", "v"]));
+  assert.deepEqual(Object.keys(side.cloud).sort(), days);
+  assert.ok(!p.has(LOGIN_HINT), "podpowiedź zostaje po zalogowaniu");
+  p.destroy();
+});
+
+test("poprawka z telefonu: nowszy dzisiejszy wpis podmienia wagę na ekranie", async () => {
+  clock.now += 1000; // nowszy niż zapis z zegarka
+  side.cloud[todayLocal()] = { w: 777, t: clock.now };
+  clock.now += 1000;
+  const before = side.commits.length;
+  const p = makePage(HOME).start();
+  await flush();
+  assert.equal(p.value(), "77,7");
+  assert.ok(p.has("ZAPISANO"));
+  assert.equal(data().e.find((x) => x.d === todayLocal()).w, 777);
+  assert.equal(side.commits.length, before, "nic do wysłania");
+  p.destroy();
+});
+
+test("usunięcie na telefonie: nagrobek chowa dzień, zostaje w pliku", async () => {
+  side.cloud["2026-10-23"] = { w: 0, t: clock.now };
+  clock.now += 1000;
+  const p = makePage(HOME).start();
+  await flush();
+  p.destroy();
+  assert.equal(data().e.find((x) => x.d === "2026-10-23").w, 0);
+  const h = makePage(HISTORY).start();
+  assert.ok(!h.has("pt 23.10"));
+  assert.ok(h.has("nd 25.10"));
+});
+
+test("zmiana z telefonu nie nadpisuje wagi, którą użytkownik właśnie ustawia; POPRAW wysyła jeden dzień", async () => {
+  const p = makePage(HOME).start();
+  await flush();
+  p.press("+");
+  assert.equal(p.value(), "77,8");
+  side.cloud[todayLocal()] = { w: 700, t: clock.now };
+  callFn({ type: "LOGGED_IN" });
+  await flush();
+  assert.equal(p.value(), "77,8");
+  assert.ok(p.has("POPRAW"));
+  p.run(1000);
+  const before = side.commits.length;
+  p.press("POPRAW");
+  await flush();
+  assert.equal(side.commits.length, before + 1);
+  assert.deepEqual(side.commits[before].updateMask.fieldPaths, ["e.`" + todayLocal() + "`", "updatedAt", "v"]);
+  assert.equal(side.cloud[todayLocal()].w, 778);
+  assert.ok(p.has("ZAPISANO"));
+  p.destroy();
+});
+
+test("telefon niedostępny: komunikat, dane lokalne bez zmian", async () => {
+  side.online = false;
+  const p = makePage(HOME).start();
+  await flush();
+  assert.ok(p.has("Telefon niedostępny"));
+  assert.equal(p.value(), "77,8");
+  side.online = true;
+  p.destroy();
+});
+
+for (const [name, fn] of tests) {
+  try {
+    await fn();
+    await flush();
+    console.log("ok   " + name);
+  } catch (e) {
+    failed++;
+    console.error("BŁĄD " + name + "\n  " + (e.stack || e.message).split("\n").slice(0, 4).join("\n  "));
+  }
+}
 
 if (failed) {
   console.error(failed + " test(y) nie przeszły");
