@@ -8,6 +8,7 @@ import { buttonProps } from "../../../utils/ui";
 import { loadSettings, saveSettings, loadPlan, loadShown } from "../../../utils/store";
 import { adjust, hourText, brightText, revealText, planLines, whenText, clockText, TEST_DELAY_S } from "../../../utils/schedule";
 import { refreshPlan, scheduleTest, localOffsetMin } from "../../../utils/alarms";
+import { setTop, returnTo } from "../../../utils/pages";
 import {
   TITLE_STYLE,
   toggleBg,
@@ -55,6 +56,7 @@ Page({
 
   build() {
     const s = this.state;
+    setTop("settings");
     hmUI.createWidget(hmUI.widget.TEXT, TITLE_STYLE);
 
     const bg = hmUI.createWidget(hmUI.widget.FILL_RECT, toggleBg(s.settings.on));
@@ -90,6 +92,8 @@ Page({
   // Wyjście przed przeliczeniem - przeliczamy od razu
   onDestroy() {
     if (this.state.timer) this.apply(false);
+    // Ustawienia otwiera tylko panel - wracamy do niego (panel dokończy zaległą przebudowę)
+    returnTo("home");
   },
 
   change(field, delta) {

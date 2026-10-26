@@ -23,6 +23,7 @@ import { receiveFile, cleanupAfterSync } from "../../../utils/syncflow";
 import { keepScreenOn, releaseScreen, boostBrightness, restoreBrightness } from "../../../utils/screen";
 import { tapState, tap, TAP_DOUBLE_MS } from "../../../utils/wrist";
 import { watchWrist, stopWrist } from "../../../utils/motion";
+import { getTop, setTop, returnTo } from "../../../utils/pages";
 import {
   PHOTO_PROPS,
   INFO_BG_PROPS,
@@ -110,6 +111,8 @@ Page(
       wristReveal: true,
       syncing: false,
       pool: [],
+      // Strona, nad którą budzik otworzył zdjęcie (gdy aplikacja była otwarta)
+      prevTop: "",
     },
 
     onInit(params) {
@@ -120,6 +123,8 @@ Page(
       const s = this.state;
       // Parametr budzika przychodzi do strony albo do app.js (zależnie od tego, czy aplikacja już działała)
       const launch = s.launch.m ? s.launch : appLaunchParams();
+      s.prevTop = getTop();
+      setTop("photo");
       noteShown({ id: launch.id || "", m: launch.m || "?" });
       // Gdyby poprzednie zdjęcie nie przywróciło jasności - przywrócić; zapowiedź świeci zwyczajnie
       restoreBrightness();
@@ -153,6 +158,7 @@ Page(
       s.wrist = null;
       releaseScreen();
       restoreBrightness();
+      returnTo(s.prevTop);
       // Zamknięte, zanim plan się uzupełnił - robimy to teraz
       if (s.planTimer) {
         clearTimeout(s.planTimer);

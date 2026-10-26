@@ -15,6 +15,7 @@ import { describeEvent, describeStart, errText } from "../../../utils/events";
 import { nextLine } from "../../../utils/schedule";
 import { refreshPlan, localOffsetMin } from "../../../utils/alarms";
 import { receiveFile, cleanupAfterSync } from "../../../utils/syncflow";
+import { setTop, isTop, onReturn } from "../../../utils/pages";
 import {
   TITLE_STYLE,
   STATUS_STYLE,
@@ -34,6 +35,8 @@ import {
 const MAX_LOG = 4;
 // Pobieranie zaczyna się samo chwilę po otwarciu (panel już widać)
 const AUTO_SYNC_MS = 800;
+// Po powrocie z ustawień przebudowa panelu dopiero, gdy ustawienia znikną z ekranu
+const RETURN_DELAY_MS = 300;
 
 // Przebudowa ekranu poza obsługą kliknięcia (usuwanie widżetu w jego własnym zdarzeniu bywa ryzykowne)
 function later(fn) {
@@ -52,9 +55,13 @@ Page(
       busy: false,
       planLine: "",
       pool: [],
+      // Coś przyszło, kiedy panel był pod inną stroną - przebudować po powrocie
+      stale: false,
     },
 
     build() {
+      setTop("home");
+      onReturn("home", () => this.backHere());
       stayInApp();
       restoreBrightness();
       try {
@@ -75,6 +82,31 @@ Page(
     onDestroy() {
       releaseScreen();
       restoreBrightness();
+    },
+
+    // Powrót z ustawień (woła je przy zamknięciu): świeża linia planu i zaległa przebudowa panelu
+    backHere() {
+      const s = this.state;
+      s.planLine = this.planLine();
+      this.renderStatus();
+      if (s.stale) setTimeout(() => this.panelChanged(), RETURN_DELAY_MS);
+    },
+
+    // Panel zmienił się w tle (odebrane zdjęcie, koniec pobierania). Przebudowa tworzy widżety, więc tylko
+    // wtedy, gdy panel jest na wierzchu - inaczej przyciski panelu narysowałyby się na ustawieniach.
+    panelChanged() {
+      const s = this.state;
+      if (s.mode !== "panel") return;
+      if (!isTop("home")) {
+        s.stale = true;
+        return;
+      }
+      s.stale = false;
+      later(() => {
+        if (s.mode !== "panel") return;
+        if (isTop("home")) this.showPanel();
+        else s.stale = true;
+      });
     },
 
     planLine() {
@@ -125,9 +157,15 @@ Page(
       this.add(hmUI.widget.BUTTON, buttonProps(CLEAR_RECT, "Wyczyść", "danger", () => later(() => this.clearAll()), px(20)));
       this.add(
         hmUI.widget.BUTTON,
-        buttonProps(SETTINGS_RECT, "Ustawienia", "secondary", () => push({ url: "page/gt/settings/index.page" }), px(20))
+        buttonProps(SETTINGS_RECT, "Ustawienia", "secondary", () => this.openSettings(), px(20))
       );
       this.renderStatus();
+    },
+
+    openSettings() {
+      // Od tej chwili panel jest pod spodem (zanim ustawienia same to zapiszą)
+      setTop("settings");
+      push({ url: "page/gt/settings/index.page" });
     },
 
     showPhoto(index) {
@@ -242,7 +280,7 @@ Page(
         this.cleanup();
         this.finish();
         summaryLines(loadPhotos()).forEach((line) => this.log(line));
-        if (s.mode === "panel") this.showPanel();
+        this.panelChanged();
       }
     },
 
@@ -254,12 +292,9 @@ Page(
 
     // Plik przysłany przez Side Service (TransferFile)
     onReceivedFile(file) {
-      const s = this.state;
       receiveFile(
         file,
-        () => {
-          if (s.mode === "panel") later(() => this.showPanel());
-        },
+        () => this.panelChanged(),
         (id, state) => this.log("Błąd odbioru " + id + ": " + state)
       );
     },

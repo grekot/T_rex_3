@@ -85,6 +85,10 @@ Zegarek 0.8.0: ustawienie **Odsłanianie zdjęcia** – „ręka lub stuknięcie
 „tylko stuknięcie”. Przy „tylko stuknięcie” uniesienie ręki nie odsłania zdjęcia, a zapowiedź podpowiada
 „stuknij, aby zobaczyć”; opuszczenie ręki nadal gasi już odsłonięte zdjęcie.
 
+Zegarek 0.8.1: panel domowy sam pobiera zdjęcia po otwarciu i po każdym odebranym zdjęciu się przebudowywał –
+gdy na wierzchu były Ustawienia, jego przyciski rysowały się na nich. Teraz strony zapisują, która jest na wierzchu
+(`watch/utils/pages.js`, `globalData.top`), panel w tle tylko zapamiętuje zmianę i przebudowuje się po powrocie.
+
 **Losowanie** (`watch/utils/schedule.js`, testy `watch/test/schedule.test.mjs`):
 
 - okno godzin (domyślnie 9:00–21:00) dzielone na tyle równych przedziałów, ile zdjęć dziennie
