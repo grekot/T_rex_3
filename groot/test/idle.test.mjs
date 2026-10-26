@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { ACTS, WALK_RANGE, newIdle, stepIdle, idleSprite, resetIdle } from "../utils/idle.js";
+import { ACTS, WALK_RANGE, newIdle, stepIdle, idleSprite, resetIdle, FACES } from "../utils/idle.js";
 
 let failed = 0;
 function test(name, fn) {
@@ -66,6 +66,22 @@ test("spacer w lewo używa klatki 'left', powrót na środek", () => {
   resetIdle(st);
   assert.equal(st.x, 0);
   assert.equal(idleSprite(st, 0).frame, "idle0");
+});
+
+test("w dobrym humorze stoi i spaceruje z uśmiechem, zajęcia bez zmian", () => {
+  const st = newIdle();
+  assert.equal(idleSprite(st, 0, true).frame, "happy0");
+  assert.equal(idleSprite(st, 2, true).frame, "eat1");
+  st.kind = "walk";
+  st.target = -40;
+  stepIdle(st, true, () => 0.5);
+  assert.equal(idleSprite(st, 0, true).frame, "lefthappy");
+  const rng = mulberry(5);
+  for (let f = 0; f < 3000; f++) {
+    stepIdle(st, true, rng);
+    const fr = idleSprite(st, f, true).frame;
+    if (st.kind !== "act") assert.ok(FACES.smile.indexOf(fr) >= 0, fr);
+  }
 });
 
 if (failed) {

@@ -68,7 +68,7 @@ Page({
     s.game = guess(s.game, side);
     const l = s.game.last;
     // sprite domyślnie patrzy w prawo, "left" to odbicie
-    s.pet.set(gameSprite(s.form, l.ok ? (l.dir === "left" ? "left" : "happy0") : l.dir === "left" ? "left" : "idle0"));
+    s.pet.set(gameSprite(s.form, l.ok ? (l.dir === "left" ? "lefthappy" : "happy0") : l.dir === "left" ? "left" : "idle0"));
     s.feedback.set(l.ok ? "Trafione!" : "Pudło - patrzy w " + (l.dir === "left" ? "lewo" : "prawo"), l.ok ? COLOR.good : COLOR.accent);
     this.renderRound();
     s.timer = setTimeout(() => {

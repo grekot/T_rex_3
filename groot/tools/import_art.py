@@ -25,7 +25,7 @@ ASSETS = os.path.join(ROOT, "assets", "gt.r")
 SPRITE = 168  # klatki do gier (pets/<forma>/)
 HOME = 240  # klatki na ekranie głównym (pet/<forma>/) - Groot ma być duży
 # klatki potrzebne w grach (balans, kołysanie, medytacja, zgadywanie, rozgrzewka)
-GAME_FRAMES = ["idle0", "idle1", "happy0", "happy1", "sad0", "sad1", "sleep0", "sleep1", "dark0", "left"]
+GAME_FRAMES = ["idle0", "idle1", "happy0", "happy1", "sad0", "sad1", "sleep0", "sleep1", "dark0", "left", "lefthappy"]
 THUMB = 64
 FEET_Y = 160  # stopy na tej wysokości (jak w rysowanych postaciach)
 MAX_H = 150  # najwyższa mina ma tyle px
@@ -174,6 +174,7 @@ def frames(big):
         "eat0": big["happy"],
         "eat1": squash(big["happy"]),
         "left": ImageOps.mirror(big["idle"]),
+        "lefthappy": ImageOps.mirror(big["happy"]),
     }
     return f
 

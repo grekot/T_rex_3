@@ -57,15 +57,26 @@ export function stepIdle(st, canAct, rng) {
   return st;
 }
 
-// Klatka i przesunięcie: { frame, dx, dy }; frame = licznik klatek strony
-export function idleSprite(st, frame) {
+// Mina w spoczynku: [oddech 0, oddech 1, w lewo]. Zadowolony = klatki "happy" (eat1 to
+// ściśnięte happy0, lefthappy - odbite); spokojna mina z arkusza wygląda na zegarku smutno.
+export const FACES = {
+  calm: ["idle0", "idle1", "left"],
+  smile: ["happy0", "eat1", "lefthappy"],
+};
+
+// Klatka i przesunięcie: { frame, dx, dy }; frame = licznik klatek strony,
+// smile = ma dobry humor (strona główna: humor co najmniej SMILE_HAPPY)
+export function idleSprite(st, frame, smile) {
   const slow = Math.floor(frame / 2) % 2;
+  const f = smile ? FACES.smile : FACES.calm;
   if (st.kind === "walk") {
-    return { frame: st.face < 0 ? "left" : "idle0", dx: st.x, dy: frame % 2 ? -4 : 0 };
+    return { frame: st.face < 0 ? f[2] : f[0], dx: st.x, dy: frame % 2 ? -4 : 0 };
   }
   if (st.kind === "act") return { frame: "act_" + st.act + slow, dx: st.x, dy: 0 };
-  return { frame: (st.face < 0 ? "left" : "idle") + (st.face < 0 ? "" : slow), dx: st.x, dy: 0 };
+  return { frame: st.face < 0 ? f[2] : f[slow], dx: st.x, dy: 0 };
 }
+
+export const SMILE_HAPPY = 2; // od tylu serc humoru uśmiecha się w spoczynku
 
 // Groot musi wrócić na środek (jedzenie, smutek, sen) - bez spaceru
 export function resetIdle(st) {

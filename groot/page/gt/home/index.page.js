@@ -41,7 +41,7 @@ import { tripInfo } from "../../../utils/galaxy";
 import { VIBRATOR_SCENE_NOTIFICATION, VIBRATOR_SCENE_SHORT_LIGHT } from "@zos/sensor";
 import { RING, DISC } from "../../../utils/geometry";
 import { ACT_FORMS } from "../../../utils/art";
-import { newIdle, stepIdle, idleSprite, resetIdle } from "../../../utils/idle";
+import { newIdle, stepIdle, idleSprite, resetIdle, SMILE_HAPPY } from "../../../utils/idle";
 import { COLOR, spriteSrc, label, image, button, onTap, toast } from "../../../utils/ui";
 import {
   PET_X,
@@ -463,7 +463,7 @@ Page({
         // nic mu nie trzeba: sam się czymś zajmuje
         idling = true;
         if (tickedNow) stepIdle(s.idle, ACT_FORMS.indexOf(p.form) >= 0, Math.random);
-        const f = idleSprite(s.idle, s.frame);
+        const f = idleSprite(s.idle, s.frame, p.happy >= SMILE_HAPPY);
         src = spriteSrc(p.form, f.frame);
         dx = f.dx;
         dy = f.dy;
