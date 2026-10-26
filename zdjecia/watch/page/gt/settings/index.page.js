@@ -1,11 +1,12 @@
-// Ustawienia losowego pokazywania zdjęć: włącz/wyłącz, ile razy dziennie, w jakich godzinach.
+// Ustawienia losowego pokazywania zdjęć: włącz/wyłącz, ile razy dziennie, w jakich godzinach, jasność
+// i czym odsłania się zdjęcie (uniesienie ręki lub stuknięcie albo tylko stuknięcie).
 // Po zmianie plan budzików liczony jest od nowa (stare anulowane, nowe ustawione); na dole najbliższe
 // pokazy i próba „za 1 min”, żeby nie czekać godzinami.
 import * as hmUI from "@zos/ui";
 import { px } from "@zos/utils";
 import { buttonProps } from "../../../utils/ui";
 import { loadSettings, saveSettings, loadPlan, loadShown } from "../../../utils/store";
-import { adjust, hourText, brightText, planLines, whenText, clockText, TEST_DELAY_S } from "../../../utils/schedule";
+import { adjust, hourText, brightText, revealText, planLines, whenText, clockText, TEST_DELAY_S } from "../../../utils/schedule";
 import { refreshPlan, scheduleTest, localOffsetMin } from "../../../utils/alarms";
 import {
   TITLE_STYLE,
@@ -15,6 +16,9 @@ import {
   minusRect,
   plusRect,
   rowValue,
+  REVEAL_LABEL_STYLE,
+  revealBg,
+  revealValue,
   STATUS_STYLE,
   TEST_RECT,
   BOTTOM_SPACER,
@@ -42,6 +46,7 @@ Page({
       settings: loadSettings(),
       toggle: null,
       values: [],
+      reveal: null,
       status: null,
       timer: null,
       note: "",
@@ -63,6 +68,11 @@ Page({
       s.values.push(hmUI.createWidget(hmUI.widget.TEXT, rowValue(i, row.text(s.settings), row.always || s.settings.on)));
       hmUI.createWidget(hmUI.widget.BUTTON, buttonProps(plusRect(i), "+", "secondary", () => this.change(row.field, 1), px(40)));
     });
+
+    hmUI.createWidget(hmUI.widget.TEXT, REVEAL_LABEL_STYLE);
+    const revealBack = hmUI.createWidget(hmUI.widget.FILL_RECT, revealBg());
+    s.reveal = hmUI.createWidget(hmUI.widget.TEXT, revealValue(revealText(s.settings.reveal)));
+    [revealBack, s.reveal].forEach((w) => w.addEventListener(hmUI.event.CLICK_UP, () => this.change("reveal", 1)));
 
     s.status = hmUI.createWidget(hmUI.widget.TEXT, STATUS_STYLE);
     hmUI.createWidget(
@@ -87,8 +97,8 @@ Page({
     s.settings = adjust(s.settings, field, delta);
     saveSettings(s.settings);
     this.renderSettings();
-    // Jasność nie zmienia planu pokazów
-    if (field === "bright") return;
+    // Jasność i odsłanianie nie zmieniają planu pokazów
+    if (field === "bright" || field === "reveal") return;
     s.note = "";
     if (s.timer) clearTimeout(s.timer);
     s.timer = setTimeout(() => this.apply(true), APPLY_DELAY_MS);
@@ -127,6 +137,7 @@ Page({
     s.toggle.bg.setProperty(hmUI.prop.MORE, toggleBg(on));
     s.toggle.text.setProperty(hmUI.prop.MORE, toggleText(on));
     ROWS.forEach((row, i) => s.values[i].setProperty(hmUI.prop.MORE, rowValue(i, row.text(s.settings), row.always || on)));
+    s.reveal.setProperty(hmUI.prop.MORE, revealValue(revealText(s.settings.reveal)));
   },
 
   renderStatus(pending) {

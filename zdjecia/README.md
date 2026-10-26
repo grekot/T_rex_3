@@ -68,7 +68,7 @@ Zegarek sam, w losowych chwilach, pokazuje ciekawe zdjęcie – bez powiadomieni
 budzik systemowy (@zos/alarm, store: true – przetrwa restart zegarka)
   → wprost ekran page/gt/photo (param {"m":"D","at":…})
   → zapowiedź „Zobacz to” (czarny ekran, zwykła jasność) + krótka wibracja
-  → uniesienie ręki albo stuknięcie: ekran jaśniej, zdjęcie z worka
+  → uniesienie ręki albo stuknięcie (albo tylko stuknięcie – ustawienie): ekran jaśniej, zdjęcie z worka
   → opuszczenie ręki albo podwójne stuknięcie: zdjęcie gaśnie, powrót do tarczy
   → od razu uzupełnienie planu budzików
 ```
@@ -80,6 +80,10 @@ Uniesienie/opuszczenie ręki wykrywają naraz systemowe `onWristMotion` (@zos/in
 z akcelerometru (`watch/utils/wrist.js`: ekran do twarzy = |z| ≥ 75% grawitacji przez 250 ms, ręka opuszczona
 = |z| ≤ 45% przez 500 ms; testy `watch/test/wrist.test.mjs`) – liczy się to, co zgłosi się pierwsze.
 Gaszenie ekranu po opuszczeniu ręki jest na czas strony wyłączone, żeby to aplikacja przywróciła jasność.
+
+Zegarek 0.8.0: ustawienie **Odsłanianie zdjęcia** – „ręka lub stuknięcie” (domyślnie, jak wcześniej) albo
+„tylko stuknięcie”. Przy „tylko stuknięcie” uniesienie ręki nie odsłania zdjęcia, a zapowiedź podpowiada
+„stuknij, aby zobaczyć”; opuszczenie ręki nadal gasi już odsłonięte zdjęcie.
 
 **Losowanie** (`watch/utils/schedule.js`, testy `watch/test/schedule.test.mjs`):
 
@@ -102,11 +106,14 @@ Godziny okna liczone są w czasie lokalnym z zegara systemowego (`Time` z `@zos/
 | Pole | Domyślnie | Zakres |
 |------|-----------|--------|
 | Włączone / Wyłączone (stuknięcie w przycisk) | włączone | wyłączenie anuluje wszystkie budziki |
-| Ile razy dziennie | 3 | 1–6 |
+| Ile razy dziennie | 3 | 1–24 (powyżej 6 większymi krokami) |
 | Od godziny | 9:00 | 0:00–23:00 |
 | Do godziny | 21:00 | 1:00–24:00, zawsze co najmniej 1 h po „od” |
+| Jasność przy zdjęciu | 70% | bez zmian albo 50–100% co 10% |
+| Odsłanianie zdjęcia (stuknięcie w przycisk) | ręka lub stuknięcie | ręka lub stuknięcie / tylko stuknięcie |
 
-Chwilę po ostatniej zmianie plan liczy się od nowa (stare budziki anulowane, nowe ustawione). Pod spodem:
+Chwilę po zmianie liczby, godzin albo włączenia plan liczy się od nowa (stare budziki anulowane, nowe ustawione);
+jasność i odsłanianie zapisują się od razu, bez przeliczania. Pod spodem:
 najbliższe zdjęcia po dniach, kiedy zegarek ostatnio sam pokazał zdjęcie i przycisk **Próba za 1 min**
 (jeden budzik za 60 s, działa też przy wyłączonym losowaniu). Panel domowy pokazuje „Następne zdjęcie: dziś 16:44”.
 

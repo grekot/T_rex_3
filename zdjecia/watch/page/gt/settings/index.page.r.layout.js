@@ -62,10 +62,24 @@ export function rowValue(index, text, on) {
   };
 }
 
+// Odsłanianie zdjęcia: podpis i przełącznik (stuknięcie zmienia: ręka lub stuknięcie ↔ tylko stuknięcie)
+const REVEAL_Y = 538;
+const REVEAL_RECT = { x: px(80), y: px(REVEAL_Y + 34), w: DEVICE_WIDTH - px(160), h: px(56) };
+
+export const REVEAL_LABEL_STYLE = { ...rowLabel(0, "Odsłanianie zdjęcia"), y: px(REVEAL_Y) };
+
+export function revealBg() {
+  return { ...REVEAL_RECT, radius: px(28), color: 0x333333 };
+}
+
+export function revealValue(text) {
+  return { ...REVEAL_RECT, ...CENTERED, text, text_size: px(24), color: COLOR_WHITE };
+}
+
 // Najbliższe pokazy (przewijane pod wierszami ustawień)
 export const STATUS_STYLE = {
   x: px(60),
-  y: px(544),
+  y: px(642),
   w: DEVICE_WIDTH - px(120),
   h: px(250),
   text: "",
@@ -76,7 +90,7 @@ export const STATUS_STYLE = {
   text_style: hmUI.text_style.WRAP,
 };
 
-export const TEST_RECT = { x: px(110), y: px(802), w: DEVICE_WIDTH - px(220), h: px(54) };
+export const TEST_RECT = { x: px(110), y: px(900), w: DEVICE_WIDTH - px(220), h: px(54) };
 
 // Pod spodem pusty pas, żeby ostatni przycisk dało się przewinąć na środek okrągłego ekranu
-export const BOTTOM_SPACER = { x: 0, y: px(862), w: DEVICE_WIDTH, h: px(140), color: 0x000000 };
+export const BOTTOM_SPACER = { x: 0, y: px(960), w: DEVICE_WIDTH, h: px(140), color: 0x000000 };

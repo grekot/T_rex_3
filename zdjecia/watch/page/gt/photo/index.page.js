@@ -1,6 +1,7 @@
 // Ekran zdjęcia otwierany wprost przez budzik systemowy (sposób D). Najpierw tylko zapowiedź: wibracja i
-// "Zobacz to" przy zwykłej jasności. Zdjęcie odsłania się dopiero po uniesieniu ręki albo stuknięciu - wtedy
-// ekran świeci mocniej. Opuszczenie ręki albo podwójne stuknięcie gasi zdjęcie i wraca do tarczy
+// "Zobacz to" przy zwykłej jasności. Zdjęcie odsłania się dopiero po uniesieniu ręki albo stuknięciu (w ustawieniach
+// można zostawić tylko stuknięcie) - wtedy ekran świeci mocniej. Opuszczenie ręki albo podwójne stuknięcie gasi
+// zdjęcie i wraca do tarczy
 // (pojedyncze stuknięcie = następne zdjęcie). Bez reakcji zapowiedź znika po TEASER_S, zdjęcie po PHOTO_MAX_S.
 // Zdjęcie: najpierw świeżo dociągnięte (niespodzianka), potem worek bez powtórek. Wylosowane i wczytane od razu,
 // pod zapowiedzią (odsłonięcie bez czekania), ale w worku zapisane dopiero przy odsłonięciu - nieobejrzane
@@ -16,7 +17,7 @@ import { loadPhotos, loadVariant, loadBag, saveBag, noteShown, loadSettings } fr
 import { shownPhotos, readParams, haveIds, freshPick } from "../../../utils/photos";
 import { pickSrc } from "../../../utils/paths";
 import { takenText } from "../../../utils/format";
-import { drawFromBag, TEASER_S, PHOTO_MAX_S } from "../../../utils/schedule";
+import { drawFromBag, wristReveals, TEASER_S, PHOTO_MAX_S } from "../../../utils/schedule";
 import { refreshPlan } from "../../../utils/alarms";
 import { receiveFile, cleanupAfterSync } from "../../../utils/syncflow";
 import { keepScreenOn, releaseScreen, boostBrightness, restoreBrightness } from "../../../utils/screen";
@@ -105,6 +106,8 @@ Page(
       planTimer: null,
       syncTimer: null,
       wrist: null,
+      // Czy uniesienie ręki odsłania zdjęcie (ustawienie „Odsłanianie zdjęcia”)
+      wristReveal: true,
       syncing: false,
       pool: [],
     },
@@ -124,6 +127,7 @@ Page(
       s.planTimer = setTimeout(() => this.updatePlan(), PLAN_DELAY_MS);
       s.syncTimer = setTimeout(() => this.dripSync(), SYNC_DELAY_MS);
       s.taps = tapState();
+      s.wristReveal = wristReveals(loadSettings());
 
       s.prepared = choosePhoto(launch.id);
       if (!s.prepared) {
@@ -190,13 +194,17 @@ Page(
         hmUI.createWidget(hmUI.widget.FILL_RECT, TEASER_BG_PROPS),
         hmUI.createWidget(hmUI.widget.ARC, TEASER_RING_PROPS),
         hmUI.createWidget(hmUI.widget.TEXT, TEASER_TITLE_STYLE),
-        hmUI.createWidget(hmUI.widget.TEXT, TEASER_HINT_STYLE),
+        hmUI.createWidget(hmUI.widget.TEXT, {
+          ...TEASER_HINT_STYLE,
+          text: s.wristReveal ? TEASER_HINT_STYLE.text : "stuknij, aby zobaczyć",
+        }),
       ];
       s.teaser.forEach((w) => {
         try {
           w.addEventListener(hmUI.event.CLICK_UP, onTap);
         } catch (e) {}
       });
+      // Ręka obserwowana zawsze: nawet przy „tylko stuknięcie” jej opuszczenie gasi odsłonięte zdjęcie
       s.wrist = watchWrist((ev) => this.onWrist(ev));
       this.vibrate();
       this.closeAfter(TEASER_S);
@@ -204,7 +212,7 @@ Page(
 
     onWrist(ev) {
       const s = this.state;
-      if (ev === "up" && s.phase === "teaser") this.reveal();
+      if (ev === "up" && s.phase === "teaser" && s.wristReveal) this.reveal();
       else if (ev === "down" && s.phase === "photo") this.goOff();
     },
 
@@ -224,7 +232,7 @@ Page(
       s.info.setProperty(hmUI.prop.TEXT, label(photo));
     },
 
-    // Uniesienie ręki albo stuknięcie: mocniejsze podświetlenie, zapowiedź znika, pod nią jest już zdjęcie
+    // Uniesienie ręki (jeśli włączone) albo stuknięcie: mocniejsze podświetlenie, zapowiedź znika, pod nią jest już zdjęcie
     reveal() {
       const s = this.state;
       if (s.phase !== "teaser") return;

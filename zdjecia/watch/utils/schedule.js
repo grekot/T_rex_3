@@ -15,7 +15,10 @@ export const PHOTO_MAX_S = 60;
 // Próba z ekranu ustawień: budzik za tyle sekund
 export const TEST_DELAY_S = 60;
 
-export const DEFAULT_SETTINGS = { on: true, perDay: 3, from: 9, to: 21, bright: 70 };
+export const DEFAULT_SETTINGS = { on: true, perDay: 3, from: 9, to: 21, bright: 70, reveal: "wrist" };
+// Co odsłania zdjęcie spod zapowiedzi: uniesienie ręki lub stuknięcie, albo tylko stuknięcie
+export const REVEAL_WRIST = "wrist";
+export const REVEAL_TAP = "tap";
 // Jasność ekranu podczas pokazu zdjęcia (0 = bez zmian, zostaje systemowa)
 export const BRIGHT_STEPS = [0, 50, 60, 70, 80, 90, 100];
 // Wersja domyślnej jasności: 0.6–0.7.0 miały 100% (od 0.7.0 podbicie działa przy odsłonięciu i było
@@ -74,7 +77,17 @@ export function normalizeSettings(settings) {
     from,
     to,
     bright: clampInt(s.bright, 0, 100, d.bright),
+    reveal: s.reveal === REVEAL_TAP ? REVEAL_TAP : REVEAL_WRIST,
   };
+}
+
+// Czy uniesienie ręki odsłania zdjęcie (przy „tylko stuknięcie” ręka już tylko je gasi)
+export function wristReveals(settings) {
+  return normalizeSettings(settings).reveal === REVEAL_WRIST;
+}
+
+export function revealText(reveal) {
+  return reveal === REVEAL_TAP ? "tylko stuknięcie" : "ręka lub stuknięcie";
 }
 
 // Jednorazowa zmiana zapisanych ustawień ze starszej wersji (version = zapisana BRIGHT_VERSION, 0 = brak)
@@ -102,6 +115,7 @@ export function adjust(settings, field, delta) {
   if (field === "on") return { ...s, on: !s.on };
   if (field === "perDay") return { ...s, perDay: stepPerDay(s.perDay, delta) };
   if (field === "bright") return { ...s, bright: stepBright(s.bright, delta) };
+  if (field === "reveal") return { ...s, reveal: s.reveal === REVEAL_TAP ? REVEAL_WRIST : REVEAL_TAP };
   if (field === "from") {
     const from = clampInt(s.from + delta, 0, 23, s.from);
     return { ...s, from, to: Math.max(s.to, from + 1) };

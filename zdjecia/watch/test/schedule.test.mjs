@@ -56,10 +56,10 @@ function minuteOfDay(ms) {
 // --- ustawienia ---
 
 assert.deepEqual(normalizeSettings(undefined), DEFAULT_SETTINGS);
-assert.deepEqual(DEFAULT_SETTINGS, { on: true, perDay: 3, from: 9, to: 21, bright: 70 });
-assert.deepEqual(normalizeSettings({ on: false, perDay: 30, from: -3, to: 30 }), { on: false, perDay: 24, from: 0, to: 24, bright: 70 });
+assert.deepEqual(DEFAULT_SETTINGS, { on: true, perDay: 3, from: 9, to: 21, bright: 70, reveal: "wrist" });
+assert.deepEqual(normalizeSettings({ on: false, perDay: 30, from: -3, to: 30 }), { on: false, perDay: 24, from: 0, to: 24, bright: 70, reveal: "wrist" });
 assert.equal(normalizeSettings({ perDay: 9 }).perDay, 9);
-assert.deepEqual(normalizeSettings({ perDay: 0, from: 22, to: 8 }), { on: true, perDay: 1, from: 22, to: 23, bright: 70 });
+assert.deepEqual(normalizeSettings({ perDay: 0, from: 22, to: 8 }), { on: true, perDay: 1, from: 22, to: 23, bright: 70, reveal: "wrist" });
 assert.deepEqual(normalizeSettings({ perDay: "x", from: null }), DEFAULT_SETTINGS);
 
 assert.equal(adjust(DEFAULT_SETTINGS, "on").on, false);
@@ -73,8 +73,8 @@ assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 7 }, "perDay", 1).perDay, 8);
 assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 7 }, "perDay", -1).perDay, 6);
 assert.equal(adjust({ ...DEFAULT_SETTINGS, perDay: 1 }, "perDay", -1).perDay, 1);
 // „od” dosuwa „do” i odwrotnie
-assert.deepEqual(adjust({ ...DEFAULT_SETTINGS, from: 20, to: 21 }, "from", 1), { on: true, perDay: 3, from: 21, to: 22, bright: 70 });
-assert.deepEqual(adjust({ ...DEFAULT_SETTINGS, from: 9, to: 10 }, "to", -1), { on: true, perDay: 3, from: 8, to: 9, bright: 70 });
+assert.deepEqual(adjust({ ...DEFAULT_SETTINGS, from: 20, to: 21 }, "from", 1), { on: true, perDay: 3, from: 21, to: 22, bright: 70, reveal: "wrist" });
+assert.deepEqual(adjust({ ...DEFAULT_SETTINGS, from: 9, to: 10 }, "to", -1), { on: true, perDay: 3, from: 8, to: 9, bright: 70, reveal: "wrist" });
 assert.equal(adjust({ ...DEFAULT_SETTINGS, from: 0 }, "from", -1).from, 0);
 assert.equal(adjust({ ...DEFAULT_SETTINGS, to: 24 }, "to", 1).to, 24);
 assert.equal(adjust({ ...DEFAULT_SETTINGS, from: 23, to: 24 }, "from", 1).from, 23);
@@ -415,4 +415,25 @@ import { brightText, migrateSettings, BRIGHT_VERSION } from "../utils/schedule.j
   // Jasność nie zmienia planu pokazów
   assert.equal(settingsKey({ ...DEFAULT_SETTINGS, bright: 60 }), settingsKey(DEFAULT_SETTINGS));
   console.log("schedule bright OK");
+}
+
+// --- odsłanianie zdjęcia: uniesienie ręki lub stuknięcie (domyślnie) albo tylko stuknięcie ---
+import { wristReveals, revealText, REVEAL_TAP, REVEAL_WRIST } from "../utils/schedule.js";
+{
+  assert.equal(DEFAULT_SETTINGS.reveal, REVEAL_WRIST);
+  assert.equal(wristReveals(DEFAULT_SETTINGS), true);
+  assert.equal(wristReveals(undefined), true);
+  const tapOnly = adjust(DEFAULT_SETTINGS, "reveal", 1);
+  assert.equal(tapOnly.reveal, REVEAL_TAP);
+  assert.equal(wristReveals(tapOnly), false);
+  // „-” i „+” tak samo przełączają
+  assert.equal(adjust(tapOnly, "reveal", -1).reveal, REVEAL_WRIST);
+  assert.equal(normalizeSettings({ reveal: "coś" }).reveal, REVEAL_WRIST);
+  assert.equal(normalizeSettings({ reveal: "tap" }).reveal, REVEAL_TAP);
+  assert.equal(revealText(REVEAL_WRIST), "ręka lub stuknięcie");
+  assert.equal(revealText(REVEAL_TAP), "tylko stuknięcie");
+  // Nie zmienia planu pokazów, a migracja jasności go nie rusza
+  assert.equal(settingsKey(tapOnly), settingsKey(DEFAULT_SETTINGS));
+  assert.equal(migrateSettings({ bright: 100, reveal: "tap" }, 0).reveal, "tap");
+  console.log("schedule reveal OK");
 }
