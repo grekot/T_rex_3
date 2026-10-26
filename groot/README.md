@@ -43,6 +43,19 @@ dłoni, gra na konsoli albo wypuszcza świecące zarodniki (`utils/idle.js`).
 Groot potrzebuje (picie, słońce, mszyce, bałagan, prośba o grę), a gdy nic – coś w stylu
 etapu (maluch słodki, nastolatek „zostaw mnie, gram”, dorosły „My jesteśmy Groot”) – `utils/rocket.js`.
 
+**Groot zaczepia sam.** Gdy aplikacja jest otwarta, co 20–40 s Groot się odzywa („Jestem Groot.”
+i tłumaczenie Rocketa). Gdy czegoś mu trzeba, mówi tylko o tym; gdy nic – losowo:
+- zaprasza do konkretnej gry – przy nim pojawia się dymek, stuknięcie otwiera grę (delikatna
+  wibracja najwyżej raz na 3 minuty);
+- opowiada dowcip: najpierw pytanie, po chwili puenta (12 drzewnych kawałów);
+- chwali opiekuna, mówi o podróży Milano („jeszcze 2000 kroków do Contraxii”) albo o porze dnia;
+- gada w stylu etapu.
+
+Stuknięcie w Groota daje to samo od razu. Po dłuższej przerwie (4 h, 12 h) Groot wita się po
+powrocie. Prośby o konkretną grę (z premią za wygraną) przychodzą częściej niż w Pupilu – co ok.
+4 godziny czuwania (ok. półtorej–dwie dziennie), a przypomnienie alarmem woła także wtedy, gdy Groot
+o coś prosi, nie tylko gdy czegoś mu trzeba.
+
 ### Podróż Milano – kroki z zegarka
 
 Przy każdym otwarciu aplikacja odczytuje dzisiejsze kroki (`Step`, uprawnienie

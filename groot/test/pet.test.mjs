@@ -577,11 +577,12 @@ test("prośba o zabawę: mniej więcej raz dziennie, wygasa bez kary", () => {
   const later = run(r.state, at(1, 9) + REQUEST.ttl + 5 * MIN);
   assert.equal(activeRequest(later), null);
   assert.equal(later.mistakes, 0);
-  // przez tydzień troskliwego życia: około jednej prośby na dzień
+  // przez całe troskliwe życie (prośby niespełniane - każda czeka pełne 3 h): więcej niż
+  // jedna prośba na dzień, ale bez zasypywania (zmierzone 27 przez 19,9 dnia)
   const l = life([8, 13, 20.5], 5);
   const asks = l.events.filter((e) => e.type === "ask").length;
   const days = l.days;
-  assert.ok(asks > days * 0.5 && asks < days * 2, asks + " próśb przez " + days.toFixed(1) + " dni");
+  assert.ok(asks > days * 1.1 && asks < days * 3, asks + " próśb przez " + days.toFixed(1) + " dni");
 });
 
 test("spełniona prośba daje dodatkowy humor, przegrana jej nie zabiera", () => {

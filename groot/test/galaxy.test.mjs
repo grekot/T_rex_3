@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { MIN, HOUR, DAY, newEgg, advance, sceneOf, MAX_HEARTS } from "../utils/pet.js";
+import { MIN, HOUR, DAY, newEgg, advance, sceneOf, MAX_HEARTS, nextReminder, REQUEST } from "../utils/pet.js";
 import { PLANETS, ENERGY, VISIT_MS, addSteps, tripInfo, visiting } from "../utils/galaxy.js";
-import { rocketSays, GROOT, CHATTER } from "../utils/rocket.js";
+import { rocketSays, GROOT, CHATTER, chatter, greeting, JOKES, PRAISE, INVITE_GAMES } from "../utils/rocket.js";
+import { GAME_NAMES } from "../utils/gamelist.js";
 import { DEFEND, newDefend, defendStep, defendTap, shipPos, MIX, newMix, mixPattern, beatTimes, judgeTaps, mixRound } from "../utils/space.js";
 
 let failed = 0;
@@ -165,6 +166,57 @@ test("Awesome Mix: 2 trafione rundy z 3 = wygrana, 2 pudła = przegrana", () => 
   mixRound(g, [0]);
   assert.equal(g.done, true);
   assert.equal(g.win, false);
+});
+
+// stały ciąg "losowych" liczb do testów
+function seq(...xs) {
+  let i = 0;
+  return () => xs[i++ % xs.length];
+}
+
+test("zaczepki: zaproszenie do gry, dowcip w dwóch krokach, komplement, podróż, pora dnia", () => {
+  const c = child(); // 8:00 rano
+  const inv = chatter(c, TZ, seq(0.1, 0.0));
+  assert.equal(inv.lines[0], GROOT);
+  assert.equal(inv.invite, INVITE_GAMES[0]);
+  assert.ok(inv.lines[1].indexOf(GAME_NAMES[INVITE_GAMES[0]]) >= 0, inv.lines[1]);
+  const joke = chatter(c, TZ, seq(0.4, 0.0));
+  assert.deepEqual(joke.lines, [GROOT, "Rocket: zna kawał. " + JOKES[0][0], JOKES[0][1]]);
+  assert.equal(joke.invite, null);
+  const praise = chatter(c, TZ, seq(0.6, 0.0));
+  assert.equal(praise.lines[1], PRAISE[0]);
+  const trip = { next: { name: "Contraxia", need: 8000 }, progress: 6000, visiting: null };
+  assert.equal(chatter(c, TZ, seq(0.7), trip).lines[1], "Rocket: jeszcze 2000 kroków do Contraxia. Spacer?");
+  assert.equal(chatter(c, TZ, seq(0.8)).lines[1], "Rocket: mówi dzień dobry! Rozgrzewka?");
+  // wszystkie teksty mieszczą się w dwóch wierszach (ok. 52 znaki)
+  JOKES.forEach((j) => assert.ok(("Rocket: zna kawał. " + j[0]).length <= 62 && j[1].length <= 40, j[0]));
+  INVITE_GAMES.forEach((g) => assert.ok(GAME_NAMES[g], g));
+});
+
+test("zaczepki: gdy czegoś mu trzeba albo śpi - tylko o tym, bez zaproszeń i dowcipów", () => {
+  const c = child();
+  for (const x of [0.1, 0.4, 0.6, 0.9]) {
+    const r = chatter({ ...c, hunger: 0 }, TZ, seq(x, 0));
+    assert.deepEqual(r.lines, [GROOT, "Rocket: brakuje mu słońca"]);
+    assert.equal(r.invite, null);
+  }
+  assert.deepEqual(chatter({ ...c, asleep: true }, TZ, seq(0.1)).lines, [GROOT, "Rocket: śpi, nie budź go"]);
+  assert.deepEqual(chatter(newEgg(at(0, 10), 5), TZ, seq(0.1)).lines, []);
+});
+
+test("powitanie po przerwie; przypomnienie także o prośbie o zabawę", () => {
+  const c = child();
+  assert.deepEqual(greeting(c, 30 * MIN, TZ), []);
+  assert.equal(greeting(c, 5 * HOUR, TZ)[1], "Rocket: cieszy się, że wróciłeś");
+  assert.equal(greeting(c, 13 * HOUR, TZ)[1], "Rocket: tęsknił za tobą!");
+  // potrzeba albo pora snu ważniejsze od powitania
+  assert.deepEqual(greeting({ ...c, hunger: 0 }, 13 * HOUR, TZ), []);
+  assert.deepEqual(greeting({ ...c, t: at(0, 20, 30) }, 13 * HOUR, TZ), []);
+  // wszystko zrobione, prośba o grę przyjdzie za 60 min czuwania - alarm na tę chwilę
+  const s = { ...c, t: at(0, 10), hunger: 4, happy: 4, timers: { ...c.timers, hunger: 9999, happy: 9999, poop: 9999, whim: 9999, ask: 60 } };
+  const t = nextReminder(s, at(0, 10), TZ);
+  assert.equal(t, at(0, 11));
+  assert.ok(REQUEST.every <= 300);
 });
 
 if (failed) {

@@ -121,9 +121,9 @@ export const CALLS = {
 // Marudzenie bez powodu: tyle trwa, potem przechodzi i liczy się jako błąd wychowania
 export const WHIM_LEN = 4 * HOUR;
 
-// Prośby o zabawę: mniej więcej raz na dzień czuwania (minuty czuwania), ważne przez ttl.
+// Prośby o zabawę: mniej więcej dwa razy na dzień czuwania (minuty czuwania), ważne przez ttl.
 // Rano po pobudce zaproszenie na rozgrzewkę. Spełniona prośba = dodatkowy humor.
-export const REQUEST = { every: 800, ttl: 3 * HOUR, morningTtl: 4 * HOUR, bonus: 1 };
+export const REQUEST = { every: 240, ttl: 3 * HOUR, morningTtl: 4 * HOUR, bonus: 1 };
 // Gra o premię po akcji: trzeba ją zacząć w ciągu tego czasu
 export const BONUS_TTL = 15 * MIN;
 
@@ -512,12 +512,12 @@ export function nextReminder(state, now, tz) {
     for (let t = now + REMIND.again; t < now + REMIND.horizon; t += 15 * MIN) if (remindOk(t, tz)) return t;
     return 0;
   }
-  let morning = 0;
+  let asked = 0; // poranna rozgrzewka albo prośba o zabawę - też warto zawołać
   while (s.t < now + REMIND.horizon && !s.gone) {
     s.t += TICK;
     tick(s, tz, events);
-    if (s.request && s.request.kind === "morning" && s.request.t === s.t) morning = s.t;
-    if (s.t >= first && remindOk(s.t, tz) && (needsAttention(s) || (morning && activeRequest(s)))) return s.t;
+    if (s.request && s.request.t === s.t) asked = s.t;
+    if (s.t >= first && remindOk(s.t, tz) && (needsAttention(s) || (asked && activeRequest(s)))) return s.t;
   }
   return 0;
 }

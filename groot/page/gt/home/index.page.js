@@ -3,6 +3,8 @@
 // wykrzyknik, gdy czegoś potrzebuje, dymek z prośbą o zabawę i przycisk "Gra o premię" po
 // nawozie/lodach, grabieniu i oprysku. W doniczce podlewanie i nawóz, potem światło gwiazd
 // i lody (feedOf). Gdy nic mu nie trzeba, Groot sam się czymś zajmuje (utils/idle.js).
+// Co 20-40 s Groot sam zaczepia („Jestem Groot.” + tłumaczenie Rocketa: zaproszenie do gry
+// z dymkiem, dowcip, komplement, podróż Milano - utils/rocket.js), po przerwie wita.
 import * as hmUI from "@zos/ui";
 import { push } from "@zos/router";
 import { onKey, offKey, KEY_UP, KEY_DOWN, KEY_SELECT, KEY_EVENT_CLICK } from "@zos/interaction";
@@ -24,6 +26,7 @@ import {
   lastNews,
   stageOf,
   activeRequest,
+  requestText,
   setBonus,
   feedOf,
   sceneOf,
@@ -33,8 +36,9 @@ import { load, apply, rawState, tz } from "../../../utils/store";
 import { openedByAlarm, scheduleReminder } from "../../../utils/reminder";
 import { createBuzzer, readSteps } from "../../../utils/device";
 import { addSteps } from "../../../utils/galaxy";
-import { GROOT, rocketSays } from "../../../utils/rocket";
-import { VIBRATOR_SCENE_NOTIFICATION } from "@zos/sensor";
+import { chatter, greeting, CHAT_MS, INVITE_MS } from "../../../utils/rocket";
+import { tripInfo } from "../../../utils/galaxy";
+import { VIBRATOR_SCENE_NOTIFICATION, VIBRATOR_SCENE_SHORT_LIGHT } from "@zos/sensor";
 import { RING, DISC } from "../../../utils/geometry";
 import { ACT_FORMS } from "../../../utils/art";
 import { newIdle, stepIdle, idleSprite, resetIdle } from "../../../utils/idle";
@@ -58,7 +62,9 @@ const ANIM_MS = 600;
 const SYNC_MS = 1000;
 const ADVANCE_EVERY = 15; // co tyle synchronizacji przewijamy czas (stan zmienia się co minutę)
 const MSG_MS = 2600;
-const ROCKET_MS = 1300; // po tylu ms od „Jestem Groot.” tłumaczenie Rocketa
+const LINE_MS = { first: 1400, next: 3000 }; // „Jestem Groot.” krótko, tłumaczenie i puenta dłużej
+const FIRST_CHAT_MS = 9000; // pierwsza zaczepka po otwarciu
+const INVITE_BUZZ_MS = 180000; // delikatna wibracja przy zaproszeniu najwyżej co 3 min
 const ANIM_LEN = 2400;
 const OFFER_MS = 6000; // tyle widać przycisk "Gra o premię" po akcji
 
@@ -92,6 +98,10 @@ Page({
     s.frame = 0;
     s.anim = null;
     s.msg = null;
+    s.queue = [];
+    s.invite = null;
+    s.nextChat = Date.now() + FIRST_CHAT_MS;
+    s.lastInviteBuzz = 0;
     s.syncCount = 0;
     s.idle = newIdle();
 
@@ -129,9 +139,10 @@ Page({
     s.buzzer = createBuzzer();
     if (openedByAlarm(Date.now())) {
       s.buzzer.buzz(VIBRATOR_SCENE_NOTIFICATION);
-      this.say("Groot cię woła!");
+      const req = activeRequest(s.pet_);
+      this.say(req ? requestText(req) : "Groot cię woła!");
       this.renderText();
-    }
+    } else if (!fresh) this.greet();
 
     s.animTimer = setInterval(() => {
       s.frame++;
@@ -201,11 +212,59 @@ Page({
     const s = this.state;
     s.syncCount++;
     if (rawState() !== s.raw || s.syncCount % ADVANCE_EVERY === 0) this.reload(false);
-    else this.renderText();
+    this.maybeChat();
+    this.renderText();
   },
 
   say(text) {
+    this.state.queue = [];
     this.state.msg = text ? { text, until: Date.now() + MSG_MS } : null;
+  },
+
+  // Kilka dymków po kolei: „Jestem Groot.”, tłumaczenie Rocketa, puenta dowcipu
+  talk(lines) {
+    const s = this.state;
+    if (!lines.length) return;
+    s.msg = { text: lines[0], until: Date.now() + LINE_MS.first };
+    s.queue = lines.slice(1);
+  },
+
+  // Powitanie, gdy dawno nikt nie zaglądał (ostatnia wizyta w stanie)
+  greet() {
+    const s = this.state;
+    const now = Date.now();
+    const gap = s.pet_.lastVisit ? now - s.pet_.lastVisit : 0;
+    const r = apply((p) => ({ state: { ...p, lastVisit: now } }));
+    s.pet_ = r.state;
+    s.raw = rawState();
+    if (!s.msg) this.talk(greeting(s.pet_, gap, tz()));
+    this.renderText();
+  },
+
+  // Groot sam zaczepia co CHAT_MS: zaproszenie do gry, dowcip, komplement, podróż...
+  maybeChat() {
+    const s = this.state;
+    const p = s.pet_;
+    const now = Date.now();
+    if (!p || now < s.nextChat || s.msg || s.queue.length || s.anim || s.offer) return;
+    s.nextChat = now + CHAT_MS[0] + Math.random() * (CHAT_MS[1] - CHAT_MS[0]);
+    if (p.gone || stageOf(p) === "egg" || p.asleep) return;
+    this.chat(p);
+  },
+
+  chat(p) {
+    const s = this.state;
+    const now = Date.now();
+    const c = chatter(p, tz(), Math.random, tripInfo(p));
+    this.talk(c.lines);
+    if (c.invite) {
+      s.invite = { game: c.invite, until: now + INVITE_MS };
+      if (now - s.lastInviteBuzz >= INVITE_BUZZ_MS) {
+        s.lastInviteBuzz = now;
+        s.buzzer.buzz(VIBRATOR_SCENE_SHORT_LIGHT);
+      }
+    }
+    this.renderPet();
   },
 
   move(d) {
@@ -261,14 +320,18 @@ Page({
     this.render();
   },
 
-  // Dymek albo napis prośby: od razu do gry, o którą prosi
+  // Dymek albo napis prośby (albo zaproszenia z zaczepki): od razu do tej gry
   openRequest() {
+    const s = this.state;
     const p = load().state;
     const req = activeRequest(p);
-    if (!req) return;
-    const why = canPlay(p, req.game);
+    const inv = s.invite && Date.now() < s.invite.until ? s.invite.game : null;
+    const game = req ? req.game : inv;
+    if (!game) return;
+    s.invite = null;
+    const why = canPlay(p, game);
     if (why) toast(why);
-    else push({ url: gamePage(req.game) });
+    else push({ url: gamePage(game) });
   },
 
   // Gra o premię po akcji: zapamiętuje premię w stanie i otwiera grę
@@ -297,10 +360,9 @@ Page({
     if (stageOf(p) === "egg" || p.asleep) return;
     s.anim = { kind: moodOf(p) === "sad" ? "sad" : "happy", until: Date.now() + 1200 };
     s.frame = 0;
-    // „Jestem Groot.”, a po chwili tłumaczenie Rocketa: czego mu trzeba albo coś w stylu etapu
-    this.say(GROOT);
-    s.msgNext = { text: rocketSays(p, tz(), (n) => Math.floor(Math.random() * n)), at: Date.now() + ROCKET_MS };
-    this.renderPet();
+    // „Jestem Groot.”, a po chwili tłumaczenie Rocketa - jak zaczepka (dowcip, zaproszenie...)
+    this.chat(p);
+    s.nextChat = Date.now() + CHAT_MS[1];
     this.renderText();
   },
 
@@ -337,11 +399,10 @@ Page({
     const p = s.pet_;
     if (!p) return;
     const now = Date.now();
-    if (s.msgNext && now >= s.msgNext.at) {
-      if (s.msgNext.text) this.say(s.msgNext.text);
-      s.msgNext = null;
+    if (s.msg && now > s.msg.until) {
+      s.msg = s.queue.length ? { text: s.queue.shift(), until: now + LINE_MS.next } : null;
     }
-    if (s.msg && now > s.msg.until) s.msg = null;
+    if (s.invite && now >= s.invite.until) s.invite = null;
     // na dole między ikonami mieści się tylko imię (wiek i pokolenie są w statystykach)
     let title = "";
     if (!p.gone) title = stageOf(p) === "egg" ? p.name || "Patyczek" : displayName(p);
@@ -417,7 +478,7 @@ Page({
     s.skull.show(alive && p.sick > 0);
     s.alert.show(alive && needsAttention(p) && !s.anim && tick === 0);
     s.zzz.show(alive && p.asleep);
-    s.bubble.show(alive && !!activeRequest(p));
+    s.bubble.show(alive && (!!activeRequest(p) || !!(s.invite && Date.now() < s.invite.until)));
     const eating = !!(s.anim && s.anim.kind === "eat");
     if (eating) s.food.set("ui/" + s.anim.food + ".png");
     s.food.show(eating && tick === 0);

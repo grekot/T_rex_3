@@ -1239,6 +1239,41 @@ test("Awesome Mix: wibracja rytmu, stukanie w tym samym rytmie wygrywa", () => {
   assert.equal(p.destroy(), 0);
 });
 
+test("zaczepki: Groot sam się odzywa, zaproszenie z dymkiem otwiera grę, powitanie po przerwie", () => {
+  freshPet();
+  setPet((s) => {
+    s.trip = undefined;
+    s.lastVisit = clock.now - 13 * 3600000;
+  });
+  const q = makePage("page_gt_home_index.page.js").start();
+  q.run(300);
+  assert.ok(q.hasText("Jestem Groot. Jestem Groot."), q.texts().join("|"));
+  q.run(2500);
+  assert.ok(q.hasText("tęsknił za tobą"), q.texts().join("|"));
+  assert.ok(pet().lastVisit >= clock.now - 5000);
+  // przez 2 minuty co 20-40 s osobna zaczepka (liczymy pojawienia się „Jestem Groot.”)
+  let grootLines = 0;
+  let shown = false;
+  for (let i = 0; i < 120; i++) {
+    q.run(1000);
+    const now = q.hasText("Jestem Groot.");
+    if (now && !shown) grootLines++;
+    shown = now;
+  }
+  assert.ok(grootLines >= 3, "zaczepki: " + grootLines);
+  // zaproszenie do gry w ok. 30% zaczepek - losowe, więc do 15 minut
+  let invited = q.opts.state.invite && q.opts.state.invite.game;
+  for (let i = 0; i < 900 && !invited; i++) {
+    q.run(1000);
+    if (q.opts.state.invite) invited = q.opts.state.invite.game;
+  }
+  assert.ok(invited, "brak zaproszenia do gry w 15 minut");
+  assert.ok(q.imgs().includes("ui/bubble.png"), "dymek zaproszenia");
+  q.tap(q.find((w) => w.props.src === "ui/bubble.png"));
+  assert.equal(log.push.pop(), "page/gt/" + invited + "/index.page");
+  assert.equal(q.destroy(), 0);
+});
+
 if (failed) {
   console.error(failed + " scenariusz(e) nie przeszły");
   process.exit(1);
