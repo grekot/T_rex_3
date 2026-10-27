@@ -13,6 +13,8 @@ import {
   stepPoint,
   findHub,
   sceneSteps,
+  pickWatchDashboard,
+  emptyMessage,
   formatPoint,
   describePoint,
 } from "../utils/home.js";
@@ -195,5 +197,22 @@ assert.equal(formatPoint(false, null), "nie");
 assert.equal(formatPoint(null, null), "--");
 assert.equal(formatPoint("auto", null), "auto");
 assert.equal(formatPoint({ temp: 1 }, null), "--");
+
+// --- który pulpit zegarka: własny deviceSource, potem ułożony dla modelu z listy (zanim zegarek się zgłosił) ---
+const P = (title) => ({ watch: { width: 480, height: 480, shape: "round" }, pages: [{ title, tiles: [{ id: "a", device: "x" }] }] });
+const SCREEN = { width: 480, height: 480, shape: "round" };
+assert.equal(pickWatchDashboard({ 8716545: P("mój"), "model:t-rex-3": P("model") }, "8716545", SCREEN).key, "8716545");
+assert.equal(pickWatchDashboard({ "model:gtr-4": { ...P("gtr"), watch: { width: 466, height: 466, shape: "round" } }, "model:t-rex-3": P("t-rex") }, "8716545", SCREEN).key, "model:t-rex-3", "ten sam ekran");
+assert.equal(pickWatchDashboard({ "model:gtr-4": { ...P("gtr"), watch: { width: 466, height: 466 } } }, "8716545", SCREEN).key, "model:gtr-4", "jedyny pulpit modelu");
+assert.equal(pickWatchDashboard({ "999": P("inny zegarek") }, "8716545", SCREEN), null, "pulpit innego zgłoszonego zegarka - nie");
+assert.equal(pickWatchDashboard({ 8716545: { pages: [] }, "model:t-rex-3": P("model") }, "8716545", SCREEN).key, "model:t-rex-3", "pusty własny - jak brak");
+assert.equal(pickWatchDashboard(null, "8716545", SCREEN), null);
+assert.deepEqual(pickWatchDashboard({ "model:t-rex-3": P("t") }, null, null).dashboard.pages[0].title, "t");
+
+// --- pusty ekran: co brakuje ---
+assert.match(emptyMessage({ homeName: "Dom", indexed: 0, visible: 0, dashboardTiles: 0 }), /nie ma jeszcze urządzeń w chmurze/);
+assert.match(emptyMessage({ homeName: "Dom", indexed: 0, visible: 0, dashboardTiles: 2 }), /przez hub/);
+assert.match(emptyMessage({ homeName: "Dom", indexed: 3, visible: 0, dashboardTiles: 0 }), /Nie masz dostępu/);
+assert.equal(emptyMessage(null).length > 0, true);
 
 console.log("home.test.mjs: OK");

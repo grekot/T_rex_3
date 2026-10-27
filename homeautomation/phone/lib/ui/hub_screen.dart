@@ -697,7 +697,8 @@ class _AddDeviceDialogState extends State<_AddDeviceDialog> {
 
 /// „Przypisz do huba” (ARCHITEKTURA pkt 4.4): węzeł wystawia hubowi własny token (`POST /api/clients`),
 /// hub dostaje go w `POST /api/devices` (`ownNode`), właściciel wpisuje `deviceIndex/{id}` z `via`.
-/// Termostat: token `control` i bez lustra - tylko do automatyk.
+/// Termostat: token `control` i bez lustra - tylko do automatyk. Ekran pokazuje, do którego huba urządzenie
+/// już należy (`GET /api/devices` każdego sparowanego huba), i pozwala je odłączyć albo przypisać ponownie.
 class AssignToHubScreen extends StatefulWidget {
   const AssignToHubScreen({super.key, required this.controller});
 
@@ -707,8 +708,11 @@ class AssignToHubScreen extends StatefulWidget {
   State<AssignToHubScreen> createState() => _AssignToHubScreenState();
 }
 
+/// Hub sparowany z telefonem i to urządzenie w nim (null = nieprzypisane albo hub niedostępny).
+typedef _HubEntry = ({PairedDevice hub, HubApi? api, HubChild? child, String? error});
+
 class _AssignToHubScreenState extends State<AssignToHubScreen> {
-  late Future<List<PairedDevice>> _hubs;
+  Future<List<_HubEntry>>? _hubs;
   PairedDevice? _hub;
   bool _busy = false;
   String? _error;
@@ -719,34 +723,72 @@ class _AssignToHubScreenState extends State<AssignToHubScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _hubs = Services.of(context).store.devices().then(
-      (l) => [
-        for (final d in l)
-          if (d.type == DeviceType.hub && d.lastEndpoint != null) d,
-      ],
-    );
+    _hubs ??= _load();
   }
 
-  Future<void> _assign() async {
-    final hub = _hub;
+  Future<List<_HubEntry>> _load() async {
+    final store = Services.of(context).store;
+    final hubs = [
+      for (final d in await store.devices())
+        if (d.type == DeviceType.hub && d.lastEndpoint != null) d,
+    ];
+    final entries = await Future.wait(
+      hubs.map((h) async {
+        final token = await store.token(h.id);
+        if (token == null) return (hub: h, api: null, child: null, error: 'telefon nie jest sparowany z hubem');
+        final api = HubApi(LocalApi(h.lastEndpoint!, token: token, timeout: const Duration(seconds: 3)));
+        try {
+          final child = (await api.devices()).where((x) => x.id == c.device.id).firstOrNull;
+          return (hub: h, api: api, child: child, error: null);
+        } on ThermostatException catch (e) {
+          return (hub: h, api: api, child: null, error: e.message);
+        }
+      }),
+    );
+    final assigned = entries.where((e) => e.child != null).firstOrNull;
+    if (mounted && _hub == null) {
+      setState(() => _hub = assigned?.hub ?? (entries.length == 1 ? entries.first.hub : null));
+    }
+    return entries;
+  }
+
+  void _reload() {
+    setState(() {
+      _hubs = _load();
+    });
+  }
+
+  /// Tokeny „hub” u węzła (poprzednie przypisania) - żeby ponowne przypisanie nie mnożyło tokenów.
+  Future<void> _removeHubTokens() async {
+    try {
+      for (final p in await c.phones()) {
+        if (p.name == 'hub') await c.removePhone(p.id);
+      }
+    } on ThermostatException {
+      // stary token zostanie; usuniesz go w „Telefony”
+    }
+  }
+
+  Future<void> _assign(_HubEntry e) async {
     final host = c.device.lastEndpoint?.host;
-    if (hub == null) return;
     if (host == null || !RegExp(r'^\d+\.\d+\.\d+\.\d+$').hasMatch(host)) {
       setState(() => _error = 'Hub potrzebuje adresu IPv4 urządzenia - połącz się z nim w sieci domowej.');
       return;
     }
-    final services = Services.of(context);
-    final cloud = services.cloud;
+    final api = e.api;
+    if (api == null) {
+      setState(() => _error = 'Ten telefon nie jest sparowany z hubem ${e.hub.name}.');
+      return;
+    }
+    final cloud = Services.of(context).cloud;
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      final token = await services.store.token(hub.id);
-      if (token == null) throw const ThermostatException('Ten telefon nie jest sparowany z hubem.');
-      final hubApi = HubApi(LocalApi(hub.lastEndpoint!, token: token));
+      await _removeHubTokens();
       final t = await c.createToken('hub', _thermostat ? AccessLevel.control : AccessLevel.config);
-      await hubApi.addDevice({
+      await api.addDevice({
         'adapter': 'ownNode',
         'id': c.device.id,
         'host': host,
@@ -756,23 +798,56 @@ class _AssignToHubScreenState extends State<AssignToHubScreen> {
         if (_thermostat) 'mirror': false,
       });
       if (!_thermostat && cloud.available && cloud.isHomeOwner && cloud.homeId != null) {
-        await writeDeviceIndex(cloud.store, cloud.homeId!, c.device.id, c.device.type, c.device.name, via: hub.id);
+        await writeDeviceIndex(cloud.store, cloud.homeId!, c.device.id, c.device.type, c.device.name, via: e.hub.id);
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            _thermostat
-                ? 'Hub widzi termostat - można go używać w automatykach.'
-                : 'Przypisano do huba. Spoza domu będzie dostępne w ciągu kilku minut.',
+            _thermostat ? 'Hub widzi termostat - można go używać w automatykach.' : 'Przypisano do huba ${e.hub.name}.',
           ),
         ),
       );
-      Navigator.of(context).pop(true);
-    } on ThermostatException catch (e) {
-      setState(() => _error = e.message);
-    } on Object catch (e) {
-      setState(() => _error = 'Nie udało się: $e');
+      _reload();
+    } on ThermostatException catch (err) {
+      setState(() => _error = err.message);
+    } on Object catch (err) {
+      setState(() => _error = 'Nie udało się: $err');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _unassign(_HubEntry e) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Odłączyć od huba ${e.hub.name}?'),
+        content: const Text(
+          'Hub przestanie zbierać stan tego urządzenia i używać go w automatykach; spoza domu nie będzie '
+          'przez hub dostępne. W domu działa dalej normalnie.',
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Anuluj')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Odłącz')),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final cloud = Services.of(context).cloud;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      await e.api!.deleteDevice(c.device.id);
+      await _removeHubTokens();
+      if (cloud.available && cloud.isHomeOwner && cloud.homeId != null) {
+        await cloud.store.write('homes/${cloud.homeId}/deviceIndex/${c.device.id}/via', null).catchError((_) {});
+      }
+      _reload();
+    } on ThermostatException catch (err) {
+      setState(() => _error = err.message);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -782,35 +857,68 @@ class _AssignToHubScreenState extends State<AssignToHubScreen> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      appBar: AppBar(title: const Text('Przypisz do huba')),
-      body: FutureBuilder<List<PairedDevice>>(
+      appBar: AppBar(
+        title: const Text('Przypisz do huba'),
+        actions: [IconButton(tooltip: 'Odśwież', icon: const Icon(Icons.refresh), onPressed: _reload)],
+      ),
+      body: FutureBuilder<List<_HubEntry>>(
         future: _hubs,
         builder: (context, snap) {
           final hubs = snap.data;
           if (hubs == null) return const Center(child: CircularProgressIndicator());
+          final assigned = hubs.where((e) => e.child != null).firstOrNull;
+          final selected = hubs.where((e) => e.hub.id == _hub?.id).firstOrNull;
+          final child = assigned?.child;
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              Text(
-                _thermostat
-                    ? 'Hub dostanie od termostatu token „sterowanie” i będzie mógł używać go w automatykach '
-                          '(np. „wszyscy wyszli → eko”). Termostat dalej sam łączy się z chmurą.'
-                    : 'Hub dostanie od ${c.device.name} własny token, będzie zbierał jego stan (także dla automatyk) '
-                          'i przekaże go do chmury - spoza domu sterujesz nim przez hub.',
-              ),
+              if (assigned != null && child != null)
+                Card(
+                  color: cs.primaryContainer,
+                  child: ListTile(
+                    key: const Key('assignedTo'),
+                    leading: Icon(Icons.check_circle, color: cs.onPrimaryContainer),
+                    title: Text(
+                      'Przypisane do huba ${assigned.hub.name}',
+                      style: TextStyle(color: cs.onPrimaryContainer),
+                    ),
+                    subtitle: Text(
+                      [
+                        child.online
+                            ? 'hub widzi urządzenie'
+                            : 'hub nie widzi urządzenia${child.error == null ? '' : ' (${child.error})'}',
+                        if (!child.mirror)
+                          'tylko automatyki'
+                        else if (child.linked)
+                          'w chmurze przez hub'
+                        else
+                          'jeszcze bez chmury (hub łączy co 5 min, gdy sam jest w chmurze)',
+                      ].join(' · '),
+                      style: TextStyle(color: cs.onPrimaryContainer),
+                    ),
+                  ),
+                )
+              else
+                Text(
+                  _thermostat
+                      ? 'Hub dostanie od termostatu token „sterowanie” i będzie mógł używać go w automatykach '
+                            '(np. „wszyscy wyszli → eko”). Termostat dalej sam łączy się z chmurą.'
+                      : 'Hub dostanie od ${c.device.name} własny token, będzie zbierał jego stan (także dla '
+                            'automatyk) i przekaże go do chmury - spoza domu sterujesz nim przez hub.',
+                ),
               const SizedBox(height: 16),
               if (hubs.isEmpty) const Text('Ten telefon nie jest sparowany z żadnym hubem w sieci domowej.'),
-              RadioGroup<PairedDevice>(
-                groupValue: _hub,
-                onChanged: (v) => setState(() => _hub = v),
+              RadioGroup<String>(
+                groupValue: _hub?.id,
+                onChanged: (id) => setState(() => _hub = hubs.firstWhere((e) => e.hub.id == id).hub),
                 child: Column(
                   children: [
-                    for (final h in hubs)
-                      RadioListTile<PairedDevice>(
-                        key: Key('assignHub-${h.id}'),
-                        value: h,
-                        title: Text(h.name),
-                        subtitle: Text(h.lastEndpoint!.display),
+                    for (final e in hubs)
+                      RadioListTile<String>(
+                        key: Key('assignHub-${e.hub.id}'),
+                        value: e.hub.id,
+                        title: Text(e.child != null ? '${e.hub.name} (przypisane)' : e.hub.name),
+                        subtitle: Text(e.error ?? e.hub.lastEndpoint!.display),
                       ),
                   ],
                 ),
@@ -827,11 +935,17 @@ class _AssignToHubScreenState extends State<AssignToHubScreen> {
               const SizedBox(height: 16),
               FilledButton(
                 key: const Key('assignGo'),
-                onPressed: _hub == null || _busy ? null : _assign,
+                onPressed: selected == null || _busy ? null : () => _assign(selected),
                 child: _busy
                     ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Przypisz'),
+                    : Text(selected?.child != null ? 'Przypisz ponownie (nowy token)' : 'Przypisz'),
               ),
+              if (assigned != null)
+                TextButton(
+                  key: const Key('unassign'),
+                  onPressed: _busy ? null : () => _unassign(assigned),
+                  child: Text('Odłącz od huba ${assigned.hub.name}'),
+                ),
             ],
           );
         },

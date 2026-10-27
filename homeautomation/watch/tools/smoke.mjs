@@ -543,7 +543,7 @@ test("lista: konto bez urządzeń", async () => {
   tree = {};
   side.cache = newCache();
   const p = await makePage("home").start();
-  assert.ok(p.has("Brak urządzeń do pokazania"));
+  assert.ok(p.has("nie ma jeszcze urządzeń w chmurze"), p.texts().join(" | "));
   p.destroy();
   tree = saved;
   delete tree["swiatlo-0c4f21"];

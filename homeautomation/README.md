@@ -46,7 +46,9 @@ loguje się REST-em kontem osoby (e-mail i hasło w ustawieniach aplikacji w Zep
 (nazwa modelu, `width`, `height`, `shape`, wersja aplikacji, `lastSeen`) – telefon wie, pod jaki ekran układać pulpit.
 
 **Pulpit zegarka** (`page/gt/home`, pkt 13a): `users/{uid}/watchDashboards/{homeId}/{deviceSource}`, układany na
-telefonie (ekran „Zegarek”) osobno od pulpitów telefonu – tych zegarek nie pokazuje. Strony leżą jedna pod drugą
+telefonie (ekran „Zegarek”) osobno od pulpitów telefonu – tych zegarek nie pokazuje. Gdy pod `deviceSource` nie ma
+pulpitu, zegarek bierze pulpit ułożony dla modelu z listy (`model:…`, np. zanim zegarek się zgłosił) o tym samym ekranie.
+Pusty ekran mówi, czego brakuje (brak urządzeń w chmurze, brak dostępu, kafelki z urządzeniami spoza chmury). Strony leżą jedna pod drugą
 (przewijanie pionowe, nagłówek strony), kafelki w wierszach: `half` (dwa obok siebie), `full`, `big` (podwójna
 wysokość). Na okrągłym ekranie szerokość wiersza to cięciwa koła w miejscu, do którego wiersz da się przewinąć –
 kafelki na samej górze i na dole treści są węższe (`utils/layout.js`). Widoki:

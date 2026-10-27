@@ -22,7 +22,7 @@ import {
   applyAck,
 } from "../../../utils/termostat";
 import { tileText } from "../../../utils/devices";
-import { canControl, formatPoint, stepPoint } from "../../../utils/home";
+import { canControl, formatPoint, stepPoint, emptyMessage } from "../../../utils/home";
 import { layoutPages } from "../../../utils/layout";
 import { APP_VERSION } from "../../../utils/version";
 import { ask, setTop, isTop, onTap, toast } from "../../../utils/page";
@@ -185,7 +185,8 @@ Page(
         this.pollSoon(again ? 0 : POLL_MS);
       };
       const watch = s.info && s.info.deviceSource !== undefined ? String(s.info.deviceSource) : null;
-      ask(this, { method: "HOME", params: { watch, pending: Object.keys(pending).length ? pending : null } })
+      const screen = s.info ? { width: s.info.width, height: s.info.height, shape: s.info.shape } : null;
+      ask(this, { method: "HOME", params: { watch, screen, pending: Object.keys(pending).length ? pending : null } })
         .then((r) => done(r, false))
         .catch(() => done(null, true));
     },
@@ -217,7 +218,7 @@ Page(
       if (!r.pages || !r.pages.length) {
         s.pages = [];
         s.devices = {};
-        s.screen = "Brak urządzeń do pokazania. Dodaj je w aplikacji HomeAutomation na telefonie.";
+        s.screen = emptyMessage(r.diag);
         return this.render();
       }
       s.pages = r.pages;

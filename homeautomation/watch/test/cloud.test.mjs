@@ -165,7 +165,8 @@ assert.ok(!db.calls.includes("GET homes/h1/devices?shallow"), "z deviceIndex bez
 assert.ok(!db.calls.some((c) => /termostat-aaa\/(info|config\/name)|swiatlo-1\/(info|config\/name)/.test(c)), "typ i nazwa z deviceIndex");
 assert.ok(db.calls.includes("GET homes/h1/devices/swiatlo-2/config/name"), "brak nazwy w indeksie - z urządzenia");
 assert.equal(r.devices["swiatlo-2"].name, "Kuchnia");
-assert.ok(db.calls.includes("GET users/owner/watchDashboards/h1/" + WATCH));
+assert.ok(db.calls.includes("GET users/owner/watchDashboards/h1"));
+assert.deepEqual(r.diag, { homeName: "Dom", dashboard: null, dashboardTiles: 0, indexed: 3, visible: 3 });
 assert.ok(!db.calls.some((c) => /history|describe|homes\/h1\/dashboards|prefs/.test(c)), "bez historii, pulpitów telefonu i prefs");
 
 // drugi obieg: z pamięci tylko state + lastSeen urządzeń z ekranu
@@ -293,6 +294,17 @@ r = await pollHome({ ...as("owner"), wantedHome: null, watchId: "999", pending: 
 assert.ok(db.calls.includes("GET homes/h1/devices?shallow"));
 assert.equal(r.devices["termostat-aaa"].name, "Salon");
 tree.homes.h1.deviceIndex = savedIndex;
+delete tree.users.owner.watchDashboards;
+
+// --- pulpit ułożony na telefonie dla modelu z listy (zegarek jeszcze się nie zgłosił) ---
+tree.users.owner.watchDashboards = {
+  h1: { "model:t-rex-3": { watch: { width: 480, height: 480, shape: "round" }, pages: [{ title: "Z modelu", tiles: [{ id: "a", device: "swiatlo-1", point: "on1", view: "toggle", size: "half" }] }] } },
+};
+r = await pollHome({ ...as("owner"), wantedHome: null, watchId: WATCH, screen: { width: 480, height: 480, shape: "round" }, pending: null, cache: newCache(), now: NOW });
+assert.equal(r.custom, true);
+assert.equal(r.diag.dashboard, "model:t-rex-3");
+assert.deepEqual(items(r), [["toggle", "swiatlo-1", "config", "half"]]);
+assert.deepEqual(r.devices["swiatlo-1"].values, { on1: null }, "kanał przełącznika wielokanałowego (pkt 10.1)");
 delete tree.users.owner.watchDashboards;
 
 // --- ekran termostatu ---

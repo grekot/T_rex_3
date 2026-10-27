@@ -11,6 +11,7 @@ import {
   watchPages,
   dashboardDevices,
   findHub,
+  pickWatchDashboard,
   pagesFromRooms,
   pointValue,
   watchRecord,
@@ -28,7 +29,7 @@ const str = (x) => (typeof x === "string" && x ? x : null);
 // Wszystko, co zmienia się rzadko, z pamięcią na minutę:
 // { homes: [{id, name}], homeId, homeName, owner, devices: {id: {type, name, level, info}}, rooms,
 //   scenes, dashboard (pulpit tego zegarka albo null), describes: {id: describe} }
-async function homeContext(fetchJson, db, token, uid, wantedHome, watchId, cache, now) {
+async function homeContext(fetchJson, db, token, uid, wantedHome, watchId, screen, cache, now) {
   if (cache.uid === uid && cache.wanted === wantedHome && cache.watch === watchId && now - cache.at < LIST_TTL_MS && cache.ctx) {
     return cache.ctx;
   }
@@ -48,12 +49,14 @@ async function homeContext(fetchJson, db, token, uid, wantedHome, watchId, cache
       quiet(["homes", homeId, "access", uid]),
       quiet(["homes", homeId, "rooms"]),
       quiet(["homes", homeId, "scenes"]),
-      watchId ? quiet(["users", uid, "watchDashboards", homeId, watchId]) : null,
+      // wszystkie pulpity zegarków tej osoby w tym domu - mały węzeł; wybór w pickWatchDashboard
+      quiet(["users", uid, "watchDashboards", homeId]),
       // lista urządzeń dla wszystkich domowników: {id: {type, name}} (API.md pkt 12)
       quiet(["homes", homeId, "deviceIndex"]),
     ]);
     const owner = ownerUid === uid;
-    const dashboard = board && typeof board === "object" ? board : null;
+    const picked = pickWatchDashboard(board, watchId, screen);
+    const dashboard = picked ? picked.dashboard : null;
     const indexed = index && typeof index === "object" ? index : null;
     // bez deviceIndex (starszy dom): właściciel czyta listę devices płytko; domownik zna tylko access, pokoje, pulpit
     let listed = indexed ? Object.keys(indexed) : null;
@@ -108,6 +111,8 @@ async function homeContext(fetchJson, db, token, uid, wantedHome, watchId, cache
       rooms: rooms && typeof rooms === "object" ? rooms : null,
       scenes: scenes && typeof scenes === "object" ? scenes : null,
       dashboard,
+      dashboardKey: picked ? picked.key : null,
+      indexed: listed ? listed.length : 0,
       describes,
     };
   }
@@ -144,8 +149,8 @@ function buildPages(ctx, devices) {
 
 // Ekran listy: { ok, homes, homeId, title, custom, pages: [{title, items}], devices: {id: {type, name, level,
 // tile, values, ack}} } albo { ok, homes, noHome }. watchId = deviceSource zegarka; pending = {id: klucz}.
-export async function pollHome({ fetchJson, db, token, uid, wantedHome, watchId, pending, cache, now }) {
-  const ctx = await homeContext(fetchJson, db, token, uid, wantedHome, watchId || null, cache, now);
+export async function pollHome({ fetchJson, db, token, uid, wantedHome, watchId, screen, pending, cache, now }) {
+  const ctx = await homeContext(fetchJson, db, token, uid, wantedHome, watchId || null, screen || null, cache, now);
   if (!ctx.homeId) return { ok: true, homes: ctx.homes, noHome: true };
   const waiting = pending && typeof pending === "object" ? pending : {};
 
@@ -193,6 +198,14 @@ export async function pollHome({ fetchJson, db, token, uid, wantedHome, watchId,
     homeId: ctx.homeId,
     title: ctx.homeName,
     custom: pages.some((p) => p.items.some((it) => it.key.indexOf("t:") === 0)),
+    // do opisu pustego ekranu i diagnostyki (który pulpit, ile urządzeń w chmurze / z dostępem)
+    diag: {
+      homeName: ctx.homeName,
+      dashboard: ctx.dashboardKey,
+      dashboardTiles: ctx.dashboard ? dashboardDevices(ctx.dashboard).length : 0,
+      indexed: ctx.indexed,
+      visible: Object.keys(ctx.devices).length,
+    },
     pages,
     devices,
   };

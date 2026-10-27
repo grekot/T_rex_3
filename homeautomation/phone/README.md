@@ -212,6 +212,15 @@ Każdy telefon dostaje **własny token**. Z kontem aplikacja wysyła w `pair/con
 urządzenie daje najpierw `view`, sprawdza konto i nadaje poziom z `access` domu - aplikacja czeka na to,
 odpytując `GET /api/me` (komunikat „Sprawdzanie uprawnień konta…”).
 
+### Token dla komputera (pkt 2a)
+
+Ikona komputera na zakładce „Urządzenia” → **Wyślij token do komputera**: na PC `python tools/pair_pc.py` pokazuje
+kod QR `{"ver":"v1","kind":"pc-token","url","secret","name"}` (ważny 5 min; inny kod - „to nie ten kod”; adres musi
+być w sieci domowej). Aplikacja pokazuje urządzenia, w których telefon ma `config` i zna adres; dla każdego wybranego
+`POST /api/clients {"name":"komputer <nazwa>","access":"config"}`, potem jedno `POST <url>`
+`{"secret","devices":[{"id","type","name","host","token"}]}` (`403` zły sekret, `410` po 5 min). Komputer zapisuje
+`tokens.json` dla `tools/ota.py`; token komputera widać i usuwa się w „Telefony”.
+
 ### Zmiana sieci WiFi (pkt 9.3)
 
 W ustawieniach urządzenia (sekcja „Urządzenie”, tylko w sieci domowej): **Zmień sieć WiFi** wysyła
@@ -342,6 +351,7 @@ flutter test
 - `hub_test.dart`: API huba na atrapie (wykrywanie, dodawanie, sterowanie, `202 pending`, Tuya, automatyki i sceny
   z `updatedAt`, błędna reguła, dziennik, czas), automatyki w domu i przez chmurę (`reload`), przypisanie węzła,
   powiadomienia; `automations_ui_test.dart`: edytor automatyki (słońce → powiadomienie, odrzucona reguła).
+- `pc_token_test.dart`: kod komputera i wysyłka tokenów na atrapę `pair_pc.py` (403, 410).
 - `homes_test.dart`: dom, zaproszenie, dołączenie jedną operacją (klucze jak w regułach), wygasły kod, wyjście z domu,
   `deviceIndex` (właściciel / domownik), zmiana i odebranie uprawnień; `_all` i wyjątki; `describe` (klucze z kropką, Set); pulpity (JSON z kontraktu, chmura + kopia
   lokalna, preferencje); historia do wykresu.

@@ -4,13 +4,25 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import '../provisioning/prov_qr.dart';
 import 'widgets.dart';
 
-/// Skanowanie kodu QR z naklejki urządzenia (kontrakt pkt 9.1). Zwraca [ProvQr]; zły kod - komunikat
-/// i skanowanie dalej. Treść kodu można też wkleić (np. z logu urządzenia `WiFi: QR {...}`).
+/// Skanowanie kodu QR: domyślnie naklejka urządzenia (kontrakt pkt 9.1, zwraca [ProvQr]), z [parse] - inny
+/// kod (np. komputera, pkt 2a). Zły kod - komunikat i skanowanie dalej. Treść kodu można też wkleić
+/// (np. z logu urządzenia `WiFi: QR {...}`).
 class QrScanScreen extends StatefulWidget {
-  const QrScanScreen({super.key, this.camera = true});
+  const QrScanScreen({
+    super.key,
+    this.camera = true,
+    this.parse = ProvQr.parse,
+    this.title = 'Kod QR urządzenia',
+    this.hint = 'Skieruj aparat na kod QR z naklejki albo z ekranu urządzenia. Aplikacja połączy się z nim sama.',
+  });
 
   /// false w testach (bez aparatu).
   final bool camera;
+
+  /// Rzuca [FormatException] z komunikatem dla użytkownika.
+  final Object Function(String raw) parse;
+  final String title;
+  final String hint;
 
   @override
   State<QrScanScreen> createState() => _QrScanScreenState();
@@ -24,7 +36,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
   void _accept(String raw) {
     if (_done) return;
     try {
-      final qr = ProvQr.parse(raw);
+      final qr = widget.parse(raw);
       _done = true;
       Navigator.of(context).pop(qr);
     } on FormatException catch (e) {
@@ -38,7 +50,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
     final text = await showTextInputDialog(
       context,
       title: 'Treść kodu QR',
-      hint: '{"ver":"v1","name":"HA_…","pop":"…"}',
+      hint: '{"ver":"v1", …}',
       fieldKey: const Key('qrText'),
     );
     if (text != null) _accept(text);
@@ -49,7 +61,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
     final cs = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Kod QR urządzenia'),
+        title: Text(widget.title),
         actions: [
           IconButton(
             key: const Key('qrPaste'),
@@ -88,10 +100,7 @@ class _QrScanScreenState extends State<QrScanScreen> {
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                const Text(
-                  'Skieruj aparat na kod QR z naklejki albo z ekranu urządzenia. Aplikacja połączy się z nim sama.',
-                  textAlign: TextAlign.center,
-                ),
+                Text(widget.hint, textAlign: TextAlign.center),
                 if (_error != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
