@@ -155,6 +155,41 @@ export function pagesFromRooms(arranged, devices) {
     .filter((s) => s.items.length);
 }
 
+// Pulpit tego zegarka z users/{uid}/watchDashboards/{homeId} (mapa {watchId: pulpit}). Najpierw pod własnym
+// deviceSource; gdy go nie ma - pulpit ułożony na telefonie dla modelu z listy („model:…”, zanim zegarek się zgłosił)
+// o tym samym ekranie; na końcu jedyny pulpit „model:…” w domu. -> { key, dashboard } albo null
+export function pickWatchDashboard(boards, watchId, screen) {
+  const all = obj(boards) || {};
+  const usable = (k) => obj(all[k]) && list(all[k].pages).length > 0;
+  if (watchId && usable(watchId)) return { key: watchId, dashboard: all[watchId] };
+  const models = Object.keys(all)
+    .filter((k) => k.indexOf("model:") === 0 && usable(k))
+    .sort();
+  const s = obj(screen);
+  if (s) {
+    const same = models.find((k) => {
+      const w = obj(all[k].watch) || {};
+      return w.width === s.width && w.height === s.height && (w.shape || "round") === (s.shape || "round");
+    });
+    if (same) return { key: same, dashboard: all[same] };
+  }
+  return models.length === 1 ? { key: models[0], dashboard: all[models[0]] } : null;
+}
+
+// Pusty ekran: co dokładnie brakuje (diag z Side Service: homeName, indexed, visible, dashboardTiles)
+export function emptyMessage(diag) {
+  const d = obj(diag) || {};
+  const home = d.homeName ? "„" + d.homeName + "”" : "";
+  if (d.dashboardTiles > 0) {
+    return "Kafelki z pulpitu zegarka wskazują urządzenia, których nie ma w chmurze albo do których nie masz dostępu. Przełączniki bez chmury działają z zegarka dopiero przez hub.";
+  }
+  if (!d.indexed) {
+    return "Dom " + home + " nie ma jeszcze urządzeń w chmurze. Zegarek widzi tylko urządzenia połączone z chmurą (termostat) albo przez hub.";
+  }
+  if (!d.visible) return "Nie masz dostępu do żadnego urządzenia w domu " + home + ".";
+  return "Brak urządzeń do pokazania.";
+}
+
 // Zgłoszenie zegarka (pkt 13a): users/{uid}/watches/{deviceSource}
 export function watchRecord(info, appVersion) {
   const i = obj(info) || {};

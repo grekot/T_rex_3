@@ -10,6 +10,7 @@ import '../services.dart';
 import 'account_menu.dart';
 import 'add_device_screen.dart';
 import 'device_tiles.dart';
+import 'pc_token_screen.dart';
 import 'widgets.dart';
 
 /// Zakładka „Urządzenia”: kafelki ze stanem pogrupowane w pokoje (pkt 8.3). Dotknięcie otwiera
@@ -169,6 +170,12 @@ class _DevicesTabState extends State<DevicesTab> {
                   icon: const Icon(Icons.add_home_outlined),
                   onPressed: _newRoom,
                 ),
+              IconButton(
+                key: const Key('pcToken'),
+                tooltip: 'Wyślij token do komputera',
+                icon: const Icon(Icons.computer_outlined),
+                onPressed: () => sendTokenToComputer(context),
+              ),
               AccountMenu(session: widget.session),
             ],
           ),

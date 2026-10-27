@@ -29,6 +29,9 @@ import 'package:homeautomation/ui/add_device_screen.dart';
 import 'package:homeautomation/provisioning/prov_qr.dart';
 import 'package:homeautomation/models/dashboard.dart';
 import 'package:homeautomation/ui/main_screen.dart';
+import 'package:homeautomation/ui/device_tiles.dart';
+import 'package:homeautomation/controllers/device_hub.dart';
+import 'package:homeautomation/ui/generic_device_screen.dart' show GenericDeviceScreen;
 import 'package:homeautomation/controllers/light_controller.dart';
 import 'package:homeautomation/ui/generic_device_screen.dart';
 
@@ -516,5 +519,57 @@ void main() {
       expect(await store.token('termostat-ab12cd'), 'tok-qr', reason: 'połączono i sparowano bez listy i PoP');
       expect(find.byKey(const Key('pop')), findsNothing);
     });
+  });
+
+  testWidgets('hub z prawdziwymi danymi (hub-51e96c): kafelek, ekran huba, ekran z describe', (tester) async {
+    final store = MemoryDeviceStore();
+    const device = PairedDevice(id: 'hub-51e96c', name: 'Hub', type: DeviceType.hub);
+    await store.saveDevice(device);
+    final conn = _MemConnection<Json, Json>(
+      'hub-51e96c',
+      rawCodec,
+      {
+        'id': 'hub-51e96c', 'devices': 1, 'online': 1, 'scenes': 0, 'automations': 0, 'running': 0, 'lastRun': null,
+        'ble': false, 'link': 'wifi', 'timeKnown': true, 'timeSource': 'ntp', 'rtc': false, 'cloud': false,
+        'ts': 1793133476, 'heap': 156640, 'wifiRssi': -62, 'uptime': 2550,
+      },
+      {'name': 'Hub', 'location': {'lat': 49.89399719, 'lon': 20.60899925}},
+    )..describe = {
+        'type': 'hub',
+        'points': [
+          {'key': 'devices', 'name': 'Urządzenia', 'kind': 'sensor', 'decimals': 0},
+          {'key': 'online', 'name': 'Dostępne', 'kind': 'sensor', 'decimals': 0},
+          {'key': 'running', 'name': 'Trwające sceny', 'kind': 'sensor', 'decimals': 0},
+          {'key': 'automations', 'name': 'Automatyki', 'kind': 'sensor', 'decimals': 0},
+          {'key': 'cloud', 'name': 'Chmura', 'kind': 'status'},
+          {'key': 'runScene', 'name': 'Uruchom scenę', 'kind': 'action', 'access': 'control'},
+        ],
+      };
+    final manager = _StubManager({'hub-51e96c': conn});
+    final hub = DeviceHub(store: store, manager: manager, cloud: NoCloudAccess());
+    await hub.load();
+    await tester.pumpAndSettle();
+    final c = hub.controller('hub-51e96c')!;
+    await tester.pumpWidget(
+      _app(
+        store: store,
+        manager: manager,
+        home: Scaffold(body: SizedBox(width: 200, child: DeviceTile(device: device, controller: c, hub: hub))),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.textContaining('Hub · 1/1 urządzeń'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('tile-hub-51e96c')));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.text('Urządzenia: 1 z 1 dostępne'), findsOneWidget);
+    expect(find.textContaining('49.89399719'), findsOneWidget);
+
+    await tester.pumpWidget(_app(store: store, manager: manager, home: GenericDeviceScreen(controller: c)));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    hub.dispose();
   });
 }

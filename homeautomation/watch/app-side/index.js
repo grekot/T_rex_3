@@ -151,7 +151,8 @@ function handle(req) {
   if (req.method === "HOME") {
     const wantedHome = settingsLib.getItem("homeId") || null;
     const watchId = p.watch ? String(p.watch) : null;
-    return withSession((ctx) => pollHome({ ...ctx, wantedHome, watchId, pending: p.pending || null, cache, now: Date.now() })).then((r) => {
+    const screen = p.screen && typeof p.screen === "object" ? p.screen : null;
+    return withSession((ctx) => pollHome({ ...ctx, wantedHome, watchId, screen, pending: p.pending || null, cache, now: Date.now() })).then((r) => {
       if (r && r.ok) publishHomes(r.homes);
       return r;
     });

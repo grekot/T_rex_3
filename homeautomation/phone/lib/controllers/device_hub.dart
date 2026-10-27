@@ -9,6 +9,7 @@ import '../data/home_repository.dart';
 import '../data/scene_store.dart';
 import '../models/device_type.dart';
 import '../models/home.dart';
+import '../models/json_utils.dart';
 import '../models/scene.dart';
 import 'light_controller.dart';
 import 'thermostat_controller.dart';
@@ -222,7 +223,8 @@ class DeviceHub extends ChangeNotifier {
       final DeviceController<Object?, Object?> c = switch (d.type) {
         DeviceType.thermostat => ThermostatController(device: d, manager: manager),
         DeviceType.onOff || DeviceType.dimmer => LightController(device: d, manager: manager),
-        _ => DeviceController(device: d, manager: manager, codec: rawCodec),
+        // Jawne <Json, Json>: z kontekstu <Object?, Object?> odczyt codec.stateToJson rzucałby TypeError.
+        _ => DeviceController<Json, Json>(device: d, manager: manager, codec: rawCodec),
       };
       c.homeAccess = _myAccess;
       c.addListener(_notify);
