@@ -146,6 +146,18 @@ Protokół jest w `lib/provisioning/`, w Dart na `flutter_blue_plus` (1.x, licen
 deskryptorze 0x2901 charakterystyk usługi `021a9004-0382-4aea-bff4-6b3f1c5adfb4`. Protobuf jest kodowany
 ręcznie: numery pól z `.proto` ESP-IDF 5.1.
 
+### Kod QR z naklejki (pkt 9.1)
+
+**Dodaj urządzenie → Skanuj kod QR**: kod w formacie Espressif
+`{"ver":"v1","name":"HA_<id>","pop":"<PoP>","transport":"ble|softap","security":1}`.
+- `ble` - aplikacja szuka przez Bluetooth urządzenia o nazwie `name` i od razu łączy się kodem `pop`
+  (bez listy i przepisywania kodu); `softap` - łączy telefon z siecią `name` (hasło = `pop`), dalej jak niżej.
+- Nieznane pola są pomijane, `ver` inne niż `v1` - „Nieobsługiwany kod QR”. Treść kodu można też wkleić
+  (ikona klawiatury, np. z logu urządzenia `WiFi: QR {...}`).
+- Skaner: [`mobile_scanner`](https://pub.dev/packages/mobile_scanner) (BSD-3), na Androidzie ML Kit z Google Play
+  Services (`dev.steenbakker.mobile_scanner.useUnbundled=true` w `android/gradle.properties`, APK większy tylko
+  o ~600 KB); uprawnienie aparatu: Android z wtyczki, iOS `NSCameraUsageDescription`.
+
 ### Nowe urządzenie bez Bluetootha – SoftAP (pkt 9.4)
 
 Np. węzeł `switch4` (ESP32-S2). **Dodaj urządzenie → Nowe urządzenie bez Bluetootha**:

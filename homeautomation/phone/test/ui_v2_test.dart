@@ -25,6 +25,8 @@ import 'package:homeautomation/provisioning/ble_transport.dart';
 import 'package:homeautomation/provisioning/provisioner.dart';
 import 'package:homeautomation/services.dart';
 import 'package:homeautomation/ui/ble_setup_screen.dart';
+import 'package:homeautomation/ui/add_device_screen.dart';
+import 'package:homeautomation/provisioning/prov_qr.dart';
 import 'package:homeautomation/models/dashboard.dart';
 import 'package:homeautomation/ui/main_screen.dart';
 import 'package:homeautomation/controllers/light_controller.dart';
@@ -464,5 +466,55 @@ void main() {
       'input5': {'mode': 'edge', 'out': 3},
     });
     c.dispose();
+  });
+
+  group('kod QR (pkt 9.1)', () {
+    test('format Espressif: BLE, SoftAP, nieznane pola, zła wersja i braki', () {
+      final ble = ProvQr.parse('{"ver":"v1","name":"HA_hub-51e96c","pop":"9c86b317","transport":"ble","security":1}');
+      expect((ble.name, ble.id, ble.pop, ble.softAp), ('HA_hub-51e96c', 'hub-51e96c', '9c86b317', false));
+      final ap = ProvQr.parse('{"ver":"v1","name":"HA_swiatlo-0c4f21","pop":"ab12cd34","transport":"softap","x":1}');
+      expect((ap.softAp, ap.id), (true, 'swiatlo-0c4f21'));
+      expect(
+        () => ProvQr.parse('{"ver":"v2","name":"HA_x","pop":"1"}'),
+        throwsA(isA<FormatException>().having((e) => e.message, 'message', contains('Nieobsługiwany'))),
+      );
+      expect(() => ProvQr.parse('{"ver":"v1","name":"HA_x"}'), throwsFormatException);
+      expect(() => ProvQr.parse('https://example.com'), throwsFormatException);
+    });
+
+    testWidgets('skan kodu → Bluetooth bez listy i bez wpisywania PoP', (tester) async {
+      final device = FakeProvDevice(
+        pop: 'ab12cd34',
+        type: 'thermostat',
+        token: 'tok-qr',
+        networks: const [FakeNetwork('Dom', -45, password: 'tajne123')],
+        connectPolls: 1,
+      );
+      final store = MemoryDeviceStore();
+      await tester.pumpWidget(
+        _app(store: store, ble: _FakeBle(device), home: const AddDeviceScreen(scannerCamera: false)),
+      );
+      await tester.tap(find.byKey(const Key('addQr')));
+      await tester.pumpAndSettle();
+
+      // zły kod - komunikat, skaner zostaje
+      await tester.tap(find.byKey(const Key('qrPaste')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('qrText')), '{"ver":"v9","name":"HA_x","pop":"1"}');
+      await tester.tap(find.text('OK'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('qrError')), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('qrPaste')));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byKey(const Key('qrText')),
+        '{"ver":"v1","name":"HA_termostat-ab12cd","pop":"ab12cd34","transport":"ble","security":1}',
+      );
+      await tester.tap(find.text('OK'));
+      await _pumpUntil(tester, find.byKey(const Key('wifi-Dom')));
+      expect(await store.token('termostat-ab12cd'), 'tok-qr', reason: 'połączono i sparowano bez listy i PoP');
+      expect(find.byKey(const Key('pop')), findsNothing);
+    });
   });
 }
