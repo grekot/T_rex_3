@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Termostat mówi czystym HTTP (port 80) i tylko w sieci lokalnej - wszędzie indziej wymagamy TLS
+  (dostęp spoza domu idzie przez Firebase po HTTPS).
+
+  Android nie pozwala tu wpisać zakresów IP (np. 192.168.0.0/16), więc zezwalamy jawnie
+  na nazwy .local (mDNS) i adresy emulatora. Uwaga: klient HTTP z dart:io nie korzysta z tej
+  konfiguracji (Flutter ma własny stos sieciowy), dlatego aplikacja sama sprawdza adres
+  przed wysłaniem tokenu - zob. isLocalNetworkHost() w lib/data/local_endpoint.dart.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">local</domain>
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <!-- Host widziany z emulatora Androida (atrapa termostatu na komputerze). -->
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>
