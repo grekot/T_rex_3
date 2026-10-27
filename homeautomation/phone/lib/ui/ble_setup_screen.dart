@@ -11,6 +11,7 @@ import '../models/device_type.dart';
 import '../models/home.dart';
 import '../provisioning/ble_transport.dart';
 import '../provisioning/messages.dart';
+import '../provisioning/prov_qr.dart';
 import '../provisioning/provisioner.dart';
 import '../services.dart';
 
@@ -20,12 +21,14 @@ enum _Step { scan, pop, connecting, wifi, joining, finding, done }
 /// `ha-pair` (token, urządzenie od razu sparowane) → sieć WiFi i hasło → połączenie → mDNS.
 /// [softAp] - urządzenie bez Bluetooth (pkt 9.4): telefon łączy się z siecią WiFi `HA_<id>` (hasło = PoP),
 /// a te same komunikaty idą przez HTTP. Z [expectedId] - zmiana sieci znanego urządzenia (pkt 9.3).
-/// Zwraca [PairedDevice].
+/// Z [qr] (kod z naklejki, pkt 9.1) - bez wybierania z listy i wpisywania PoP: łączy się od razu z urządzeniem
+/// o nazwie z kodu. Zwraca [PairedDevice].
 class BleSetupScreen extends StatefulWidget {
-  const BleSetupScreen({super.key, this.expectedId, this.softAp = false});
+  const BleSetupScreen({super.key, this.expectedId, this.softAp = false, this.qr});
 
   final String? expectedId;
   final bool softAp;
+  final ProvQr? qr;
 
   @override
   State<BleSetupScreen> createState() => _BleSetupScreenState();
@@ -58,6 +61,17 @@ class _BleSetupScreenState extends State<BleSetupScreen> {
   bool _showPassword = false;
 
   @override
+  void initState() {
+    super.initState();
+    final qr = widget.qr;
+    if (qr != null) {
+      _pop.text = qr.pop;
+      // SoftAP: od razu do sieci z kodu; BLE: łączy się, gdy skan znajdzie urządzenie o nazwie z kodu.
+      if (widget.softAp) WidgetsBinding.instance.addPostFrameCallback((_) => _connect());
+    }
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_scanSub == null && !_scanning && !widget.softAp) _startScan();
@@ -86,6 +100,15 @@ class _BleSetupScreenState extends State<BleSetupScreen> {
     if (!backend.supported) return;
     _scanSub = backend.scan().listen(
       (list) {
+        final qr = widget.qr;
+        if (qr != null) {
+          final match = list.where((c) => c.name == qr.name).firstOrNull;
+          if (match != null && _step == _Step.scan) {
+            _choose(match);
+            unawaited(_connect());
+          }
+          return;
+        }
         final filtered = _changingWifi ? list.where((c) => c.id == widget.expectedId).toList() : list;
         setState(() => _found = filtered);
       },
@@ -122,7 +145,7 @@ class _BleSetupScreenState extends State<BleSetupScreen> {
       final transport = widget.softAp
           ? await services.softAp.connect(
               pop: pop,
-              deviceId: widget.expectedId,
+              deviceId: widget.expectedId ?? widget.qr?.id,
               manual: _manualAp,
             )
           : await services.provisioning.connect(_candidate!);
@@ -294,7 +317,11 @@ class _BleSetupScreenState extends State<BleSetupScreen> {
             leading: _scanning
                 ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.bluetooth_searching),
-            title: Text(_scanning ? 'Szukam urządzeń przez Bluetooth…' : 'Wyszukiwanie zakończone'),
+            title: Text(
+              widget.qr != null
+                  ? (_scanning ? 'Szukam ${widget.qr!.name} przez Bluetooth…' : 'Nie znaleziono ${widget.qr!.name}')
+                  : (_scanning ? 'Szukam urządzeń przez Bluetooth…' : 'Wyszukiwanie zakończone'),
+            ),
             trailing: _scanning ? null : TextButton(onPressed: _startScan, child: const Text('Szukaj ponownie')),
           ),
           for (final c in _found)

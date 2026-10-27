@@ -77,6 +77,8 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Aparat służy do zeskanowania kodu QR z naklejki nowego urządzenia domowego.</string>
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>Bluetooth służy do skonfigurowania WiFi w nowym urządzeniu domowym.</string>
 </dict>

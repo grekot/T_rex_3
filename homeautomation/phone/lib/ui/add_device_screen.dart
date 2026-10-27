@@ -2,18 +2,32 @@ import 'package:flutter/material.dart';
 
 import '../data/device_store.dart';
 import '../services.dart';
+import '../provisioning/prov_qr.dart';
 import 'ble_setup_screen.dart';
 import 'pairing_screen.dart';
+import 'qr_scan_screen.dart';
 
 /// „Dodaj urządzenie”: nowe przez Bluetooth (konfiguracja WiFi + parowanie, pkt 9), nowe bez Bluetooth
 /// przez jego sieć WiFi `HA_*` (pkt 9.4) albo już działające w sieci domowej kodem (kolejne telefony, pkt 2).
 class AddDeviceScreen extends StatelessWidget {
-  const AddDeviceScreen({super.key});
+  const AddDeviceScreen({super.key, this.scannerCamera = true});
+
+  /// false w testach - skaner bez aparatu (treść kodu wpisuje się ręcznie).
+  final bool scannerCamera;
 
   Future<void> _go(BuildContext context, Widget screen) async {
     final navigator = Navigator.of(context);
     final device = await navigator.push<PairedDevice>(MaterialPageRoute(builder: (_) => screen));
     if (device != null) navigator.pop(device);
+  }
+
+  /// Kod QR z naklejki (pkt 9.1): Bluetooth albo SoftAP wg `transport`, bez listy i wpisywania PoP.
+  Future<void> _scan(BuildContext context, {bool camera = true}) async {
+    final qr = await Navigator.of(
+      context,
+    ).push<ProvQr>(MaterialPageRoute(builder: (_) => QrScanScreen(camera: camera)));
+    if (qr == null || !context.mounted) return;
+    await _go(context, BleSetupScreen(softAp: qr.softAp, qr: qr));
   }
 
   @override
@@ -24,6 +38,16 @@ class AddDeviceScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          _Option(
+            key: const Key('addQr'),
+            icon: Icons.qr_code_scanner,
+            title: 'Skanuj kod QR',
+            text:
+                'Najprościej: kod z naklejki albo ekranu nowego urządzenia. Aplikacja sama wybierze Bluetooth '
+                'albo sieć WiFi urządzenia i użyje kodu PoP - nic nie trzeba przepisywać.',
+            onTap: () => _scan(context, camera: scannerCamera),
+          ),
+          const SizedBox(height: 12),
           _Option(
             key: const Key('addBle'),
             icon: Icons.bluetooth,
