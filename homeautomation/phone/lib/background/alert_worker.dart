@@ -11,6 +11,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
 
 import '../data/cloud_access.dart';
+import '../data/cloud_store.dart';
+import '../data/notifications.dart';
 import '../firebase_options.dart';
 import 'alerts.dart';
 
@@ -70,6 +72,45 @@ Future<void> runAlertCheck() async {
     await plugin.cancel(id: alertNotificationId(id, kind));
   }
   await prefs.setString(_memoryKey, jsonEncode(result.memory.toJson()));
+  await _hubNotifications(access, prefs, plugin);
+}
+
+const _hubChannel = AndroidNotificationDetails(
+  'hub',
+  'Powiadomienia z domu',
+  channelDescription: 'Powiadomienia z automatyk huba',
+  importance: Importance.high,
+  priority: Priority.high,
+);
+
+/// Powiadomienia z automatyk huba (`homes/{h}/notifications`, pkt 11) - nowe od ostatniego sprawdzenia.
+Future<void> _hubNotifications(
+  FirebaseCloudAccess access,
+  SharedPreferencesAsync prefs,
+  FlutterLocalNotificationsPlugin plugin,
+) async {
+  final uid = access.uid;
+  if (uid == null) return;
+  final homes = toJsonObject(await access.store.read('users/$uid/homes').catchError((_) => null))?.keys ?? const [];
+  final now = DateTime.now().millisecondsSinceEpoch;
+  for (final h in homes) {
+    final key = 'notif_shown_$h';
+    final all = parseNotifications(await access.store.read('homes/$h/notifications').catchError((_) => null));
+    final fresh = newNotifications(all, await prefs.getInt(key), now);
+    for (final n in fresh) {
+      await plugin.show(
+        id: n.key.hashCode & 0x7fffffff,
+        title: switch (n.level) {
+          'alarm' => 'Alarm w domu',
+          'warning' => 'Uwaga',
+          _ => 'Dom',
+        },
+        body: n.text,
+        notificationDetails: const NotificationDetails(android: _hubChannel),
+      );
+    }
+    if (all.isNotEmpty) await prefs.setInt(key, all.first.ts > now ? now : all.first.ts);
+  }
 }
 
 Future<FlutterLocalNotificationsPlugin> _notifications() async {

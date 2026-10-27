@@ -1,13 +1,21 @@
 // Sceny (ARCHITEKTURA.md pkt 4.6, API.md pkt 11-13): `homes/{h}/scenes/{id}` `{"name","actions":[...]}`.
-// Akcje jak w automatykach: `{"device","set"}`, `{"delay": s}`, `{"scene": id}`. Pisze właściciel domu.
+// Akcje jak w automatykach: `{"device","set"}`, `{"delay": s}`, `{"scene": id}`, `{"notify","level"}`, `{"log"}`.
+// Pisze właściciel domu; `updatedAt` (ms) - przy uzgadnianiu z hubem wygrywa nowszy (pkt 11).
 
 import 'json_utils.dart';
 
 /// Jedna akcja sceny.
 class SceneAction {
-  const SceneAction.set(String this.device, Json this.set) : delay = null, scene = null;
-  const SceneAction.delay(int this.delay) : device = null, set = null, scene = null;
-  const SceneAction.scene(String this.scene) : device = null, set = null, delay = null;
+  const SceneAction.set(String this.device, Json this.set) : delay = null, scene = null, notify = null, level = null, log = null;
+  const SceneAction.delay(int this.delay) : device = null, set = null, scene = null, notify = null, level = null, log = null;
+  const SceneAction.scene(String this.scene) : device = null, set = null, delay = null, notify = null, level = null, log = null;
+  const SceneAction.notify(String this.notify, {this.level = 'info'})
+    : device = null,
+      set = null,
+      delay = null,
+      scene = null,
+      log = null;
+  const SceneAction.log(String this.log) : device = null, set = null, delay = null, scene = null, notify = null, level = null;
 
   final String? device;
   final Json? set;
@@ -18,6 +26,13 @@ class SceneAction {
   /// Inna scena.
   final String? scene;
 
+  /// Powiadomienie domowników (`homes/{h}/notifications`, wysyła hub) i jego waga `info|warning|alarm`.
+  final String? notify;
+  final String? level;
+
+  /// Wpis w dzienniku huba.
+  final String? log;
+
   bool get isSet => device != null && set != null;
 
   static SceneAction? fromJson(Json j) {
@@ -25,10 +40,22 @@ class SceneAction {
     if (device is String && set is Map) return SceneAction.set(device, set.cast<String, dynamic>());
     if (delay is num) return SceneAction.delay(delay.toInt());
     if (scene is String) return SceneAction.scene(scene);
+    if (j['notify'] is String) {
+      return SceneAction.notify(j['notify'] as String, level: j['level'] is String ? j['level'] as String : 'info');
+    }
+    if (j['log'] is String) return SceneAction.log(j['log'] as String);
     return null;
   }
 
-  Json toJson() => {'device': ?device, 'set': ?set, 'delay': ?delay, 'scene': ?scene};
+  Json toJson() => {
+    'device': ?device,
+    'set': ?set,
+    'delay': ?delay,
+    'scene': ?scene,
+    'notify': ?notify,
+    if (notify != null) 'level': level ?? 'info',
+    'log': ?log,
+  };
 }
 
 class Scene {

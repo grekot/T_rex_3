@@ -53,8 +53,12 @@ class CloudSceneStore implements SceneStore {
     return c.stream;
   }
 
+  /// `updatedAt` = teraz (ms): hub przy uzgadnianiu bierze nowszą wersję (pkt 11).
   @override
-  Future<void> save(String homeId, Scene scene) => store.write('homes/$homeId/scenes/${scene.id}', scene.toJson());
+  Future<void> save(String homeId, Scene scene) => store.write('homes/$homeId/scenes/${scene.id}', {
+    ...scene.toJson(),
+    'updatedAt': DateTime.now().millisecondsSinceEpoch,
+  });
 
   @override
   Future<void> remove(String homeId, String sceneId) => store.write('homes/$homeId/scenes/$sceneId', null);

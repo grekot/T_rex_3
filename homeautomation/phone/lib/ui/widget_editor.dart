@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../controllers/device_hub.dart';
@@ -359,6 +361,10 @@ String describeScene(DeviceHub hub, Scene scene) => scene.actions
           ? '${hub.device(a.device!)?.name ?? a.device}: ${describeSet(a.set!)}'
           : a.delay != null
           ? 'czekaj ${a.delay} s'
+          : a.notify != null
+          ? 'powiadomienie'
+          : a.log != null
+          ? 'dziennik'
           : 'scena ${hub.scene(a.scene!)?.name ?? a.scene}',
     )
     .join(' · ');
@@ -405,6 +411,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await Services.of(context).scenes.save(widget.hub.homeId, scene);
+      unawaited(widget.hub.reloadHubs());
       navigator.pop(scene);
     } on Object catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Nie zapisano sceny: $e')));
@@ -416,7 +423,18 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       ? describeSet(a.set!)
       : a.delay != null
       ? 'czekaj ${a.delay} s${a.delay! > 60 ? ' (tylko z hubem)' : ''}'
+      : a.notify != null
+      ? 'powiadomienie: ${a.notify} (wysyła hub)'
+      : a.log != null
+      ? 'dziennik: ${a.log}'
       : 'scena ${widget.hub.scene(a.scene!)?.name ?? a.scene}';
+
+  Future<void> _addNotify() async {
+    final text = await showTextInputDialog(context, title: 'Treść powiadomienia', maxLength: 80);
+    if (text != null && text.trim().isNotEmpty) {
+      setState(() => _actions = [..._actions, SceneAction.notify(text.trim())]);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -464,10 +482,18 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
             children: [
               for (final (i, a) in _actions.indexed)
                 ListTile(
-                  key: ValueKey('step-$i-${a.device ?? a.delay ?? a.scene}'),
+                  key: ValueKey('step-$i-${a.device ?? a.delay ?? a.scene ?? a.notify ?? a.log}'),
                   leading: ReorderableDragStartListener(index: i, child: const Icon(Icons.drag_handle)),
                   title: Text(
-                    a.isSet ? widget.hub.device(a.device!)?.name ?? a.device! : (a.delay != null ? 'Przerwa' : 'Scena'),
+                    a.isSet
+                        ? widget.hub.device(a.device!)?.name ?? a.device!
+                        : a.delay != null
+                        ? 'Przerwa'
+                        : a.notify != null
+                        ? 'Powiadomienie'
+                        : a.log != null
+                        ? 'Dziennik'
+                        : 'Scena',
                   ),
                   subtitle: Text(_actionText(a)),
                   trailing: IconButton(
@@ -478,14 +504,23 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                 ),
             ],
           ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              key: const Key('sceneAddDelay'),
-              onPressed: _addDelay,
-              icon: const Icon(Icons.timer_outlined),
-              label: const Text('Przerwa'),
-            ),
+          Wrap(
+            spacing: 8,
+            children: [
+              TextButton.icon(
+                key: const Key('sceneAddDelay'),
+                onPressed: _addDelay,
+                icon: const Icon(Icons.timer_outlined),
+                label: const Text('Przerwa'),
+              ),
+              if (widget.hub.hubs.isNotEmpty)
+                TextButton.icon(
+                  key: const Key('sceneAddNotify'),
+                  onPressed: _addNotify,
+                  icon: const Icon(Icons.notifications_outlined),
+                  label: const Text('Powiadomienie'),
+                ),
+            ],
           ),
         ],
       ),

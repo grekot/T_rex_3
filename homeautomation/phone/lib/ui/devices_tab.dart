@@ -208,6 +208,7 @@ class _DevicesTabState extends State<DevicesTab> {
                                 DeviceTile(
                                   device: byId[id]!,
                                   controller: hub.controller(id),
+                                  hub: hub,
                                   onLongPress: () => _deviceMenu(byId[id]!, s.room),
                                 ),
                             ],

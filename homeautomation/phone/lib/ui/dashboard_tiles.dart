@@ -169,7 +169,7 @@ class _DashTileState extends State<DashTile> {
         final title = w.label ?? p?.name ?? c.device.name;
         final subtitle = w.label == null ? c.device.name : null;
         final offline = state == null || !c.live;
-        void open() => openDevice(context, c);
+        void open() => openDevice(context, c, hub: widget.hub);
         Future<void> set(DataPoint p, Object? v) async {
           final r = await c.sendJson(p.setFor(v));
           if (context.mounted) showSendErrors(context, r.errors);

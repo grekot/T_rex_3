@@ -49,7 +49,9 @@ class _PhonesScreenState extends State<PhonesScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await widget.controller.removePhone(p.id);
-      setState(() => _load = _fetch());
+      setState(() {
+        _load = _fetch();
+      });
     } on ThermostatException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -84,7 +86,9 @@ class _PhonesScreenState extends State<PhonesScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await widget.controller.setPhoneAccess(p.id, level);
-      setState(() => _load = _fetch());
+      setState(() {
+        _load = _fetch();
+      });
     } on ThermostatException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -114,7 +118,9 @@ class _PhonesScreenState extends State<PhonesScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       final t = await widget.controller.createToken(name, level);
-      setState(() => _load = _fetch());
+      setState(() {
+        _load = _fetch();
+      });
       if (!mounted) return;
       await showDialog<void>(
         context: context,
@@ -126,7 +132,11 @@ class _PhonesScreenState extends State<PhonesScreen> {
             children: [
               const Text('Skopiuj go teraz - urządzenie nie pokaże go ponownie.'),
               const SizedBox(height: 12),
-              SelectableText(t.token, key: const Key('newToken'), style: const TextStyle(fontFamily: 'monospace')),
+              SelectableText(
+                t.token,
+                key: const Key('newToken'),
+                style: const TextStyle(fontFamily: 'monospace'),
+              ),
             ],
           ),
           actions: [
@@ -169,7 +179,9 @@ class _PhonesScreenState extends State<PhonesScreen> {
           if (!snap.hasData) return const Center(child: CircularProgressIndicator());
           final (phones, myId) = snap.data!;
           return RefreshIndicator(
-            onRefresh: () async => setState(() => _load = _fetch()),
+            onRefresh: () async => setState(() {
+              _load = _fetch();
+            }),
             child: ListView(
               padding: const EdgeInsets.only(bottom: 96),
               children: [
@@ -188,7 +200,11 @@ class _PhonesScreenState extends State<PhonesScreen> {
                     leading: Icon(p.id == myId ? Icons.smartphone : Icons.phone_android),
                     title: Text(p.id == myId ? '${p.name} (ten telefon)' : p.name),
                     subtitle: Text(
-                      [p.access.label, if (!p.verified) 'konto niepotwierdzone', if (p.uid.isNotEmpty) p.uid].join(' · '),
+                      [
+                        p.access.label,
+                        if (!p.verified) 'konto niepotwierdzone',
+                        if (p.uid.isNotEmpty) p.uid,
+                      ].join(' · '),
                     ),
                     trailing: IconButton(
                       tooltip: 'Usuń',
