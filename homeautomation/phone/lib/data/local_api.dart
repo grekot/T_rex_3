@@ -228,6 +228,10 @@ class LocalApi {
     );
   }
 
+  /// Dowolne żądanie (np. API huba, pkt 11): mapę z `ok` i listę zwraca bez oceny - ocenia wołający.
+  Future<Object?> request(String method, String path, {Object? body, Map<String, String>? query, Duration? timeout}) =>
+      _sendAny(method, path, body: body, query: query, timeout: timeout);
+
   Future<Json> stateJson() async => _data(await _send('GET', '/api/state'));
 
   Future<Json> configJson() async => _data(await _send('GET', '/api/config'));

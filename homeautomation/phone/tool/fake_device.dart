@@ -1,6 +1,6 @@
 // Atrapa urządzenia HomeAutomation (kontrakt v2) do testów aplikacji bez sprzętu.
 //
-//   dart run tool/fake_device.dart [--type thermostat|switch|dimmer] [--port 8080]
+//   dart run tool/fake_device.dart [--type thermostat|switch|dimmer|hub] [--port 8080]
 //       [--id termostat-ab12cd] [--name Salon] [--token <hex>] [--no-mdns] [--fast]
 //       [--channels 4] [--prov softap] [--pop ab12cd34] [--no-cloud]
 //
@@ -22,7 +22,7 @@ import 'fake/mdns_responder.dart';
 
 Future<void> main(List<String> argv) async {
   final parser = ArgParser()
-    ..addOption('type', defaultsTo: 'thermostat', allowed: ['thermostat', 'switch', 'dimmer'], help: 'Typ urządzenia')
+    ..addOption('type', defaultsTo: 'thermostat', allowed: ['thermostat', 'switch', 'dimmer', 'hub'], help: 'Typ urządzenia')
     ..addOption('port', defaultsTo: '8080', help: 'Port HTTP/WebSocket')
     ..addOption('id', help: 'Identyfikator (domyślnie termostat-ab12cd / swiatlo-0c4f21)')
     ..addOption('name', help: 'Nazwa urządzenia')
@@ -42,7 +42,15 @@ Future<void> main(List<String> argv) async {
 
   final type = args.option('type')!;
   final period = Duration(seconds: args.flag('fast') ? 5 : 30);
-  final FakeDevice fake = type == 'thermostat'
+  final FakeDevice fake = type == 'hub'
+      ? FakeHub(
+          id: args.option('id') ?? 'hub-51e96c',
+          name: args.option('name') ?? 'Hub',
+          token: args.option('token'),
+          statePeriod: period,
+          log: stdout.writeln,
+        )
+      : type == 'thermostat'
       ? FakeThermostat(
           id: args.option('id') ?? 'termostat-ab12cd',
           name: args.option('name') ?? 'Salon',

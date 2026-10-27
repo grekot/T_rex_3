@@ -6,10 +6,12 @@ import '../data/device_store.dart';
 import '../data/errors.dart';
 import '../data/local_api.dart';
 import '../models/device_info.dart';
+import '../models/device_type.dart';
 import '../services.dart';
 import 'ble_setup_screen.dart';
 import 'cloud_link_screen.dart';
 import 'firmware_screen.dart';
+import 'hub_screen.dart' show AssignToHubScreen;
 import 'phones_screen.dart';
 import 'format.dart';
 import 'widgets.dart';
@@ -207,6 +209,20 @@ class _DeviceAdminSectionState extends State<DeviceAdminSection> {
           ),
         ],
         ],
+        if (_canAdmin && c.device.type != DeviceType.hub)
+          ListTile(
+            key: const Key('assignHub'),
+            leading: const Icon(Icons.device_hub),
+            title: const Text('Przypisz do huba'),
+            subtitle: Text(
+              c.device.type == DeviceType.thermostat
+                  ? 'Termostat w automatykach huba (token sterowania)'
+                  : 'Hub zbiera stan, prowadzi automatyki i łączy z chmurą',
+            ),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<bool>(builder: (_) => AssignToHubScreen(controller: c)),
+            ),
+          ),
         const SectionHeader('Urządzenie'),
         ListTile(
           key: const Key('changeWifi'),

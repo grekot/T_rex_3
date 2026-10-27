@@ -124,6 +124,34 @@ Ikona zegarka na pasku pulpitu (tylko z kontem). Osobny od pulpitów telefonu, d
 
   Ten sam układ widzi zegarek (`../watch`).
 
+## Hub (pkt 11, ARCHITEKTURA pkt 4.4-4.6)
+
+Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran huba**:
+- stan (urządzenia dostępne, sceny, automatyki, łącze, chmura, ostatnie wykonanie); gdy hub nie zna czasu -
+  „Z telefonu” (`POST /api/time`);
+- **Urządzenia huba** (w domu): `GET /api/devices` (dostępność, błąd, „w chmurze” / „tylko w domu”), przełącznik
+  (`POST /api/devices/{id}/set`, `202 pending` = urządzenie odpowie za chwilę), „Do chmury” (właściciel wpisuje
+  `deviceIndex/{id}` z `via`), usuwanie (z wpisami w bazie); **Szukaj w sieci**: `GET /api/discover` co 1 s, aż
+  `scanning: false`, dodanie z nazwą, hasłem (Shelly, Tasmota) i kanałem; Tuya - komunikat (faza 4);
+- **Automatyki**: w domu wprost w hubie (`/api/automations`: diagnostyka - pominięte reguły, wschód/zachód, czas;
+  „Uruchom teraz”; dziennik), poza domem `homes/{h}/automations/{id}` z `updatedAt` i Set `{"reload":true}`.
+  Edytor: kiedy (godzina z dniami, wschód/zachód z przesunięciem, stan urządzenia z „przez N s”, przycisk / wejście
+  węzła krótko / podwójnie / długo, po scenie), tylko jeśli (pora, dni, dzień / noc, stan), wtedy (ustaw urządzenie,
+  przerwa, scena, powiadomienie z wagą, wpis w dzienniku); błędną regułę hub odrzuca z listą problemów;
+- **Sceny** (wykonuje je hub; akcja „Powiadomienie” tylko z hubem); po zapisie w chmurze `updatedAt` i `reload`;
+- **Położenie domu** (Set `location`, podpowiedź z ustawień pogody termostatu) - wschód i zachód w automatykach;
+- ustawienia wspólne (chmura - łączenie zapisuje też `deviceIndex/{hubId}` `{"type":"hub"}`, telefony, firmware, WiFi).
+
+**Przypisz do huba** (ustawienia węzła albo termostatu, w domu, poziom `config`): węzeł wystawia hubowi token
+(`POST /api/clients`), aplikacja przekazuje go hubowi (`POST /api/devices` `ownNode`) i wpisuje `deviceIndex/{id}`
+z `via`. Termostat dostaje token `control` i `"mirror": false` - tylko do automatyk.
+
+**Powiadomienia z domu** (`homes/{h}/notifications`, akcja `notify`): dzwonek z liczbą nieprzeczytanych na pulpicie
+i powiadomienia telefonu z zadania w tle (co ~15 min, nowe od ostatniego sprawdzenia).
+
+Atrapa: `dart run tool/fake_device.dart --type hub --port 8084` (urządzenia, wykrywanie Shelly / Tasmota,
+automatyki i sceny z `updatedAt`, dziennik, czas; host `.98` = urządzenie odpowiada z opóźnieniem).
+
 ## Dodawanie urządzeń
 
 **Dodaj urządzenie** daje dwie drogi.
@@ -311,6 +339,9 @@ flutter test
 - `softap_switch_test.dart`: SoftAP przez HTTP na serwerze z atrapą provisioningu (ciasteczko sesji, cały przebieg),
   węzeł `switch4` na atrapie (`/api/info`, parowanie kodem PoP → `control`, kanały, wejścia, błędy pól, poziomy);
   `softap_ui_test.dart`: kreator „Urządzenie bez Bluetootha”.
+- `hub_test.dart`: API huba na atrapie (wykrywanie, dodawanie, sterowanie, `202 pending`, Tuya, automatyki i sceny
+  z `updatedAt`, błędna reguła, dziennik, czas), automatyki w domu i przez chmurę (`reload`), przypisanie węzła,
+  powiadomienia; `automations_ui_test.dart`: edytor automatyki (słońce → powiadomienie, odrzucona reguła).
 - `homes_test.dart`: dom, zaproszenie, dołączenie jedną operacją (klucze jak w regułach), wygasły kod, wyjście z domu,
   `deviceIndex` (właściciel / domownik), zmiana i odebranie uprawnień; `_all` i wyjątki; `describe` (klucze z kropką, Set); pulpity (JSON z kontraktu, chmura + kopia
   lokalna, preferencje); historia do wykresu.

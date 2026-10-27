@@ -12,6 +12,7 @@ import '../models/scene.dart';
 import '../services.dart';
 import 'account_menu.dart';
 import 'dashboard_tiles.dart';
+import 'notifications_screen.dart';
 import 'watch_screen.dart';
 import 'widget_editor.dart';
 import 'widgets.dart';
@@ -267,6 +268,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 if (_canEdit(d)) const PopupMenuItem(value: 'delete', child: Text('Usuń pulpit')),
               ],
             ),
+          if (_withAccount && Services.of(context).cloud.available && widget.session?.current != null)
+            NotificationsButton(store: Services.of(context).cloud.store, homeId: widget.session!.current!.id),
           if (_withAccount)
             IconButton(
               key: const Key('watchDashboard'),

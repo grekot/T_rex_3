@@ -6,12 +6,17 @@ import '../data/device_store.dart';
 import '../data/thermostat_connection.dart';
 import '../models/device_type.dart';
 import 'format.dart';
+import '../controllers/device_hub.dart';
 import 'generic_device_screen.dart';
+import 'hub_screen.dart';
 import 'thermostat_screen.dart';
 
 /// Kafelek urządzenia na ekranie „Dom” - wygląd zależy od typu (kontrakt pkt 0).
 class DeviceTile extends StatelessWidget {
-  const DeviceTile({super.key, required this.device, required this.controller, this.onLongPress});
+  const DeviceTile({super.key, required this.device, required this.controller, this.onLongPress, this.hub});
+
+  /// Urządzenia domu (ekran huba).
+  final DeviceHub? hub;
 
   final PairedDevice device;
 
@@ -28,17 +33,21 @@ class DeviceTile extends StatelessWidget {
       builder: (context, _) => switch (c) {
         final ThermostatController t => _ThermostatTile(controller: t, onLongPress: onLongPress),
         final LightController l => _LightTile(controller: l, onLongPress: onLongPress),
-        _ => _GenericTile(controller: c, onLongPress: onLongPress),
+        _ => _GenericTile(controller: c, onLongPress: onLongPress, hub: hub),
       },
     );
   }
 }
 
-/// Szczegóły urządzenia: termostat - jego ekran, inne typy - ekran z `describe`.
-Future<void> openDevice(BuildContext context, DeviceController<Object?, Object?> c) =>
+/// Szczegóły urządzenia: termostat - jego ekran, hub - ekran huba (z [hub]), inne typy - ekran z `describe`.
+Future<void> openDevice(BuildContext context, DeviceController<Object?, Object?> c, {DeviceHub? hub}) =>
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => c is ThermostatController ? ThermostatScreen(controller: c) : GenericDeviceScreen(controller: c),
+        builder: (_) => c is ThermostatController
+            ? ThermostatScreen(controller: c)
+            : c.device.type == DeviceType.hub && hub != null
+            ? HubScreen(controller: c, hub: hub)
+            : GenericDeviceScreen(controller: c),
       ),
     );
 
@@ -209,10 +218,11 @@ class _LightTile extends StatelessWidget {
 
 /// Typ bez własnego kafelka: nazwa i pierwszy punkt z `describe`; dotknięcie - szczegóły.
 class _GenericTile extends StatelessWidget {
-  const _GenericTile({required this.controller, this.onLongPress});
+  const _GenericTile({required this.controller, this.onLongPress, this.hub});
 
   final DeviceController<Object?, Object?> controller;
   final VoidCallback? onLongPress;
+  final DeviceHub? hub;
 
   @override
   Widget build(BuildContext context) {
@@ -220,11 +230,17 @@ class _GenericTile extends StatelessWidget {
     return _TileFrame(
       tileKey: Key('tile-${c.device.id}'),
       title: c.device.name,
-      icon: const Icon(Icons.developer_board),
+      icon: Icon(c.device.type == DeviceType.hub ? Icons.device_hub : Icons.developer_board),
       status: _statusLine(c),
-      onTap: () => openDevice(context, c),
+      onTap: () => openDevice(context, c, hub: hub),
       onLongPress: onLongPress,
-      child: Text(c.device.type.label, style: Theme.of(context).textTheme.bodySmall),
+      child: Text(
+        c.device.type == DeviceType.hub && c.stateJson != null
+            ? 'Hub · ${c.stateJson!['online'] ?? 0}/${c.stateJson!['devices'] ?? 0} urządzeń'
+                  '${c.stateJson!['cloud'] == true ? '' : ' · bez chmury'}'
+            : c.device.type.label,
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
     );
   }
 }

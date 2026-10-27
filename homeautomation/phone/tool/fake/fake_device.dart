@@ -208,8 +208,12 @@ abstract class FakeDevice {
       ..post('/api/ota', _auth(_otaPost, 'config'))
       ..get('/api/ota', _auth((req) => _json(_ota)))
       ..get('/ws', _ws);
+    _extraRoutes(r);
     return r;
   }
+
+  /// Dodatkowe API danego typu (hub, pkt 11).
+  void _extraRoutes(Router r) {}
 
   Middleware _cors() =>
       (inner) => (req) async {

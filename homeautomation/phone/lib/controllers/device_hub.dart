@@ -115,6 +115,19 @@ class DeviceHub extends ChangeNotifier {
     unawaited(load());
   }
 
+  /// Huby domu z połączonym kontrolerem.
+  List<DeviceController<Object?, Object?>> get hubs => [
+    for (final d in devices)
+      if (d.type == DeviceType.hub && _controllers[d.id] != null) _controllers[d.id]!,
+  ];
+
+  /// Po zapisie scen / automatyk w chmurze: Set `{"reload":true}` - hub pobiera je od razu (pkt 11).
+  Future<void> reloadHubs() async {
+    for (final c in hubs) {
+      if (c.canConfig) await c.sendJson({'reload': true});
+    }
+  }
+
   /// Uruchamia scenę (pkt 4.6): z hubem - polecenie `runScene` do huba (wykonuje ją hub), bez huba -
   /// aplikacja wysyła akcje po kolei, każde urządzenie sprawdza moje uprawnienia. Zwraca problemy.
   Future<List<String>> runScene(Scene scene, {Duration maxDelay = const Duration(seconds: 60)}) async {
@@ -146,6 +159,8 @@ class DeviceHub extends ChangeNotifier {
           break;
         }
         await Future<void>.delayed(Duration(seconds: a.delay!));
+      } else if (a.notify != null) {
+        problems.add('Powiadomienie „${a.notify}” wysyła tylko hub.');
       } else if (a.scene != null) {
         final inner = this.scene(a.scene!);
         if (inner == null || depth >= 3) {
