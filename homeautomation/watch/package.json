@@ -1,0 +1,19 @@
+{
+  "name": "homeautomation",
+  "version": "1.0.0",
+  "description": "Dom (HomeAutomation) - podgląd i sterowanie urządzeniami domowymi przez Firebase, aplikacja Zepp OS na Amazfit T-Rex 3",
+  "main": "app.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node test/firebase.test.mjs && node test/termostat.test.mjs && node test/devices.test.mjs && node test/home.test.mjs && node test/layout.test.mjs && node test/cloud.test.mjs",
+    "configure": "node tools/configure_watch.mjs",
+    "assets": "python tools/gen_assets.py"
+  },
+  "devDependencies": {
+    "@zeppos/device-types": "^3.0.0"
+  },
+  "dependencies": {
+    "@zeppos/zml": "^0.0.9"
+  }
+}
