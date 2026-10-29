@@ -10,6 +10,7 @@ import '../models/device_type.dart';
 import '../models/home.dart';
 import '../models/scene.dart';
 import '../services.dart';
+import 'app_icons.dart';
 import 'dashboard_tiles.dart';
 import 'point_controls.dart';
 import 'widgets.dart';
@@ -81,6 +82,12 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
   bool _wholeThermostat = false;
   WidgetView _view = WidgetView.value;
   WidgetSize _size = WidgetSize.s1x1;
+
+  /// Wybrana ikona; null = domyślna.
+  String? _icon;
+
+  String get _defaultIcon =>
+      widgetIconKey(view: _view, point: _wholeThermostat ? null : _point?.key, type: _device?.type);
   final _label = TextEditingController();
 
   @override
@@ -129,6 +136,7 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
         device: _device!.id,
         point: _wholeThermostat ? null : _point!.key,
         label: label.isEmpty ? null : label,
+        icon: _icon,
       ),
     );
   }
@@ -242,7 +250,20 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
           const SizedBox(height: 8),
           SizeChooser(value: _size, onChanged: (s) => setState(() => _size = s)),
         ],
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
+        ListTile(
+          key: const Key('widgetIcon'),
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(appIcon(_icon ?? _defaultIcon)?.icon),
+          title: const Text('Ikona'),
+          subtitle: Text(appIcon(_icon ?? _defaultIcon)?.label ?? ''),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () async {
+            final key = await pickAppIcon(context, current: _icon, defaultKey: _defaultIcon);
+            if (key != null) setState(() => _icon = key.isEmpty ? null : key);
+          },
+        ),
+        const SizedBox(height: 8),
         TextField(
           key: const Key('widgetLabel'),
           controller: _label,

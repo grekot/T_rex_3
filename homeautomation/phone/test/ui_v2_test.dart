@@ -9,6 +9,7 @@ import 'package:homeautomation/app.dart';
 import 'package:homeautomation/data/cloud_access.dart';
 import 'package:homeautomation/data/connection_manager.dart';
 import 'package:homeautomation/data/dashboard_store.dart';
+import 'package:homeautomation/data/device_icons.dart';
 import 'package:homeautomation/data/device_store.dart';
 import 'package:homeautomation/data/discovery.dart';
 import 'package:homeautomation/data/pairing.dart';
@@ -29,6 +30,7 @@ import 'package:homeautomation/ui/add_device_screen.dart';
 import 'package:homeautomation/provisioning/prov_qr.dart';
 import 'package:homeautomation/models/dashboard.dart';
 import 'package:homeautomation/ui/main_screen.dart';
+import 'package:homeautomation/ui/app_icons.dart';
 import 'package:homeautomation/ui/device_tiles.dart';
 import 'package:homeautomation/controllers/device_hub.dart';
 import 'package:homeautomation/ui/generic_device_screen.dart' show GenericDeviceScreen;
@@ -240,6 +242,7 @@ void main() {
   });
 
   testWidgets('Urządzenia: kafelki termostatu i światła, przełączenie, nowy pokój i przeniesienie', (tester) async {
+    DeviceIcons.instance = DeviceIcons(cache: MemoryTextCache());
     final store = MemoryDeviceStore();
     await store.saveDevice(const PairedDevice(id: 'termostat-ab12cd', name: 'Salon'));
     await store.saveDevice(const PairedDevice(id: 'swiatlo-1', name: 'Lampa', type: DeviceType.onOff));
@@ -294,6 +297,18 @@ void main() {
     expect(rooms.rooms.values.single.devices, ['swiatlo-1']);
     // Termostat został bez pokoju, lampa jest w kuchni.
     expect(find.text('Bez pokoju'), findsOneWidget);
+
+    // Ikona urządzenia z menu kafelka (domyślna: żarówka).
+    final lampTile = find.byKey(const Key('tile-swiatlo-1'));
+    expect(find.descendant(of: lampTile, matching: find.byIcon(Icons.lightbulb_outline)), findsWidgets);
+    await tester.longPress(lampTile);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('deviceIcon')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('icon-ceiling')));
+    await tester.pumpAndSettle();
+    expect(DeviceIcons.instance.of('swiatlo-1'), 'ceiling');
+    expect(find.descendant(of: lampTile, matching: find.byIcon(Icons.light)), findsOneWidget);
   });
 
   testWidgets('Pulpit: startowy z urządzeń, sterowanie, widżet w 3 krokach, scena', (tester) async {
@@ -358,6 +373,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('pick-mode')));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('widgetIcon')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('icon-ceiling')));
+    await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('widgetLabel')), 'Tryb salonu');
     await tester.tap(find.byKey(const Key('addWidgetDone')));
     await tester.pumpAndSettle();
@@ -393,6 +412,7 @@ void main() {
       WidgetView.scene,
     ]);
     expect(saved.widgets[2].point, 'mode');
+    expect(saved.widgets[2].icon, 'ceiling', reason: 'wybrana ikona w JSON-ie widżetu');
     expect(saved.widgets[3].sceneId, isNotNull, reason: 'widżet wskazuje scenę domu');
 
     // Koniec edycji, uruchomienie sceny.
@@ -416,6 +436,7 @@ void main() {
         'id': 'swiatlo-4', 'channels': 4, 'inputs': 8, 'on': false,
         for (var i = 1; i <= 4; i++) 'on$i': false,
         for (var k = 1; k <= 8; k++) 'in$k': false,
+        'in3Fault': true,
       },
       {
         'name': 'Parter', 'channels': 4, 'inputs': 8,
@@ -435,6 +456,11 @@ void main() {
     await tester.pumpWidget(_app(store: store, manager: manager, home: GenericDeviceScreen(controller: c)));
     await tester.pumpAndSettle();
 
+    expect(find.byKey(const Key('inputFaultBanner')), findsOneWidget);
+    expect(find.textContaining('Wejście 3 (Wejście 3): usterka przewodu'), findsOneWidget);
+
+    await tester.ensureVisible(find.byKey(const Key('point-on2')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('point-on2')));
     await tester.pumpAndSettle();
     expect(conn.sent.last, {'on2': true});
@@ -571,5 +597,18 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     hub.dispose();
+  });
+
+  test('ikony: unikalne klucze, domyślne dla punktów i typów, JSON widżetu', () {
+    expect(appIcons.map((i) => i.key).toSet().length, appIcons.length);
+    expect(widgetIconKey(view: WidgetView.toggle, point: 'on2'), 'light');
+    expect(widgetIconKey(view: WidgetView.status, point: 'in3'), 'button');
+    expect(widgetIconKey(view: WidgetView.value, point: 'temp'), 'temperature');
+    expect(widgetIconKey(view: WidgetView.thermostat), 'thermostat');
+    expect(widgetIconKey(view: WidgetView.value, point: 'devices', type: DeviceType.hub), 'hub');
+    expect(deviceIconKey(DeviceType.onOff), 'light');
+    const w = DashWidget(id: 'w1', view: WidgetView.toggle, device: 'd', point: 'on', icon: 'ceiling');
+    expect(DashWidget.fromJson(w.toJson()).icon, 'ceiling');
+    expect(w.copyWith(clearIcon: true).toJson().containsKey('icon'), isFalse);
   });
 }

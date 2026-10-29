@@ -45,6 +45,7 @@ class DashWidget {
     this.point,
     this.label,
     this.sceneId,
+    this.icon,
   });
 
   final String id;
@@ -59,9 +60,12 @@ class DashWidget {
   /// Scena `homes/{h}/scenes/{id}` (widok `scene`).
   final String? sceneId;
 
+  /// Wybrana ikona (klucz z katalogu aplikacji, np. `ceiling`); null = domyślna dla punktu / urządzenia.
+  final String? icon;
+
   bool get isScene => view == WidgetView.scene;
 
-  DashWidget copyWith({WidgetSize? size, String? label}) => DashWidget(
+  DashWidget copyWith({WidgetSize? size, String? label, String? icon, bool clearIcon = false}) => DashWidget(
     id: id,
     view: view,
     size: size ?? this.size,
@@ -69,6 +73,7 @@ class DashWidget {
     point: point,
     label: label ?? this.label,
     sceneId: sceneId,
+    icon: clearIcon ? null : icon ?? this.icon,
   );
 
   factory DashWidget.fromJson(Json j) => DashWidget(
@@ -79,6 +84,7 @@ class DashWidget {
     point: asStringOrNull(j['point'], 'point'),
     label: asStringOrNull(j['label'], 'label'),
     sceneId: asStringOrNull(j['sceneId'], 'sceneId'),
+    icon: asStringOrNull(j['icon'], 'icon'),
   );
 
   Json toJson() => {
@@ -89,6 +95,7 @@ class DashWidget {
     'point': ?point,
     'label': ?label,
     'sceneId': ?sceneId,
+    'icon': ?icon,
   };
 }
 

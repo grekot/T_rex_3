@@ -94,6 +94,11 @@ class _GenericDeviceScreenState extends State<GenericDeviceScreen> {
     );
   }
 
+  String? _inputName(int k) {
+    final cfg = c.config;
+    return cfg is LightConfig && k <= cfg.inputs.length ? cfg.inputs[k - 1].name : null;
+  }
+
   Widget _body(BuildContext context, Json state) {
     final cs = Theme.of(context).colorScheme;
     return ListView(
@@ -101,6 +106,26 @@ class _GenericDeviceScreenState extends State<GenericDeviceScreen> {
       children: [
         RouteChip(controller: c),
         if (!c.canControl) const AccessBanner(text: 'Masz tylko podgląd tego urządzenia.'),
+        if (c.state case LightState(inputFaults: final faults) when faults.isNotEmpty)
+          Card(
+            key: const Key('inputFaultBanner'),
+            color: cs.errorContainer,
+            child: ListTile(
+              leading: Icon(Icons.warning_amber_rounded, color: cs.onErrorContainer),
+              title: Text(
+                [
+                  for (final k in faults)
+                    'Wejście $k${_inputName(k) == null ? '' : ' (${_inputName(k)})'}: usterka przewodu - zablokowane',
+                ].join('\n'),
+                style: TextStyle(color: cs.onErrorContainer),
+              ),
+              subtitle: Text(
+                'Ponad 30 zmian w 5 s (przerwany przewód albo zakłócenia). Wejście nie przełącza światła; '
+                'wróci samo po minucie spokoju.',
+                style: TextStyle(color: cs.onErrorContainer),
+              ),
+            ),
+          ),
         FutureBuilder<DeviceDescription?>(
           future: _describe,
           builder: (context, snap) {
@@ -144,7 +169,12 @@ class _GenericDeviceScreenState extends State<GenericDeviceScreen> {
           ),
         if (c.device.type.isLight && c.canConfig)
           if (c.config case LightConfig(channels: final ch, inputs: final ins) when ch.isNotEmpty || ins.isNotEmpty)
-            _ChannelsSection(controller: c, channels: ch, inputs: ins)
+            _ChannelsSection(
+              controller: c,
+              channels: ch,
+              inputs: ins,
+              faults: c.state is LightState ? (c.state! as LightState).inputFaults : const {},
+            )
           else
             _DefaultOnSection(controller: c),
         DeviceAdminSection(
@@ -188,11 +218,19 @@ class _DefaultOnSection extends StatelessWidget {
 /// Przełącznik wielokanałowy z wejściami (pkt 10.1): kanały (nazwa, stan po zaniku zasilania) i wejścia
 /// zwierane do masy (nazwa, tryb, kanał, który przełączają - lokalnie w węźle, bez sieci).
 class _ChannelsSection extends StatelessWidget {
-  const _ChannelsSection({required this.controller, required this.channels, this.inputs = const []});
+  const _ChannelsSection({
+    required this.controller,
+    required this.channels,
+    this.inputs = const [],
+    this.faults = const {},
+  });
 
   final DeviceController<Object?, Object?> controller;
   final List<ChannelConfig> channels;
   final List<InputConfig> inputs;
+
+  /// Wejścia z usterką (`inNFault`).
+  final Set<int> faults;
 
   String _target(int out) =>
       out <= 0 || out > channels.length ? 'nic (tylko stan dla huba)' : 'kanał $out: ${channels[out - 1].name}';
@@ -239,9 +277,16 @@ class _ChannelsSection extends StatelessWidget {
         for (final (i, x) in inputs.indexed)
           ListTile(
             key: Key('input-${i + 1}'),
-            leading: Icon(x.mode == InputMode.momentary ? Icons.radio_button_checked : Icons.toggle_on_outlined),
+            leading: faults.contains(i + 1)
+                ? Icon(Icons.warning_amber_rounded, color: Theme.of(context).colorScheme.error)
+                : Icon(x.mode == InputMode.momentary ? Icons.radio_button_checked : Icons.toggle_on_outlined),
             title: Text(x.name),
-            subtitle: Text('${x.mode.label} · steruje: ${_target(x.out)}'),
+            subtitle: Text(
+              faults.contains(i + 1)
+                  ? 'Usterka przewodu - zablokowane · ${x.mode.label}'
+                  : '${x.mode.label} · steruje: ${_target(x.out)}',
+              style: faults.contains(i + 1) ? TextStyle(color: Theme.of(context).colorScheme.error) : null,
+            ),
             trailing: const Icon(Icons.edit_outlined),
             onTap: () => _editInput(context, i + 1, x),
           ),

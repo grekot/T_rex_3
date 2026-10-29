@@ -315,6 +315,10 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
 
   void _snack(String t) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t)));
 
+  /// Własny węzeł ma nazwę w swoim Config - hub w `GET /api/devices` podaje tę z chwili przypisania, więc
+  /// bierzemy bieżącą znaną aplikacji (inaczej po zmianie nazwy trzeba by przypisywać od nowa).
+  String _name(HubChild d) => (d.adapter == HubAdapter.ownNode ? widget.hub.device(d.id)?.name : null) ?? d.label;
+
   CloudAccess get _cloud => Services.of(context).cloud;
 
   bool get _canLink => _cloud.available && _cloud.isHomeOwner && _cloud.homeId != null;
@@ -327,8 +331,8 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
       return;
     }
     try {
-      await writeDeviceIndex(_cloud.store, _cloud.homeId!, d.id, DeviceType.fromWire(type), d.label, via: _hubId);
-      _snack('Zapisano. Hub połączy „${d.label}” z chmurą w ciągu 5 minut.');
+      await writeDeviceIndex(_cloud.store, _cloud.homeId!, d.id, DeviceType.fromWire(type), _name(d), via: _hubId);
+      _snack('Zapisano. Hub połączy „${_name(d)}” z chmurą w ciągu 5 minut.');
       await widget.hub.load();
     } on Object catch (e) {
       _snack('Nie zapisano: $e');
@@ -339,7 +343,7 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Usunąć „${d.label}” z huba?'),
+        title: Text('Usunąć „${_name(d)}” z huba?'),
         content: const Text('Hub przestanie nim sterować, a automatyki z tym urządzeniem przestaną działać.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Anuluj')),
@@ -449,7 +453,7 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
                           d.type == 'sensor' ? Icons.sensors : Icons.lightbulb_outline,
                           color: d.online ? null : cs.outline,
                         ),
-                        title: Text(d.label),
+                        title: Text(_name(d)),
                         subtitle: Text(
                           [
                             d.adapter.label,

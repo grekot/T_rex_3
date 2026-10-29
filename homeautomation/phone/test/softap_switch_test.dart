@@ -194,6 +194,16 @@ void main() {
       fake.press(4);
       st = LightState.fromJson(await api.stateJson());
       expect((st.inputs[3], st.channelOn[3]), (true, true), reason: 'łącznik „położenie”: kanał = wejście');
+
+      // Usterka wejścia (inNFault): wejście zablokowane, pole w State, brak pola = sprawne.
+      fake.setInputFault(2, true);
+      final before2 = LightState.fromJson(await api.stateJson()).channelOn[2];
+      fake.press(2);
+      st = LightState.fromJson(await api.stateJson());
+      expect(('${st.inputFaults}', st.channelOn[2]), ('{2}', before2));
+      expect(st.toJson()['in2Fault'], isTrue);
+      fake.setInputFault(2, false);
+      expect(LightState.fromJson(await api.stateJson()).inputFaults, isEmpty);
     });
 
     test('poziom control wystarcza dla onN / toggleN, nie dla chN', () async {

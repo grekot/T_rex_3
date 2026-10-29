@@ -74,6 +74,14 @@ repozytorium trzeba najpierw uruchomić `node tools/configure.mjs`.
 - **Widżety**: siatka 2 kolumn, rozmiary `1x1`, `2x1`, `2x2`. Widoki: `value`, `toggle`, `slider`, `stepper`, `status`,
   `chart` (historia z `history` w chmurze, ostatnie 24 h), `thermostat` (temperatura, nastawa − / +, grzanie), `scene`.
   Widżet urządzenia bez dostępu jest wyszarzony z kłódką, kontrolki ponad mój poziom są nieaktywne.
+- **Ikony**: każdy widżet ma ikonę przed nazwą - domyślną z punktu danych i typu urządzenia (np. kanał `on2` -
+  żarówka, `in3` - przycisk, `temp` - termometr, scena - gwiazdki) albo wybraną z katalogu (~60 ikon w grupach:
+  oświetlenie, ogrzewanie, sprzęty, miejsca, czujniki, sceny, urządzenia; `lib/ui/app_icons.dart`). Wybór: krok
+  „wygląd” przy dodawaniu albo menu widżetu → **Ikona**; zapis w JSON-ie widżetu jako `"icon":"<klucz>"`.
+  Urządzenia (węzły) mają ikonę na kafelku - domyślną dla typu albo wybraną (przytrzymanie kafelka → **Ikona**).
+  W domu w chmurze ikona urządzenia jest w `homes/{h}/deviceIndex/{id}/icon` - wspólna dla domowników i zegarka,
+  zmienia ją tylko właściciel (domownik nie ma opcji **Ikona**); bez konta - w telefonie. Widżety całego
+  urządzenia (termostat, `on`) biorą ikonę urządzenia; kolejność: ikona widżetu → urządzenia → domyślna.
 - **Tryb edycji** (ołówek): przeciąganie za uchwyt, menu widżetu (rozmiar, podpis, usunięcie), **+ Widżet** w 3 krokach:
   urządzenie → punkt danych z `GET /api/describe` (w chmurze `devices/{id}/describe`; gdy urządzenie milczy - znane
   pola wg typu) → wygląd, rozmiar i podpis.
@@ -113,6 +121,8 @@ Ikona zegarka na pasku pulpitu (tylko z kontem). Osobny od pulpitów telefonu, d
     kafelek steruje wszystkimi kanałami (`on` / `toggle`) i pokazuje „Włączone: 2 z 4”; w szczegółach przełącznik
     na każdy kanał i stany wejść (z `describe`), a w sekcjach **Kanały** (nazwa, stan po zaniku zasilania) i
     **Wejścia** (nazwa, tryb: przycisk / łącznik - każda zmiana / łącznik - położenie, steruje kanałem: brak / 1-N);
+    usterka wejścia (`inNFault`: ponad 30 zmian w 5 s, wejście zablokowane, samo wraca po 60 s) - ostrzeżenie na
+    kafelku („Usterka wejścia 2”), baner na ekranie urządzenia i oznaczone wejście; atrapa: klawisze `x1`…`x8`;
   - inne typy: szczegóły zbudowane z `describe` (lista punktów z kontrolkami wg rodzaju i poziomu dostępu);
   - typ nieobsługiwany (np. hub): kafelek informacyjny.
 - **Pokoje** (`homes/{h}/rooms/{roomId}` `{"name","order","devices":[…]}`, pkt 8.3), zmienia je właściciel domu:

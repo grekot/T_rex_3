@@ -11,6 +11,7 @@ import '../models/device_type.dart';
 import '../models/scene.dart';
 import '../services.dart';
 import 'account_menu.dart';
+import 'app_icons.dart';
 import 'dashboard_tiles.dart';
 import 'notifications_screen.dart';
 import 'watch_screen.dart';
@@ -192,10 +193,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 point: w.point,
                 label: label.trim().isEmpty ? null : label.trim(),
                 sceneId: w.sceneId,
+                icon: w.icon,
               ),
             ),
           ),
         );
+      case 'icon':
+        final key = await pickAppIcon(
+          context,
+          current: w.icon,
+          defaultKey: widgetIconKey(view: w.view, point: w.point, type: widget.hub.device(w.device ?? '')?.type),
+        );
+        if (key == null) return;
+        await _save(d.copyWith(widgets: replace(key.isEmpty ? w.copyWith(clearIcon: true) : w.copyWith(icon: key))));
       case 'scene':
         final scene = widget.hub.scene(w.sceneId ?? '');
         await Navigator.of(
@@ -381,7 +391,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ListTile(
             key: ValueKey(w.id),
             leading: ReorderableDragStartListener(index: i, child: const Icon(Icons.drag_handle)),
-            title: Text(_widgetTitle(w)),
+            title: Row(
+              children: [
+                Icon(dashWidgetIcon(w, widget.hub), size: 18),
+                const SizedBox(width: 6),
+                Expanded(child: Text(_widgetTitle(w))),
+              ],
+            ),
             subtitle: Text(
               [
                 if (!w.isScene) widget.hub.device(w.device ?? '')?.name ?? 'urządzenie niedostępne',
@@ -403,6 +419,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 if (w.isScene && widget.hub.canEditShared && widget.hub.scene(w.sceneId ?? '') != null)
                   const PopupMenuItem(value: 'scene', child: Text('Edytuj scenę')),
                 const PopupMenuItem(value: 'label', child: Text('Podpis')),
+                const PopupMenuItem(value: 'icon', child: Text('Ikona')),
                 const PopupMenuItem(value: 'delete', child: Text('Usuń')),
               ],
             ),

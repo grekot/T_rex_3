@@ -38,6 +38,15 @@ class FakeLight extends FakeDevice {
 
   /// Wejścia: stan (zwarte) i ustawienia; domyślnie przycisk, wejścia k i k+N → kanał k.
   late final inDown = List<bool>.filled(inputs, false);
+
+  /// Wejścia z usterką (`inNFault`, ponad 30 zmian w 5 s) - zablokowane.
+  final inFault = <int>{};
+
+  /// Symulacja usterki przewodu wejścia [k] (włącza / wyłącza).
+  void setInputFault(int k, bool fault) {
+    fault ? inFault.add(k) : inFault.remove(k);
+    _broadcastState();
+  }
   late final inCfg = [
     for (var k = 1; k <= inputs; k++)
       <String, Object>{'name': 'Wejście $k', 'mode': 'momentary', 'out': (k - 1) % channels + 1},
@@ -67,6 +76,7 @@ class FakeLight extends FakeDevice {
           'on': chOn.contains(true),
           for (var i = 0; i < channels; i++) 'on${i + 1}': chOn[i],
           for (var k = 0; k < inputs; k++) 'in${k + 1}': inDown[k],
+          for (final k in inFault) 'in${k}Fault': true,
           'wifiRssi': -60,
           'uptime': DateTime.now().difference(_started).inSeconds,
         }
@@ -137,6 +147,8 @@ class FakeLight extends FakeDevice {
   void press([int k = 1]) {
     if (!multi) {
       on = !on;
+    } else if (inFault.contains(k)) {
+      // zablokowane - nic się nie dzieje
     } else {
       final cfg = inCfg[k - 1];
       final out = cfg['out'] as int;
