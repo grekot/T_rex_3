@@ -19,7 +19,8 @@ const HINT = { fontSize: "12px", color: "#888", marginTop: "6px" };
 const WATCH_ACCOUNT_HINT =
   "Zalecane osobne konto dla zegarka (domownik z poziomem „sterowanie”) – utworzysz je w aplikacji " +
   "HomeAutomation: Domownicy → Konto dla zegarka. Wtedy zegarek nie trzyma dostępu do Twojego głównego " +
-  "konta (Zakupy, Waga i inne aplikacje).";
+  "konta (Zakupy, Waga i inne aplikacje). Pulpit zegarka aplikacja kopiuje na to konto; po zmianach pulpitu " +
+  "powtórz tam zapis.";
 
 const BUTTON = {
   fontSize: "14px",
@@ -74,9 +75,8 @@ AppSettingsPage({
     const header = [
       Text({ style: { fontSize: "18px", fontWeight: "bold", marginBottom: "8px" } }, ["Dom – konto"]),
       Text({ style: { fontSize: "13px", color: "#555", marginBottom: "8px" } }, [
-        "Zaloguj się kontem, którym urządzenia domu są połączone z chmurą (to samo co w aplikacji HomeAutomation " +
-          "na telefonie, Zakupach i Na szczycie). Zegarek pokazuje urządzenia, zmienia nastawę termostatu i włącza światła przez " +
-          "internet, także spoza domu.",
+        "Zaloguj się kontem dla zegarka (zalecane) albo kontem z aplikacji HomeAutomation. Zegarek pokazuje " +
+          "urządzenia, zmienia nastawę termostatu i włącza światła przez internet, także spoza domu.",
       ]),
       Text({ style: { fontSize: "14px", color: auth ? "#2e7d32" : "#555", marginBottom: "12px" } }, [status]),
       View({ style: { ...CARD, backgroundColor: "#fff8e1", border: "1px solid #ffe0a3" } }, [
