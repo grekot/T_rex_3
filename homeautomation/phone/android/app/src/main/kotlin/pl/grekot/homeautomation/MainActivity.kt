@@ -1,9 +1,12 @@
 package pl.grekot.homeautomation
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.net.Uri
 import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
 import android.os.PatternMatcher
@@ -13,6 +16,7 @@ import io.flutter.plugin.common.MethodChannel
 
 /// Kanał `pl.grekot.homeautomation/wifi`: łączenie z siecią konfiguracyjną urządzenia `HA_<id>`
 /// (kontrakt pkt 9.4) bez internetu i kierowanie ruchu aplikacji przez nią (`bindProcessToNetwork`).
+/// Kanał `pl.grekot.homeautomation/links`: otwarcie adresu w innej aplikacji (np. `ntfy://` - pkt 3d).
 class MainActivity : FlutterActivity() {
     private var callback: ConnectivityManager.NetworkCallback? = null
 
@@ -32,6 +36,22 @@ class MainActivity : FlutterActivity() {
                         result.success(null)
                     }
                     else -> result.notImplemented()
+                }
+            }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pl.grekot.homeautomation/links")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "open") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                val url = call.argument<String>("url")
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    result.success(true)
+                } catch (_: ActivityNotFoundException) {
+                    result.success(false)
+                } catch (_: Exception) {
+                    result.success(false)
                 }
             }
     }

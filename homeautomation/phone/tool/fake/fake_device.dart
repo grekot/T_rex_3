@@ -91,6 +91,10 @@ abstract class FakeDevice {
     final errors = <String, String>{};
     final allowed = <String, dynamic>{};
     for (final e in v.entries) {
+      if (e.key == 'notify' && level == 'config') {
+        errors.addAll(_applyNotify(e.value));
+        continue;
+      }
       final ok =
           level == 'config' ||
           (level == 'control' && (controlKeys.contains(e.key) || RegExp(r'^(on|toggle)\d+$').hasMatch(e.key)));
@@ -101,6 +105,51 @@ abstract class FakeDevice {
       }
     }
     return {...errors, ...applySet(allowed)};
+  }
+
+  /// Powiadomienia ntfy (pkt 3d) - wspólne dla wszystkich typów; próbne tylko liczone w [notifyTests].
+  bool notifyEnabled = false;
+  String notifyServer = 'https://ntfy.sh';
+  late String notifyTopic = 'ha-${_hex(8)}';
+  String? notifyToken;
+  int notifyTests = 0;
+
+  Map<String, dynamic> get _notifyJson => {
+    'enabled': notifyEnabled,
+    'ntfyServer': notifyServer,
+    'ntfyTopic': notifyTopic,
+    'ntfyTokenSet': notifyToken != null,
+  };
+
+  /// Config typu + `notify`.
+  Map<String, dynamic> _fullConfig() => {...configJson(), 'notify': _notifyJson};
+
+  Map<String, String> _applyNotify(Object? v) {
+    if (v is! Map) return {'notify': 'type'};
+    final errors = <String, String>{};
+    final enabled = v['enabled'], topic = v['ntfyTopic'], token = v['ntfyToken'], server = v['ntfyServer'];
+    if (enabled != null && enabled is! bool) errors['notify.enabled'] = 'type';
+    if (topic != null &&
+        (topic is! String || (topic.isNotEmpty && !RegExp(r'^[A-Za-z0-9_-]{1,64}$').hasMatch(topic)))) {
+      errors['notify.ntfyTopic'] = topic is String ? 'format' : 'type';
+    }
+    if (token != null && (token is! String || token.length > 128)) {
+      errors['notify.ntfyToken'] = token is String ? 'length' : 'type';
+    }
+    if (server != null && (server is! String || (server.isNotEmpty && !server.startsWith('https://')))) {
+      errors['notify.ntfyServer'] = server is String ? 'format' : 'type';
+    }
+    if (errors.isNotEmpty) return errors;
+    if (enabled is bool) notifyEnabled = enabled;
+    if (topic is String) notifyTopic = topic.isEmpty ? 'ha-${_hex(8)}' : topic;
+    if (token is String) notifyToken = token.isEmpty ? null : token;
+    if (server is String) notifyServer = server.isEmpty ? 'https://ntfy.sh' : server;
+    if (v['test'] == true && notifyEnabled) {
+      notifyTests++;
+      this.log('ntfy: próbne powiadomienie na $notifyServer/$notifyTopic');
+    }
+    _broadcastConfig();
+    return const {};
   }
 
   bool _paired = false;
@@ -194,7 +243,7 @@ abstract class FakeDevice {
       ..post('/api/pair/start', _pairStart)
       ..post('/api/pair/confirm', _pairConfirm)
       ..get('/api/state', _auth((req) => _json(stateJson())))
-      ..get('/api/config', _auth((req) => _json(configJson())))
+      ..get('/api/config', _auth((req) => _json(_fullConfig())))
       ..post('/api/set', _auth(_httpSet))
       ..get('/api/describe', _auth((req) => _json(describeJson())))
       ..get('/api/me', _auth(_me))
@@ -376,7 +425,7 @@ abstract class FakeDevice {
       'ok': errors.isEmpty,
       'errors': errors,
       'state': stateJson(),
-      'config': configJson(),
+      'config': _fullConfig(),
     }, status: errors.isEmpty ? 200 : 400);
   }
 
@@ -493,7 +542,7 @@ abstract class FakeDevice {
       _clients.add(ws);
       _wsPhone[ws] = phone;
       log('WS: klient połączony (${_clients.length})');
-      ws.sink.add(jsonEncode({'type': 'config', 'data': configJson()}));
+      ws.sink.add(jsonEncode({'type': 'config', 'data': _fullConfig()}));
       ws.sink.add(jsonEncode({'type': 'state', 'data': stateJson()}));
       ws.stream.listen(
         (raw) => _onWsMessage(ws, raw),
@@ -535,7 +584,7 @@ abstract class FakeDevice {
 
   void _broadcastState() => _broadcast({'type': 'state', 'data': stateJson()});
 
-  void _broadcastConfig() => _broadcast({'type': 'config', 'data': configJson()});
+  void _broadcastConfig() => _broadcast({'type': 'config', 'data': _fullConfig()});
 
   String _hex(int bytes) {
     final r = Random.secure();

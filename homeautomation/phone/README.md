@@ -106,6 +106,12 @@ Ikona zegarka na pasku pulpitu (tylko z kontem). Osobny od pulpitów telefonu, d
   Układ to port 1:1 `watch/utils/layout.js` (wiersze 88/186 px, odstęp 10, nagłówek 40, start 92; na okrągłym
   szerokość wiersza = cięciwa w miejscu, gdzie wiersz da się przewinąć najbliżej środka, minus 14 px, 220-400 px).
   Test `watch_test.dart` porównuje wynik z `layout.js`.
+- **Konto dla zegarka** (Domownicy, właściciel; `PRZEGLAD.md` #9): aplikacja Dom w Zepp trzyma refresh token konta,
+  a główne konto otwiera też Zakupy, Wagę itd. Ekran zakłada osobne konto e-mail (podpowiedź `ja+zegarek@…`) w drugiej
+  instancji Firebase - telefon zostaje zalogowany głównym kontem - i dołącza je do domu jednorazowym kodem (10 min,
+  `_all: control`, potem kod skasowany). Pulpit zegarka jest prywatny (`users/{uid}/watchDashboards`), więc kopia
+  idzie pod konto zegarka; po zmianach pulpitu wystarczy powtórzyć zapis (ten sam e-mail i hasło - konto już jest
+  domownikiem, odświeża się poziom i pulpit). Hasła telefon nie zapamiętuje. Bez zmian w regułach bazy.
 
 ## Urządzenia i pokoje
 
@@ -247,6 +253,12 @@ W ustawieniach urządzenia (sekcja „Urządzenie”, tylko w sieci domowej): **
   dotknięcie - ręczna zmiana poziomu (`PATCH`, np. bez chmury; przy chmurze urządzenie bierze poziom domownika
   z `access`); usunięcie unieważnia token; **Token** - nowy token bez parowania dla huba albo skryptu (`POST`),
   pokazany raz;
+- **Powiadomienia na telefon** (pkt 3d, `config`, w domu): urządzenie samo wysyła alarm przez ntfy (awaria czujnika,
+  mróz, nieudana aktualizacja, akcje automatyk huba) - od razu, bez czekania na WorkManager. Ekran: włącz/wyłącz,
+  temat (kopiuj adres), **Subskrybuj w ntfy** (`ntfy://<serwer>/<temat>`, bez aplikacji ntfy - strona tematu, potem
+  adres do schowka), **Wyślij próbne**, nowy losowy temat, własny serwer i token (tokenu urządzenie nie zwraca).
+  Linki otwiera kanał natywny `pl.grekot.homeautomation/links` (MainActivity.kt, AppDelegate.swift) - bez wtyczki.
+  Starszy firmware bez `notify` w Config - komunikat o aktualizacji;
 - identyfikator, typ, czas pracy, mój dostęp.
 
 Administracja (chmura, WiFi, OTA, telefony) wymaga poziomu `config` i połączenia w sieci domowej.
@@ -353,6 +365,10 @@ flutter test
 - `home_v2_test.dart`:
   - typy urządzeń, światło na atrapie (wł./wył., jasność, błąd pola, przycisk na żywo), `/api/wifi/reset`;
   - pokoje: układ, przenoszenie, kolejność, zapis w `homes/{h}/rooms`.
+- `notify_test.dart` / `notify_device_test.dart`: powiadomienia ntfy - model, ekran (włączenie, próbne, subskrypcja
+  z zapasową stroną, nowy temat, starszy firmware) i Set `notify` na atrapie (błędy pól, poziom `config`).
+- `watch_account_test.dart`: konto zegarka - dołączenie z `control`, sprzątnięty kod, kopia pulpitu, powtórka,
+  e-mail głównego konta i złe hasło, ekran.
 - `watch_test.dart`: układ kafelków zegarka porównany z `watch/utils/layout.js` (okrągły 480 i 466, prostokątny),
   JSON i zapis pulpitu zegarka, ekran „Zegarek” (model z listy, kafelek, zapis).
 - `softap_switch_test.dart`: SoftAP przez HTTP na serwerze z atrapą provisioningu (ciasteczko sesji, cały przebieg),

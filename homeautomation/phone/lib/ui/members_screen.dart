@@ -8,7 +8,9 @@ import '../controllers/home_session.dart';
 import '../data/device_store.dart';
 import '../data/errors.dart';
 import '../models/home.dart';
+import '../services.dart';
 import 'account_menu.dart';
+import 'watch_account_screen.dart';
 import 'widgets.dart';
 
 /// „Domownicy” (pkt 12, tylko właściciel): lista, poziomy per urządzenie, zaproszenia, usuwanie.
@@ -31,7 +33,9 @@ class _MembersScreenState extends State<MembersScreen> {
 
   Future<void> _invite() async {
     final invite = await Navigator.of(context).push<Invite>(
-      MaterialPageRoute(builder: (_) => InviteScreen(hub: widget.hub, session: widget.session)),
+      MaterialPageRoute(
+        builder: (_) => InviteScreen(hub: widget.hub, session: widget.session),
+      ),
     );
     if (invite != null) setState(() => _invites.add(invite));
   }
@@ -43,8 +47,12 @@ class _MembersScreenState extends State<MembersScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final watchAccounts = Services.of(context).cloud.watchAccounts;
     return Scaffold(
-      appBar: AppBar(title: const Text('Domownicy'), actions: [AccountMenu(session: widget.session)]),
+      appBar: AppBar(
+        title: const Text('Domownicy'),
+        actions: [AccountMenu(session: widget.session)],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: null,
         key: const Key('invite'),
@@ -75,12 +83,29 @@ class _MembersScreenState extends State<MembersScreen> {
                           ),
                         ),
                 ),
+              if (watchAccounts != null)
+                ListTile(
+                  key: const Key('watchAccount'),
+                  leading: const CircleAvatar(child: Icon(Icons.watch)),
+                  title: const Text('Konto dla zegarka'),
+                  subtitle: const Text('Osobne konto domownika dla aplikacji Dom na zegarku'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) =>
+                          WatchAccountScreen(owner: widget.session.repo, homeId: _home.id, accounts: watchAccounts),
+                    ),
+                  ),
+                ),
               if (_invites.isNotEmpty) ...[
                 const SectionHeader('Zaproszenia z tego telefonu'),
                 for (final i in _invites)
                   ListTile(
                     leading: const Icon(Icons.mail_outline),
-                    title: SelectableText(i.code, style: const TextStyle(letterSpacing: 3, fontWeight: FontWeight.bold)),
+                    title: SelectableText(
+                      i.code,
+                      style: const TextStyle(letterSpacing: 3, fontWeight: FontWeight.bold),
+                    ),
                     subtitle: Text('ważne do ${_time(i.expiresAt)} · domyślnie ${i.access.all.label}'),
                     trailing: IconButton(
                       tooltip: 'Usuń zaproszenie',
@@ -141,9 +166,7 @@ class _MemberAccessScreenState extends State<MemberAccessScreen> {
     try {
       await widget.session.repo.setAccess(widget.session.current!.id, widget.member.uid, _access!);
       _dirty = false;
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Zapisano. Urządzenia odświeżają uprawnienia co 5 minut.')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('Zapisano. Urządzenia odświeżają uprawnienia co 5 minut.')));
     } on Object catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Nie zapisano: $e')));
     } finally {
@@ -303,7 +326,11 @@ class _InviteScreenState extends State<InviteScreen> {
                       'Najlepiej daj niższy poziom domyślny i wyższy dla wybranych urządzeń. Później zmienisz to w „Domownicy”.',
                     ),
                   ),
-                  AccessEditor(devices: widget.hub.devices, value: _access, onChanged: (v) => setState(() => _access = v)),
+                  AccessEditor(
+                    devices: widget.hub.devices,
+                    value: _access,
+                    onChanged: (v) => setState(() => _access = v),
+                  ),
                   if (_error != null)
                     Padding(
                       padding: const EdgeInsets.all(16),
@@ -375,7 +402,13 @@ class AccessEditor extends StatelessWidget {
 }
 
 class _LevelDropdown extends StatelessWidget {
-  const _LevelDropdown({super.key, required this.value, required this.onChanged, this.allowNone = false, this.defaultLabel});
+  const _LevelDropdown({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.allowNone = false,
+    this.defaultLabel,
+  });
 
   final AccessLevel? value;
   final ValueChanged<AccessLevel?> onChanged;

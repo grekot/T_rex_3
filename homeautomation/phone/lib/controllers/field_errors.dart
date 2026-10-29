@@ -28,6 +28,12 @@ const fieldLabels = <String, String>{
   'toggle': 'Przełączenie',
   'defaultOn': 'Po zaniku zasilania',
   'firmwareUrl': 'Adres firmware',
+  'notify': 'Powiadomienia',
+  'notify.enabled': 'Powiadomienia',
+  'notify.ntfyTopic': 'Temat ntfy',
+  'notify.ntfyServer': 'Serwer ntfy',
+  'notify.ntfyToken': 'Token ntfy',
+  'notify.test': 'Próbne powiadomienie',
 };
 
 /// Kod błędu pola z termostatu → tekst po polsku.

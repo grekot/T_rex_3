@@ -12,6 +12,7 @@ import 'ble_setup_screen.dart';
 import 'cloud_link_screen.dart';
 import 'firmware_screen.dart';
 import 'hub_screen.dart' show AssignToHubScreen;
+import 'notify_screen.dart';
 import 'phones_screen.dart';
 import 'format.dart';
 import 'widgets.dart';
@@ -135,9 +136,7 @@ class _DeviceAdminSectionState extends State<DeviceAdminSection> {
   /// Zmiany techniczne: tylko w domu (lokalnie) i z poziomem `config`.
   bool get _canAdmin => c.isLocal && c.canConfig;
 
-  String get _adminHint => !c.canConfig
-      ? 'Wymaga pełnego dostępu do urządzenia'
-      : 'Tylko w sieci domowej';
+  String get _adminHint => !c.canConfig ? 'Wymaga pełnego dostępu do urządzenia' : 'Tylko w sieci domowej';
 
   @override
   Widget build(BuildContext context) {
@@ -155,59 +154,59 @@ class _DeviceAdminSectionState extends State<DeviceAdminSection> {
             subtitle: Text('Działa w sieci domowej. Spoza domu będzie dostępne przez hub.'),
           ),
         ] else ...[
-        const SectionHeader('Chmura'),
-        ListTile(
-          leading: Icon(linked ? Icons.cloud_done_outlined : Icons.cloud_off_outlined),
-          title: const Text('Urządzenie w chmurze'),
-          subtitle: Text(
-            cloud is NoCloudAccess
-                ? cloud.unavailableReason
-                : !_canAdmin
-                ? (c.canConfig ? 'Łączenie i odłączanie tylko w sieci domowej.' : '$_adminHint.')
-                : linked
-                ? 'Urządzenie odbiera polecenia z chmury.'
-                : 'Urządzenie nie jest połączone z chmurą.',
-          ),
-          trailing: Text(linked ? 'połączone' : 'niepołączone'),
-        ),
-        if (_canAdmin)
-          FutureBuilder<CloudLinkStatus?>(
-            future: _cloudLink,
-            builder: (context, snap) {
-              final s = snap.data;
-              final text = switch (s?.status) {
-                'linked' when !s!.connected => 'Konto zapisane, urządzenie łączy się z bazą…',
-                'linking' => 'Urządzenie zakłada konto w chmurze…',
-                'binding' => 'Konto urządzenia czeka na przypisanie do domu - połącz ponownie.',
-                'error' => 'Ostatnia próba nieudana: ${s!.error ?? 'nieznany błąd'}',
-                _ => null,
-              };
-              if (text == null) return const SizedBox.shrink();
-              return Padding(
-                padding: const EdgeInsets.fromLTRB(72, 0, 16, 8),
-                child: Text(text, style: Theme.of(context).textTheme.bodySmall),
-              );
-            },
-          ),
-        if (cloud is! NoCloudAccess && _canAdmin) ...[
+          const SectionHeader('Chmura'),
           ListTile(
-            key: const Key('linkCloud'),
-            leading: const Icon(Icons.cloud_sync_outlined),
-            title: Text(linked ? 'Połącz ponownie' : 'Połącz z chmurą'),
-            enabled: cloud.available && cloud.isHomeOwner,
-            subtitle: !cloud.available
-                ? Text(cloud.unavailableReason ?? '')
-                : cloud.isHomeOwner
-                ? null
-                : const Text('Łączy właściciel domu'),
-            onTap: () => _linkCloud(cloud),
+            leading: Icon(linked ? Icons.cloud_done_outlined : Icons.cloud_off_outlined),
+            title: const Text('Urządzenie w chmurze'),
+            subtitle: Text(
+              cloud is NoCloudAccess
+                  ? cloud.unavailableReason
+                  : !_canAdmin
+                  ? (c.canConfig ? 'Łączenie i odłączanie tylko w sieci domowej.' : '$_adminHint.')
+                  : linked
+                  ? 'Urządzenie odbiera polecenia z chmury.'
+                  : 'Urządzenie nie jest połączone z chmurą.',
+            ),
+            trailing: Text(linked ? 'połączone' : 'niepołączone'),
           ),
-          ListTile(
-            leading: const Icon(Icons.link_off),
-            title: const Text('Odłącz od chmury'),
-            onTap: () => _unlinkCloud(cloud),
-          ),
-        ],
+          if (_canAdmin)
+            FutureBuilder<CloudLinkStatus?>(
+              future: _cloudLink,
+              builder: (context, snap) {
+                final s = snap.data;
+                final text = switch (s?.status) {
+                  'linked' when !s!.connected => 'Konto zapisane, urządzenie łączy się z bazą…',
+                  'linking' => 'Urządzenie zakłada konto w chmurze…',
+                  'binding' => 'Konto urządzenia czeka na przypisanie do domu - połącz ponownie.',
+                  'error' => 'Ostatnia próba nieudana: ${s!.error ?? 'nieznany błąd'}',
+                  _ => null,
+                };
+                if (text == null) return const SizedBox.shrink();
+                return Padding(
+                  padding: const EdgeInsets.fromLTRB(72, 0, 16, 8),
+                  child: Text(text, style: Theme.of(context).textTheme.bodySmall),
+                );
+              },
+            ),
+          if (cloud is! NoCloudAccess && _canAdmin) ...[
+            ListTile(
+              key: const Key('linkCloud'),
+              leading: const Icon(Icons.cloud_sync_outlined),
+              title: Text(linked ? 'Połącz ponownie' : 'Połącz z chmurą'),
+              enabled: cloud.available && cloud.isHomeOwner,
+              subtitle: !cloud.available
+                  ? Text(cloud.unavailableReason ?? '')
+                  : cloud.isHomeOwner
+                  ? null
+                  : const Text('Łączy właściciel domu'),
+              onTap: () => _linkCloud(cloud),
+            ),
+            ListTile(
+              leading: const Icon(Icons.link_off),
+              title: const Text('Odłącz od chmury'),
+              onTap: () => _unlinkCloud(cloud),
+            ),
+          ],
         ],
         if (_canAdmin && c.device.type != DeviceType.hub)
           ListTile(
@@ -219,9 +218,8 @@ class _DeviceAdminSectionState extends State<DeviceAdminSection> {
                   ? 'Termostat w automatykach huba (token sterowania)'
                   : 'Hub zbiera stan, prowadzi automatyki i łączy z chmurą',
             ),
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<bool>(builder: (_) => AssignToHubScreen(controller: c)),
-            ),
+            onTap: () =>
+                Navigator.of(context).push(MaterialPageRoute<bool>(builder: (_) => AssignToHubScreen(controller: c))),
           ),
         const SectionHeader('Urządzenie'),
         ListTile(
@@ -233,13 +231,21 @@ class _DeviceAdminSectionState extends State<DeviceAdminSection> {
           onTap: _changeWifi,
         ),
         ListTile(
+          key: const Key('notify'),
+          leading: const Icon(Icons.notifications_active_outlined),
+          title: const Text('Powiadomienia na telefon'),
+          subtitle: Text(_canAdmin ? 'Alarm wysyła samo urządzenie przez aplikację ntfy' : _adminHint),
+          enabled: _canAdmin,
+          onTap: () =>
+              Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => NotifyScreen.forController(c))),
+        ),
+        ListTile(
           key: const Key('phones'),
           leading: const Icon(Icons.phone_android),
           title: const Text('Telefony'),
           subtitle: Text(_canAdmin ? 'Sparowane telefony i ich poziomy dostępu' : _adminHint),
           enabled: _canAdmin,
-          onTap: () =>
-              Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PhonesScreen(controller: c))),
+          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PhonesScreen(controller: c))),
         ),
         ListTile(
           key: const Key('firmware'),
