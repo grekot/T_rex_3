@@ -44,7 +44,7 @@ assert.deepEqual(tileText(duty).badge, { text: "AWARYJNIE", alert: true });
 assert.equal(tileText(duty).sub, "Awaria czujnika");
 assert.equal(tileText({ ...duty, offline: true }).badge, null, "bez kontaktu ochrona nieznana");
 assert.equal(tileView("thermostat", { temp: 20, protect: "xyz" }, NOW, NOW).protect, null);
-assert.equal(tileText(tileView("thermostat", null, null, NOW)).sub, "brak danych");
+assert.equal(tileText(tileView("thermostat", null, null, NOW)).sub, "brak danych w chmurze");
 assert.equal(tileView("thermostat", { temp: null }, NOW, NOW).sensorFault, true);
 
 // --- kafelek włącznika / ściemniacza ---
@@ -57,7 +57,7 @@ assert.equal(tileText(dim).sub, "jasność 80%");
 assert.equal(tileText(dim, false).sub, "wyłączone");
 assert.equal(tileText({ ...sw, offline: true }).sub, "Brak kontaktu");
 assert.equal(tileText({ ...sw, offline: true }).alert, true);
-assert.equal(tileText(tileView("switch", null, null, NOW)).sub, "brak danych");
+assert.equal(tileText(tileView("switch", null, null, NOW)).sub, "brak danych w chmurze");
 assert.equal(tileText(tileView("hub", { x: 1 }, NOW, NOW)).sub, "nieobsługiwane urządzenie");
 
 // --- kolejność ---

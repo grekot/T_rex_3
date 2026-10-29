@@ -66,6 +66,9 @@ kafelki na samej górze i na dole treści są węższe (`utils/layout.js`). Wido
   (tylko do urządzeń, którymi osoba steruje) i zatrzymuje się na pierwszym `delay` – wtedy komunikat
   „wysłano część”. Domownik uruchamia scenę przez hub, gdy ma na nim `control`; inaczej zegarek wysyła akcje sam,
   z poziomem domownika dla każdego urządzenia.
+- **Ikony** (`"icon"` w kafelku albo `deviceIndex/{id}/icon`): zegarek ma własne obrazki dla najczęstszych kluczy
+  (termostat/temperatura → termometr, światła → żarówka, gniazdko/zasilanie → przycisk zasilania, scena, wyjście/powrót,
+  dobranoc); inne klucze i brak klucza → ikona domyślna dla rodzaju kafelka (`utils/home.js`, `iconAsset`).
 - Kafelki urządzeń bez dostępu są pomijane. Bez pulpitu zegarka – urządzenia z dostępem, strona na pokój
   (`homes/{homeId}/rooms`, reszta w „Inne”).
 

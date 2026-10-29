@@ -3,6 +3,7 @@
 // (API.md pkt 13a) i zgłoszenie zegarka
 import assert from "node:assert/strict";
 import { poll, pollHome, send, registerWatch, newCache, LIST_TTL_MS } from "../utils/cloud.js";
+import { parseBody } from "../utils/firebase.js";
 
 const NOW = Date.UTC(2026, 9, 27, 18, 0, 0);
 const DB = "https://db.example";
@@ -45,7 +46,7 @@ const tree = {
       // lista urządzeń dla domowników (pkt 12); "swiatlo-2" bez nazwy - nazwa z urządzenia
       deviceIndex: {
         "termostat-aaa": { type: "thermostat", name: "Salon" },
-        "swiatlo-1": { type: "switch", name: "Sufit" },
+        "swiatlo-1": { type: "switch", name: "Sufit", icon: "ceiling" },
         "swiatlo-2": { type: "switch" },
       },
       access: { dom: { "termostat-aaa": "view", "swiatlo-1": "control" } },
@@ -165,6 +166,7 @@ assert.ok(!db.calls.includes("GET homes/h1/devices?shallow"), "z deviceIndex bez
 assert.ok(!db.calls.some((c) => /termostat-aaa\/(info|config\/name)|swiatlo-1\/(info|config\/name)/.test(c)), "typ i nazwa z deviceIndex");
 assert.ok(db.calls.includes("GET homes/h1/devices/swiatlo-2/config/name"), "brak nazwy w indeksie - z urządzenia");
 assert.equal(r.devices["swiatlo-2"].name, "Kuchnia");
+assert.equal(r.pages[0].items.find((it) => it.device === "swiatlo-1").icon, "ceiling", "ikona z deviceIndex");
 assert.ok(db.calls.includes("GET users/owner/watchDashboards/h1"));
 assert.deepEqual(r.diag, { homeName: "Dom", dashboard: null, dashboardTiles: 0, indexed: 3, visible: 3 });
 assert.ok(!db.calls.some((c) => /history|describe|homes\/h1\/dashboards|prefs/.test(c)), "bez historii, pulpitów telefonu i prefs");
@@ -298,14 +300,25 @@ delete tree.users.owner.watchDashboards;
 
 // --- pulpit ułożony na telefonie dla modelu z listy (zegarek jeszcze się nie zgłosił) ---
 tree.users.owner.watchDashboards = {
-  h1: { "model:t-rex-3": { watch: { width: 480, height: 480, shape: "round" }, pages: [{ title: "Z modelu", tiles: [{ id: "a", device: "swiatlo-1", point: "on1", view: "toggle", size: "half" }] }] } },
+  h1: { "model:t-rex-3": { watch: { width: 480, height: 480, shape: "round" }, pages: [{ title: "Z modelu", tiles: [{ id: "a", device: "swiatlo-1", point: "on1", view: "toggle", size: "half" }, { id: "b", device: "switch4-0a1b2c", point: "on2", view: "toggle", size: "half", label: "Kanał 2" }] }] } },
 };
 r = await pollHome({ ...as("owner"), wantedHome: null, watchId: WATCH, screen: { width: 480, height: 480, shape: "round" }, pending: null, cache: newCache(), now: NOW });
 assert.equal(r.custom, true);
 assert.equal(r.diag.dashboard, "model:t-rex-3");
-assert.deepEqual(items(r), [["toggle", "swiatlo-1", "config", "half"]]);
+assert.deepEqual(items(r), [
+  ["toggle", "swiatlo-1", "config", "half"],
+  ["toggle", "switch4-0a1b2c", "config", "half"],
+], "przełącznik spoza deviceIndex (bez chmury) - właściciel go widzi");
+assert.equal(r.devices["switch4-0a1b2c"].tile.hasData, false, "bez stanu w chmurze");
 assert.deepEqual(r.devices["swiatlo-1"].values, { on1: null }, "kanał przełącznika wielokanałowego (pkt 10.1)");
 delete tree.users.owner.watchDashboards;
+
+// --- Zepp oddaje JSON już rozpakowany (napisy bez cudzysłowów) - Side Service przepuszcza body przez parseBody ---
+const zepp = async (req) => parseBody(await db.fetchJson(req));
+r = await pollHome({ ...as("owner"), fetchJson: zepp, wantedHome: null, watchId: WATCH, pending: null, cache: newCache(), now: NOW });
+assert.equal(r.title, "Dom", "nazwa domu z gołego napisu");
+assert.equal(r.diag.visible, 3, "właściciel rozpoznany po gołym ownerUid");
+assert.equal(r.devices["termostat-aaa"].name, "Salon");
 
 // --- ekran termostatu ---
 db.calls.length = 0;

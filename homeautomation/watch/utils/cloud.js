@@ -83,6 +83,7 @@ async function homeContext(fetchJson, db, token, uid, wantedHome, watchId, scree
         type: typeOf(info, null),
         name: str(e.name) || (i !== -1 && str(names[i])) || (info && str(info.name)) || id,
         level: levelOf(owner, access, id),
+        icon: str(e.icon),
         info,
       };
     });
@@ -179,6 +180,7 @@ export async function pollHome({ fetchJson, db, token, uid, wantedHome, watchId,
       type,
       name: d.name,
       level: d.level,
+      icon: d.icon,
       tile: tileView(type, state, lastSeen, now),
       values: {},
       ack: waiting[id] ? ackResult(lastCommand, waiting[id]) : null,

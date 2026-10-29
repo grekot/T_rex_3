@@ -50,7 +50,7 @@ export function tileText(tile, on) {
   const offline = t.hasData && t.offline;
   if (t.type === "thermostat") {
     const badge = (t.hasData && !offline && BADGES[t.protect]) || null;
-    if (!t.hasData) return { value: "--,-°", sub: "brak danych", alert: false, heating: false, badge };
+    if (!t.hasData) return { value: "--,-°", sub: "brak danych w chmurze", alert: false, heating: false, badge };
     if (offline) return { value: formatTemp(t.temp), sub: "Brak kontaktu", alert: true, heating: false, badge };
     if (t.sensorFault) return { value: "--,-°", sub: "Awaria czujnika", alert: true, heating: !!t.heating, badge };
     if (!t.power) return { value: formatTemp(t.temp), sub: "wyłączony" + (t.heating ? " · grzeje" : ""), alert: false, heating: !!t.heating, badge };
@@ -64,7 +64,7 @@ export function tileText(tile, on) {
   }
   if (isSwitchable(t.type)) {
     const isOn = on === undefined ? t.on === true : on;
-    if (!t.hasData) return { value: "", sub: "brak danych", alert: false, heating: false, on: false };
+    if (!t.hasData) return { value: "", sub: "brak danych w chmurze", alert: false, heating: false, on: false };
     let sub = isOn ? "włączone" : "wyłączone";
     if (isOn && t.type === "dimmer" && t.level !== null && t.level !== undefined) sub = "jasność " + t.level + "%";
     if (offline) sub = "Brak kontaktu";

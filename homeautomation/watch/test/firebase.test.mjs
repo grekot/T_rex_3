@@ -64,6 +64,13 @@ assert.equal(pushKeyOf("{}"), null);
 assert.equal(parseBody("21.5"), 21.5);
 assert.equal(parseBody('"Salon"'), "Salon");
 assert.equal(parseBody("null"), null);
+// Zepp potrafi oddać JSON już rozpakowany: napis z bazy przychodzi bez cudzysłowów
+assert.equal(parseBody("Dom"), "Dom", "rozpakowany napis (homes/{h}/name)");
+assert.equal(parseBody("aBc123XyZuidOwner"), "aBc123XyZuidOwner", "rozpakowany uid (ownerUid)");
+assert.equal(parseBody(""), null);
+assert.deepEqual(parseBody({ a: 1 }), { a: 1 });
+assert.equal(parseBody(7), 7);
+assert.equal(parseBody(undefined), null);
 
 // Błędy: Google ({error:{message}}) i baza ({error:"..."})
 assert.equal(errorOf(200, '{"temp":21}'), null);

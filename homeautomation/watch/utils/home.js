@@ -27,8 +27,9 @@ export function canControl(level) {
   return (LEVELS[level] || 0) >= LEVELS.control;
 }
 
-// Urządzenia, które osoba może znać. Właściciel czyta listę devices; domownik nie ma do niej prawa,
-// więc bierzemy klucze access, a przy _all także urządzenia z pokoi i pulpitu zegarka (extra = ich id).
+// Urządzenia, które osoba może znać: lista domu (deviceIndex, u właściciela bez indeksu - devices), klucze access
+// i urządzenia z pulpitu zegarka (extra = ich id - pulpit może wskazać urządzenie spoza indeksu, np. węzeł bez
+// chmury). Bez listy domu przy _all także urządzenia z pokoi. O tym, czy urządzenie się pokaże, decyduje levelOf.
 export function knownDeviceIds(listed, access, rooms, extra) {
   const ids = {};
   const add = (id) => {
@@ -37,9 +38,9 @@ export function knownDeviceIds(listed, access, rooms, extra) {
   if (listed) listed.forEach(add);
   const a = obj(access) || {};
   Object.keys(a).forEach(add);
+  (extra || []).forEach(add);
   if (!listed && a._all !== undefined) {
     Object.keys(obj(rooms) || {}).forEach((r) => list(obj(rooms[r]) && rooms[r].devices).forEach(add));
-    (extra || []).forEach(add);
   }
   return Object.keys(ids).sort();
 }
@@ -49,10 +50,42 @@ export const WATCH_VIEWS = ["value", "toggle", "stepper", "status", "thermostat"
 const SIZES = ["half", "full", "big"];
 const DEFAULT_POINT = { toggle: "on", stepper: "target", status: "heating" };
 
+// Ikony (API.md pkt 12-13: "icon" w kafelku albo deviceIndex/{id}/icon; katalog kluczy w telefonie:
+// homeautomation/phone/lib/ui/app_icons.dart). Zegarek ma kilka własnych obrazków (assets/gt.r/icons/) - klucz
+// spoza tej mapy dostaje ikonę domyślną dla rodzaju kafelka.
+const ICON_ASSETS = {
+  thermo: ["thermostat", "temperature", "heating", "frost"],
+  bulb: ["light", "light-on", "ceiling", "lamp", "spot", "led", "outdoor-light", "night", "dimmer"],
+  power: ["power", "socket", "energy", "switch", "relay"],
+  scene: ["scene", "party", "movie", "eco", "morning"],
+  leave: ["leave", "arrive", "door"],
+  sleep: ["sleep", "bedroom"],
+};
+const ICON_OF = {};
+Object.keys(ICON_ASSETS).forEach((asset) =>
+  ICON_ASSETS[asset].forEach((key) => {
+    ICON_OF[key] = asset;
+  })
+);
+
+// Klucz ikony z kafelka/urządzenia + rodzaj kafelka -> plik w assets/gt.r/icons (bez .png) albo null
+export function iconAsset(key, kind, deviceType) {
+  if (typeof key === "string" && ICON_OF[key]) return ICON_OF[key];
+  if (kind === "thermostat") return "thermo";
+  if (kind === "scene") return "scene";
+  if (kind === "toggle") return deviceType === "dimmer" ? "bulb" : "power";
+  return null;
+}
+
+// Klucz ikony do pozycji (tylko gdy jest - pozycje bez ikony zostają jak były)
+function withIcon(item, key) {
+  return item && typeof key === "string" && key ? { ...item, icon: key } : item;
+}
+
 // Domyślny kafelek urządzenia (lista bez pulpitu)
 function deviceItem(id, dev, key) {
   const kind = dev.type === "thermostat" ? "thermostat" : isSwitchable(dev.type) ? "toggle" : "unknown";
-  return { key, kind, device: id, name: dev.name || id, level: dev.level, point: kind === "toggle" ? "on" : null, size: "full" };
+  return withIcon({ key, kind, device: id, name: dev.name || id, level: dev.level, point: kind === "toggle" ? "on" : null, size: "full" }, dev.icon);
 }
 
 // Hub domu, którym osoba może sterować (info.type == "hub", API.md pkt 11) - to on uruchamia sceny
@@ -127,7 +160,11 @@ export function watchPages(dashboard, devices, scenes, hub) {
     .map((page, p) => ({
       title: typeof page.title === "string" ? page.title : "",
       items: list(page.tiles)
-        .map((tile, i) => tileItem(tile, p + "." + i, devices, scenes, hub || null))
+        .map((tile, i) => {
+          const item = tileItem(tile, p + "." + i, devices, scenes, hub || null);
+          const dev = item && item.device ? devices[item.device] : null;
+          return withIcon(item, (obj(tile) && tile.icon) || (dev && dev.icon));
+        })
         .filter(Boolean),
     }))
     .filter((page) => page.items.length);
@@ -181,7 +218,7 @@ export function emptyMessage(diag) {
   const d = obj(diag) || {};
   const home = d.homeName ? "„" + d.homeName + "”" : "";
   if (d.dashboardTiles > 0) {
-    return "Kafelki z pulpitu zegarka wskazują urządzenia, których nie ma w chmurze albo do których nie masz dostępu. Przełączniki bez chmury działają z zegarka dopiero przez hub.";
+    return "Kafelki z pulpitu zegarka wskazują urządzenia, do których nie masz dostępu (w chmurze: " + (d.indexed || 0) + ", z dostępem: " + (d.visible || 0) + ").";
   }
   if (!d.indexed) {
     return "Dom " + home + " nie ma jeszcze urządzeń w chmurze. Zegarek widzi tylko urządzenia połączone z chmurą (termostat) albo przez hub.";

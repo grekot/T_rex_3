@@ -65,6 +65,70 @@ def make_flame():
     im.resize((W, H), Image.LANCZOS).save(os.path.join(ROOT, "assets", "gt.r", "flame.png"))
 
 
+def make_tile_icons():
+    """Ikony kafelków 28x28 (assets/gt.r/icons): mapowanie kluczy z telefonu w utils/home.js (iconAsset)."""
+    N = 28
+    S = N * SS
+    out = os.path.join(ROOT, "assets", "gt.r", "icons")
+    os.makedirs(out, exist_ok=True)
+    w = int(S * 0.09)  # grubość linii
+
+    def canvas():
+        im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+        return im, ImageDraw.Draw(im)
+
+    def save(im, name):
+        im.resize((N, N), Image.LANCZOS).save(os.path.join(out, name + ".png"))
+
+    # termometr: rurka z bańką
+    im, d = canvas()
+    cx = S / 2
+    d.rounded_rectangle([cx - S * 0.11, S * 0.08, cx + S * 0.11, S * 0.68], int(S * 0.11), outline=ORANGE, width=w)
+    d.ellipse([cx - S * 0.2, S * 0.56, cx + S * 0.2, S * 0.96], fill=ORANGE)
+    d.rectangle([cx - S * 0.045, S * 0.3, cx + S * 0.045, S * 0.7], fill=ORANGE)
+    save(im, "thermo")
+
+    # żarówka
+    im, d = canvas()
+    d.ellipse([S * 0.2, S * 0.06, S * 0.8, S * 0.66], outline=ORANGE, width=w)
+    d.rectangle([S * 0.36, S * 0.6, S * 0.64, S * 0.66], fill=(0, 0, 0, 0))
+    d.line([S * 0.36, S * 0.62, S * 0.36, S * 0.78], fill=ORANGE, width=w)
+    d.line([S * 0.64, S * 0.62, S * 0.64, S * 0.78], fill=ORANGE, width=w)
+    d.line([S * 0.34, S * 0.8, S * 0.66, S * 0.8], fill=ORANGE, width=w)
+    d.line([S * 0.4, S * 0.92, S * 0.6, S * 0.92], fill=ORANGE, width=w)
+    save(im, "bulb")
+
+    # zasilanie: okrąg z przerwą u góry i kreska
+    im, d = canvas()
+    d.arc([S * 0.12, S * 0.14, S * 0.88, S * 0.9], 300, 240, fill=ORANGE, width=w)
+    d.line([S / 2, S * 0.06, S / 2, S * 0.5], fill=ORANGE, width=w)
+    save(im, "power")
+
+    # scena: gwiazdka (iskra)
+    im, d = canvas()
+    c, r1, r2 = S / 2, S * 0.46, S * 0.13
+    pts = []
+    for k in range(8):
+        a = math.radians(-90 + k * 45)
+        r = r1 if k % 2 == 0 else r2
+        pts.append((c + r * math.cos(a), c + r * math.sin(a)))
+    d.polygon(pts, fill=ORANGE)
+    save(im, "scene")
+
+    # wyjście: drzwi i strzałka w prawo
+    im, d = canvas()
+    d.rectangle([S * 0.1, S * 0.08, S * 0.5, S * 0.92], outline=ORANGE, width=w)
+    d.line([S * 0.38, S / 2, S * 0.9, S / 2], fill=ORANGE, width=w)
+    d.polygon([(S * 0.96, S / 2), (S * 0.74, S * 0.32), (S * 0.74, S * 0.68)], fill=ORANGE)
+    save(im, "leave")
+
+    # dobranoc: księżyc
+    im, d = canvas()
+    d.ellipse([S * 0.1, S * 0.1, S * 0.9, S * 0.9], fill=ORANGE)
+    d.ellipse([S * 0.32, S * 0.0, S * 1.02, S * 0.7], fill=(0, 0, 0, 0))
+    save(im, "sleep")
+
+
 def text_c(d, cx, cy, s, f, fill):
     d.text((cx, cy), s, font=f, fill=fill, anchor="mm")
 
@@ -134,6 +198,7 @@ def make_preview():
 if __name__ == "__main__":
     make_icon()
     make_flame()
+    make_tile_icons()
     make_preview()
     make_list_preview()
     print("ok: assets/gt.r/icon.png, assets/gt.r/flame.png, docs/home.png, docs/thermostat.png")

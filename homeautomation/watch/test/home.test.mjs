@@ -15,6 +15,7 @@ import {
   sceneSteps,
   pickWatchDashboard,
   emptyMessage,
+  iconAsset,
   formatPoint,
   describePoint,
 } from "../utils/home.js";
@@ -42,10 +43,14 @@ const rooms = { r1: { name: "Salon", devices: ["t1", "s1"] } };
 const dashes = dashboardDevices({ pages: [{ tiles: [{ device: "s2" }, { scene: [{ device: "s3", set: { on: false } }] }, "zepsuty"] }] });
 assert.deepEqual(dashes, ["s2", "s3"]);
 assert.deepEqual(dashboardDevices(null), []);
-assert.deepEqual(knownDeviceIds(["t1", "s1"], null, rooms, dashes), ["s1", "t1"], "właściciel: lista devices");
-assert.deepEqual(knownDeviceIds(null, { t1: "control" }, rooms, dashes), ["t1"], "domownik: klucze access");
-assert.deepEqual(knownDeviceIds(null, { _all: "view", t1: "control" }, rooms, dashes), ["s1", "s2", "s3", "t1"], "przy _all także pokoje i pulpity");
-assert.deepEqual(knownDeviceIds(null, null, rooms, dashes), []);
+// urządzenia z pulpitu zegarka są zawsze brane pod uwagę (np. węzeł spoza deviceIndex); filtruje levelOf
+assert.deepEqual(knownDeviceIds(["t1", "s1"], null, rooms, dashes), ["s1", "s2", "s3", "t1"], "lista domu + pulpit");
+assert.deepEqual(knownDeviceIds(["t1", "s1"], null, rooms, []), ["s1", "t1"]);
+assert.deepEqual(knownDeviceIds(null, { t1: "control" }, rooms, []), ["t1"], "domownik: klucze access");
+assert.deepEqual(knownDeviceIds(null, { _all: "view", t1: "control" }, rooms, dashes), ["s1", "s2", "s3", "t1"], "przy _all także pokoje");
+assert.deepEqual(knownDeviceIds(null, null, rooms, []), []);
+assert.equal(levelOf(true, null, "s2"), "config", "właściciel widzi urządzenie z pulpitu spoza indeksu");
+assert.equal(levelOf(false, { t1: "control" }, "s2"), null, "domownik bez wpisu - nie");
 
 // --- pulpit zegarka (pkt 13a) -> strony z kafelkami ---
 const devices = {
@@ -211,8 +216,29 @@ assert.deepEqual(pickWatchDashboard({ "model:t-rex-3": P("t") }, null, null).das
 
 // --- pusty ekran: co brakuje ---
 assert.match(emptyMessage({ homeName: "Dom", indexed: 0, visible: 0, dashboardTiles: 0 }), /nie ma jeszcze urządzeń w chmurze/);
-assert.match(emptyMessage({ homeName: "Dom", indexed: 0, visible: 0, dashboardTiles: 2 }), /przez hub/);
+assert.match(emptyMessage({ homeName: "Dom", indexed: 1, visible: 0, dashboardTiles: 2 }), /nie masz dostępu \(w chmurze: 1, z dostępem: 0\)/);
 assert.match(emptyMessage({ homeName: "Dom", indexed: 3, visible: 0, dashboardTiles: 0 }), /Nie masz dostępu/);
 assert.equal(emptyMessage(null).length > 0, true);
+
+// --- ikony (pkt 12-13: klucze z katalogu telefonu) ---
+assert.equal(iconAsset("ceiling", "toggle", "switch"), "bulb");
+assert.equal(iconAsset("leave", "scene"), "leave");
+assert.equal(iconAsset("thermostat", "value"), "thermo");
+assert.equal(iconAsset("socket", "toggle", "switch"), "power");
+assert.equal(iconAsset("pool", "toggle", "switch"), "power", "klucz bez obrazka - domyślna dla rodzaju");
+assert.equal(iconAsset(null, "toggle", "dimmer"), "bulb");
+assert.equal(iconAsset(null, "thermostat"), "thermo");
+assert.equal(iconAsset(null, "scene"), "scene");
+assert.equal(iconAsset(null, "value"), null);
+assert.equal(iconAsset("pool", "value"), null);
+// klucz z kafelka ma pierwszeństwo przed kluczem urządzenia (deviceIndex/{id}/icon); bez klucza - pole nie istnieje
+const withIcons = watchPages(
+  { pages: [{ tiles: [{ id: "i1", device: "swiatlo-1", view: "toggle", icon: "lamp" }, { id: "i2", device: "swiatlo-1", view: "toggle" }, { id: "i3", device: "termostat-ab12cd", view: "thermostat" }] }] },
+  { ...devices, "swiatlo-1": { ...devices["swiatlo-1"], icon: "ceiling" } },
+  null,
+  null
+)[0].items;
+assert.deepEqual(withIcons.map((it) => it.icon), ["lamp", "ceiling", undefined]);
+assert.equal("icon" in withIcons[2], false);
 
 console.log("home.test.mjs: OK");

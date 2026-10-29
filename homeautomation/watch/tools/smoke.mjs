@@ -487,6 +487,9 @@ test("lista bez pulpitu: strona na pokój, światło przełączane jednym dotkni
   assert.ok(p.has("Inne"));
   assert.equal(p.tile("Sufit").pill, "WYŁ");
   assert.equal(p.tile("Lampka").sub, "Brak kontaktu");
+  // ikony domyślne: włącznik - zasilanie, ściemniacz - żarówka, termostat - termometr
+  const icons = p.widgets.filter((w) => w.type === "IMG").map((w) => w.props.src);
+  for (const src of ["icons/power.png", "icons/bulb.png", "icons/thermo.png"]) assert.ok(icons.includes(src), src + " w " + icons.join(","));
   const sufit = p.tile("Sufit");
   sufit.tap();
   sufit.tapPill();

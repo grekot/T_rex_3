@@ -57,8 +57,25 @@ export function headerStyle(b) {
 }
 
 // Części kafelka według rozmiaru (half / full / big). buttons = − / + w kafelku stepper,
-// badge = miejsce na znacznik w prawym górnym rogu (ochrona termostatu: MRÓZ / AWARYJNIE).
-export function tileParts(b, buttons, badge) {
+// badge = miejsce na znacznik w prawym górnym rogu (ochrona termostatu: MRÓZ / AWARYJNIE),
+// icon = plik ikony (assets/gt.r/icons/<icon>.png) przed nazwą albo null.
+export function tileParts(b, buttons, badge, icon) {
+  const parts = tilePartsNoIcon(b, buttons, badge);
+  if (!icon) return { ...parts, icon: null };
+  const { x, y } = b;
+  const size = px(28); // jeden rozmiar - obrazki 28x28 (tools/gen_assets.py)
+  const ix = x + (b.size === "half" ? px(12) : px(20));
+  const iy = y + (b.size === "big" ? px(12) : buttons ? px(5) : b.size === "half" ? px(8) : px(12));
+  const shift = size + px(8);
+  // nazwa przesuwa się w prawo o ikonę (w big jest na środku - tylko węższa z obu stron)
+  const name =
+    b.size === "big"
+      ? { ...parts.name, x: parts.name.x + shift, w: Math.max(px(40), parts.name.w - 2 * shift) }
+      : { ...parts.name, x: parts.name.x + shift - (b.size === "half" ? 0 : px(4)), w: Math.max(px(40), parts.name.w - shift) };
+  return { ...parts, name, icon: { x: ix, y: iy, w: size, h: size, src: "icons/" + icon + ".png" } };
+}
+
+function tilePartsNoIcon(b, buttons, badge) {
   const { x, y, w, h } = b;
   const bg = { x, y, w, h, radius: px(24), color: COLOR_ROW };
   const right = { align_h: hmUI.align.RIGHT };

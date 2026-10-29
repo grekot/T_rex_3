@@ -22,7 +22,7 @@ import {
   applyAck,
 } from "../../../utils/termostat";
 import { tileText } from "../../../utils/devices";
-import { canControl, formatPoint, stepPoint, emptyMessage } from "../../../utils/home";
+import { canControl, formatPoint, stepPoint, emptyMessage, iconAsset } from "../../../utils/home";
 import { layoutPages } from "../../../utils/layout";
 import { APP_VERSION } from "../../../utils/version";
 import { ask, setTop, isTop, onTap, toast } from "../../../utils/page";
@@ -404,7 +404,8 @@ Page(
         }
         const item = b.item;
         const buttons = item.kind === "stepper" && b.size !== "half" && canControl(item.level);
-        const parts = tileParts(b, buttons, item.kind === "thermostat");
+        const dev = item.device ? s.devices[item.device] : null;
+        const parts = tileParts(b, buttons, item.kind === "thermostat", iconAsset(item.icon, item.kind, dev && dev.type));
         const t = { item, size: b.size, parts, widgets: [] };
         const add = (type, style) => {
           if (!style) return null;
@@ -413,6 +414,7 @@ Page(
           return w;
         };
         t.bg = add(hmUI.widget.FILL_RECT, parts.bg);
+        add(hmUI.widget.IMG, parts.icon);
         t.name = add(hmUI.widget.TEXT, { ...parts.name, text: item.name });
         t.sub = add(hmUI.widget.TEXT, parts.sub);
         t.value = add(hmUI.widget.TEXT, parts.value);
@@ -439,7 +441,7 @@ Page(
     render() {
       const s = this.state;
       if (s.destroyed || !isTop("home")) return;
-      const sig = JSON.stringify(s.pages.map((p) => [p.title, p.items.map((it) => [it.key, it.kind, it.name, it.level, it.device, it.size, it.point])]));
+      const sig = JSON.stringify(s.pages.map((p) => [p.title, p.items.map((it) => [it.key, it.kind, it.name, it.level, it.device, it.size, it.point, it.icon])]));
       if (sig !== s.signature) {
         s.signature = sig;
         this.rebuild();
@@ -484,7 +486,8 @@ Page(
         badge = txt.badge;
       } else if (item.kind === "toggle") {
         const on = shownValue(local, values[item.point] === true) === true;
-        sub = !d.tile.hasData ? "brak danych" : on ? "włączone" : "wyłączone";
+        // bez stanu w chmurze: węzeł bez chmury (przełącznik do czasu huba) albo urządzenie jeszcze nie połączone
+        sub = !d.tile.hasData ? "brak danych w chmurze" : on ? "włączone" : "wyłączone";
         if (d.type === "dimmer" && on && typeof values.level === "number") sub = "jasność " + values.level + "%";
         if (control && d.tile.hasData && t.size !== "big") pill = { text: on ? "WŁ" : "WYŁ", on, pending: !!local };
         else {

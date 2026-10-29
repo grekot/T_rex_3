@@ -29,13 +29,16 @@ export function refreshRequest(apiKey, refreshToken) {
   };
 }
 
-// fetch w Zepp OS zwraca body jako tekst albo już jako obiekt - zależnie od telefonu
+// fetch w Zepp OS zwraca body jako tekst albo już rozpakowany JSON - zależnie od telefonu. Rozpakowany napis
+// (np. węzeł name albo ownerUid z bazy) przychodzi jako gołe Dom zamiast "Dom" - to nie jest JSON, zostaje jak jest.
+// Tekst JSON-a napisu zawsze zaczyna się od cudzysłowu, więc tylko liczby, true/false/null i obiekty bez cudzysłowu
+// mogłyby się pomylić - nazwy i uid takie nie bywają.
 export function parseBody(body) {
   if (typeof body !== "string") return body === undefined ? null : body;
   try {
     return JSON.parse(body);
   } catch (e) {
-    return null;
+    return body.trim() ? body : null;
   }
 }
 
