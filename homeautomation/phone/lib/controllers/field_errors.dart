@@ -28,6 +28,8 @@ const fieldLabels = <String, String>{
   'toggle': 'Przełączenie',
   'defaultOn': 'Po zaniku zasilania',
   'firmwareUrl': 'Adres firmware',
+  'firmwareSha256': 'Suma firmware',
+  'applyUpdates': 'Aktualizacja węzłów',
   'notify': 'Powiadomienia',
   'notify.enabled': 'Powiadomienia',
   'notify.ntfyTopic': 'Temat ntfy',
@@ -46,6 +48,9 @@ String describeErrorCode(String code) => switch (code) {
   'length' => 'zła długość',
   'json' => 'urządzenie nie zrozumiało danych',
   'forbidden' => 'brak uprawnień',
+  'sha256' => 'suma pliku się nie zgadza (plik uszkodzony albo podmieniony)',
+  'host' => 'niedozwolony adres',
+  'busy' => 'trwa inna aktualizacja',
   '' => 'błąd',
   _ => code,
 };

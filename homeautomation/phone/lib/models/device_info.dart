@@ -26,6 +26,7 @@ class DeviceInfo {
     required this.id,
     required this.name,
     required this.fw,
+    this.fwId,
     required this.api,
     required this.paired,
     this.type = DeviceType.thermostat,
@@ -40,6 +41,9 @@ class DeviceInfo {
   final DeviceType type;
   final String name;
   final String fw;
+
+  /// Wariant firmware (`thermostat-n16r8`, `switch4-s2mini`…, pkt 3e); null = starszy firmware.
+  final String? fwId;
   final int api;
   final bool paired;
 
@@ -65,6 +69,7 @@ class DeviceInfo {
     type: DeviceType.fromWire(asStringOrNull(j['type'], 'type')),
     name: asString(j['name'], 'name'),
     fw: asString(j['fw'], 'fw'),
+    fwId: asStringOrNull(j['fwId'], 'fwId'),
     api: asInt(j['api'], 'api'),
     paired: asBool(j['paired'], 'paired'),
     prov: ProvScheme.fromWire(j['prov']),
@@ -79,6 +84,7 @@ class DeviceInfo {
     'type': type.wire,
     'name': name,
     'fw': fw,
+    'fwId': ?fwId,
     'api': api,
     'paired': paired,
     if (prov == ProvScheme.softap) 'prov': 'softap',

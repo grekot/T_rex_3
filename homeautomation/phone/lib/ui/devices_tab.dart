@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../controllers/device_hub.dart';
 import '../controllers/home_session.dart';
 import '../data/device_store.dart';
+import '../data/updates.dart';
 import '../models/room.dart';
 import '../services.dart';
 import 'account_menu.dart';
@@ -13,6 +14,7 @@ import '../data/device_icons.dart';
 import 'app_icons.dart';
 import 'device_tiles.dart';
 import 'pc_token_screen.dart';
+import 'updates_screen.dart';
 import 'widgets.dart';
 
 /// Zakładka „Urządzenia”: kafelki ze stanem pogrupowane w pokoje (pkt 8.3). Dotknięcie otwiera
@@ -181,6 +183,15 @@ class _DevicesTabState extends State<DevicesTab> {
                   tooltip: 'Nowy pokój',
                   icon: const Icon(Icons.add_home_outlined),
                   onPressed: _newRoom,
+                ),
+              if (_canEditRooms)
+                IconButton(
+                  key: const Key('updates'),
+                  tooltip: 'Aktualizacje firmware',
+                  icon: const Icon(Icons.system_update_alt),
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).push(MaterialPageRoute<void>(builder: (_) => UpdatesScreen(backend: DeviceHubUpdates(hub)))),
                 ),
               IconButton(
                 key: const Key('pcToken'),

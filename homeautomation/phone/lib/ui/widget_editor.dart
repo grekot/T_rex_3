@@ -8,6 +8,7 @@ import '../models/dashboard.dart';
 import '../models/describe.dart';
 import '../models/device_type.dart';
 import '../models/home.dart';
+import '../models/json_utils.dart';
 import '../models/scene.dart';
 import '../services.dart';
 import 'app_icons.dart';
@@ -27,9 +28,15 @@ const watchWidgetViews = {
 
 /// Widoki pasujące do rodzaju punktu (pierwszy = domyślny).
 List<WidgetView> viewsFor(DataPoint p) => switch (p.kind) {
-  PointKind.sensor => [WidgetView.value, if (p.history != null) WidgetView.chart],
+  PointKind.sensor => [WidgetView.value, WidgetView.gauge, if (p.history != null) WidgetView.chart],
   PointKind.status => [WidgetView.status, WidgetView.value],
-  PointKind.setpoint => [WidgetView.stepper, WidgetView.slider, WidgetView.value, if (p.history != null) WidgetView.chart],
+  PointKind.setpoint => [
+    WidgetView.stepper,
+    WidgetView.slider,
+    if (p.min != null && p.max != null) WidgetView.dial,
+    WidgetView.value,
+    if (p.history != null) WidgetView.chart,
+  ],
   PointKind.switchKind => [WidgetView.toggle, WidgetView.status],
   PointKind.select => [WidgetView.value],
   PointKind.action => [WidgetView.toggle],
@@ -46,7 +53,9 @@ String kindLabel(PointKind k) => switch (k) {
 
 /// Punkty, gdy urządzenie nie odpowiada na `describe` (np. jest offline) - wg typu.
 List<DataPoint> fallbackPoints(DeviceType type) => switch (type) {
-  DeviceType.thermostat => [for (final k in ['temp', 'hum', 'target', 'heating', 'mode']) fallbackPoint(k)],
+  DeviceType.thermostat => [
+    for (final k in ['temp', 'hum', 'target', 'heating', 'mode']) fallbackPoint(k),
+  ],
   DeviceType.onOff => [fallbackPoint('on')],
   DeviceType.dimmer => [fallbackPoint('on'), fallbackPoint('level')],
   _ => const [],
@@ -57,6 +66,232 @@ Future<List<DataPoint>> pointsOf(DeviceHub hub, PairedDevice d) async {
   final c = hub.controller(d.id);
   final desc = await c?.description().timeout(const Duration(seconds: 8), onTimeout: () => null);
   return desc?.points ?? fallbackPoints(d.type);
+}
+
+/// Gotowy kafelek do dodania jednym dotknięciem (tytuł, opis, widżet w siatce 4).
+typedef TilePreset = ({String title, String subtitle, DashWidget widget});
+
+/// Propozycje kafelków dla urządzenia (pkt 13.1) - z punktów `describe` i stanu (kanały węzła).
+List<TilePreset> tilePresets(PairedDevice d, List<DataPoint> points, Json? state) {
+  DataPoint? pt(String key) => points.where((p) => p.key == key).firstOrNull;
+  DashWidget w(WidgetView view, String? point, int gw, int gh, [Json extra = const {}, String? label]) => DashWidget(
+    id: newLocalId('w'),
+    view: view,
+    device: d.id,
+    point: point,
+    label: label,
+  ).resized(gw, gh).patch(extra);
+  final out = <TilePreset>[];
+  if (d.type == DeviceType.thermostat) {
+    out.add((
+      title: 'Termostat',
+      subtitle: 'temperatura, nastawa − / +, grzanie · 4×2',
+      widget: w(WidgetView.thermostat, null, 4, 2),
+    ));
+    out.add((
+      title: 'Pokrętło nastawy',
+      subtitle: 'półokrągły suwak, temperatura bieżąca · 2×3',
+      widget: w(WidgetView.dial, 'target', 2, 3),
+    ));
+    if (pt('hum') != null || points.isEmpty) {
+      out.add((
+        title: 'Temperatura i wilgotność',
+        subtitle: 'duża liczba, wilgotność w drugiej linii · 2×2',
+        widget: w(WidgetView.value, 'temp', 2, 2, {'secondary': 'point:hum'}),
+      ));
+      out.add((
+        title: 'Wilgotność - wskaźnik',
+        subtitle: 'łuk ze strefami: sucho / dobrze / wilgotno · 2×2',
+        widget: w(WidgetView.gauge, 'hum', 2, 2, {
+          'min': 0,
+          'max': 100,
+          'zones': [
+            [0, 35, 'amber'],
+            [35, 60, 'green'],
+            [60, 100, 'blue'],
+          ],
+        }),
+      ));
+    }
+    out.add((
+      title: 'Wykres 24 h',
+      subtitle: 'temperatura, nastawa, pasy grzania, zakres w kafelku · 4×3',
+      widget: w(WidgetView.chart, 'temp', 4, 3, {
+        'series': [
+          {'device': d.id, 'point': 'temp', 'line': 'smooth'},
+          {'device': d.id, 'point': 'target', 'line': 'step'},
+          {'device': d.id, 'point': 'heating', 'line': 'band'},
+        ],
+        'rangeSwitch': true,
+      }),
+    ));
+    out.add((
+      title: 'Pogoda',
+      subtitle: 'temperatura na zewnątrz i ikona pogody z termostatu · 2×2',
+      widget: w(WidgetView.weather, null, 2, 2),
+    ));
+    out.add((
+      title: 'Pogoda z wykresem',
+      subtitle: 'jak wyżej, z temperaturą z 24 h · 4×3',
+      widget: w(WidgetView.weather, null, 4, 3),
+    ));
+    if (pt('outdoor.temp') != null) {
+      out.add((
+        title: 'Na zewnątrz',
+        subtitle: 'temperatura z pogody · 2×1',
+        widget: w(WidgetView.value, 'outdoor.temp', 2, 1),
+      ));
+    }
+  } else if (d.type == DeviceType.hub) {
+    out.add((
+      title: 'Stan huba',
+      subtitle: 'urządzenia, automatyki, ostatnie wykonanie, chmura · 4×2',
+      widget: w(WidgetView.hub, null, 4, 2),
+    ));
+  } else if (d.type.isLight) {
+    final n = state?['channels'] is int ? state!['channels'] as int : 1;
+    if (n > 1) {
+      out.add((
+        title: 'Wszystkie wyjścia',
+        subtitle: 'przycisk na kanał, ikona wł./wył. wszystkie · 4×2',
+        widget: w(WidgetView.toggle, 'on', 4, 2, const {}, d.name),
+      ));
+      for (var i = 1; i <= n; i++) {
+        final name = pt('on$i')?.name ?? 'Kanał $i';
+        out.add((title: name, subtitle: 'jedno wyjście (kanał $i) · 2×1', widget: w(WidgetView.toggle, 'on$i', 2, 1)));
+      }
+      for (final p in points.where((p) => RegExp(r'^in\d+$').hasMatch(p.key))) {
+        out.add((title: p.name, subtitle: 'stan wejścia · 2×1', widget: w(WidgetView.status, p.key, 2, 1)));
+      }
+    } else {
+      out.add((
+        title: 'Przełącznik',
+        subtitle: 'ikona włącza i wyłącza · 2×1',
+        widget: w(WidgetView.toggle, 'on', 2, 1, const {}, d.name),
+      ));
+      if (pt('level') != null || d.type == DeviceType.dimmer) {
+        out.add((
+          title: 'Jasność - pasek',
+          subtitle: 'suwak obok nazwy, ikona wł./wył. · 4×1',
+          widget: w(WidgetView.slider, 'level', 4, 1, const {}, d.name),
+        ));
+        out.add((
+          title: 'Jasność - pokrętło',
+          subtitle: 'półokrągły suwak · 2×3',
+          widget: w(WidgetView.dial, 'level', 2, 3, const {}, d.name),
+        ));
+      }
+    }
+  }
+  return out;
+}
+
+/// Wyjście do grupy (`group`, pkt 13.1): urządzenie, `on` / `onN`, nazwa do listy.
+typedef GroupCandidate = ({String device, String point, String name});
+
+/// Wyjścia, które można dodać do grupy: światła i przełączniki (kanały węzłów osobno, nazwy z `describe`).
+Future<List<GroupCandidate>> groupCandidates(DeviceHub hub) async {
+  final out = <GroupCandidate>[];
+  for (final d in hub.devices) {
+    if (!d.type.isLight || !hub.accessFor(d.id).canView) continue;
+    final c = hub.controller(d.id);
+    final n = c?.stateJson?['channels'];
+    if (n is int && n > 1) {
+      final desc = await c
+          ?.description()
+          .timeout(const Duration(seconds: 3), onTimeout: () => null)
+          .catchError((_) => null);
+      for (var i = 1; i <= n; i++) {
+        out.add((device: d.id, point: 'on$i', name: '${d.name} · ${desc?.point('on$i')?.name ?? 'Kanał $i'}'));
+      }
+    } else {
+      out.add((device: d.id, point: 'on', name: d.name));
+    }
+  }
+  return out;
+}
+
+/// Nowa grupa wyjść: nazwa i zaznaczone wyjścia → kafelek `group` 2×2.
+class GroupPickerScreen extends StatefulWidget {
+  const GroupPickerScreen({super.key, required this.hub});
+
+  final DeviceHub hub;
+
+  @override
+  State<GroupPickerScreen> createState() => _GroupPickerScreenState();
+}
+
+class _GroupPickerScreenState extends State<GroupPickerScreen> {
+  late final Future<List<GroupCandidate>> _all = groupCandidates(widget.hub);
+  final _picked = <(String, String)>{};
+  final _name = TextEditingController(text: 'Światła');
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Grupa wyjść')),
+      body: FutureBuilder<List<GroupCandidate>>(
+        future: _all,
+        builder: (context, snap) {
+          final all = snap.data;
+          if (all == null) return const Center(child: CircularProgressIndicator());
+          return ListView(
+            padding: const EdgeInsets.only(bottom: 24),
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: TextField(
+                  key: const Key('groupName'),
+                  controller: _name,
+                  maxLength: 24,
+                  decoration: const InputDecoration(labelText: 'Nazwa grupy'),
+                ),
+              ),
+              const SectionHeader('Wyjścia'),
+              if (all.isEmpty)
+                const Padding(padding: EdgeInsets.all(16), child: Text('Nie ma jeszcze świateł ani przełączników.')),
+              for (final c in all)
+                CheckboxListTile(
+                  key: Key('groupPick-${c.device}-${c.point}'),
+                  title: Text(c.name),
+                  value: _picked.contains((c.device, c.point)),
+                  onChanged: (v) => setState(
+                    () => v == true ? _picked.add((c.device, c.point)) : _picked.remove((c.device, c.point)),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: FilledButton(
+                  key: const Key('groupDone'),
+                  onPressed: _picked.isEmpty
+                      ? null
+                      : () => Navigator.of(context).pop(
+                          DashWidget(
+                            id: newLocalId('w'),
+                            view: WidgetView.group,
+                            label: _name.text.trim().isEmpty ? 'Grupa' : _name.text.trim(),
+                          ).resized(2, 2).patch({
+                            'members': [
+                              for (final c in all)
+                                if (_picked.contains((c.device, c.point))) {'device': c.device, 'point': c.point},
+                            ],
+                          }),
+                        ),
+                  child: Text('Dodaj grupę (${_picked.length})'),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 }
 
 /// Dodawanie widżetu w 3 krokach (pkt 13): urządzenie → punkt danych → wygląd i rozmiar.
@@ -104,7 +339,12 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
 
   List<WidgetView> get _views {
     final all = _wholeThermostat ? [WidgetView.thermostat] : viewsFor(_point!);
-    return widget.forWatch ? [for (final v in all) if (watchWidgetViews.contains(v)) v] : all;
+    return widget.forWatch
+        ? [
+            for (final v in all)
+              if (watchWidgetViews.contains(v)) v,
+          ]
+        : all;
   }
 
   void _pickPoint(DataPoint? p) => setState(() {
@@ -120,9 +360,9 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
       context,
     ).push<Scene>(MaterialPageRoute(builder: (_) => ScenePickerScreen(hub: widget.hub)));
     if (scene != null && mounted) {
-      Navigator.of(context).pop(
-        DashWidget(id: newLocalId('w'), view: WidgetView.scene, size: WidgetSize.s2x1, sceneId: scene.id),
-      );
+      Navigator.of(
+        context,
+      ).pop(DashWidget(id: newLocalId('w'), view: WidgetView.scene, size: WidgetSize.s2x1, sceneId: scene.id));
     }
   }
 
@@ -178,6 +418,19 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
         if (devices.isEmpty)
           const Padding(padding: EdgeInsets.all(16), child: Text('Brak urządzeń, do których masz dostęp.')),
         const Divider(),
+        if (!widget.forWatch)
+          ListTile(
+            key: const Key('pickGroup'),
+            leading: const Icon(Icons.lightbulb_outline),
+            title: const Text('Grupa wyjść'),
+            subtitle: const Text('Kilka świateł jednym przyciskiem'),
+            onTap: () async {
+              final w = await Navigator.of(
+                context,
+              ).push<DashWidget>(MaterialPageRoute(builder: (_) => GroupPickerScreen(hub: widget.hub)));
+              if (w != null && context.mounted) Navigator.of(context).pop(w);
+            },
+          ),
         ListTile(
           key: const Key('pickScene'),
           leading: const Icon(Icons.auto_awesome),
@@ -196,9 +449,24 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
       builder: (context, snap) {
         if (!snap.hasData) return const Center(child: CircularProgressIndicator());
         final points = snap.data!;
+        final presets = widget.forWatch
+            ? const <TilePreset>[]
+            : tilePresets(d, points, widget.hub.controller(d.id)?.stateJson);
         return ListView(
           children: [
-            SectionHeader('${d.name}: co pokazać'),
+            if (presets.isNotEmpty) ...[
+              const SectionHeader('Gotowe kafelki'),
+              for (final (i, p) in presets.indexed)
+                ListTile(
+                  key: Key('preset-$i'),
+                  leading: Icon(dashWidgetIcon(p.widget, widget.hub)),
+                  title: Text(p.title),
+                  subtitle: Text(p.subtitle),
+                  trailing: const Icon(Icons.add),
+                  onTap: () => Navigator.of(context).pop(p.widget),
+                ),
+            ],
+            SectionHeader(presets.isEmpty ? '${d.name}: co pokazać' : 'Albo wybierz punkt danych'),
             if ((d.type == DeviceType.thermostat))
               ListTile(
                 key: const Key('pick-thermostat'),
@@ -268,10 +536,7 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
           key: const Key('widgetLabel'),
           controller: _label,
           maxLength: 24,
-          decoration: InputDecoration(
-            labelText: 'Podpis (opcjonalnie)',
-            hintText: _point?.name ?? _device!.name,
-          ),
+          decoration: InputDecoration(labelText: 'Podpis (opcjonalnie)', hintText: _point?.name ?? _device!.name),
         ),
         const SizedBox(height: 8),
         FilledButton(key: const Key('addWidgetDone'), onPressed: _done, child: const Text('Dodaj do pulpitu')),
@@ -288,9 +553,7 @@ class SizeChooser extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SegmentedButton<WidgetSize>(
-    segments: [
-      for (final s in WidgetSize.values) ButtonSegment(value: s, label: Text(s.wire.replaceAll('x', '×'))),
-    ],
+    segments: [for (final s in WidgetSize.values) ButtonSegment(value: s, label: Text(s.wire.replaceAll('x', '×')))],
     selected: {value},
     onSelectionChanged: (s) => onChanged(s.first),
   );
@@ -303,9 +566,11 @@ class ScenePickerScreen extends StatelessWidget {
   final DeviceHub hub;
 
   Future<void> _edit(BuildContext context, [Scene? scene]) async {
-    final saved = await Navigator.of(
-      context,
-    ).push<Scene>(MaterialPageRoute(builder: (_) => SceneEditorScreen(hub: hub, initial: scene)));
+    final saved = await Navigator.of(context).push<Scene>(
+      MaterialPageRoute(
+        builder: (_) => SceneEditorScreen(hub: hub, initial: scene),
+      ),
+    );
     if (saved != null && scene == null && context.mounted) Navigator.of(context).pop(saved);
   }
 

@@ -74,6 +74,49 @@ repozytorium trzeba najpierw uruchomić `node tools/configure.mjs`.
 - **Widżety**: siatka 2 kolumn, rozmiary `1x1`, `2x1`, `2x2`. Widoki: `value`, `toggle`, `slider`, `stepper`, `status`,
   `chart` (historia z `history` w chmurze, ostatnie 24 h), `thermostat` (temperatura, nastawa − / +, grzanie), `scene`.
   Widżet urządzenia bez dostępu jest wyszarzony z kłódką, kontrolki ponad mój poziom są nieaktywne.
+- **Wygląd kafelka** (`TileShell` w `lib/ui/dashboard_tiles.dart`): ikona-przycisk w kółku, nazwa, druga linia stanu,
+  tło w kolorze akcentu (pomarańcz z motywu), gdy włączone / grzeje / zwarte; plakietki GRZEJE, MRÓZ, AWARIA,
+  USTERKA. Kafelek bez treści na dole: ikona u góry, nazwa i stan na dole. Na dwa wiersze - większa ikona.
+- **Dwie strefy dotyku**: ikona wykonuje akcję główną (przełącz, wszystkie kanały, scena), reszta kafelka otwiera
+  arkusz szczegółów (pełna kontrolka punktu, wykres 24 h, przejście do urządzenia); termostat i węzeł
+  wielokanałowy - od razu ekran urządzenia. Zmiana widoczna od razu (zanim urządzenie odpowie), z wibracją.
+- **Rodzaje** (z punktów `describe`, bez nowych pól w kontrakcie): jedno wyjście (`toggle` + `onN`), wszystkie wyjścia
+  węzła (`toggle` + `on` na urządzeniu z `channels` > 1: przycisk na kanał z nazwą, „2 z 4”, ikona wł./wył.
+  wszystkie, plakietka usterki wejścia; 1×1 - same numery), stan wejścia (`status` + `inN`: zwarte / rozwarte,
+  usterka z `inNFault`), wartość z ikoną (`value`), suwak (ikona przełącza `on` ściemniacza), plus / minus,
+  wykres (pole pod linią), termostat, scena.
+- **Rozszerzony układ (pkt 13.1)**: siatka 4 kolumn × 64 px (`"grid": 4`; nowe pulpity od razu, stare - menu
+  „Nowy układ” albo karta w edycji: `toGrid4()` przelicza dawne rozmiary), rozmiary 1×1…4×4 (`w`, `h`), kafelki
+  w pierwszym wolnym miejscu (`packGrid4`). Pasek 4×1: wszystko w jednej linii, suwak obok nazwy. **Sekcje** z
+  nagłówkami (pulpit startowy - sekcja na pokój; w edycji: nowa sekcja, zmiana nazwy, kolejność, usunięcie;
+  przeciągnięty kafelek przechodzi do sekcji kafelka docelowego). **Podsumowanie** nad pulpitem
+  (`lib/ui/dashboard_summary.dart`): pigułki świateł („Wyłącz wszystkie”), grzania i alarmów (awaria czujnika,
+  usterka wejścia, brak kontaktu).
+- **Ustawienia kafelka 13.1** (arkusz, części rozwijane): kolor (`color`, z tego samego wzoru co motyw), rozmiar
+  ikony, druga linia (stan / ostatnia zmiana / inny punkt / nic), dotyk ikony i kafelka, pytanie przed akcją,
+  szybkie sterowanie (`features`: suwak, − / +, tryby, kanały, trend), wybrane kanały węzła (`points`), napisy
+  stanu (`labels`), wskaźnik (min / max, strefy, znacznik celu), wykres (zakres, przełącznik zakresu, do 3 serii -
+  gładka / schodkowa / pasy stanu, linia odniesienia). Pola nieznane tej wersji (także `view`) zostają w JSON-ie.
+- **Pokrętło** (`dial`, `lib/ui/tile_charts.dart`): półokrągły suwak do `setpoint`, przeciąganie po łuku z krokiem
+  z `describe`, polecenie po puszczeniu palca, kropka z wartością bieżącą (dla `target` - temperatura).
+  **Wskaźnik** (`gauge`): łuk tylko do odczytu ze strefami. **Wykres**: `TileChart` - kilka serii, zakres 6 h -
+  30 dni (historia z `hours`).
+- **Grupa, pogoda, hub (pkt 13.1)**: `group` - kilka wyjść (`members`) jednym kafelkiem: „2 z 5”, ikona wyłącza
+  wszystko, gdy coś świeci (inaczej włącza), dotyk - lista z przełącznikami; członkowie bez `control` albo bez
+  połączenia pomijani. `weather` - `outdoor` termostatu: temperatura, ikona i opis (numer ikony termostatu 1-9
+  albo kod OpenWeatherMap), „sprzed N min”, na kafelku 4×3 wykres z historii `out`. `hub` - urządzenia dostępne /
+  wszystkie, automatyki, trwające sceny, ostatnie wykonanie, plakietka BEZ CHMURY; dotyk - ekran huba.
+- **Gotowe kafelki** (kreator, po wyborze urządzenia, `tilePresets`): termostat (duży, pokrętło, temperatura
+  z wilgotnością, wskaźnik wilgotności, wykres 24 h, pogoda), węzeł (wszystkie wyjścia, każdy kanał, każde wejście),
+  światło (przełącznik, pasek i pokrętło jasności), hub (stan). Pod nimi - wybór punktu jak dotąd.
+  **Grupa wyjść** - osobna pozycja na liście urządzeń (`GroupPickerScreen`); członków zmienia arkusz kafelka.
+- **Edycja na siatce** (ołówek): te same kafelki co na pulpicie, z obrysem. Dotyk - arkusz ustawień z podglądem na
+  żywo (`lib/ui/tile_settings.dart`): podpis, ikona, rozmiar, wygląd (z pasujących do punktu z `describe`),
+  Wcześniej / Później, Duplikuj, Edytuj scenę, Usuń. Przytrzymanie i przeciągnięcie - kafelek zajmuje miejsce tego,
+  na który go upuszczono. Uchwyt w rogu - kolejny rozmiar (1×1 → 2×1 → 2×2).
+- Podgląd pulpitu do obrazka (prawdziwe czcionki, jasny i ciemny motyw):
+  `flutter test tool/preview/dashboard_preview_test.dart --update-goldens` → `tool/preview/pulpit_*.png`,
+  `edycja_*.png`, `siatka4_*.png`.
 - **Ikony**: każdy widżet ma ikonę przed nazwą - domyślną z punktu danych i typu urządzenia (np. kanał `on2` -
   żarówka, `in3` - przycisk, `temp` - termometr, scena - gwiazdki) albo wybraną z katalogu (~60 ikon w grupach:
   oświetlenie, ogrzewanie, sprzęty, miejsca, czujniki, sceny, urządzenia; `lib/ui/app_icons.dart`). Wybór: krok
@@ -267,6 +310,32 @@ Termostat ma do tego harmonogram i własne ustawienia, w tym **ochronę przed za
 najniższa temperatura pilnowana zawsze, także przy OFF (0 = wył., 4-12 °C), i grzanie cykliczne przy awarii czujnika
 (0 albo 5-20 min/h, tylko w mróz). Ekran termostatu pokazuje, kiedy ochrona działa (`protect` w State). Światło ma nazwę i zachowanie po zaniku zasilania (`defaultOn`).
 
+## Aktualizacje firmware (pkt 3e)
+
+Urządzenia → ikona aktualizacji (właściciel; bez konta - każdy z tokenem `config`). Każdą aktualizację zatwierdza
+się tutaj.
+- **Manifest** `https://ha-firmware.web.app/manifest.json` (`lib/data/firmware_catalog.dart`), ostatnia kopia
+  w telefonie na czas bez internetu. Wpisy spoza `https://ha-firmware.web.app/fw/` albo bez SHA-256 są pomijane
+  (urządzenie i tak odrzuci je z chmury).
+- **Termostat, hub, urządzenia z chmurą**: wersja i wariant z `/api/info` (`fw`, `fwId`) albo z chmury
+  (`devices/{id}/info`). „Aktualizuj” → Set `{"firmwareUrl","firmwareSha256"}` lokalnie albo poleceniem z chmury
+  (z chmury tylko właściciel). Lokalnie postęp z `GET /api/ota`, potem `/api/info` z nową wersją; z chmury -
+  `homes/{h}/devices/{id}/ota` (`running` z procentami, `failed`, `done`, `rolledBack` z `crash`/`boot`; stary wpis
+  sprzed polecenia pomijany), a przy starszym firmware nowe `info.fw` (do 10 min). Termostat: ostrzeżenie przed
+  zatwierdzeniem, gdy grzeje albo ma awarię czujnika. Obecna wersja poniżej `minVersion` - dwa kroki: najpierw
+  `intermediate` z manifestu, po nim lista od nowa i drugie zatwierdzenie (bez `intermediate` - tylko informacja).
+- **Węzły huba**: `GET hub/api/updates` (tablica) albo `homes/{h}/devices/{hubId}/updates` (mapa po id),
+  `next` = co zainstaluje najbliższe zatwierdzenie (po wersji pośredniej - drugie zatwierdzenie); zaznaczenie
+  gotowych (`ready`) i `POST hub/api/updates/apply` (`409` z błędem po id: `unknown|busy|not_ready`) albo Set huba
+  `applyUpdates` (błąd po id w `applyUpdates.<id>`); **Sprawdź teraz** - `POST hub/api/updates/check` / Set
+  `checkUpdates`. Stany `queued/updating/observing/done/failed` odświeżane co 15 s, dopóki hub coś aktualizuje.
+  Węzły z listy huba nie pojawiają się drugi raz wśród urządzeń.
+- **W tle** (WorkManager, raz na dobę, domy, których jestem właścicielem): lokalne powiadomienie „Dostępna
+  aktualizacja” tylko o wersjach, o których jeszcze nie było (`lib/background/update_check.dart`).
+- Atrapy: `fwId` w `/api/info`, Set `firmwareUrl` udaje pobieranie i restart z wersją z nazwy pliku
+  (`firmwareSha256Mismatch` - błąd sumy); atrapa huba ma `nodeUpdates`, `/api/updates`, `/api/updates/apply`,
+  `applyUpdates` i kolejkę (`advanceUpdates`, `updateStep`, `failUpdateOf`).
+
 ## Firebase (chmura)
 
 1. W konsoli: aplikacja Android **`pl.grekot.homeautomation`** w projekcie `zakupy-8ec54` i reguły bazy
@@ -365,6 +434,12 @@ flutter test
 - `home_v2_test.dart`:
   - typy urządzeń, światło na atrapie (wł./wył., jasność, błąd pola, przycisk na żywo), `/api/wifi/reset`;
   - pokoje: układ, przenoszenie, kolejność, zapis w `homes/{h}/rooms`.
+- `dashboard_model_test.dart`: pola 13.1, nieznane pola i widok bez zmian, rozmiary siatki 4, sekcje, układanie.
+- `dashboard_tiles_test.dart`: kafelki pulpitu - ikona przełącza od razu, kolor wg stanu, arkusz szczegółów, wszystkie
+  wyjścia węzła, stan wejścia z usterką, termostat z plakietką, każdy rodzaj w kafelku 1×1 bez przepełnień.
+- `firmware_test.dart` / `updates_device_test.dart`: aktualizacje firmware - wersje, manifest, katalog z kopią,
+  sprawdzanie w tle, ekran (ostrzeżenie, postęp, węzły huba) i na atrapach: Set `firmwareUrl` z postępem
+  i restartem, zła suma, kolejka huba.
 - `notify_test.dart` / `notify_device_test.dart`: powiadomienia ntfy - model, ekran (włączenie, próbne, subskrypcja
   z zapasową stroną, nowy temat, starszy firmware) i Set `notify` na atrapie (błędy pól, poziom `config`).
 - `watch_account_test.dart`: konto zegarka - dołączenie z `control`, sprzątnięty kod, kopia pulpitu, powtórka,

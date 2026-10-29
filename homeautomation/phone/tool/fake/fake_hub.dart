@@ -38,6 +38,92 @@ class FakeHub extends FakeDevice {
   final scenes = <String, Map<String, dynamic>>{};
   final logEntries = <Map<String, dynamic>>[];
 
+  /// Aktualizacje własnych węzłów (`GET /api/updates`, pkt 3e): wpisy `{id,fwId,current,available,next,ready,
+  /// state,error}`; `next` = co zainstaluje najbliższe zatwierdzenie (wersja pośrednia albo `available`).
+  final nodeUpdates = <Map<String, dynamic>>[];
+
+  /// Kiedy hub „sprawdził” manifest (unix, s) i data manifestu.
+  int updatesChecked = 1793000000;
+  String updatesManifest = '2026-11-02T10:00:00Z';
+
+  /// Jeden krok kolejki (queued → updating → observing → done) co tyle; zero = tylko [advanceUpdates].
+  Duration updateStep = Duration.zero;
+
+  /// Węzeł, którego aktualizacja się nie uda (zatrzymuje kolejkę).
+  String? failUpdateOf;
+
+  Map<String, dynamic> get _updatesJson => {
+    'checked': updatesChecked,
+    'manifest': updatesManifest,
+    'devices': nodeUpdates,
+  };
+
+  /// Ile razy aplikacja kazała sprawdzić manifest od razu.
+  int updateChecks = 0;
+
+  /// null = przyjęte; `'type'` / `'value'` - zła lista; mapa id → `unknown|busy|not_ready` (nic nie trafia do kolejki).
+  Object? _applyUpdates(Object? ids) {
+    if (ids is! List || ids.any((x) => x is! String)) return 'type';
+    if (ids.isEmpty) return 'value';
+    final errors = <String, String>{};
+    for (final id in ids) {
+      final e = nodeUpdates.where((u) => u['id'] == id).firstOrNull;
+      if (e == null || e['next'] == null) {
+        errors[id as String] = 'unknown';
+      } else if (const ['queued', 'updating', 'observing'].contains(e['state'])) {
+        errors[id as String] = 'busy';
+      } else if (e['ready'] != true) {
+        errors[id as String] = 'not_ready';
+      }
+    }
+    if (errors.isNotEmpty) return errors;
+    for (final e in nodeUpdates) {
+      if (ids.contains(e['id'])) {
+        e
+          ..['state'] = 'queued'
+          ..['error'] = null;
+      }
+    }
+    this.log('Aktualizacje węzłów: ${ids.join(', ')}');
+    if (updateStep > Duration.zero) _stepLater();
+    return null;
+  }
+
+  void _stepLater() => Timer(updateStep, () {
+    if (advanceUpdates()) _stepLater();
+  });
+
+  /// Jeden krok kolejki: pierwszy aktywny wpis przechodzi dalej. false = kolejka pusta albo zatrzymana.
+  bool advanceUpdates() {
+    final e =
+        nodeUpdates.where((u) => const ['updating', 'observing'].contains(u['state'])).firstOrNull ??
+        nodeUpdates.where((u) => u['state'] == 'queued').firstOrNull;
+    if (e == null) return false;
+    switch (e['state']) {
+      case 'queued':
+        e['state'] = 'updating';
+      case 'updating':
+        if (e['id'] == failUpdateOf) {
+          e
+            ..['state'] = 'failed'
+            ..['error'] = 'rollback';
+          for (final q in nodeUpdates.where((u) => u['state'] == 'queued')) {
+            q['state'] = 'idle';
+          }
+          return false;
+        }
+        e['state'] = 'observing';
+      case 'observing':
+        final installed = e['next'] as String;
+        e
+          ..['state'] = 'done'
+          ..['current'] = installed
+          // Po wersji pośredniej - drugi krok do zatwierdzenia.
+          ..['next'] = installed == e['available'] ? null : e['available'];
+    }
+    return true;
+  }
+
   /// Id, które hub odrzuca jako błędną regułę (`400 invalid`).
   String? rejectId;
 
@@ -118,6 +204,17 @@ class FakeHub extends FakeDevice {
           }
         case 'reload':
           if (e.value == true) reloads++;
+        case 'applyUpdates':
+          switch (_applyUpdates(e.value)) {
+            case final String err:
+              errors['applyUpdates'] = err;
+            case final Map<String, String> byId:
+              for (final x in byId.entries) {
+                errors['applyUpdates.${x.key}'] = x.value;
+              }
+          }
+        case 'checkUpdates':
+          updateChecks++;
         case 'runScene':
           if (scenes.containsKey(e.value)) {
             _logRun('scene', e.value as String);
@@ -138,6 +235,25 @@ class FakeHub extends FakeDevice {
   void _extraRoutes(Router r) {
     r
       ..get('/api/devices', _auth((req) => _json(children.values.toList())))
+      ..get('/api/updates', _auth((req) => _json(_updatesJson)))
+      ..post(
+        '/api/updates/apply',
+        _auth((Request req) async {
+          final b = await _body(req);
+          return switch (_applyUpdates(b?['devices'])) {
+            null => _json({'ok': true}),
+            final Map<String, String> byId => _json({'ok': false, 'errors': byId}, status: 409),
+            final err => _json({'ok': false, 'error': err == 'type' ? 'json' : 'devices'}, status: 400),
+          };
+        }, 'config'),
+      )
+      ..post(
+        '/api/updates/check',
+        _auth((Request req) {
+          updateChecks++;
+          return _json({'ok': true});
+        }, 'config'),
+      )
       ..post('/api/devices', _auth(_addDevice, 'config'))
       ..delete('/api/devices', _auth(_deleteDevice, 'config'))
       ..get('/api/devices/<id>/state', _auth(_childState))
@@ -178,7 +294,9 @@ class FakeHub extends FakeDevice {
       }
     }
     final existing = b['id'] is String ? children[b['id']] : null;
-    if (existing == null && children.length >= 30) return _json({'ok': false, 'error': 'too_many_devices'}, status: 507);
+    if (existing == null && children.length >= 30) {
+      return _json({'ok': false, 'error': 'too_many_devices'}, status: 507);
+    }
     final last = host.split('.').map(int.parse).skip(1).map((x) => x.toRadixString(16).padLeft(2, '0')).join();
     final id = b['id'] as String? ?? '$adapter-$last';
     children[id] = {
@@ -217,7 +335,11 @@ class FakeHub extends FakeDevice {
     if (c == null) return _json({'ok': false, 'error': 'not_found'}, status: 404);
     final b = await _body(req) ?? const {};
     if (c['online'] != true) {
-      return _json({'ok': false, 'errors': {'_': 'offline'}, 'state': c['state']}, status: 400);
+      return _json({
+        'ok': false,
+        'errors': {'_': 'offline'},
+        'state': c['state'],
+      }, status: 400);
     }
     if ((c['host'] as String).endsWith('.98')) return _json({'ok': true, 'pending': true}, status: 202);
     final state = c['state'] as Map<String, dynamic>;

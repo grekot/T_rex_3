@@ -12,9 +12,11 @@ import 'package:workmanager/workmanager.dart';
 
 import '../data/cloud_access.dart';
 import '../data/cloud_store.dart';
+import '../data/firmware_catalog.dart';
 import '../data/notifications.dart';
 import '../firebase_options.dart';
 import 'alerts.dart';
+import 'update_check.dart';
 
 const _taskName = 'termostat-alerts';
 const _enabledKey = 'alerts_enabled';
@@ -73,6 +75,41 @@ Future<void> runAlertCheck() async {
   }
   await prefs.setString(_memoryKey, jsonEncode(result.memory.toJson()));
   await _hubNotifications(access, prefs, plugin);
+  await _firmwareUpdates(access, prefs, plugin);
+}
+
+const _updatesChannel = AndroidNotificationDetails(
+  'updates',
+  'Aktualizacje firmware',
+  channelDescription: 'Nowe wersje oprogramowania urządzeń do zatwierdzenia',
+  importance: Importance.defaultImportance,
+);
+
+/// Raz dziennie: manifest wydań (pkt 3e) porównany z urządzeniami domów, których jestem właścicielem.
+Future<void> _firmwareUpdates(
+  FirebaseCloudAccess access,
+  SharedPreferencesAsync prefs,
+  FlutterLocalNotificationsPlugin plugin,
+) async {
+  final uid = access.uid;
+  if (uid == null) return;
+  final now = DateTime.now().millisecondsSinceEpoch;
+  final last = await prefs.getInt('fw_check_at');
+  if (last != null && now - last < const Duration(hours: 23).inMilliseconds) return;
+  await prefs.setInt('fw_check_at', now);
+  final available = await collectUpdates(access.store, uid, await FirmwareCatalog().load());
+  final seen = {...?await prefs.getStringList('fw_notified')};
+  final notice = updateNotice(available, seen);
+  if (notice != null) {
+    await plugin.show(
+      id: 0x46570000,
+      title: notice.title,
+      body: notice.body,
+      notificationDetails: const NotificationDetails(android: _updatesChannel),
+    );
+  }
+  // Pamiętamy tylko bieżące - po aktualizacji wpis znika, a nowa wersja znów da powiadomienie.
+  await prefs.setStringList('fw_notified', [for (final a in available) a.key]);
 }
 
 const _hubChannel = AndroidNotificationDetails(
