@@ -102,7 +102,7 @@ Future<void> main(List<String> argv) async {
     await mdns.start();
   }
   stdout.writeln(
-    'Klawisze: k/j gałka · f awaria · w / w1..w8 przycisk / wejście · b zajęty · p kod · s stan · t token · q koniec',
+    'Klawisze: k/j gałka · f awaria · w / w1..w8 przycisk / wejście · x1..x8 usterka wejścia · b zajęty · p kod · s stan · t token · q koniec',
   );
 
   late StreamSubscription<String> sub;
@@ -126,6 +126,12 @@ Future<void> main(List<String> argv) async {
       case ('w', final FakeLight l):
         l.press();
         stdout.writeln('Światło: ${l.on ? 'włączone' : 'wyłączone'}');
+      case (final String c, final FakeLight l) when RegExp(r'^x[1-9]$').hasMatch(c) && l.multi:
+        final k = int.parse(c.substring(1));
+        if (k <= l.inputs) {
+          l.setInputFault(k, !l.inFault.contains(k));
+          stdout.writeln('Wejście $k: ${l.inFault.contains(k) ? 'USTERKA (zablokowane)' : 'sprawne'}');
+        }
       case (final String c, final FakeLight l) when RegExp(r'^w[1-9]$').hasMatch(c) && l.multi:
         final k = int.parse(c.substring(1));
         if (k <= l.inputs) {

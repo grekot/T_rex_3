@@ -11,6 +11,8 @@ import '../models/describe.dart';
 import '../models/home.dart';
 import '../models/json_utils.dart';
 import '../models/scene.dart';
+import '../data/device_icons.dart';
+import 'app_icons.dart';
 import 'device_tiles.dart';
 import 'generic_device_screen.dart' show canSet;
 import 'point_controls.dart';
@@ -54,7 +56,14 @@ class DashGrid extends StatelessWidget {
 
 /// Punkt, gdy urządzenie (jeszcze) nie podało `describe` - znane pola z kontraktu.
 DataPoint fallbackPoint(String key) => switch (key) {
-  'temp' => const DataPoint(key: 'temp', name: 'Temperatura', kind: PointKind.sensor, unit: '°C', decimals: 1, history: 't'),
+  'temp' => const DataPoint(
+    key: 'temp',
+    name: 'Temperatura',
+    kind: PointKind.sensor,
+    unit: '°C',
+    decimals: 1,
+    history: 't',
+  ),
   'hum' => const DataPoint(key: 'hum', name: 'Wilgotność', kind: PointKind.sensor, unit: '%', decimals: 0),
   'target' => const DataPoint(
     key: 'target',
@@ -146,115 +155,151 @@ class _DashTileState extends State<DashTile> {
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: widget.hub,
-      builder: (context, _) {
-        if (w.isScene) return _SceneTile(widget: w, hub: widget.hub);
-        final c = _c;
-        final level = w.device == null ? AccessLevel.none : widget.hub.accessFor(w.device!);
-        if (c == null || level == AccessLevel.none) {
-          return _Frame(
-            title: w.label ?? 'Widżet',
-            dimmed: true,
-            child: Row(
-              children: [
-                const Icon(Icons.lock_outline),
-                const SizedBox(width: 8),
-                Expanded(child: Text(c == null ? 'Urządzenie niedostępne' : 'Brak dostępu')),
-              ],
-            ),
-          );
-        }
-        _ensureDescription();
-        final state = c.stateJson;
-        final p = _point;
-        final title = w.label ?? p?.name ?? c.device.name;
-        final subtitle = w.label == null ? c.device.name : null;
-        final offline = state == null || !c.live;
-        void open() => openDevice(context, c, hub: widget.hub);
-        Future<void> set(DataPoint p, Object? v) async {
-          final r = await c.sendJson(p.setFor(v));
-          if (context.mounted) showSendErrors(context, r.errors);
-        }
-
-        return switch (w.view) {
-          WidgetView.thermostat => _ThermostatWidget(controller: c, title: w.label ?? c.device.name, level: level),
-          WidgetView.chart => _Frame(
-            title: title,
-            subtitle: subtitle,
-            onTap: open,
-            child: _ChartBody(
-              deviceId: c.device.id,
-              point: p ?? fallbackPoint('temp'),
-              history: widget.history,
-              big: w.size.rows > 1,
-            ),
-          ),
-          _ when p == null => _Frame(title: title, onTap: open, child: const Text('Brak punktu danych')),
-          WidgetView.toggle => _Frame(
-            title: title,
-            subtitle: subtitle,
-            offline: offline,
-            onTap: open,
-            child: Align(
-              alignment: Alignment.bottomRight,
-              child: p.kind == PointKind.action
-                  ? FilledButton.tonal(
-                      onPressed: canSet(level, p) && !offline ? () => set(p, true) : null,
-                      child: const Text('Wykonaj'),
-                    )
-                  : Switch(
-                      key: Key('dash-switch-${w.id}'),
-                      value: p.valueIn(state) == true,
-                      onChanged: canSet(level, p) && !offline ? (v) => set(p, v) : null,
-                    ),
-            ),
-          ),
-          WidgetView.slider => _Frame(
-            title: title,
-            subtitle: subtitle,
-            offline: offline,
-            onTap: open,
-            trailing: Text(p.format(p.valueIn(state))),
-            child: p.min == null || p.max == null || p.valueIn(state) is! num
-                ? Text(p.format(p.valueIn(state)))
-                : SetpointSlider(
-                    point: p,
-                    value: (p.valueIn(state) as num).toDouble(),
-                    enabled: canSet(level, p) && !offline,
-                    onChanged: (v) => set(p, v),
-                  ),
-          ),
-          WidgetView.stepper => _Frame(
-            title: title,
-            subtitle: subtitle,
-            offline: offline,
-            onTap: open,
-            child: _StepperBody(point: p, value: p.valueIn(state), enabled: canSet(level, p) && !offline, onSet: (v) => set(p, v)),
-          ),
-          WidgetView.status => _Frame(
-            title: title,
-            subtitle: subtitle,
-            offline: offline,
-            onTap: open,
-            child: Align(
-              alignment: Alignment.bottomLeft,
-              child: Icon(
-                p.valueIn(state) == true ? Icons.check_circle : Icons.radio_button_unchecked,
-                size: 40,
-                color: p.valueIn(state) == true ? Theme.of(context).colorScheme.primary : null,
-              ),
-            ),
-          ),
-          WidgetView.value || WidgetView.scene => _Frame(
-            title: title,
-            subtitle: subtitle,
-            offline: offline,
-            onTap: open,
-            child: _ValueBody(point: p, value: p.valueIn(state), enabled: canSet(level, p) && !offline, onSet: (v) => set(p, v)),
-          ),
-        };
-      },
+      builder: (context, _) => _WidgetIcon(icon: dashWidgetIcon(w, widget.hub), child: _tile(context)),
     );
   }
+
+  Widget _tile(BuildContext context) {
+    if (w.isScene) return _SceneTile(widget: w, hub: widget.hub);
+    final c = _c;
+    final level = w.device == null ? AccessLevel.none : widget.hub.accessFor(w.device!);
+    if (c == null || level == AccessLevel.none) {
+      return _Frame(
+        title: w.label ?? 'Widżet',
+        dimmed: true,
+        child: Row(
+          children: [
+            const Icon(Icons.lock_outline),
+            const SizedBox(width: 8),
+            Expanded(child: Text(c == null ? 'Urządzenie niedostępne' : 'Brak dostępu')),
+          ],
+        ),
+      );
+    }
+    _ensureDescription();
+    final state = c.stateJson;
+    final p = _point;
+    final title = w.label ?? p?.name ?? c.device.name;
+    final subtitle = w.label == null ? c.device.name : null;
+    final offline = state == null || !c.live;
+    void open() => openDevice(context, c, hub: widget.hub);
+    Future<void> set(DataPoint p, Object? v) async {
+      final r = await c.sendJson(p.setFor(v));
+      if (context.mounted) showSendErrors(context, r.errors);
+    }
+
+    return switch (w.view) {
+      WidgetView.thermostat => _ThermostatWidget(controller: c, title: w.label ?? c.device.name, level: level),
+      WidgetView.chart => _Frame(
+        title: title,
+        subtitle: subtitle,
+        onTap: open,
+        child: _ChartBody(
+          deviceId: c.device.id,
+          point: p ?? fallbackPoint('temp'),
+          history: widget.history,
+          big: w.size.rows > 1,
+        ),
+      ),
+      _ when p == null => _Frame(title: title, onTap: open, child: const Text('Brak punktu danych')),
+      WidgetView.toggle => _Frame(
+        title: title,
+        subtitle: subtitle,
+        offline: offline,
+        onTap: open,
+        child: Align(
+          alignment: Alignment.bottomRight,
+          child: p.kind == PointKind.action
+              ? FilledButton.tonal(
+                  onPressed: canSet(level, p) && !offline ? () => set(p, true) : null,
+                  child: const Text('Wykonaj'),
+                )
+              : Switch(
+                  key: Key('dash-switch-${w.id}'),
+                  value: p.valueIn(state) == true,
+                  onChanged: canSet(level, p) && !offline ? (v) => set(p, v) : null,
+                ),
+        ),
+      ),
+      WidgetView.slider => _Frame(
+        title: title,
+        subtitle: subtitle,
+        offline: offline,
+        onTap: open,
+        trailing: Text(p.format(p.valueIn(state))),
+        child: p.min == null || p.max == null || p.valueIn(state) is! num
+            ? Text(p.format(p.valueIn(state)))
+            : SetpointSlider(
+                point: p,
+                value: (p.valueIn(state) as num).toDouble(),
+                enabled: canSet(level, p) && !offline,
+                onChanged: (v) => set(p, v),
+              ),
+      ),
+      WidgetView.stepper => _Frame(
+        title: title,
+        subtitle: subtitle,
+        offline: offline,
+        onTap: open,
+        child: _StepperBody(
+          point: p,
+          value: p.valueIn(state),
+          enabled: canSet(level, p) && !offline,
+          onSet: (v) => set(p, v),
+        ),
+      ),
+      WidgetView.status => _Frame(
+        title: title,
+        subtitle: subtitle,
+        offline: offline,
+        onTap: open,
+        child: Align(
+          alignment: Alignment.bottomLeft,
+          child: Icon(
+            p.valueIn(state) == true ? Icons.check_circle : Icons.radio_button_unchecked,
+            size: 40,
+            color: p.valueIn(state) == true ? Theme.of(context).colorScheme.primary : null,
+          ),
+        ),
+      ),
+      WidgetView.value || WidgetView.scene => _Frame(
+        title: title,
+        subtitle: subtitle,
+        offline: offline,
+        onTap: open,
+        child: _ValueBody(
+          point: p,
+          value: p.valueIn(state),
+          enabled: canSet(level, p) && !offline,
+          onSet: (v) => set(p, v),
+        ),
+      ),
+    };
+  }
+}
+
+/// Ikona widżetu: wybrana (`icon`), dla całego urządzenia - ikona urządzenia, inaczej domyślna dla punktu.
+IconData dashWidgetIcon(DashWidget w, DeviceHub hub) {
+  final chosen = appIcon(w.icon);
+  if (chosen != null) return chosen.icon;
+  if (w.device != null && (w.view == WidgetView.thermostat || w.point == 'on')) {
+    final own = appIcon(DeviceIcons.instance.of(w.device!));
+    if (own != null) return own.icon;
+  }
+  final type = w.device == null ? null : hub.device(w.device!)?.type;
+  return appIcon(widgetIconKey(view: w.view, point: w.point, type: type))!.icon;
+}
+
+/// Ikona przekazywana ramce widżetu bez dokładania parametru do każdego wariantu.
+class _WidgetIcon extends InheritedWidget {
+  const _WidgetIcon({required this.icon, required super.child});
+
+  final IconData icon;
+
+  static IconData? of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<_WidgetIcon>()?.icon;
+
+  @override
+  bool updateShouldNotify(_WidgetIcon old) => old.icon != icon;
 }
 
 class _Frame extends StatelessWidget {
@@ -294,6 +339,10 @@ class _Frame extends StatelessWidget {
               children: [
                 Row(
                   children: [
+                    if (_WidgetIcon.of(context) case final icon?) ...[
+                      Icon(icon, size: 18, color: cs.primary),
+                      const SizedBox(width: 6),
+                    ],
                     Expanded(
                       child: Text(title, style: t.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
                     ),
@@ -451,7 +500,9 @@ class _SceneTileState extends State<_SceneTile> {
     if (!mounted) return;
     setState(() => _running = false);
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(problems.isEmpty ? 'Wykonano „${widget.widget.label ?? scene.name}”.' : problems.join('\n'))),
+      SnackBar(
+        content: Text(problems.isEmpty ? 'Wykonano „${widget.widget.label ?? scene.name}”.' : problems.join('\n')),
+      ),
     );
   }
 
@@ -460,11 +511,7 @@ class _SceneTileState extends State<_SceneTile> {
     final w = widget.widget;
     final scene = w.sceneId == null ? null : widget.hub.scene(w.sceneId!);
     if (scene == null) {
-      return _Frame(
-        title: w.label ?? 'Scena',
-        dimmed: true,
-        child: const Text('Scena usunięta albo niedostępna'),
-      );
+      return _Frame(title: w.label ?? 'Scena', dimmed: true, child: const Text('Scena usunięta albo niedostępna'));
     }
     // Bez huba: kroki, których nie mogę wykonać (brak urządzenia albo poziomu).
     final blocked = [
@@ -543,9 +590,7 @@ class _ChartBodyState extends State<_ChartBody> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Expanded(
-                child: CustomPaint(painter: SparklinePainter(data, Theme.of(context).colorScheme.primary)),
-              ),
+              Expanded(child: CustomPaint(painter: SparklinePainter(data, Theme.of(context).colorScheme.primary))),
               const SizedBox(width: 4),
               Column(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,

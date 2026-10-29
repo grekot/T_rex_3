@@ -9,6 +9,8 @@ import '../models/room.dart';
 import '../services.dart';
 import 'account_menu.dart';
 import 'add_device_screen.dart';
+import '../data/device_icons.dart';
+import 'app_icons.dart';
 import 'device_tiles.dart';
 import 'pc_token_screen.dart';
 import 'widgets.dart';
@@ -36,6 +38,7 @@ class _DevicesTabState extends State<DevicesTab> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    unawaited(DeviceIcons.instance.load());
     _roomsSub ??= Services.of(context).rooms.watch().listen((r) {
       if (mounted) setState(() => _rooms = r);
     }, onError: (_) {});
@@ -88,11 +91,15 @@ class _DevicesTabState extends State<DevicesTab> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              ListTile(
-                title: Text(d.name),
-                subtitle: Text('${d.type.label} · ${d.id} · ${hub.accessFor(d.id).label}'),
-              ),
+              ListTile(title: Text(d.name), subtitle: Text('${d.type.label} · ${d.id} · ${hub.accessFor(d.id).label}')),
               const Divider(height: 1),
+              if (DeviceIcons.instance.canEdit)
+                ListTile(
+                  key: const Key('deviceIcon'),
+                  leading: Icon(deviceIcon(d)),
+                  title: const Text('Ikona'),
+                  onTap: () => Navigator.pop(ctx, 'icon'),
+                ),
               if (_canEditRooms) ...[
                 for (final r in sortRooms(_rooms))
                   if (r.id != room?.id)
@@ -136,6 +143,11 @@ class _DevicesTabState extends State<DevicesTab> {
       ),
     );
     if (action == null || !mounted) return;
+    if (action == 'icon') {
+      final key = await pickAppIcon(context, current: DeviceIcons.instance.of(d.id), defaultKey: deviceIconKey(d.type));
+      if (key != null) await DeviceIcons.instance.set(d, key);
+      return;
+    }
     final store = Services.of(context).rooms;
     if (action.startsWith('move:')) {
       final target = action.substring(5);

@@ -4,15 +4,17 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:homeautomation/data/dashboard_store.dart';
+import 'package:homeautomation/data/device_icons.dart';
+import 'package:homeautomation/data/device_store.dart';
 import 'package:homeautomation/data/errors.dart';
 import 'package:homeautomation/data/history.dart';
 import 'package:homeautomation/data/home_repository.dart';
 import 'package:homeautomation/models/dashboard.dart';
 import 'package:homeautomation/models/describe.dart';
+import 'package:homeautomation/models/device_type.dart';
 import 'package:homeautomation/models/home.dart';
 
 import 'support/memory_cloud_store.dart';
-
 
 void main() {
   group('poziomy dostępu', () {
@@ -143,6 +145,38 @@ void main() {
       expect((await member.devices()).map((d) => d.id).toSet(), {'t1', 's1'});
     });
 
+    test('ikona urządzenia: deviceIndex/{id}/icon - pisze właściciel, widzą domownicy (pkt 12-13)', () async {
+      store.set('homes/h1/deviceIndex/s1', {'type': 'switch', 'name': 'Lampa', 'via': 'hub-1'});
+      final owner = DeviceIcons(cache: MemoryTextCache())..attach(store, 'h1', canEdit: true, owner: 'hubA');
+      final member = DeviceIcons(cache: MemoryTextCache())..attach(store, 'h1', canEdit: false, owner: 'hubB');
+      await pumpEventQueue();
+
+      await owner.set(const PairedDevice(id: 's1', name: 'Lampa', type: DeviceType.onOff), 'ceiling');
+      expect(store.get('homes/h1/deviceIndex/s1'), {
+        'type': 'switch',
+        'name': 'Lampa',
+        'via': 'hub-1',
+        'icon': 'ceiling',
+      });
+      expect(member.of('s1'), 'ceiling');
+
+      // Urządzenie spoza indeksu dostaje cały wpis, żeby domownicy nie widzieli urządzenia bez typu i nazwy.
+      await owner.set(const PairedDevice(id: 't1', name: 'Salon'), 'heating');
+      expect(store.get('homes/h1/deviceIndex/t1'), {'type': 'thermostat', 'name': 'Salon', 'icon': 'heating'});
+
+      // Domownik nie zmienia; „Domyślna” u właściciela usuwa pole.
+      await member.set(const PairedDevice(id: 's1', name: 'Lampa', type: DeviceType.onOff), 'tv');
+      expect(store.get('homes/h1/deviceIndex/s1/icon'), 'ceiling');
+      await owner.set(const PairedDevice(id: 's1', name: 'Lampa', type: DeviceType.onOff), '');
+      expect((store.get('homes/h1/deviceIndex/s1/icon'), member.of('s1')), (null, null));
+
+      // Odłącza tylko ten, kto podłączył (nowy DeviceHub po zmianie domu podłącza się przed dispose starego).
+      owner.detach('inny');
+      expect(owner.of('t1'), 'heating');
+      owner.detach('hubA');
+      expect(owner.of('t1'), isNull);
+    });
+
     test('nieznany i wygasły kod', () async {
       final owner = repo('own');
       final home = await owner.createHome('Dom');
@@ -180,19 +214,21 @@ void main() {
 
     test('punkty, klucze z kropką, formatowanie i Set', () {
       final out = d.point('outdoor.temp')!;
-      expect(out.valueIn({'outdoor': {'temp': 4.25}}), 4.25);
+      expect(
+        out.valueIn({
+          'outdoor': {'temp': 4.25},
+        }),
+        4.25,
+      );
       expect(out.format(4.25), '4,3 °C');
       expect(out.setFor(5), {
         'outdoor': {'temp': 5},
       });
       final target = d.point('target')!;
-      expect((target.kind, target.min, target.step, target.access, target.history), (
-        PointKind.setpoint,
-        15.0,
-        0.5,
-        AccessLevel.control,
-        'target',
-      ));
+      expect(
+        (target.kind, target.min, target.step, target.access, target.history),
+        (PointKind.setpoint, 15.0, 0.5, AccessLevel.control, 'target'),
+      );
       expect(d.point('on')!.kind, PointKind.switchKind);
       expect(d.point('on')!.access, AccessLevel.config, reason: 'bez "access" - config');
     });
@@ -203,7 +239,14 @@ void main() {
       'name': 'Dom',
       'order': 0,
       'widgets': [
-        {'id': 'w1', 'device': 'termostat-ab12cd', 'point': 'target', 'view': 'stepper', 'size': '2x1', 'label': 'Salon'},
+        {
+          'id': 'w1',
+          'device': 'termostat-ab12cd',
+          'point': 'target',
+          'view': 'stepper',
+          'size': '2x1',
+          'label': 'Salon',
+        },
         {'id': 'w3', 'view': 'scene', 'size': '2x1', 'label': 'Wychodzę z domu', 'sceneId': 'wyjscie'},
       ],
     };

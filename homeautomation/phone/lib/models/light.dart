@@ -18,6 +18,7 @@ class LightState {
     this.channels = 1,
     this.channelOn = const [],
     this.inputs = const [],
+    this.inputFaults = const {},
   });
 
   final String id;
@@ -44,6 +45,9 @@ class LightState {
   /// `in1`…`inM` - wejście zwarte do masy (przycisk wciśnięty / łącznik zamknięty).
   final List<bool> inputs;
 
+  /// Numery wejść (od 1) z `inNFault: true`: usterka przewodu - wejście zablokowane, samo wraca po 60 s.
+  final Set<int> inputFaults;
+
   bool get multi => channels > 1;
 
   /// Ile kanałów świeci.
@@ -64,6 +68,10 @@ class LightState {
       channels: channels,
       channelOn: channels > 1 ? [for (var i = 1; i <= channels; i++) asBool(j['on$i'], 'on$i')] : const [],
       inputs: [for (var k = 1; k <= inputs; k++) asBool(j['in$k'], 'in$k')],
+      inputFaults: {
+        for (var k = 1; k <= inputs; k++)
+          if (j['in${k}Fault'] == true) k,
+      },
     );
   }
 
@@ -83,6 +91,7 @@ class LightState {
     if (inputs.isNotEmpty) ...{
       'inputs': inputs.length,
       for (final (i, v) in inputs.indexed) 'in${i + 1}': v,
+      for (final k in inputFaults) 'in${k}Fault': true,
     },
   };
 }

@@ -7,6 +7,8 @@ import '../data/thermostat_connection.dart';
 import '../models/device_type.dart';
 import 'format.dart';
 import '../controllers/device_hub.dart';
+import '../data/device_icons.dart';
+import 'app_icons.dart';
 import 'generic_device_screen.dart';
 import 'hub_screen.dart';
 import 'thermostat_screen.dart';
@@ -28,13 +30,17 @@ class DeviceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = controller;
     if (c == null) return _UnknownTile(device: device, onLongPress: onLongPress);
-    return ListenableBuilder(
-      listenable: c,
-      builder: (context, _) => switch (c) {
-        final ThermostatController t => _ThermostatTile(controller: t, onLongPress: onLongPress),
-        final LightController l => _LightTile(controller: l, onLongPress: onLongPress),
-        _ => _GenericTile(controller: c, onLongPress: onLongPress, hub: hub),
-      },
+    // Ikona urządzenia (wybrana albo domyślna dla typu) - przebudowa po zmianie.
+    return ValueListenableBuilder<Map<String, String>>(
+      valueListenable: DeviceIcons.instance.icons,
+      builder: (context, _, _) => ListenableBuilder(
+        listenable: c,
+        builder: (context, _) => switch (c) {
+          final ThermostatController t => _ThermostatTile(controller: t, onLongPress: onLongPress),
+          final LightController l => _LightTile(controller: l, onLongPress: onLongPress),
+          _ => _GenericTile(controller: c, onLongPress: onLongPress, hub: hub),
+        },
+      ),
     );
   }
 }
@@ -50,6 +56,9 @@ Future<void> openDevice(BuildContext context, DeviceController<Object?, Object?>
             : GenericDeviceScreen(controller: c),
       ),
     );
+
+/// Ikona urządzenia: wybrana przez użytkownika albo domyślna dla typu.
+IconData deviceIcon(PairedDevice d) => (appIcon(DeviceIcons.instance.of(d.id)) ?? appIcon(deviceIconKey(d.type))!).icon;
 
 /// Stan łącza w jednej linijce kafelka; null = dane płyną.
 String? _statusLine(DeviceController<Object?, Object?> c) {
@@ -75,8 +84,11 @@ class _TileFrame extends StatelessWidget {
     this.onLongPress,
     this.highlighted = false,
     this.tileKey,
+    this.leading,
   });
 
+  /// Ikona urządzenia przed nazwą.
+  final IconData? leading;
   final String title;
   final Widget child;
   final Widget? icon;
@@ -105,6 +117,10 @@ class _TileFrame extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  if (leading != null) ...[
+                    Icon(leading, size: 20, color: cs.onSurfaceVariant),
+                    const SizedBox(width: 6),
+                  ],
                   Expanded(
                     child: Text(title, maxLines: 2, overflow: TextOverflow.ellipsis, style: t.titleSmall),
                   ),
@@ -140,6 +156,7 @@ class _ThermostatTile extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     return _TileFrame(
       tileKey: Key('tile-${c.device.id}'),
+      leading: deviceIcon(c.device),
       title: c.config?.name ?? c.device.name,
       icon: s == null
           ? null
@@ -176,6 +193,7 @@ class _LightTile extends StatelessWidget {
     final dimmable = c.device.type == DeviceType.dimmer || s?.level != null;
     return _TileFrame(
       tileKey: Key('tile-${c.device.id}'),
+      leading: deviceIcon(c.device),
       title: c.config?.name ?? c.device.name,
       highlighted: on,
       icon: IconButton(
@@ -203,6 +221,22 @@ class _LightTile extends StatelessWidget {
               key: Key('channels-${c.device.id}'),
               style: Theme.of(context).textTheme.bodySmall,
             ),
+          if (s != null && s.inputFaults.isNotEmpty)
+            Row(
+              key: Key('inputFault-${c.device.id}'),
+              children: [
+                Icon(Icons.warning_amber_rounded, size: 16, color: Theme.of(context).colorScheme.error),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    'Usterka wejścia ${s.inputFaults.join(', ')}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
           if (dimmable)
             Slider(
               value: (c.displayLevel ?? 0).toDouble(),
@@ -229,8 +263,8 @@ class _GenericTile extends StatelessWidget {
     final c = controller;
     return _TileFrame(
       tileKey: Key('tile-${c.device.id}'),
+      leading: deviceIcon(c.device),
       title: c.device.name,
-      icon: Icon(c.device.type == DeviceType.hub ? Icons.device_hub : Icons.developer_board),
       status: _statusLine(c),
       onTap: () => openDevice(context, c, hub: hub),
       onLongPress: onLongPress,
@@ -254,6 +288,7 @@ class _UnknownTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) => _TileFrame(
     tileKey: Key('tile-${device.id}'),
+    leading: deviceIcon(device),
     title: device.name,
     icon: const Icon(Icons.device_unknown),
     onLongPress: onLongPress,

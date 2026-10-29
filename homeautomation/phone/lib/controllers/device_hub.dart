@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../data/cloud_access.dart';
 import '../data/connection_manager.dart';
+import '../data/device_icons.dart';
 import '../data/device_store.dart';
 import '../data/home_repository.dart';
 import '../data/scene_store.dart';
@@ -17,14 +18,7 @@ import 'thermostat_controller.dart';
 /// Urządzenia bieżącego domu i ich kontrolery - wspólne dla zakładek „Urządzenia” i „Pulpit”.
 /// Łączy urządzenia sparowane w telefonie z tymi z domu w chmurze i nakłada moje uprawnienia (pkt 12).
 class DeviceHub extends ChangeNotifier {
-  DeviceHub({
-    required this.store,
-    required this.manager,
-    required this.cloud,
-    this.home,
-    this.repo,
-    this.sceneStore,
-  });
+  DeviceHub({required this.store, required this.manager, required this.cloud, this.home, this.repo, this.sceneStore});
 
   final DeviceStore store;
   final ConnectionManager manager;
@@ -96,6 +90,9 @@ class DeviceHub extends ChangeNotifier {
 
   void start() {
     final h = home, r = repo, uid = cloud.uid;
+    if (h != null && cloud.available) {
+      DeviceIcons.instance.attach(cloud.store, h.id, canEdit: isOwner, owner: this);
+    }
     if (h != null && r != null && uid != null) {
       _accessSub = r.accessOf(h, uid).listen((a) {
         _myAccess = a;
@@ -256,6 +253,7 @@ class DeviceHub extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    DeviceIcons.instance.detach(this);
     _accessSub?.cancel();
     _scenesSub?.cancel();
     _membersSub?.cancel();
