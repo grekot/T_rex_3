@@ -6,6 +6,7 @@ import '../models/device_type.dart';
 import '../models/json_utils.dart';
 import 'cloud_connection.dart';
 import 'cloud_store.dart';
+import 'watch_account.dart';
 
 /// Urządzenie widoczne na koncie w chmurze (`home/{uid}/devices/{deviceId}`).
 class CloudDeviceSummary {
@@ -42,6 +43,9 @@ abstract class CloudAccess {
   String get dbUrl;
 
   CloudStore get store;
+
+  /// Zakładanie osobnego konta zegarka (PRZEGLAD.md #9); null = niedostępne.
+  WatchAccounts? get watchAccounts => null;
 
   /// Bieżący dom (pkt 12); null = jeszcze nie wybrany / bez konta.
   String? homeId;
@@ -82,7 +86,14 @@ abstract class CloudAccess {
             (indexed?.type != fromInfo.type ||
                 indexed?.name != fromInfo.name ||
                 (fromInfo.via != null && indexed?.via != fromInfo.via))) {
-          await writeDeviceIndex(store, h, id, fromInfo.type, fromInfo.name ?? id, via: fromInfo.via).catchError((_) {});
+          await writeDeviceIndex(
+            store,
+            h,
+            id,
+            fromInfo.type,
+            fromInfo.name ?? id,
+            via: fromInfo.via,
+          ).catchError((_) {});
         }
         return fromInfo ?? indexed;
       }),
@@ -177,4 +188,6 @@ class FirebaseCloudAccess extends CloudAccess {
   String get dbUrl => options.databaseURL ?? '';
   @override
   CloudStore get store => _store;
+  @override
+  late final WatchAccounts watchAccounts = FirebaseWatchAccounts(options);
 }

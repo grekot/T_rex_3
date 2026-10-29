@@ -24,6 +24,22 @@ import UIKit
         self?.handle(call, result: result)
       }
     }
+    // Otwarcie adresu w innej aplikacji (ntfy, przeglądarka - kontrakt pkt 3d).
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "HomeLinks") {
+      let links = FlutterMethodChannel(name: "pl.grekot.homeautomation/links", binaryMessenger: registrar.messenger())
+      links.setMethodCallHandler { call, result in
+        guard call.method == "open" else {
+          result(FlutterMethodNotImplemented)
+          return
+        }
+        let args = call.arguments as? [String: Any] ?? [:]
+        guard let text = args["url"] as? String, let url = URL(string: text) else {
+          result(false)
+          return
+        }
+        UIApplication.shared.open(url, options: [:]) { ok in result(ok) }
+      }
+    }
   }
 
   private func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
