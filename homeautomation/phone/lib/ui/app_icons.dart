@@ -99,6 +99,9 @@ String widgetIconKey({required WidgetView view, String? point, DeviceType? type}
   if (view == WidgetView.scene) return 'scene';
   if (view == WidgetView.thermostat) return 'thermostat';
   if (view == WidgetView.chart) return 'chart';
+  if (view == WidgetView.group) return 'light';
+  if (view == WidgetView.weather) return 'outdoor';
+  if (view == WidgetView.hub) return 'hub';
   final p = point ?? '';
   if (RegExp(r'^on\d*$').hasMatch(p) || p == 'toggle') return 'light';
   if (RegExp(r'^in\d+$').hasMatch(p)) return 'button';
@@ -174,11 +177,19 @@ class _IconGrid extends StatelessWidget {
         const SizedBox(height: 8),
         Wrap(
           children: [
-            tile(def, selected: current == null || current!.isEmpty, key: '', label: 'Domyślna${def == null ? '' : ' (${def.label})'}'),
+            tile(
+              def,
+              selected: current == null || current!.isEmpty,
+              key: '',
+              label: 'Domyślna${def == null ? '' : ' (${def.label})'}',
+            ),
           ],
         ),
         for (final g in groups.entries) ...[
-          Padding(padding: const EdgeInsets.only(top: 12, bottom: 4), child: Text(g.key, style: t.labelLarge)),
+          Padding(
+            padding: const EdgeInsets.only(top: 12, bottom: 4),
+            child: Text(g.key, style: t.labelLarge),
+          ),
           Wrap(
             spacing: 4,
             runSpacing: 4,

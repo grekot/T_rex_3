@@ -7,13 +7,16 @@ import '../controllers/home_session.dart';
 import '../data/dashboard_store.dart';
 import '../data/history.dart';
 import '../models/dashboard.dart';
+import '../models/describe.dart';
 import '../models/device_type.dart';
+import '../models/room.dart';
 import '../models/scene.dart';
 import '../services.dart';
 import 'account_menu.dart';
-import 'app_icons.dart';
+import 'dashboard_summary.dart';
 import 'dashboard_tiles.dart';
 import 'notifications_screen.dart';
+import 'tile_settings.dart';
 import 'watch_screen.dart';
 import 'widget_editor.dart';
 import 'widgets.dart';
@@ -39,6 +42,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _editing = false;
   HistorySource? _history;
 
+  /// Pokoje domu - sekcje pulpitu startowego.
+  List<Room> _rooms = const [];
+  StreamSubscription<List<Room>>? _roomsSub;
+
   /// Bez konta - jeden dom „w telefonie”.
   String get _homeId => widget.session?.current?.id ?? 'local';
   bool get _owner => widget.session?.isOwner ?? false;
@@ -53,8 +60,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (_withAccount && services.cloud.available) {
       final cloud = services.cloud;
       final home = _homeId;
-      _history = (device, field) => loadHistory(cloud.store, homeId: home, deviceId: device, field: field);
+      _history = (device, field, {int hours = 24}) =>
+          loadHistory(cloud.store, homeId: home, deviceId: device, field: field, hours: hours);
     }
+    _roomsSub = services.rooms.watch().listen((r) => _rooms = sortRooms(r), onError: (_) {});
     _sub = _store.watch(_homeId).listen((l) {
       if (mounted) setState(() => _list = l);
     }, onError: (_) {});
@@ -66,6 +75,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     _sub?.cancel();
+    _roomsSub?.cancel();
     super.dispose();
   }
 
@@ -94,7 +104,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _nextOrder(DashboardScope scope) =>
       (_list ?? const <Dashboard>[]).where((d) => d.scope == scope).fold(-1, (m, d) => d.order > m ? d.order : m) + 1;
 
-  Future<void> _create({DashboardScope scope = DashboardScope.private, List<DashWidget> widgets = const []}) async {
+  Future<void> _create({
+    DashboardScope scope = DashboardScope.private,
+    List<DashWidget> widgets = const [],
+    List<DashSection> sections = const [],
+  }) async {
     final name = await showTextInputDialog(
       context,
       title: scope == DashboardScope.shared ? 'Nowy wspólny pulpit' : 'Nowy pulpit',
@@ -103,7 +117,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
       fieldKey: const Key('dashboardName'),
     );
     if (name == null || !mounted) return;
-    final d = Dashboard(id: newLocalId('d'), name: name, scope: scope, order: _nextOrder(scope), widgets: widgets);
+    final d = Dashboard(
+      id: newLocalId('d'),
+      name: name,
+      scope: scope,
+      order: _nextOrder(scope),
+      widgets: widgets,
+      grid: 4,
+      sections: sections,
+    );
     await _save(d);
     setState(() {
       _selected = d.id;
@@ -111,15 +133,55 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-  /// Pulpit startowy z urządzeń, do których mam dostęp: termostaty jako „termostat”, światła jako przełącznik.
-  List<DashWidget> _starterWidgets() => [
-    for (final d in widget.hub.devices)
-      if (widget.hub.accessFor(d.id).canView)
-        if (d.type == DeviceType.thermostat)
-          DashWidget(id: newLocalId('w${d.id.hashCode}'), view: WidgetView.thermostat, size: WidgetSize.s2x1, device: d.id)
-        else if (d.type.isLight)
-          DashWidget(id: newLocalId('w${d.id.hashCode}'), view: WidgetView.toggle, device: d.id, point: 'on', label: d.name),
-  ];
+  /// Pulpit startowy z urządzeń, do których mam dostęp (siatka 4, pkt 13.1): sekcja na pokój, termostaty 4×2,
+  /// węzły wielokanałowe 4×2 (wszystkie wyjścia), pozostałe światła 2×1.
+  Future<void> _createStarter() async {
+    final rooms = _rooms;
+    final roomOf = {
+      for (final r in rooms)
+        for (final id in r.devices) id: r.id,
+    };
+    final sections = [
+      for (final r in rooms)
+        if (r.devices.any((id) => widget.hub.device(id) != null))
+          DashSection(id: 's${r.id}', title: r.name, room: r.id),
+    ];
+    final devices = [
+      for (final d in widget.hub.devices)
+        if (widget.hub.accessFor(d.id).canView && (d.type == DeviceType.thermostat || d.type.isLight)) d,
+    ];
+    // Kolejność: jak w pokojach, potem reszta.
+    final order = [for (final r in rooms) ...r.devices];
+    devices.sort((a, b) {
+      final ia = order.indexOf(a.id), ib = order.indexOf(b.id);
+      return (ia < 0 ? 1 << 20 : ia).compareTo(ib < 0 ? 1 << 20 : ib);
+    });
+    final widgets = [
+      for (final d in devices)
+        () {
+          final multi = (widget.hub.controller(d.id)?.stateJson?['channels'] as num? ?? 1) > 1;
+          final base = d.type == DeviceType.thermostat
+              ? DashWidget(
+                  id: newLocalId('w${d.id.hashCode}'),
+                  view: WidgetView.thermostat,
+                  size: WidgetSize.s2x1,
+                  device: d.id,
+                )
+              : DashWidget(
+                  id: newLocalId('w${d.id.hashCode}'),
+                  view: WidgetView.toggle,
+                  device: d.id,
+                  point: 'on',
+                  label: d.name,
+                );
+          final sized = d.type == DeviceType.thermostat || multi ? base.resized(4, 2) : base.resized(2, 1);
+          final room = roomOf[d.id];
+          return room == null ? sized : sized.patch({'section': 's$room'});
+        }(),
+    ];
+    if (!mounted) return;
+    await _create(widgets: widgets, sections: sections);
+  }
 
   Future<void> _menu(String action, Dashboard d) async {
     switch (action) {
@@ -130,6 +192,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       case 'rename':
         final name = await showTextInputDialog(context, title: 'Nazwa pulpitu', initial: d.name, maxLength: 24);
         if (name != null) await _save(d.copyWith(name: name));
+      case 'grid4':
+        await _save(d.toGrid4());
+        if (mounted) _snack('Pulpit ma teraz siatkę 4 kolumn - rozmiary kafelków zmienisz w edycji.');
+      case 'section':
+        await _addSection(d);
       case 'default':
         final p = HomePrefs(defaultDashboard: d.id);
         setState(() => _prefs = p);
@@ -150,7 +217,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           context: context,
           builder: (ctx) => AlertDialog(
             title: Text('Usunąć pulpit „${d.name}”?'),
-            content: d.scope == DashboardScope.shared ? const Text('To wspólny pulpit - zniknie u wszystkich domowników.') : null,
+            content: d.scope == DashboardScope.shared
+                ? const Text('To wspólny pulpit - zniknie u wszystkich domowników.')
+                : null,
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Anuluj')),
               FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Usuń')),
@@ -176,47 +245,150 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (w != null) await _save(d.copyWith(widgets: [...d.widgets, w]));
   }
 
-  Future<void> _editWidget(Dashboard d, DashWidget w, String action) async {
-    List<DashWidget> replace(DashWidget n) => [for (final x in d.widgets) x.id == w.id ? n : x];
-    switch (action) {
-      case 'label':
-        final label = await showTextInputDialog(context, title: 'Podpis', initial: w.label ?? '', maxLength: 24);
-        if (label == null) return;
-        await _save(
-          d.copyWith(
-            widgets: replace(
-              DashWidget(
-                id: w.id,
-                view: w.view,
-                size: w.size,
-                device: w.device,
-                point: w.point,
-                label: label.trim().isEmpty ? null : label.trim(),
-                sceneId: w.sceneId,
-                icon: w.icon,
-              ),
-            ),
+  /// Widoki pasujące do punktu kafelka (z `describe`, gdy urządzenie go podało).
+  List<WidgetView> _viewsFor(DashWidget w, DeviceDescription? desc) {
+    if (w.isScene || w.view == WidgetView.group || w.view == WidgetView.weather || w.view == WidgetView.hub) {
+      return [w.view];
+    }
+    if (w.view == WidgetView.thermostat && w.point == null) return const [WidgetView.thermostat];
+    final p = desc?.point(w.point ?? '') ?? fallbackPoint(w.point ?? '');
+    final views = viewsFor(p);
+    return views.contains(w.view) ? views : [w.view, ...views];
+  }
+
+  /// Arkusz ustawień kafelka (podgląd, podpis, ikona, rozmiar, wygląd, przesunięcie, duplikat, usunięcie).
+  Future<void> _tileSettings(Dashboard d, DashWidget w) async {
+    final c = widget.hub.controller(w.device ?? '');
+    final desc = await c?.description().catchError((_) => null);
+    if (!mounted) return;
+    final groupOptions = w.view == WidgetView.group ? await groupCandidates(widget.hub) : const <GroupCandidate>[];
+    if (!mounted) return;
+    final views = _viewsFor(w, desc);
+    final channels = c?.stateJson?['channels'];
+    final i = d.widgets.indexWhere((x) => x.id == w.id);
+    final scene = w.isScene ? widget.hub.scene(w.sceneId ?? '') : null;
+    final r = await showTileSettings(
+      context,
+      widget: w,
+      hub: widget.hub,
+      views: views,
+      defaultTitle: _widgetTitle(w.copyWith(clearLabel: true)),
+      history: _history,
+      canEditScene: scene != null && widget.hub.canEditShared,
+      first: i == 0,
+      last: i == d.widgets.length - 1,
+      grid: d.grid,
+      sections: d.sections,
+      points: desc?.points ?? [if (w.point != null) fallbackPoint(w.point!)],
+      channels: channels is int ? channels : 1,
+      groupOptions: groupOptions,
+    );
+    if (!mounted || r == null) return;
+    final list = [...d.widgets];
+    switch (r) {
+      case TileUpdated u:
+        list[i] = u.widget;
+      case TileDeleted():
+        list.removeAt(i);
+      case TileDuplicated():
+        list.insert(i + 1, w.copyWith(id: newLocalId('w')));
+      case TileMoved m:
+        final to = (i + m.by).clamp(0, list.length - 1);
+        list.insert(to, list.removeAt(i));
+      case TileEditScene():
+        await Navigator.of(context).push<Scene>(
+          MaterialPageRoute(
+            builder: (_) => SceneEditorScreen(hub: widget.hub, initial: scene),
           ),
         );
-      case 'icon':
-        final key = await pickAppIcon(
-          context,
-          current: w.icon,
-          defaultKey: widgetIconKey(view: w.view, point: w.point, type: widget.hub.device(w.device ?? '')?.type),
-        );
-        if (key == null) return;
-        await _save(d.copyWith(widgets: replace(key.isEmpty ? w.copyWith(clearIcon: true) : w.copyWith(icon: key))));
-      case 'scene':
-        final scene = widget.hub.scene(w.sceneId ?? '');
-        await Navigator.of(
-          context,
-        ).push<Scene>(MaterialPageRoute(builder: (_) => SceneEditorScreen(hub: widget.hub, initial: scene)));
-      case 'delete':
-        await _save(d.copyWith(widgets: [...d.widgets.where((x) => x.id != w.id)]));
-      default:
-        final size = WidgetSize.fromWire(action);
-        await _save(d.copyWith(widgets: replace(w.copyWith(size: size))));
+        return;
     }
+    await _save(d.copyWith(widgets: list));
+  }
+
+  /// Przeciągnięty kafelek zajmuje miejsce tego, na który go upuszczono (i przechodzi do jego sekcji).
+  Future<void> _drop(Dashboard d, String fromId, String toId) {
+    final from = d.widgets.indexWhere((x) => x.id == fromId), to = d.widgets.indexWhere((x) => x.id == toId);
+    final moved = d.widgets[from].patch({'section': d.widgets[to].section});
+    final list = [...d.widgets]..[from] = moved;
+    return _save(d.copyWith(widgets: reorder(list, from, to > from ? to + 1 : to)));
+  }
+
+  /// Przycisk w rogu: kolejny rozmiar (siatka 2: 1×1 → 2×1 → 2×2; siatka 4: kolejny z [grid4Sizes]).
+  Future<void> _resize(Dashboard d, DashWidget w) {
+    final DashWidget next;
+    if (d.grid == 4) {
+      final i = grid4Sizes.indexWhere((s) => s.$1 == w.gridW && s.$2 == w.gridH);
+      final (gw, gh) = grid4Sizes[(i + 1) % grid4Sizes.length];
+      next = w.resized(gw, gh);
+    } else {
+      next = w.copyWith(size: WidgetSize.values[(w.size.index + 1) % WidgetSize.values.length]);
+    }
+    return _save(d.copyWith(widgets: [for (final x in d.widgets) x.id == w.id ? next : x]));
+  }
+
+  Future<void> _addSection(Dashboard d) async {
+    final title = await showTextInputDialog(context, title: 'Nowa sekcja', initial: '', maxLength: 24);
+    if (title == null || title.trim().isEmpty) return;
+    await _save(
+      d.copyWith(
+        sections: [
+          ...d.sections,
+          DashSection(id: newLocalId('s'), title: title.trim()),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sectionMenu(Dashboard d, DashSection s, String action) async {
+    final i = d.sections.indexWhere((x) => x.id == s.id);
+    switch (action) {
+      case 'rename':
+        final title = await showTextInputDialog(context, title: 'Nazwa sekcji', initial: s.title, maxLength: 24);
+        if (title == null || title.trim().isEmpty) return;
+        await _save(
+          d.copyWith(
+            sections: [...d.sections]..[i] = DashSection(id: s.id, title: title.trim(), room: s.room),
+          ),
+        );
+      case 'up' || 'down':
+        final to = (i + (action == 'up' ? -1 : 1)).clamp(0, d.sections.length - 1);
+        final list = [...d.sections];
+        list.insert(to, list.removeAt(i));
+        await _save(d.copyWith(sections: list));
+      case 'delete':
+        // Kafelki zostają, bez sekcji.
+        await _save(
+          d.copyWith(
+            sections: [...d.sections]..removeAt(i),
+            widgets: [
+              for (final w in d.widgets) w.section == s.id ? w.patch({'section': null}) : w,
+            ],
+          ),
+        );
+    }
+  }
+
+  /// Kafelki bez sekcji (także z nieznaną sekcją), potem sekcje w kolejności.
+  List<(DashSection?, List<DashWidget>)> _grouped(Dashboard d) {
+    final ids = {for (final s in d.sections) s.id};
+    return [
+      (
+        null,
+        [
+          for (final w in d.widgets)
+            if (!ids.contains(w.section)) w,
+        ],
+      ),
+      for (final s in d.sections)
+        (
+          s,
+          [
+            for (final w in d.widgets)
+              if (w.section == s.id) w,
+          ],
+        ),
+    ];
   }
 
   @override
@@ -271,6 +443,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 const PopupMenuItem(value: 'new', child: Text('Nowy pulpit')),
                 if (_owner) const PopupMenuItem(value: 'newShared', child: Text('Nowy wspólny pulpit')),
                 if (_canEdit(d)) const PopupMenuItem(value: 'rename', child: Text('Zmień nazwę')),
+                if (_canEdit(d) && d.grid != 4)
+                  const PopupMenuItem(value: 'grid4', child: Text('Nowy układ (siatka 4 kolumn)')),
+                if (_canEdit(d)) const PopupMenuItem(value: 'section', child: Text('Nowa sekcja')),
                 if (d.id != _prefs.defaultDashboard)
                   const PopupMenuItem(value: 'default', child: Text('Otwieraj na starcie')),
                 if (d.scope == DashboardScope.shared)
@@ -285,9 +460,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               key: const Key('watchDashboard'),
               tooltip: 'Pulpit zegarka',
               icon: const Icon(Icons.watch_outlined),
-              onPressed: () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute<void>(builder: (_) => WatchScreen(hub: widget.hub))),
+              onPressed: () =>
+                  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => WatchScreen(hub: widget.hub))),
             ),
           if (_withAccount) AccountMenu(session: widget.session),
         ],
@@ -329,7 +503,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           const SizedBox(height: 20),
           FilledButton.icon(
             key: const Key('starterDashboard'),
-            onPressed: widget.hub.devices.isEmpty ? null : () => _create(widgets: _starterWidgets()),
+            onPressed: widget.hub.devices.isEmpty ? null : _createStarter,
             icon: const Icon(Icons.auto_awesome),
             label: const Text('Utwórz z moich urządzeń'),
           ),
@@ -345,6 +519,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
         children: [
+          DashSummary(hub: widget.hub),
           if (d.scope == DashboardScope.shared && !_owner)
             Padding(
               padding: const EdgeInsets.only(bottom: 8),
@@ -360,70 +535,93 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   const Text('Pulpit jest pusty.'),
                   if (_canEdit(d))
-                    TextButton(
-                      onPressed: () => setState(() => _editing = true),
-                      child: const Text('Dodaj widżety'),
-                    ),
+                    TextButton(onPressed: () => setState(() => _editing = true), child: const Text('Dodaj widżety')),
                 ],
               ),
             )
           else
-            DashGrid(
-              widgets: d.widgets,
-              builder: (w) => DashTile(widget: w, hub: widget.hub, history: _history),
-            ),
+            for (final (s, list) in _grouped(d))
+              if (s != null || list.isNotEmpty) ...[
+                if (s != null) _SectionHeader(title: s.title, count: list.length),
+                DashGrid(
+                  grid: d.grid,
+                  widgets: list,
+                  builder: (w) => DashTile(widget: w, hub: widget.hub, history: _history),
+                ),
+                const SizedBox(height: 4),
+              ],
         ],
       ),
     );
   }
 
+  /// Tryb edycji na siatce: te same kafelki co na pulpicie, dotyk - ustawienia, przytrzymanie - przeciąganie,
+  /// przycisk w rogu - rozmiar.
   Widget _editor(BuildContext context, Dashboard d) {
-    return ReorderableListView(
-      padding: const EdgeInsets.only(bottom: 96),
-      buildDefaultDragHandles: false,
-      header: const Padding(
-        padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
-        child: Text('Przeciągnij za uchwyt, aby zmienić kolejność. Menu przy widżecie: rozmiar, podpis, usunięcie.'),
-      ),
-      onReorder: (a, b) => _save(d.copyWith(widgets: reorder(d.widgets, a, b))),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
       children: [
-        for (final (i, w) in d.widgets.indexed)
-          ListTile(
-            key: ValueKey(w.id),
-            leading: ReorderableDragStartListener(index: i, child: const Icon(Icons.drag_handle)),
-            title: Row(
-              children: [
-                Icon(dashWidgetIcon(w, widget.hub), size: 18),
-                const SizedBox(width: 6),
-                Expanded(child: Text(_widgetTitle(w))),
-              ],
-            ),
-            subtitle: Text(
-              [
-                if (!w.isScene) widget.hub.device(w.device ?? '')?.name ?? 'urządzenie niedostępne',
-                w.view.label,
-                w.size.wire.replaceAll('x', '×'),
-              ].join(' · '),
-            ),
-            trailing: PopupMenuButton<String>(
-              key: Key('widgetMenu-${w.id}'),
-              onSelected: (a) => _editWidget(d, w, a),
-              itemBuilder: (_) => [
-                for (final s in WidgetSize.values)
-                  CheckedPopupMenuItem(
-                    value: s.wire,
-                    checked: w.size == s,
-                    child: Text('Rozmiar ${s.wire.replaceAll('x', '×')}'),
-                  ),
-                const PopupMenuDivider(),
-                if (w.isScene && widget.hub.canEditShared && widget.hub.scene(w.sceneId ?? '') != null)
-                  const PopupMenuItem(value: 'scene', child: Text('Edytuj scenę')),
-                const PopupMenuItem(value: 'label', child: Text('Podpis')),
-                const PopupMenuItem(value: 'icon', child: Text('Ikona')),
-                const PopupMenuItem(value: 'delete', child: Text('Usuń')),
-              ],
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text(
+            'Dotknij kafelka, aby go ustawić. Przytrzymaj i przeciągnij, aby przenieść. Przycisk w rogu zmienia rozmiar.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+        if (d.grid != 4)
+          Card(
+            child: ListTile(
+              key: const Key('toGrid4'),
+              leading: const Icon(Icons.grid_view),
+              title: const Text('Nowy układ: siatka 4 kolumn'),
+              subtitle: const Text(
+                'Niskie kafelki, paski 4×1, sekcje - wygląd obecnych kafelków prawie się nie zmieni.',
+              ),
+              onTap: () => _save(d.toGrid4()),
             ),
           ),
+        if (d.widgets.isEmpty)
+          const Padding(padding: EdgeInsets.all(24), child: Text('Dodaj pierwszy kafelek przyciskiem „Widżet”.'))
+        else
+          for (final (s, list) in _grouped(d))
+            if (s != null || list.isNotEmpty) ...[
+              if (s != null)
+                _SectionHeader(
+                  title: s.title,
+                  count: list.length,
+                  menu: PopupMenuButton<String>(
+                    key: Key('sectionMenu-${s.id}'),
+                    onSelected: (a) => _sectionMenu(d, s, a),
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(value: 'rename', child: Text('Zmień nazwę')),
+                      PopupMenuItem(value: 'up', child: Text('Wyżej')),
+                      PopupMenuItem(value: 'down', child: Text('Niżej')),
+                      PopupMenuItem(value: 'delete', child: Text('Usuń sekcję (kafelki zostają)')),
+                    ],
+                  ),
+                ),
+              DashGrid(
+                grid: d.grid,
+                widgets: list,
+                builder: (w) => EditableTile(
+                  id: w.id,
+                  onTap: () => _tileSettings(d, w),
+                  onResize: () => _resize(d, w),
+                  onDrop: (from) => _drop(d, from, w.id),
+                  child: DashTile(widget: w, hub: widget.hub, history: _history),
+                ),
+              ),
+              const SizedBox(height: 4),
+            ],
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: OutlinedButton.icon(
+            key: const Key('addSection'),
+            onPressed: () => _addSection(d),
+            icon: const Icon(Icons.view_agenda_outlined),
+            label: const Text('Nowa sekcja'),
+          ),
+        ),
       ],
     );
   }
@@ -433,5 +631,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (w.isScene) return widget.hub.scene(w.sceneId ?? '')?.name ?? 'Scena';
     if (w.view == WidgetView.thermostat) return widget.hub.device(w.device ?? '')?.name ?? 'Termostat';
     return fallbackPoint(w.point ?? '').name;
+  }
+}
+
+/// Nagłówek sekcji pulpitu (pkt 13.1).
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title, required this.count, this.menu});
+
+  final String title;
+  final int count;
+  final Widget? menu;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 8, 0, 6),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(title, style: t.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+          ),
+          Text(
+            '$count ${count == 1 ? 'kafelek' : (count > 1 && count < 5 ? 'kafelki' : 'kafelków')}',
+            style: t.bodySmall?.copyWith(color: Theme.of(context).colorScheme.outline),
+          ),
+          ?menu,
+        ],
+      ),
+    );
   }
 }

@@ -1,3 +1,4 @@
+import '../models/firmware.dart';
 import '../models/hub.dart';
 import '../models/json_utils.dart';
 import '../models/scene.dart';
@@ -10,6 +11,22 @@ class HubInvalidException extends ThermostatException {
 
   final List<String> problems;
 }
+
+/// Hub nie przyjął zatwierdzenia aktualizacji: błąd per węzeł (`unknown`, `busy`, `not_ready`).
+class HubApplyException extends ThermostatException {
+  HubApplyException(this.errors)
+    : super(errors.entries.map((e) => '${e.key}: ${describeApplyError(e.value)}').join('\n'));
+
+  final Map<String, String> errors;
+}
+
+String describeApplyError(String code) => switch (code) {
+  'unknown' => 'hub nie zna tego węzła',
+  'busy' => 'węzeł już się aktualizuje',
+  'not_ready' => 'hub nie pobrał jeszcze pliku',
+  'forbidden' => 'zatwierdza tylko właściciel domu',
+  final c => c,
+};
 
 /// Wynik polecenia do urządzenia podrzędnego: `pending` = urządzenie nie odpowiedziało w 3 s (hub dokończy).
 typedef HubSetResult = ({bool ok, bool pending, Map<String, String> errors});
@@ -77,7 +94,8 @@ class HubApi {
 
   // ---- automatyki i sceny
 
-  Future<AutomationsInfo> automations() async => AutomationsInfo.fromJson(_ok(await api.request('GET', '/api/automations')));
+  Future<AutomationsInfo> automations() async =>
+      AutomationsInfo.fromJson(_ok(await api.request('GET', '/api/automations')));
 
   Future<int?> putAutomation(Automation a, {int? updatedAt}) async {
     final j = _ok(await api.request('PUT', '/api/automations/${a.id}', body: a.toJson(updatedAt: updatedAt)));
@@ -107,6 +125,23 @@ class HubApi {
   Future<void> deleteScene(String id) async => _ok(await api.request('DELETE', '/api/scenes/$id'));
 
   Future<void> runScene(String id) async => _ok(await api.request('POST', '/api/scenes/$id/run'));
+
+  // ---- aktualizacje węzłów (pkt 3e)
+
+  Future<HubUpdates> updates() async => HubUpdates.fromJson(_ok(await api.request('GET', '/api/updates')));
+
+  /// Zatwierdzenie: hub aktualizuje po kolei (pierwszy węzeł, 10 min obserwacji, reszta). `409` z błędami po id
+  /// (`unknown|busy|not_ready`) - nic nie trafia do kolejki.
+  Future<void> applyUpdates(List<String> ids) async {
+    final j = await api.request('POST', '/api/updates/apply', body: {'devices': ids});
+    if (j is Map && j['ok'] == false && j['errors'] is Map) {
+      throw HubApplyException({for (final e in (j['errors'] as Map).entries) '${e.key}': '${e.value}'});
+    }
+    _ok(j);
+  }
+
+  /// Hub pobiera manifest od razu (zamiast co 6 h).
+  Future<void> checkUpdates() async => _ok(await api.request('POST', '/api/updates/check'));
 
   /// `POST /api/time` - czas z telefonu, gdy hub go nie zna (bez internetu i RTC).
   Future<void> setTime(DateTime now) async =>

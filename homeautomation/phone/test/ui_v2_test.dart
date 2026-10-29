@@ -321,18 +321,26 @@ void main() {
       {'id': 'swiatlo-1', 'on': false},
       {'name': 'Lampa'},
     );
-    final thermo = _MemConnection<ThermostatState, ThermostatConfig>(
-      'termostat-ab12cd',
-      thermostatCodec,
-      jsonDecode(stateJson) as Json,
-      jsonDecode(configJson) as Json,
-    )..describe = {
-        'type': 'thermostat',
-        'points': [
-          {'key': 'temp', 'name': 'Temperatura', 'kind': 'sensor', 'unit': '°C', 'decimals': 1},
-          {'key': 'mode', 'name': 'Tryb', 'kind': 'select', 'options': ['manual', 'auto'], 'access': 'control'},
-        ],
-      };
+    final thermo =
+        _MemConnection<ThermostatState, ThermostatConfig>(
+            'termostat-ab12cd',
+            thermostatCodec,
+            jsonDecode(stateJson) as Json,
+            jsonDecode(configJson) as Json,
+          )
+          ..describe = {
+            'type': 'thermostat',
+            'points': [
+              {'key': 'temp', 'name': 'Temperatura', 'kind': 'sensor', 'unit': '°C', 'decimals': 1},
+              {
+                'key': 'mode',
+                'name': 'Tryb',
+                'kind': 'select',
+                'options': ['manual', 'auto'],
+                'access': 'control',
+              },
+            ],
+          };
     final cache = MemoryTextCache();
     final dashboards = LocalDashboardStore(cache: cache);
     await tester.pumpWidget(
@@ -352,8 +360,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('21,4 °C'), findsOneWidget, reason: 'widżet termostatu');
 
-    // Przełącznik lampy na pulpicie.
-    await tester.tap(find.byType(Switch));
+    // Lampa na pulpicie: ikona kafelka przełącza (dwie strefy dotyku).
+    await tester.tap(find.byWidgetPredicate((w) => '${w.key}'.contains('dash-toggle-')));
     await tester.pumpAndSettle();
     expect(light.sent, [
       {'on': true},
@@ -371,6 +379,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('pick-termostat-ab12cd')));
     await tester.pumpAndSettle();
+    // Pod gotowymi kafelkami - lista punktów danych.
+    expect(find.byKey(const Key('preset-0')), findsOneWidget);
+    await tester.scrollUntilVisible(find.byKey(const Key('pick-mode')), 200);
     await tester.tap(find.byKey(const Key('pick-mode')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('widgetIcon')));
@@ -418,42 +429,170 @@ void main() {
     // Koniec edycji, uruchomienie sceny.
     await tester.tap(find.byKey(const Key('editDashboard')));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Uruchom'));
-    await tester.tap(find.text('Uruchom'));
+    final sceneIcon = find.byWidgetPredicate((w) => '${w.key}'.contains('scene-'));
+    await tester.ensureVisible(sceneIcon);
+    await tester.tap(sceneIcon);
     await tester.pumpAndSettle();
     expect(light.sent.last, {'on': false});
     expect(find.text('Wykonano „Wychodzę”.'), findsOneWidget);
+  });
+
+  testWidgets('edytor pulpitu na siatce: arkusz z podglądem, rozmiar, wygląd, duplikat, kolejność, przeciąganie', (
+    tester,
+  ) async {
+    final store = MemoryDeviceStore();
+    await store.saveDevice(const PairedDevice(id: 'termostat-ab12cd', name: 'Salon'));
+    await store.saveDevice(const PairedDevice(id: 'swiatlo-1', name: 'Lampa', type: DeviceType.onOff));
+    final light = _MemConnection<LightState, LightConfig>(
+      'swiatlo-1',
+      lightCodec,
+      {'id': 'swiatlo-1', 'on': false},
+      {'name': 'Lampa'},
+    );
+    final thermo = _MemConnection<ThermostatState, ThermostatConfig>(
+      'termostat-ab12cd',
+      thermostatCodec,
+      jsonDecode(stateJson) as Json,
+      jsonDecode(configJson) as Json,
+    );
+    final cache = MemoryTextCache();
+    await tester.pumpWidget(
+      _app(
+        store: store,
+        manager: _StubManager({'swiatlo-1': light, 'termostat-ab12cd': thermo}),
+        dashboards: LocalDashboardStore(cache: cache),
+        home: const MainScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('starterDashboard')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    List<DashWidget> saved() {
+      final raw = jsonDecode(cache.values['local_dashboards_local']!) as List;
+      return Dashboard.fromJson('d', DashboardScope.private, (raw.single as Map).cast<String, dynamic>()).widgets;
+    }
+
+    final lampId = saved().last.id, thermoId = saved().first.id;
+    // Dotyk przy lewym górnym rogu kafelka (prawy dolny zasłania przycisk „Widżet”).
+    Future<void> openTile(String id) async {
+      final f = find.byKey(Key('editTile-$id'));
+      await tester.ensureVisible(f);
+      await tester.pumpAndSettle();
+      await tester.tapAt(tester.getTopLeft(f) + const Offset(24, 24));
+      await tester.pumpAndSettle();
+    }
+
+    await tester.tap(find.byKey(const Key('editDashboard')));
+    await tester.pumpAndSettle();
+
+    // Arkusz: podpis widać od razu w podglądzie, rozmiar 2×2, wygląd „Stan”.
+    await openTile(lampId);
+    expect(find.byKey(const Key('tilePreview')), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('tileLabel')), 'Lampa salon');
+    await tester.pump();
+    expect(
+      find.descendant(of: find.byKey(const Key('tilePreview')), matching: find.text('Lampa salon')),
+      findsOneWidget,
+    );
+    expect(saved().first.extra['w'], 4, reason: 'nowy pulpit startowy - siatka 4, termostat 4×2');
+    await tester.tap(find.byKey(const Key('tileSize4-2x2')));
+    await tester.tap(find.byKey(const Key('tileView-status')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('tileSave')));
+    await tester.tap(find.byKey(const Key('tileSave')));
+    await tester.pumpAndSettle();
+    var w = saved().last;
+    expect((w.label, w.gridW, w.gridH, w.view), ('Lampa salon', 2, 2, WidgetView.status));
+
+    // Duplikat ląduje zaraz za oryginałem, z nowym id.
+    await openTile(lampId);
+    await tester.ensureVisible(find.byKey(const Key('tileDuplicate')));
+    await tester.tap(find.byKey(const Key('tileDuplicate')));
+    await tester.pumpAndSettle();
+    expect(saved().length, 3);
+    expect(saved()[2].label, 'Lampa salon');
+    expect(saved()[2].id, isNot(lampId));
+
+    // „Wcześniej”: lampa przed termostatem; potem usunięcie duplikatu.
+    await openTile(lampId);
+    await tester.ensureVisible(find.byKey(const Key('tileMoveUp')));
+    await tester.tap(find.byKey(const Key('tileMoveUp')));
+    await tester.pumpAndSettle();
+    expect(saved().map((x) => x.id).take(2), [lampId, thermoId]);
+    final dup = saved()[2].id;
+    await openTile(dup);
+    await tester.ensureVisible(find.byKey(const Key('tileDelete')));
+    await tester.tap(find.byKey(const Key('tileDelete')));
+    await tester.pumpAndSettle();
+    expect(saved().length, 2);
+
+    // Przycisk w rogu: kolejny rozmiar siatki 4 (2×2 → 4×1).
+    await tester.ensureVisible(find.byKey(Key('tileResize-$lampId')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(Key('tileResize-$lampId')));
+    await tester.pumpAndSettle();
+    expect((saved().first.gridW, saved().first.gridH), (4, 1));
+
+    // Przeciąganie: termostat upuszczony na lampę zajmuje jej miejsce.
+    await tester.ensureVisible(find.byKey(Key('editTile-$thermoId')));
+    await tester.pumpAndSettle();
+    final gesture = await tester.startGesture(
+      tester.getTopLeft(find.byKey(Key('editTile-$thermoId'))) + const Offset(24, 24),
+    );
+    await tester.pump(const Duration(milliseconds: 600));
+    await gesture.moveTo(tester.getTopLeft(find.byKey(Key('editTile-$lampId'))) + const Offset(24, 24));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(saved().map((x) => x.id), [thermoId, lampId]);
   });
 
   testWidgets('przełącznik 4-kanałowy: kanał z describe, ustawienia kanału i wejścia', (tester) async {
     final store = MemoryDeviceStore();
     const device = PairedDevice(id: 'swiatlo-4', name: 'Parter', type: DeviceType.onOff);
     await store.saveDevice(device);
-    final conn = _MemConnection<LightState, LightConfig>(
-      'swiatlo-4',
-      lightCodec,
-      {
-        'id': 'swiatlo-4', 'channels': 4, 'inputs': 8, 'on': false,
-        for (var i = 1; i <= 4; i++) 'on$i': false,
-        for (var k = 1; k <= 8; k++) 'in$k': false,
-        'in3Fault': true,
-      },
-      {
-        'name': 'Parter', 'channels': 4, 'inputs': 8,
-        for (var i = 1; i <= 4; i++) 'ch$i': {'name': 'Kanał $i', 'defaultOn': 'last'},
-        for (var k = 1; k <= 8; k++) 'input$k': {'name': 'Wejście $k', 'mode': 'momentary', 'out': (k - 1) % 4 + 1},
-      },
-    )..describe = {
-        'type': 'switch',
-        'channels': 4,
-        'points': [
-          {'key': 'on', 'name': 'Wszystkie', 'kind': 'switch', 'access': 'control'},
-          for (var i = 1; i <= 4; i++) {'key': 'on$i', 'name': 'Kanał $i', 'kind': 'switch', 'access': 'control', 'channel': i},
-        ],
-      };
+    final conn =
+        _MemConnection<LightState, LightConfig>(
+            'swiatlo-4',
+            lightCodec,
+            {
+              'id': 'swiatlo-4',
+              'channels': 4,
+              'inputs': 8,
+              'on': false,
+              for (var i = 1; i <= 4; i++) 'on$i': false,
+              for (var k = 1; k <= 8; k++) 'in$k': false,
+              'in3Fault': true,
+            },
+            {
+              'name': 'Parter',
+              'channels': 4,
+              'inputs': 8,
+              for (var i = 1; i <= 4; i++) 'ch$i': {'name': 'Kanał $i', 'defaultOn': 'last'},
+              for (var k = 1; k <= 8; k++)
+                'input$k': {'name': 'Wejście $k', 'mode': 'momentary', 'out': (k - 1) % 4 + 1},
+            },
+          )
+          ..describe = {
+            'type': 'switch',
+            'channels': 4,
+            'points': [
+              {'key': 'on', 'name': 'Wszystkie', 'kind': 'switch', 'access': 'control'},
+              for (var i = 1; i <= 4; i++)
+                {'key': 'on$i', 'name': 'Kanał $i', 'kind': 'switch', 'access': 'control', 'channel': i},
+            ],
+          };
     final manager = _StubManager({'swiatlo-4': conn});
     final c = LightController(device: device, manager: manager);
-    await tester.pumpWidget(_app(store: store, manager: manager, home: GenericDeviceScreen(controller: c)));
+    await tester.pumpWidget(
+      _app(
+        store: store,
+        manager: manager,
+        home: GenericDeviceScreen(controller: c),
+      ),
+    );
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('inputFaultBanner')), findsOneWidget);
@@ -551,26 +690,45 @@ void main() {
     final store = MemoryDeviceStore();
     const device = PairedDevice(id: 'hub-51e96c', name: 'Hub', type: DeviceType.hub);
     await store.saveDevice(device);
-    final conn = _MemConnection<Json, Json>(
-      'hub-51e96c',
-      rawCodec,
-      {
-        'id': 'hub-51e96c', 'devices': 1, 'online': 1, 'scenes': 0, 'automations': 0, 'running': 0, 'lastRun': null,
-        'ble': false, 'link': 'wifi', 'timeKnown': true, 'timeSource': 'ntp', 'rtc': false, 'cloud': false,
-        'ts': 1793133476, 'heap': 156640, 'wifiRssi': -62, 'uptime': 2550,
-      },
-      {'name': 'Hub', 'location': {'lat': 49.89399719, 'lon': 20.60899925}},
-    )..describe = {
-        'type': 'hub',
-        'points': [
-          {'key': 'devices', 'name': 'Urządzenia', 'kind': 'sensor', 'decimals': 0},
-          {'key': 'online', 'name': 'Dostępne', 'kind': 'sensor', 'decimals': 0},
-          {'key': 'running', 'name': 'Trwające sceny', 'kind': 'sensor', 'decimals': 0},
-          {'key': 'automations', 'name': 'Automatyki', 'kind': 'sensor', 'decimals': 0},
-          {'key': 'cloud', 'name': 'Chmura', 'kind': 'status'},
-          {'key': 'runScene', 'name': 'Uruchom scenę', 'kind': 'action', 'access': 'control'},
-        ],
-      };
+    final conn =
+        _MemConnection<Json, Json>(
+            'hub-51e96c',
+            rawCodec,
+            {
+              'id': 'hub-51e96c',
+              'devices': 1,
+              'online': 1,
+              'scenes': 0,
+              'automations': 0,
+              'running': 0,
+              'lastRun': null,
+              'ble': false,
+              'link': 'wifi',
+              'timeKnown': true,
+              'timeSource': 'ntp',
+              'rtc': false,
+              'cloud': false,
+              'ts': 1793133476,
+              'heap': 156640,
+              'wifiRssi': -62,
+              'uptime': 2550,
+            },
+            {
+              'name': 'Hub',
+              'location': {'lat': 49.89399719, 'lon': 20.60899925},
+            },
+          )
+          ..describe = {
+            'type': 'hub',
+            'points': [
+              {'key': 'devices', 'name': 'Urządzenia', 'kind': 'sensor', 'decimals': 0},
+              {'key': 'online', 'name': 'Dostępne', 'kind': 'sensor', 'decimals': 0},
+              {'key': 'running', 'name': 'Trwające sceny', 'kind': 'sensor', 'decimals': 0},
+              {'key': 'automations', 'name': 'Automatyki', 'kind': 'sensor', 'decimals': 0},
+              {'key': 'cloud', 'name': 'Chmura', 'kind': 'status'},
+              {'key': 'runScene', 'name': 'Uruchom scenę', 'kind': 'action', 'access': 'control'},
+            ],
+          };
     final manager = _StubManager({'hub-51e96c': conn});
     final hub = DeviceHub(store: store, manager: manager, cloud: NoCloudAccess());
     await hub.load();
@@ -580,7 +738,12 @@ void main() {
       _app(
         store: store,
         manager: manager,
-        home: Scaffold(body: SizedBox(width: 200, child: DeviceTile(device: device, controller: c, hub: hub))),
+        home: Scaffold(
+          body: SizedBox(
+            width: 200,
+            child: DeviceTile(device: device, controller: c, hub: hub),
+          ),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -593,7 +756,13 @@ void main() {
     expect(find.text('Urządzenia: 1 z 1 dostępne'), findsOneWidget);
     expect(find.textContaining('49.89399719'), findsOneWidget);
 
-    await tester.pumpWidget(_app(store: store, manager: manager, home: GenericDeviceScreen(controller: c)));
+    await tester.pumpWidget(
+      _app(
+        store: store,
+        manager: manager,
+        home: GenericDeviceScreen(controller: c),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     hub.dispose();

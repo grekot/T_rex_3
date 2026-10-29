@@ -90,6 +90,12 @@ abstract class FakeDevice {
   Map<String, String> _applyAs(String level, Map<String, dynamic> v) {
     final errors = <String, String>{};
     final allowed = <String, dynamic>{};
+    if (level == 'config' && v.containsKey('firmwareUrl')) {
+      errors.addAll(_firmwareUrl(v['firmwareUrl'], v['firmwareSha256']));
+      v = {...v}
+        ..remove('firmwareUrl')
+        ..remove('firmwareSha256');
+    }
     for (final e in v.entries) {
       if (e.key == 'notify' && level == 'config') {
         errors.addAll(_applyNotify(e.value));
@@ -105,6 +111,55 @@ abstract class FakeDevice {
       }
     }
     return {...errors, ...applySet(allowed)};
+  }
+
+  /// Wariant firmware w `/api/info` (pkt 3e); null = starszy firmware bez `fwId`.
+  late String? fwId = switch (typeWire) {
+    'thermostat' => 'thermostat-n16r8',
+    'hub' => 'hub-n16r8',
+    'switch' || 'dimmer' => 'switch4-s2mini',
+    _ => null,
+  };
+
+  /// Adresy z Set `firmwareUrl` (pkt 3a / 3e) - atrapa nic nie pobiera, tylko udaje postęp i restart.
+  final firmwareUrls = <String>[];
+
+  /// Kolejne Set `firmwareUrl` kończą się błędem `sha256` (jak plik niezgodny z sumą).
+  bool firmwareSha256Mismatch = false;
+
+  Map<String, String> _firmwareUrl(Object? url, Object? sha) {
+    if (url is! String || !url.startsWith('https://')) return {'firmwareUrl': 'format'};
+    if (sha != null && (sha is! String || !RegExp(r'^[0-9a-fA-F]{64}$').hasMatch(sha))) {
+      return {'firmwareSha256': 'format'};
+    }
+    if (_ota['state'] == 'running') return {'firmwareUrl': 'busy'};
+    firmwareUrls.add(url);
+    final version = RegExp(r'-(\d+\.\d+\.\d+)\.bin$').firstMatch(url)?.group(1);
+    unawaited(_download(version));
+    return const {};
+  }
+
+  /// „Pobieranie” w 4 krokach co [otaDelay], potem restart po [otaRestart] z nową wersją.
+  Future<void> _download(String? version) async {
+    for (var p = 0; p <= 100; p += 25) {
+      _ota = {'state': 'running', 'progress': p};
+      await Future<void>.delayed(otaDelay);
+    }
+    if (firmwareSha256Mismatch) {
+      _ota = {'state': 'error', 'progress': 0, 'error': 'sha256'};
+      return;
+    }
+    _ota = {'state': 'done', 'progress': 100};
+    otaCount++;
+    this.log('OTA z adresu: pobrano, restart');
+    Timer(otaRestart, () {
+      fw = version ?? '$_baseFw+ota$otaCount';
+      _ota = {'state': 'idle', 'progress': 0};
+      for (final c in _clients.toList()) {
+        c.sink.close();
+      }
+      this.log('OTA: „restart” - nowa wersja $fw');
+    });
   }
 
   /// Powiadomienia ntfy (pkt 3d) - wspólne dla wszystkich typów; próbne tylko liczone w [notifyTests].
@@ -231,6 +286,7 @@ abstract class FakeDevice {
           'type': typeWire,
           'name': deviceName,
           'fw': fw,
+          'fwId': ?fwId,
           'api': 2,
           'paired': _paired || phones.length > 1,
           if (softAp) 'prov': 'softap',

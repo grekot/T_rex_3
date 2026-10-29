@@ -60,6 +60,7 @@ class OtaStatus {
 /// Błąd wgrywania z termostatu (kody z firmware i komunikaty biblioteki Update) → po polsku.
 String describeOtaError(String? code) => switch (code) {
   'busy' => 'Trwa już inna aktualizacja.',
+  'sha256' => 'Suma pobranego pliku się nie zgadza - urządzenie zostało przy obecnej wersji.',
   'empty' => 'Plik jest pusty.',
   'write' => 'Błąd zapisu do pamięci termostatu.',
   'unauthorized' => 'Urządzenie odrzuciło token. Sparuj telefon ponownie.',

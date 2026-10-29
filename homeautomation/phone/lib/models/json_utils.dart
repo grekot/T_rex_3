@@ -45,10 +45,25 @@ Json? asObjectOrNull(Object? v, String field) {
 }
 
 /// Mapa błędów pól z `errors`, np. `{"schedule.weekday": "format"}`.
+/// Błędy pól Set; zagnieżdżone obiekty (np. `applyUpdates: {"<id>": "not_ready"}`) → klucze z kropką.
 Map<String, String> asErrors(Object? v) {
   final obj = asObjectOrNull(v, 'errors');
   if (obj == null) return const {};
-  return obj.map((k, e) => MapEntry(k, e?.toString() ?? ''));
+  final out = <String, String>{};
+  void add(String key, Object? e) {
+    if (e is Map) {
+      for (final x in e.entries) {
+        add('$key.${x.key}', x.value);
+      }
+    } else {
+      out[key] = e?.toString() ?? '';
+    }
+  }
+
+  for (final e in obj.entries) {
+    add(e.key, e.value);
+  }
+  return out;
 }
 
 /// Dodaje do mapy tylko wartości różne od null.
