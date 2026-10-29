@@ -320,6 +320,32 @@ assert.equal(r.title, "Dom", "nazwa domu z gołego napisu");
 assert.equal(r.diag.visible, 3, "właściciel rozpoznany po gołym ownerUid");
 assert.equal(r.devices["termostat-aaa"].name, "Salon");
 
+// --- osobne konto zegarka (PRZEGLAD #9): domownik z _all = control, bez własnego pulpitu ---
+tree.users.zegarek = { homes: { h1: true } };
+tree.homes.h1.members.zegarek = { role: "member" };
+tree.homes.h1.access.zegarek = { _all: "control" };
+db.calls.length = 0;
+r = await pollHome({ ...as("zegarek"), wantedHome: null, watchId: WATCH, pending: null, cache: newCache(), now: NOW });
+assert.equal(r.title, "Dom");
+assert.deepEqual(r.diag, { homeName: "Dom", dashboard: null, dashboardTiles: 0, indexed: 3, visible: 3 });
+assert.deepEqual(
+  items(r).map((x) => [x[0], x[1], x[2]]),
+  [
+    ["toggle", "swiatlo-1", "control"],
+    ["thermostat", "termostat-aaa", "control"],
+    ["toggle", "swiatlo-2", "control"],
+  ],
+  "wszystkie urządzenia z deviceIndex, poziom control"
+);
+assert.ok(!db.calls.some((c) => /devices\?shallow/.test(c)), "domownik nie czyta listy devices");
+const zc = await send({ ...as("zegarek"), homeId: "h1", id: "termostat-aaa", values: { target: 21.5 } });
+assert.equal(tree.commands.h1["termostat-aaa"][zc.key].by, "zegarek");
+// wyjątek per urządzenie: view - kafelek zostaje, ale polecenia odrzuca baza
+tree.homes.h1.access.zegarek["swiatlo-2"] = "view";
+r = await pollHome({ ...as("zegarek"), wantedHome: null, watchId: WATCH, pending: null, cache: newCache(), now: NOW });
+assert.equal(r.pages.flatMap((p) => p.items).find((it) => it.device === "swiatlo-2").level, "view");
+await assert.rejects(send({ ...as("zegarek"), homeId: "h1", id: "swiatlo-2", values: { on: false } }), /Permission denied/);
+
 // --- ekran termostatu ---
 db.calls.length = 0;
 r = await poll({ ...as("dom"), homeId: "h1", id: "termostat-aaa", pending: null, now: NOW });

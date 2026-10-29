@@ -14,6 +14,13 @@ const CARD = {
 
 const HINT = { fontSize: "12px", color: "#888", marginTop: "6px" };
 
+// Przegląd bezpieczeństwa (SmartTermostatOLED docs/PRZEGLAD.md #9): Side Service trzyma refresh token konta,
+// a główne konto daje dostęp także do Zakupów, Wagi itd. - lepiej osobne konto domownika tylko dla zegarka.
+const WATCH_ACCOUNT_HINT =
+  "Zalecane osobne konto dla zegarka (domownik z poziomem „sterowanie”) – utworzysz je w aplikacji " +
+  "HomeAutomation: Domownicy → Konto dla zegarka. Wtedy zegarek nie trzyma dostępu do Twojego głównego " +
+  "konta (Zakupy, Waga i inne aplikacje).";
+
 const BUTTON = {
   fontSize: "14px",
   borderRadius: "24px",
@@ -72,6 +79,9 @@ AppSettingsPage({
           "internet, także spoza domu.",
       ]),
       Text({ style: { fontSize: "14px", color: auth ? "#2e7d32" : "#555", marginBottom: "12px" } }, [status]),
+      View({ style: { ...CARD, backgroundColor: "#fff8e1", border: "1px solid #ffe0a3" } }, [
+        Text({ style: { fontSize: "13px", color: "#6d4c00" } }, [WATCH_ACCOUNT_HINT]),
+      ]),
     ];
 
     if (auth) {
