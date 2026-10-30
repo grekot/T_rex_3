@@ -49,7 +49,8 @@ import {
 } from "zosLoader:./index.page.[pf].layout.js";
 
 const POLL_MS = 5000;
-const POLL_AFTER_SEND_MS = 2000; // pierwsze sprawdzenie potwierdzenia
+const POLL_AFTER_SEND_MS = 800; // pierwsze sprawdzenie potwierdzenia (termostat odpowiada zwykle w 1-2 s)
+const POLL_ACK_MS = 1200; // do potwierdzenia pytamy częściej
 const DOUBLE_TAP_MS = 150; // jedno dotknięcie trafia i w koło, i w napis na nim
 const MODES = ["manual", "auto"];
 
@@ -195,7 +196,7 @@ Page(
         else this.received(result || {});
         const again = s.pollAgain;
         s.pollAgain = false;
-        this.pollSoon(again ? 0 : POLL_MS);
+        this.pollSoon(again ? 0 : s.awaitKey ? POLL_ACK_MS : POLL_MS);
       };
       ask(this, { method: "POLL", params: { home: s.home, id: s.id, pending: s.awaitKey || null } })
         .then((r) => done(r, false))
@@ -227,7 +228,8 @@ Page(
       if (!v.hasData) s.screen = "Termostat nie wysłał jeszcze danych do chmury";
 
       if (s.awaitKey && r.ack) {
-        toast(r.ack.text);
+        // z czasem od wysłania - widać, czy opóźnienie jest po stronie termostatu, czy telefonu
+        toast(r.ack.ok && s.sentAt ? r.ack.text + " (" + seconds(now - s.sentAt) + ")" : r.ack.text);
         s.localTarget = applyAck(s.localTarget, r.ack, s.awaitKey, now);
         s.localMode = applyAck(s.localMode, r.ack, s.awaitKey, now);
         s.awaitKey = null;
@@ -336,6 +338,7 @@ Page(
         this.render();
         this.sendNext();
       };
+      s.sentAt = Date.now();
       ask(this, { method: "SET", params: { home: s.home, id: s.id, values: item.values } })
         .then((r) => done(r || null))
         .catch(() => done(null));
@@ -391,3 +394,8 @@ Page(
     },
   })
 );
+
+// 1400 -> "1,4 s"
+function seconds(ms) {
+  return (Math.round(Math.max(0, ms) / 100) / 10).toFixed(1).replace(".", ",") + " s";
+}

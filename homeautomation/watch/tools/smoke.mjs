@@ -13,7 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import assert from "node:assert/strict";
-import { poll, pollHome, send, registerWatch, newCache } from "../utils/cloud.js";
+import { poll, pollHome, pollAck, send, registerWatch, newCache } from "../utils/cloud.js";
 
 const dir = process.argv[2];
 if (!dir) {
@@ -133,6 +133,7 @@ const messaging = {
     if (req.method === "HOME") return pollHome({ ...ctx, wantedHome: null, watchId: p.watch, pending: p.pending, cache: side.cache, now: clock.now });
     if (req.method === "REGISTER") return registerWatch({ ...ctx, info: p.info, appVersion: p.app });
     if (req.method === "POLL") return poll({ ...ctx, homeId: p.home, id: p.id, pending: p.pending, now: clock.now });
+    if (req.method === "ACK") return pollAck({ ...ctx, homeId: p.home, id: p.id, key: p.key, type: p.type, points: p.points, now: clock.now });
     if (req.method === "SET") return send({ ...ctx, homeId: p.home, id: p.id, values: p.values });
     return Promise.resolve({ ok: false, error: "?" });
   },
@@ -504,9 +505,14 @@ test("lista bez pulpitu: strona na pokój, światło przełączane jednym dotkni
   tree["swiatlo-0c4f21"].lastCommand = { key, ok: true };
   tree["swiatlo-0c4f21"].state.on = true;
   log.toasts = [];
-  await run(5000);
+  const homeBefore = count("HOME");
+  await run(1100);
   assert.equal(p.tile("Sufit").pill, "WŁ");
-  assert.ok(!p.tile("Sufit").pillPending);
+  assert.ok(!p.tile("Sufit").pillPending, "potwierdzone szybkim pytaniem (ACK), bez czekania na obieg");
+  assert.ok(p.has("Sufit: potwierdzone po"), p.texts().join(" | "));
+  assert.equal(count("HOME"), homeBefore, "w czasie szybkiego pytania zwykły obieg czeka");
+  assert.ok(count("ACK") >= 2);
+  await run(5000);
   assert.deepEqual(log.toasts, [], "udane przełączenie bez komunikatu");
   p.tile("Sufit").tap();
   await run(50);
@@ -750,7 +756,8 @@ test("termostat: + trzy razy -> jedno polecenie po 1 s, potwierdzenie, nowa nast
   tree["termostat-aaa"].state.override = true;
   log.toasts = [];
   await run(5000);
-  assert.deepEqual(log.toasts, ["Zapisano"]);
+  assert.equal(log.toasts.length, 1);
+  assert.match(log.toasts[0], /^Zapisano \(\d+,\d s\)$/, "potwierdzenie z czasem: " + log.toasts[0]);
   assert.equal(p.target(), "22,5°");
   assert.ok(p.has("nadpisane do 22:30"));
   assert.ok(!p.has("Czekam"));

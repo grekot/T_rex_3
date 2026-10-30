@@ -2,7 +2,7 @@
 // regułami z SmartTermostatOLED/docs/firebase/database.rules.json (właściciel i domownik), pulpit zegarka
 // (API.md pkt 13a) i zgłoszenie zegarka
 import assert from "node:assert/strict";
-import { poll, pollHome, send, registerWatch, newCache, LIST_TTL_MS } from "../utils/cloud.js";
+import { poll, pollHome, pollAck, send, registerWatch, newCache, LIST_TTL_MS } from "../utils/cloud.js";
 import { parseBody } from "../utils/firebase.js";
 
 const NOW = Date.UTC(2026, 9, 27, 18, 0, 0);
@@ -175,13 +175,13 @@ assert.ok(!db.calls.some((c) => /history|describe|homes\/h1\/dashboards|prefs/.t
 db.calls.length = 0;
 await pollHome({ ...as("owner"), wantedHome: null, watchId: WATCH, pending: null, cache, now: NOW + 5000 });
 assert.deepEqual(db.calls.sort(), [
-  "GET homes/h1/devices/swiatlo-1/lastSeen",
   "GET homes/h1/devices/swiatlo-1/state",
-  "GET homes/h1/devices/swiatlo-2/lastSeen",
   "GET homes/h1/devices/swiatlo-2/state",
-  "GET homes/h1/devices/termostat-aaa/lastSeen",
   "GET homes/h1/devices/termostat-aaa/state",
-]);
+], "lastSeen z pamięci (najwyżej 30 s)");
+db.calls.length = 0;
+await pollHome({ ...as("owner"), wantedHome: null, watchId: WATCH, pending: null, cache, now: NOW + 31000 });
+assert.equal(db.calls.filter((c) => /lastSeen/.test(c)).length, 3, "po 30 s lastSeen od nowa");
 
 // --- domownik z pulpitem zegarka: kafelek bez dostępu pominięty, opis punktów z describe ---
 cache = newCache();
@@ -345,6 +345,20 @@ tree.homes.h1.access.zegarek["swiatlo-2"] = "view";
 r = await pollHome({ ...as("zegarek"), wantedHome: null, watchId: WATCH, pending: null, cache: newCache(), now: NOW });
 assert.equal(r.pages.flatMap((p) => p.items).find((it) => it.device === "swiatlo-2").level, "view");
 await assert.rejects(send({ ...as("zegarek"), homeId: "h1", id: "swiatlo-2", values: { on: false } }), /Permission denied/);
+
+// --- szybkie potwierdzenie (ACK): tylko lastCommand i state jednego urządzenia ---
+const quick = await send({ ...as("owner"), homeId: "h1", id: "swiatlo-1", values: { on: true } });
+db.calls.length = 0;
+let ack = await pollAck({ ...as("owner"), homeId: "h1", id: "swiatlo-1", key: quick.key, type: "switch", points: ["on"], now: NOW });
+assert.deepEqual(db.calls.sort(), ["GET homes/h1/devices/swiatlo-1/lastCommand", "GET homes/h1/devices/swiatlo-1/state"]);
+assert.equal(ack.ack, null, "urządzenie jeszcze nie odpowiedziało");
+tree.homes.h1.devices["swiatlo-1"].lastCommand = { key: quick.key, ok: true };
+tree.homes.h1.devices["swiatlo-1"].state = { on: true };
+ack = await pollAck({ ...as("owner"), homeId: "h1", id: "swiatlo-1", key: quick.key, type: "switch", points: ["on"], now: NOW + 900 });
+assert.deepEqual(ack.ack, { ok: true, text: "Zapisano" });
+assert.deepEqual(ack.values, { on: true });
+assert.equal(ack.tile.on, true);
+assert.equal(ack.tile.hasData, true);
 
 // --- ekran termostatu ---
 db.calls.length = 0;

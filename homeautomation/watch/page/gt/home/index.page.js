@@ -47,6 +47,12 @@ const THERMOSTAT_PAGE = "page/gt/thermostat/index.page";
 const POLL_MS = 5000;
 const AWAY_CHECK_MS = 1000; // pod ekranem termostatu tylko sprawdzamy, czy już wrócił
 const POLL_AFTER_SEND_MS = 2000;
+// Po poleceniu: pytamy co ACK_EVERY_MS tylko o to jedno urządzenie (ACK: lastCommand + state), zwykły obieg czeka.
+// Pierwsze pytanie szybko - termostat i hub dostają polecenie strumieniem i odpowiadają zwykle w 1-2 s.
+const ACK_FIRST_MS = 600;
+const ACK_EVERY_MS = 1000;
+const ACK_FAST_FOR_MS = 15000;
+const FLASH_MS = 4000; // „potwierdzone po 1,4 s” w linii stanu
 const DOUBLE_TAP_MS = 300;
 const TARGET_SPEC = { min: 15, max: 30, step: 0.5, unit: "°C", decimals: 1 }; // nastawa bez opisu (pkt 7)
 
@@ -83,6 +89,10 @@ Page(
       s.locals = {}; // "urządzenie/punkt" -> wartość ustawiona dotknięciem, zanim baza ją pokaże
       s.awaiting = {}; // urządzenie -> { key, at }
       s.sendTimers = {};
+      s.ackTimers = {};
+      s.ackBusy = {};
+      s.acking = false;
+      s.flash = null;
       s.tiles = [];
       s.extra = [];
       s.signature = "";
@@ -108,7 +118,9 @@ Page(
       const s = this.state;
       s.destroyed = true;
       if (s.pollTimer) clearTimeout(s.pollTimer);
+      if (s.flashTimer) clearTimeout(s.flashTimer);
       Object.keys(s.sendTimers).forEach((k) => clearTimeout(s.sendTimers[k]));
+      Object.keys(s.ackTimers).forEach((k) => clearTimeout(s.ackTimers[k]));
     },
 
     // Telefon dał znać, że w ustawieniach zalogowano się albo zmieniono dom - odśwież od razu
@@ -170,6 +182,7 @@ Page(
         s.away = false;
         this.render();
       }
+      if (s.acking) return this.pollSoon(ACK_EVERY_MS);
       s.polling = true;
       const pending = {};
       Object.keys(s.awaiting).forEach((id) => {
@@ -224,15 +237,7 @@ Page(
       s.pages = r.pages;
       s.devices = r.devices || {};
       Object.keys(s.devices).forEach((id) => {
-        const d = s.devices[id];
-        const wait = s.awaiting[id];
-        if (wait && d.ack) {
-          if (!d.ack.ok) toast(d.name + ": " + d.ack.text);
-          this.eachLocal(id, (k) => {
-            s.locals[k] = applyAck(s.locals[k], d.ack, wait.key, now);
-          });
-          delete s.awaiting[id];
-        }
+        if (s.devices[id].ack) this.acked(id, s.devices[id].ack, now);
       });
       this.checkAckTimeouts();
       Object.keys(s.locals).forEach((k) => {
@@ -242,6 +247,83 @@ Page(
         if (!s.locals[k]) delete s.locals[k];
       });
       this.render();
+    },
+
+    // Urządzenie odpowiedziało na polecenie (lastCommand): wynik, czas od wysłania, koniec szybkiego pytania
+    acked(id, ack, now) {
+      const s = this.state;
+      const wait = s.awaiting[id];
+      if (!wait) return;
+      const d = s.devices[id];
+      const name = d ? d.name : id;
+      if (!ack.ok) toast(name + ": " + ack.text);
+      else this.flash(name + ": potwierdzone po " + seconds(now - (wait.sentAt || wait.at)));
+      this.eachLocal(id, (k) => {
+        s.locals[k] = applyAck(s.locals[k], ack, wait.key, now);
+      });
+      delete s.awaiting[id];
+    },
+
+    flash(text) {
+      const s = this.state;
+      s.flash = { text, until: Date.now() + FLASH_MS };
+      if (s.flashTimer) clearTimeout(s.flashTimer);
+      s.flashTimer = setTimeout(() => {
+        s.flashTimer = null;
+        s.flash = null;
+        this.render();
+      }, FLASH_MS);
+    },
+
+    // Szybkie potwierdzenie: tylko to urządzenie, co sekundę, aż przyjdzie lastCommand (najwyżej ACK_FAST_FOR_MS)
+    ackSoon(id, ms) {
+      const s = this.state;
+      if (s.destroyed) return;
+      if (s.ackTimers[id]) clearTimeout(s.ackTimers[id]);
+      s.ackTimers[id] = setTimeout(() => {
+        delete s.ackTimers[id];
+        this.askAck(id);
+      }, ms);
+      s.acking = Object.keys(s.ackTimers).length + Object.keys(s.ackBusy).length > 0;
+    },
+
+    askAck(id) {
+      const s = this.state;
+      const wait = s.awaiting[id];
+      const d = s.devices[id];
+      const stop = () => {
+        delete s.ackBusy[id];
+        s.acking = Object.keys(s.ackTimers).length + Object.keys(s.ackBusy).length > 0;
+      };
+      if (!wait || !d || s.destroyed || Date.now() - wait.at > ACK_FAST_FOR_MS) return stop();
+      s.ackBusy[id] = true;
+      const points = [];
+      s.pages.forEach((p) =>
+        p.items.forEach((it) => {
+          if (it.device === id && it.point && points.indexOf(it.point) === -1) points.push(it.point);
+        })
+      );
+      const done = (r) => {
+        stop();
+        if (s.destroyed) return;
+        const now = Date.now();
+        const cur = s.devices[id];
+        if (r && r.ok && cur) {
+          // stan z odpowiedzi; o kontakcie (offline) dalej decyduje zwykły obieg
+          cur.tile = { ...r.tile, offline: cur.tile.offline, ago: cur.tile.ago };
+          cur.values = { ...(cur.values || {}), ...(r.values || {}) };
+          if (r.ack) this.acked(id, r.ack, now);
+          this.eachLocal(id, (k) => {
+            s.locals[k] = settleLocal(s.locals[k], (cur.values || {})[splitKey(k)[1]], now);
+            if (!s.locals[k]) delete s.locals[k];
+          });
+        }
+        if (s.awaiting[id]) this.ackSoon(id, ACK_EVERY_MS);
+        this.render();
+      };
+      ask(this, { method: "ACK", params: { home: s.homeId, id, key: wait.key, type: d.type, points } })
+        .then((r) => done(r || null))
+        .catch(() => done(null));
     },
 
     eachLocal(id, fn) {
@@ -264,7 +346,11 @@ Page(
     forget() {
       const s = this.state;
       Object.keys(s.sendTimers).forEach((k) => clearTimeout(s.sendTimers[k]));
+      Object.keys(s.ackTimers).forEach((k) => clearTimeout(s.ackTimers[k]));
       s.sendTimers = {};
+      s.ackTimers = {};
+      s.ackBusy = {};
+      s.acking = false;
       s.locals = {};
       s.awaiting = {};
     },
@@ -332,8 +418,8 @@ Page(
         const mine = s.locals[k] && s.locals[k].sentAt === sent.sentAt;
         if (r && r.ok && r.key) {
           if (mine) s.locals[k] = { ...s.locals[k], key: r.key };
-          s.awaiting[id] = { key: r.key, at: Date.now() };
-          this.pollSoon(POLL_AFTER_SEND_MS);
+          s.awaiting[id] = { key: r.key, at: Date.now(), sentAt: sent.sentAt };
+          this.ackSoon(id, ACK_FIRST_MS);
         } else {
           if (mine) delete s.locals[k];
           toast(notSent(r));
@@ -456,6 +542,7 @@ Page(
       if (s.phoneDown) status = "Telefon niedostępny";
       else if (s.error) status = "Błąd: " + s.error;
       else if (s.sending) status = "Wysyłanie...";
+      else if (s.flash) status = s.flash.text;
       s.status.setProperty(hmUI.prop.TEXT, status);
     },
 
@@ -541,6 +628,11 @@ Page(
     },
   })
 );
+
+// 1400 -> "1,4 s"
+function seconds(ms) {
+  return (Math.round(Math.max(0, ms) / 100) / 10).toFixed(1).replace(".", ",") + " s";
+}
 
 function splitKey(k) {
   const i = k.indexOf("/");

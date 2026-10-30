@@ -19,9 +19,10 @@ import {
 } from "./home.js";
 
 export const LIST_TTL_MS = 60000; // domy, uprawnienia, pulpit, urządzenia i nazwy zmieniają się rzadko
+export const SEEN_TTL_MS = 30000; // lastSeen urządzenie pisze co 60 s - nie trzeba go czytać w każdym obiegu
 
 export function newCache() {
-  return { uid: null, wanted: null, watch: null, at: 0, ctx: null };
+  return { uid: null, wanted: null, watch: null, at: 0, ctx: null, seen: {} };
 }
 
 const str = (x) => (typeof x === "string" && x ? x : null);
@@ -163,12 +164,21 @@ export async function pollHome({ fetchJson, db, token, uid, wantedHome, watchId,
     })
   );
   const ids = Object.keys(shown);
+  // lastSeen z pamięci (najwyżej SEEN_TTL_MS) - mniej żądań w obiegu, szybsza kolejka do polecenia
+  const seen = (cache.seen = cache.seen || {});
+  const seenKey = (id) => ctx.homeId + "/" + id;
   const rows = await Promise.all(
     ids.map((id) => {
       const get = (node) => fetchJson(readRequest(db, token, devicePath(ctx.homeId, id, node)));
-      return Promise.all([get("state").catch(() => null), get("lastSeen").catch(() => null), waiting[id] ? get("lastCommand").catch(() => null) : null]);
+      const s = seen[seenKey(id)];
+      const lastSeen = s && now - s.at < SEEN_TTL_MS ? Promise.resolve(s.value) : get("lastSeen").catch(() => null);
+      return Promise.all([get("state").catch(() => null), lastSeen, waiting[id] ? get("lastCommand").catch(() => null) : null]);
     })
   );
+  ids.forEach((id, i) => {
+    const s = seen[seenKey(id)];
+    if (!s || now - s.at >= SEEN_TTL_MS) seen[seenKey(id)] = { at: now, value: rows[i][1] };
+  });
   const devices = {};
   const states = {};
   ids.forEach((id, i) => {
@@ -211,6 +221,20 @@ export async function pollHome({ fetchJson, db, token, uid, wantedHome, watchId,
     pages,
     devices,
   };
+}
+
+// Szybkie potwierdzenie po poleceniu z pulpitu: tylko lastCommand i state jednego urządzenia (2 odczyty zamiast
+// całego obiegu). type - typ urządzenia (zegarek go zna), points - punkty potrzebne kafelkom.
+// -> { ok, ack, tile, values } (tile bez offline: o kontakcie decyduje zwykły obieg)
+export async function pollAck({ fetchJson, db, token, homeId, id, key, type, points, now }) {
+  const get = (node) => fetchJson(readRequest(db, token, devicePath(homeId, id, node)));
+  const [lastCommand, state] = await Promise.all([get("lastCommand").catch(() => null), get("state").catch(() => null)]);
+  const values = {};
+  (points || []).forEach((p) => {
+    values[p] = pointValue(state, p);
+  });
+  const t = type && type !== "unknown" ? type : typeOf(null, state);
+  return { ok: true, ack: ackResult(lastCommand, key), tile: tileView(t, state, now, now), values };
 }
 
 // Zgłoszenie zegarka (pkt 13a) przy uruchomieniu aplikacji -> { ok, watchId }

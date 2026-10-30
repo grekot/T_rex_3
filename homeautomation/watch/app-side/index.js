@@ -14,7 +14,7 @@ import {
   isSessionDead,
   isTokenRejected,
 } from "../utils/firebase";
-import { poll, pollHome, send, registerWatch, newCache } from "../utils/cloud";
+import { poll, pollHome, pollAck, send, registerWatch, newCache } from "../utils/cloud";
 
 // Token dostępu trzymamy tylko w pamięci; w ustawieniach zostaje refresh token
 let session = null; // { idToken, expiresAt }
@@ -160,6 +160,13 @@ function handle(req) {
   // Zegarek zgłasza się przy każdym uruchomieniu (model, ekran) - telefon układa pod niego pulpit
   if (req.method === "REGISTER") {
     return withSession((ctx) => registerWatch({ ...ctx, info: p.info, appVersion: p.app }));
+  }
+  // Szybkie potwierdzenie polecenia z pulpitu (zegarek pyta co ~1 s, aż przyjdzie lastCommand)
+  if (req.method === "ACK") {
+    if (!p.home || !p.id || !p.key) return Promise.resolve({ ok: false, error: "Złe żądanie" });
+    return withSession((ctx) =>
+      pollAck({ ...ctx, homeId: p.home, id: p.id, key: p.key, type: p.type || null, points: p.points || [], now: Date.now() })
+    );
   }
   if (req.method === "POLL") {
     if (!p.home || !p.id) return Promise.resolve({ ok: false, error: "Brak urządzenia" });
