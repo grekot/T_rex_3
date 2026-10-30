@@ -29,7 +29,7 @@ String describeApplyError(String code) => switch (code) {
 };
 
 /// Wynik polecenia do urządzenia podrzędnego: `pending` = urządzenie nie odpowiedziało w 3 s (hub dokończy).
-typedef HubSetResult = ({bool ok, bool pending, Map<String, String> errors});
+typedef HubSetResult = ({bool ok, bool pending, Map<String, String> errors, Json? state});
 
 /// Lokalne API huba (kontrakt pkt 11) - w sieci domowej, tokenem telefonu.
 class HubApi {
@@ -92,7 +92,12 @@ class HubApi {
     final errors = <String, String>{
       for (final e in ((j['errors'] is Map ? j['errors'] as Map : const {})).entries) '${e.key}': '${e.value}',
     };
-    return (ok: j['ok'] == true, pending: j['pending'] == true, errors: errors);
+    return (
+      ok: j['ok'] == true,
+      pending: j['pending'] == true,
+      errors: errors,
+      state: asObjectOrNull(j['state'], 'state'),
+    );
   }
 
   // ---- automatyki i sceny

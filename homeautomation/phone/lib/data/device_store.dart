@@ -16,6 +16,7 @@ class PairedDevice {
     this.lastEndpoint,
     this.type = DeviceType.thermostat,
     this.access = AccessLevel.none,
+    this.via,
   });
 
   final String id;
@@ -28,6 +29,9 @@ class PairedDevice {
   /// Ostatni adres, pod którym termostat odpowiedział w sieci lokalnej.
   final LocalEndpoint? lastEndpoint;
 
+  /// Hub, przez który urządzenie jest dostępne (pkt 11); nie zapisujemy - przychodzi z huba albo z `deviceIndex`.
+  final String? via;
+
   PairedDevice copyWith({String? name, LocalEndpoint? lastEndpoint, DeviceType? type, AccessLevel? access}) =>
       PairedDevice(
         id: id,
@@ -35,6 +39,7 @@ class PairedDevice {
         lastEndpoint: lastEndpoint ?? this.lastEndpoint,
         type: type ?? this.type,
         access: access ?? this.access,
+        via: via,
       );
 
   factory PairedDevice.fromJson(Json j) {

@@ -18,7 +18,15 @@ import 'thermostat_controller.dart';
 /// Urządzenia bieżącego domu i ich kontrolery - wspólne dla zakładek „Urządzenia” i „Pulpit”.
 /// Łączy urządzenia sparowane w telefonie z tymi z domu w chmurze i nakłada moje uprawnienia (pkt 12).
 class DeviceHub extends ChangeNotifier {
-  DeviceHub({required this.store, required this.manager, required this.cloud, this.home, this.repo, this.sceneStore});
+  DeviceHub({
+    required this.store,
+    required this.manager,
+    required this.cloud,
+    this.home,
+    this.repo,
+    this.sceneStore,
+    this.wanted,
+  });
 
   final DeviceStore store;
   final ConnectionManager manager;
@@ -31,6 +39,9 @@ class DeviceHub extends ChangeNotifier {
   /// Sceny domu (`homes/{h}/scenes`, bez konta - w telefonie).
   final SceneStore? sceneStore;
 
+  /// Usługa widżetów: łączy się tylko z tymi urządzeniami; null = ze wszystkimi.
+  final Set<String> Function()? wanted;
+
   /// Dom w magazynach (pulpity, sceny); bez konta - jeden dom „w telefonie”.
   String get homeId => home?.id ?? 'local';
   List<Scene> _scenes = const [];
@@ -40,6 +51,7 @@ class DeviceHub extends ChangeNotifier {
   final _indexed = <String, String>{};
 
   List<PairedDevice> _local = const [];
+  List<PairedDevice> _hubChildren = const [];
   List<CloudDeviceSummary> _cloud = const [];
   bool _loaded = false;
   bool _cloudLoading = false;
@@ -72,11 +84,13 @@ class DeviceHub extends ChangeNotifier {
   /// Wszystkie znane urządzenia domu (bez powtórzeń). Urządzenia lokalne bez dostępu w domu
   /// (np. cudze) i tak są pokazane - dostęp sprawdza urządzenie.
   List<PairedDevice> get devices {
-    final localIds = {for (final d in _local) d.id};
+    final seen = {for (final d in _local) d.id};
     return [
       ..._local,
+      for (final d in _hubChildren)
+        if (seen.add(d.id)) d,
       for (final c in _cloud)
-        if (!localIds.contains(c.id)) PairedDevice(id: c.id, name: c.name ?? c.id, type: c.type),
+        if (seen.add(c.id)) PairedDevice(id: c.id, name: c.name ?? c.id, type: c.type, via: c.via),
     ];
   }
 
@@ -108,6 +122,7 @@ class DeviceHub extends ChangeNotifier {
     }
     _scenesSub = sceneStore?.watch(homeId).listen((s) {
       _scenes = s;
+      if (wanted != null) _sync();
       _notify();
     }, onError: (_) {});
     unawaited(load());
@@ -178,6 +193,8 @@ class DeviceHub extends ChangeNotifier {
     _loaded = true;
     _sync();
     _notify();
+    // W tle: hub poza zasięgiem to do 5 s czekania, a load() trzymałoby widżety i chmurę.
+    unawaited(_loadHubChildren());
     if (cloud.available && cloud.homeId != null) {
       _cloudLoading = true;
       _cloudError = null;
@@ -194,6 +211,19 @@ class DeviceHub extends ChangeNotifier {
     }
   }
 
+  Future<void> _loadHubChildren() async {
+    final List<PairedDevice> list;
+    try {
+      list = await manager.hubChildren();
+    } on Object {
+      return;
+    }
+    if (_disposed) return;
+    _hubChildren = list;
+    _sync();
+    _notify();
+  }
+
   /// Nowe dane urządzenia (np. po parowaniu) - kontroler od nowa.
   Future<void> reloadDevice(String id) async {
     _controllers.remove(id)?.dispose();
@@ -207,13 +237,21 @@ class DeviceHub extends ChangeNotifier {
   }
 
   void refreshRoutes() {
+    if (_hubChildren.isEmpty) unawaited(_loadHubChildren());
     for (final c in _controllers.values) {
       c.refreshRoute();
     }
   }
 
+  /// Zmienił się zestaw [wanted] - łączy nowe urządzenia i zamyka zbędne.
+  void resync() => _sync();
+
   void _sync() {
-    final byId = {for (final d in devices) d.id: d};
+    final only = wanted?.call();
+    final byId = {
+      for (final d in devices)
+        if (only == null || only.contains(d.id)) d.id: d,
+    };
     for (final id in _controllers.keys.where((id) => !byId.containsKey(id)).toList()) {
       _controllers.remove(id)?.dispose();
     }
@@ -245,6 +283,7 @@ class DeviceHub extends ChangeNotifier {
     for (final c in _controllers.values) {
       final d = c.device;
       if (c.state == null) continue; // dopiero po połączeniu (nazwa z Config)
+      if (d.via != null && !_cloud.any((x) => x.id == d.id)) continue; // do chmury dopisuje je „Do chmury”
       final name = d.name;
       if (_indexed[d.id] == name) continue;
       _indexed[d.id] = name;
