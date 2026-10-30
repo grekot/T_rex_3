@@ -149,6 +149,26 @@ repozytorium trzeba najpierw uruchomić `node tools/configure.mjs`.
   w scenie bez zmian.
   Błędy (np. brak uprawnień) wracają w komunikacie.
 
+## Widżety na ekranie telefonu (Android)
+
+Widżety systemowe, niezależne od pulpitów w aplikacji. Na ekranie telefonu: przytrzymanie → Widżety → HomeAutomation.
+- **Urządzenie lub scena** (jedna kratka) i **Kilka pozycji** (do 6, rozciągany). Przy dodawaniu ekran wyboru
+  (`lib/home_widgets/widget_config.dart`, przy kilku domach wybór w pasku); na Androidzie 12+ przytrzymanie widżetu → zmiana.
+- **Pozycje**: wyjście (cały włącznik, wszystkie wyjścia węzła albo jeden kanał; kanał impulsowy wysyła impuls),
+  termostat (temperatura, nastawa, grzanie; dotknięcie otwiera jego ekran), scena (jak na pulpicie: przez huba,
+  bez huba akcje po kolei z telefonu). Pomarańczowe tło = włączone / grzeje, przygaszone = brak kontaktu.
+- **Na żywo**: `LiveWidgetService.kt` to usługa pierwszoplanowa `specialUse` (stałe, ciche powiadomienie „Widżety na
+  żywo”) z osobnym silnikiem Fluttera (`homeWidgetServiceMain`). `WidgetRuntime` używa tych samych `DeviceHub` i dróg
+  co aplikacja (lokalnie → chmura), z połączeniami tylko do urządzeń z widżetów (`DeviceHub.wanted`; przy scenach także
+  hub i urządzenia scen). Przy zgaszonym ekranie połączenia są zamykane, po zapaleniu wracają; zmiana sieci = nowy wybór drogi.
+- **Bez usługi** widżet pokazuje ostatni stan (`SharedPreferences` po stronie Androida). Rusza po restarcie telefonu,
+  po dotknięciu widżetu i po otwarciu aplikacji. Producenci telefonów potrafią ubijać usługi: gdy stan przestaje się
+  zmieniać, trzeba wyłączyć optymalizację baterii dla aplikacji.
+- **Uprawnienia** jak wszędzie: poziom z domu albo tokenu, odmowę urządzenia widać na kratce przez kilka sekund.
+- Usługa to drugie połączenie telefonu z urządzeniem obok otwartej aplikacji.
+
+Konfiguracja jest w `SharedPreferencesAsync` (`home_widgets`) razem z domem, więc usługa rusza bez internetu.
+
 ## Pulpit zegarka (pkt 13a)
 
 Ikona zegarka na pasku pulpitu (tylko z kontem). Osobny od pulpitów telefonu, dla każdego domu i zegarka:
@@ -500,6 +520,9 @@ flutter test
   wybór drogi.
 - `cloud_connection_test.dart`: chmura na RTDB w pamięci (`homes/{h}/devices`, `commands/{h}/{id}` z `by`), offline,
   lista z typami.
+- `home_widgets_test.dart`: widżety na ekranie telefonu - JSON konfiguracji, kratki ze stanu, stan na żywo, łączenie tylko
+  z potrzebnymi urządzeniami, dotknięcia (kanał, wszystkie, impuls, scena przez huba), błąd, pauza, wylogowanie, ekran wyboru.
+  Część Androida (`HomeWidgets.kt`, `LiveWidgetService.kt`) nie ma testów automatycznych.
 - `alerts_test.dart`, `models_test.dart`, `schedule_test.dart`, `widget_test.dart` (termostat, ustawienia, OTA).
 
 ## Struktura
@@ -539,6 +562,8 @@ lib/
   controllers/                 DeviceController (wspólny, poziom dostępu) → ThermostatController, LightController;
                                DeviceHub (urządzenia domu), HomeSession (bieżący dom), field_errors
   background/                  alarmy (alerts.dart) i WorkManager (alert_worker.dart)
+  home_widgets/                widżety na ekranie Androida: widget_cells (stan → kratki), widget_runtime (połączenia,
+                               dotknięcia), widget_service (silnik usługi), widget_config (ekran wyboru)
   ui/                          main_screen (HomeGate, zakładki), onboarding_screen, account_menu,
                                dashboard_screen, dashboard_tiles, widget_editor, members_screen, devices_tab,
                                device_tiles, generic_device_screen, point_controls, phones_screen,

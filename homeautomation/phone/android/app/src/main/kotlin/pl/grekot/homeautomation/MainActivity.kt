@@ -9,6 +9,7 @@ import android.net.NetworkRequest
 import android.net.Uri
 import android.net.wifi.WifiNetworkSpecifier
 import android.os.Build
+import android.os.Bundle
 import android.os.PatternMatcher
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -18,7 +19,37 @@ import io.flutter.plugin.common.MethodChannel
 /// (kontrakt pkt 9.4) bez internetu i kierowanie ruchu aplikacji przez nią (`bindProcessToNetwork`).
 /// Kanał `pl.grekot.homeautomation/links`: otwarcie adresu w innej aplikacji (np. `ntfy://` - pkt 3d).
 class MainActivity : FlutterActivity() {
+    companion object {
+        const val EXTRA_OPEN_DEVICE = "open_device"
+        const val EXTRA_OPEN_WIDGET = "open_widget"
+    }
+
     private var callback: ConnectivityManager.NetworkCallback? = null
+
+    /// Urządzenie z dotkniętego widżetu termostatu, do odebrania z Darta (`widget_link`).
+    private var openDevice: String? = null
+    private var openWidget = 0
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        takeWidgetIntent(intent)
+        super.onCreate(savedInstanceState)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        takeWidgetIntent(intent)
+    }
+
+    private fun takeWidgetIntent(intent: Intent?) {
+        openDevice = intent?.getStringExtra(EXTRA_OPEN_DEVICE) ?: return
+        openWidget = intent.getIntExtra(EXTRA_OPEN_WIDGET, 0)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Na ekranie start usługi jest zawsze dozwolony, nawet gdy po restarcie telefonu system go odmówił.
+        LiveWidgetService.ensure(this)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -53,6 +84,16 @@ class MainActivity : FlutterActivity() {
                 } catch (_: Exception) {
                     result.success(false)
                 }
+            }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pl.grekot.homeautomation/widget_link")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "take") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                val device = openDevice
+                openDevice = null
+                result.success(device?.let { mapOf("device" to it, "widget" to openWidget) })
             }
     }
 

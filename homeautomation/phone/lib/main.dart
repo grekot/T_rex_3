@@ -5,6 +5,8 @@ import 'app.dart';
 import 'background/alert_worker.dart';
 import 'data/cloud_access.dart';
 import 'firebase_options.dart';
+import 'home_widgets/widget_config.dart';
+import 'home_widgets/widget_service.dart';
 import 'services.dart';
 
 Future<void> main() async {
@@ -22,3 +24,11 @@ Future<void> main() async {
     ),
   );
 }
+
+/// Silnik usługi widżetów (LiveWidgetService.kt).
+@pragma('vm:entry-point')
+void homeWidgetServiceMain() => runHomeWidgetService();
+
+/// Ekran konfiguracji widżetu (WidgetConfigActivity.kt).
+@pragma('vm:entry-point')
+void homeWidgetConfigMain() => runHomeWidgetConfig();

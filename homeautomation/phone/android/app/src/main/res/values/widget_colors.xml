@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="widget_surface">#F5FFFFFF</color>
+    <color name="widget_on_surface">#FF1F1B18</color>
+    <color name="widget_active">#FFE8590C</color>
+    <color name="widget_on_active">#FFFFFFFF</color>
+    <string name="widget_tile_description">Wyjście, termostat albo scena</string>
+    <string name="widget_list_description">Do 6 wyjść, termostatów i scen</string>
+</resources>
