@@ -179,6 +179,15 @@ Ikona zegarka na pasku pulpitu (tylko z kontem). Osobny od pulpitów telefonu, d
     **Wejścia** (nazwa, tryb: przycisk / łącznik - każda zmiana / łącznik - położenie, steruje kanałem: brak / 1-N);
     usterka wejścia (`inNFault`: ponad 30 zmian w 5 s, wejście zablokowane, samo wraca po 60 s) - ostrzeżenie na
     kafelku („Usterka wejścia 2”), baner na ekranie urządzenia i oznaczone wejście; atrapa: klawisze `x1`…`x8`;
+  - firmware `switch4` 1.4 (rozpoznawany po `indicator` / `tempWarn` w Config): kanał impulsowy (`pulse`, w
+    `describe` `kind: "action"`) jako przycisk „Impuls”, odliczanie `chNOffIn` / `chNWait` na ekranie (co sekundę,
+    lokalnie między State) i w drugiej linii kafelka („wył. za 5 min”), „Pokaż, który to” (`identify`, poziom
+    `control`), baner przegrzania (`overheat` / `overheatOff`, temperatura w obudowie), liczniki łączeń i godzin
+    przy kanale z zerowaniem; w ustawieniach kanału rodzaj (zwykły / impulsowy), wyłączanie po czasie i ponowne
+    naciśnięcie (wyłącza / odlicza od nowa), minimalna przerwa; w wejściu rodzaj (`kind`: ikona i opis stanu,
+    np. „otwarte”), czujka ruchu, kilka kanałów, długie naciśnięcie (`longOut`), styk NC (`invert`); sekcja
+    **Diody i temperatura** (jasność diod, progi `tempWarn` / `tempOff`). Plakietki GORĄCO / PRZEGRZANIE na kafelku
+    wyjść, a w podsumowaniu alarmy „przegrzanie” i „zalanie” (wejście rodzaju `leak`). Starszy firmware - jak wcześniej;
   - inne typy: szczegóły zbudowane z `describe` (lista punktów z kontrolkami wg rodzaju i poziomu dostępu);
   - typ nieobsługiwany (np. hub): kafelek informacyjny.
 - **Pokoje** (`homes/{h}/rooms/{roomId}` `{"name","order","devices":[…]}`, pkt 8.3), zmienia je właściciel domu:
@@ -403,7 +412,9 @@ Podpisuje go kluczem z `android/key.properties` (poza gitem).
 - **Typy**:
   - `thermostat` (`fake_thermostat_server.dart`): temperatura, grzanie z histerezą, AUTO wg harmonogramu, walidacja jak w firmware;
   - `switch` / `dimmer` (`fake_light.dart`): `on`, `level`, `toggle`, `name`, `defaultOn`; z `--channels N`
-    przełącznik wielokanałowy jak `switch4` (`on1..N`, `ch1..N`, wejścia `in1..M` / `input1..M`, domyślnie M = 2N).
+    przełącznik wielokanałowy jak `switch4` 1.4 (`on1..N`, `ch1..N`, wejścia `in1..M` / `input1..M`, domyślnie
+    M = 2N): wyłączanie po czasie z odliczaniem, impulsy, minimalna przerwa, długie naciśnięcie, czujka ruchu,
+    kilka kanałów na wejście, NC, liczniki, `identify`, diody, progi i czujnik temperatury (31,4 °C).
 
 ```bash
 cd homeautomation/phone
@@ -415,7 +426,8 @@ dart run tool/fake_device.dart --type switch --channels 4 --prov softap --pop ab
 
 Klawisze (Enter po każdym):
 - termostat: `k`/`j` gałka ±0,5 °C, `f` awaria czujnika;
-- światło: `w` przycisk na ścianie, `w1`…`w8` wejście węzła wielokanałowego;
+- światło: `w` przycisk na ścianie, `w1`…`w8` wejście węzła wielokanałowego, `l1`…`l8` długie naciśnięcie,
+  `x1`…`x8` usterka wejścia, `h65` temperatura w obudowie (np. ponad próg ostrzeżenia / wyłączenia);
 - zawsze: `b` zajęty, `p` kod parowania, `s` stan, `t` token, `q` koniec.
 
 Jak się połączyć:
@@ -454,7 +466,8 @@ flutter test
 - `watch_test.dart`: układ kafelków zegarka porównany z `watch/utils/layout.js` (okrągły 480 i 466, prostokątny),
   JSON i zapis pulpitu zegarka, ekran „Zegarek” (model z listy, kafelek, zapis).
 - `softap_switch_test.dart`: SoftAP przez HTTP na serwerze z atrapą provisioningu (ciasteczko sesji, cały przebieg),
-  węzeł `switch4` na atrapie (`/api/info`, parowanie kodem PoP → `control`, kanały, wejścia, błędy pól, poziomy);
+  węzeł `switch4` na atrapie (`/api/info`, parowanie kodem PoP → `control`, kanały, wejścia, błędy pól, poziomy;
+  1.4: Config i `describe`, odliczanie, impuls, minimalna przerwa, długie naciśnięcie, liczniki, przegrzanie);
   `softap_ui_test.dart`: kreator „Urządzenie bez Bluetootha”.
 - `hub_test.dart`: API huba na atrapie (wykrywanie, dodawanie, sterowanie, `202 pending`, Tuya, automatyki i sceny
   z `updatedAt`, błędna reguła, dziennik, czas), automatyki w domu i przez chmurę (`reload`), przypisanie węzła,

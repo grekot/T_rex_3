@@ -32,7 +32,7 @@ enum AccessLevel {
 }
 
 /// Pola Set, które wolno zmieniać z poziomem `control` (reszta wymaga `config`, pkt 12).
-const controlSetKeys = {'power', 'target', 'mode', 'on', 'level', 'toggle', 'runScene'};
+const controlSetKeys = {'power', 'target', 'mode', 'on', 'level', 'toggle', 'runScene', 'identify'};
 
 /// Pole Set dostępne przy `control` (pkt 12): także kanały przełącznika `onN` / `toggleN` (pkt 10.1).
 bool isControlKey(String key) => controlSetKeys.contains(key) || RegExp(r'^(on|toggle)\d+$').hasMatch(key);

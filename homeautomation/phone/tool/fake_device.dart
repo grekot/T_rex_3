@@ -9,7 +9,9 @@
 //
 // Kilka urządzeń naraz: osobne procesy z innym --port i --id.
 // Klawisze (Enter po każdym): k/j = gałka +/-0,5 (termostat), f = awaria czujnika (termostat),
-// w = przycisk na ścianie (światło; w1..w8 = wejście węzła wielokanałowego), b = zajęty (503 busy), p = kod parowania, s = stan, t = token, q = koniec.
+// w = przycisk na ścianie (światło; w1..w8 = wejście węzła wielokanałowego, l1..l8 = długie naciśnięcie,
+// x1..x8 = usterka wejścia, h65 = temperatura w obudowie 65 °C), b = zajęty (503 busy), p = kod parowania, s = stan,
+// t = token, q = koniec.
 
 import 'dart:async';
 import 'dart:convert';
@@ -102,7 +104,8 @@ Future<void> main(List<String> argv) async {
     await mdns.start();
   }
   stdout.writeln(
-    'Klawisze: k/j gałka · f awaria · w / w1..w8 przycisk / wejście · x1..x8 usterka wejścia · b zajęty · p kod · s stan · t token · q koniec',
+    'Klawisze: k/j gałka · f awaria · w / w1..w8 przycisk / wejście · l1..l8 długie naciśnięcie · x1..x8 usterka wejścia '
+    '· h65 temperatura w obudowie · b zajęty · p kod · s stan · t token · q koniec',
   );
 
   late StreamSubscription<String> sub;
@@ -132,12 +135,18 @@ Future<void> main(List<String> argv) async {
           l.setInputFault(k, !l.inFault.contains(k));
           stdout.writeln('Wejście $k: ${l.inFault.contains(k) ? 'USTERKA (zablokowane)' : 'sprawne'}');
         }
-      case (final String c, final FakeLight l) when RegExp(r'^w[1-9]$').hasMatch(c) && l.multi:
+      case (final String c, final FakeLight l) when RegExp(r'^[wl][1-9]$').hasMatch(c) && l.multi:
         final k = int.parse(c.substring(1));
         if (k <= l.inputs) {
-          l.press(k);
+          l.press(k, c.startsWith('l'));
           stdout.writeln('Wejście $k → kanały: ${[for (final o in l.chOn) o ? 'wł' : '-'].join(' ')}');
         }
+      case (final String c, final FakeLight l) when RegExp(r'^h\d+$').hasMatch(c) && l.multi:
+        l.setTemp(double.parse(c.substring(1)));
+        stdout.writeln(
+          'Temperatura ${l.temp} °C · ostrzeżenie: ${l.overheat ? 'TAK' : 'nie'} · '
+          'wyłączenie: ${l.overheatOff ? 'TAK' : 'nie'}',
+        );
       case ('b', _):
         fake.busy = !fake.busy;
         stdout.writeln('Zajęty (busy): ${fake.busy ? 'TAK' : 'nie'}');

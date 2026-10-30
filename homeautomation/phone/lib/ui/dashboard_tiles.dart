@@ -19,6 +19,7 @@ import '../models/schedule.dart';
 import '../data/device_icons.dart';
 import 'app_icons.dart';
 import 'device_tiles.dart';
+import 'format.dart';
 import 'generic_device_screen.dart' show canSet;
 import 'point_controls.dart';
 import 'thermostat_sheet.dart';
@@ -377,7 +378,7 @@ class _DashTileState extends State<DashTile> {
       final p = _pointFor(s.substring(6));
       final v = _value(p.key, state);
       if (v is bool) {
-        return '${p.name}: ${p.kind == PointKind.switchKind ? (v ? 'wł.' : 'wył.') : _statusLabel(p, v).toLowerCase()}';
+        return '${p.name}: ${p.kind == PointKind.switchKind ? (v ? 'wł.' : 'wył.') : _statusLabel(p, v, _c?.config).toLowerCase()}';
       }
       return '${p.name} ${p.format(v)}';
     }
@@ -506,16 +507,29 @@ class _DashTileState extends State<DashTile> {
       case WidgetView.toggle when p.key == 'on' && channels > 1:
         return _outputs(context, c, level, offline, icon, large, channels);
       case WidgetView.toggle || WidgetView.value when p.kind == PointKind.action:
+        final pulsing = _channelLeft(state, p.key, 'OffIn') != null;
         return shell(
-          secondary: 'Dotknij ikony, aby wykonać',
+          secondary: pulsing
+              ? 'Impuls…'
+              : RegExp(r'^on\d+$').hasMatch(p.key)
+              ? 'Impuls - dotknij ikony'
+              : 'Dotknij ikony, aby wykonać',
+          active: pulsing,
           iconKey: Key('dash-toggle-${w.id}'),
           primary: can ? () => _send(c, p.setFor(true)) : null,
         );
       case WidgetView.toggle:
         final on = _value(p.key, state) == true;
         final level0 = p.key == 'on' && state?['level'] is num ? ' · ${state!['level']}%' : '';
+        final offIn = on ? _channelLeft(state, p.key, 'OffIn') : null;
+        final wait = on ? null : _channelLeft(state, p.key, 'Wait');
+        final what = wait != null
+            ? 'Włączy się za ${fmtLeftShort(wait)}'
+            : on
+            ? 'Włączone$level0${offIn == null ? '' : ' · wył. za ${fmtLeftShort(offIn)}'}'
+            : 'Wyłączone';
         return shell(
-          secondary: '${on ? 'Włączone$level0' : 'Wyłączone'}${w.label == null ? ' · ${c.device.name}' : ''}',
+          secondary: '$what${w.label == null ? ' · ${c.device.name}' : ''}',
           active: on,
           iconKey: Key('dash-toggle-${w.id}'),
           primary: can && p.kind == PointKind.switchKind ? () => _send(c, p.setFor(!on), {p.key: !on}) : null,
@@ -529,7 +543,7 @@ class _DashTileState extends State<DashTile> {
               ? 'Usterka - wejście zablokowane'
               : labels != null && v is bool
               ? labels[v ? 1 : 0]
-              : _statusLabel(p, v),
+              : _statusLabel(p, v, c.config),
           active: v == true,
           badge: fault ? const TileBadge('USTERKA', TileBadgeKind.error) : null,
         );
@@ -1079,7 +1093,13 @@ class _DashTileState extends State<DashTile> {
       offline: offline,
       color: w.color,
       iconSize: w.iconSize,
-      badge: faults > 0 ? const TileBadge('USTERKA WEJŚCIA', TileBadgeKind.error) : null,
+      badge: s?['overheatOff'] == true
+          ? const TileBadge('PRZEGRZANIE', TileBadgeKind.error)
+          : faults > 0
+          ? const TileBadge('USTERKA WEJŚCIA', TileBadgeKind.error)
+          : s?['overheat'] == true
+          ? const TileBadge('GORĄCO', TileBadgeKind.heat)
+          : null,
       iconKey: Key('dash-toggle-${w.id}'),
       onIcon: _tapAction(
         w.iconTap ?? 'toggle',
@@ -1169,9 +1189,25 @@ class _DashTileState extends State<DashTile> {
 }
 
 /// Napis stanu dwustanowego punktu: wejścia (pkt 10.1), grzanie, reszta tak / nie.
-String _statusLabel(DataPoint p, Object? v) {
+/// `chNOffIn` / `chNWait` kanału punktu `onN` (pkt 10.1), gdy odlicza.
+int? _channelLeft(Json? state, String key, String suffix) {
+  final m = RegExp(r'^on(\d+)$').firstMatch(key);
+  final v = m == null ? null : state?['ch${m.group(1)}$suffix'];
+  return v is num && v > 0 ? v.toInt() : null;
+}
+
+String _statusLabel(DataPoint p, Object? v, [Object? config]) {
   if (v is! bool) return p.format(v);
-  if (RegExp(r'^in\d+$').hasMatch(p.key)) return v ? 'Zwarte' : 'Rozwarte';
+  if (RegExp(r'^in(\d+)$').firstMatch(p.key) case final m?) {
+    // Rodzaj wejścia z Config (pkt 10.1, firmware 1.4): „otwarte”, „ruch”, „zalanie!”…
+    final k = int.parse(m.group(1)!);
+    if (config is LightConfig && (config.hasIndicator || config.hasTempLimits) && k <= config.inputs.length) {
+      final text = config.inputs[k - 1].kind.stateText(v);
+      return text[0].toUpperCase() + text.substring(1);
+    }
+    return v ? 'Zwarte' : 'Rozwarte';
+  }
+  if (p.key == 'overheat') return v ? 'Za gorąco' : 'W normie';
   return switch (p.key) {
     'heating' => v ? 'Grzeje' : 'Nie grzeje',
     'cloud' => v ? 'Połączone' : 'Brak połączenia',

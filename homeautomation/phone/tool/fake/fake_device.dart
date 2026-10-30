@@ -84,7 +84,7 @@ abstract class FakeDevice {
   static int _rank(String level) => _levels.indexOf(level);
 
   /// Pola, które wolno zmieniać z poziomem `control` (jak CONTROL_KEYS w firmware + światła).
-  static const controlKeys = {'power', 'target', 'mode', 'on', 'level', 'toggle'};
+  static const controlKeys = {'power', 'target', 'mode', 'on', 'level', 'toggle', 'identify'};
 
   /// Pola ponad poziom telefonu → `forbidden`, reszta idzie do [applySet] (jak firmware Control.cpp).
   Map<String, String> _applyAs(String level, Map<String, dynamic> v) {
@@ -251,6 +251,9 @@ abstract class FakeDevice {
   int get channelCount => 1;
   int get inputCount => 0;
 
+  /// Dodatkowe pola `/api/info` danego typu (np. `wifiReconnects`, `tempSensor` przełącznika, pkt 10.1).
+  Map<String, Object?> get extraInfo => const {};
+
   HttpServer? _server;
   Timer? _periodicTimer;
   final _clients = <WebSocketChannel>{};
@@ -294,6 +297,7 @@ abstract class FakeDevice {
           if (!cloudCapable) 'cloud': false,
           if (channelCount > 1) 'channels': channelCount,
           if (inputCount > 0) 'inputs': inputCount,
+          ...extraInfo,
         }),
       )
       ..post('/api/pair/start', _pairStart)

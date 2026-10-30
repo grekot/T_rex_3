@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../controllers/device_controller.dart';
 import '../data/thermostat_connection.dart';
 
 import '../models/schedule.dart';
+import 'format.dart';
 
 /// Wiersz z wartością liczbową i przyciskami −/+.
 class StepperTile extends StatelessWidget {
@@ -332,4 +335,58 @@ class TileGrid extends StatelessWidget {
       );
     },
   );
+}
+
+/// Odliczanie z wartości z urządzenia (`chNOffIn`, `chNWait`): urządzenie podaje sekundy z każdym State,
+/// a między nimi odliczamy tutaj, co sekundę.
+class CountdownText extends StatefulWidget {
+  const CountdownText({super.key, required this.seconds, required this.prefix, this.suffix = '', this.style});
+
+  final int seconds;
+  final String prefix;
+  final String suffix;
+  final TextStyle? style;
+
+  @override
+  State<CountdownText> createState() => _CountdownTextState();
+}
+
+class _CountdownTextState extends State<CountdownText> {
+  DateTime _base = DateTime.now();
+  Timer? _timer;
+
+  int get _left => widget.seconds - DateTime.now().difference(_base).inSeconds;
+
+  @override
+  void initState() {
+    super.initState();
+    _start();
+  }
+
+  void _start() {
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_left <= 0) _timer?.cancel();
+      setState(() {});
+    });
+  }
+
+  @override
+  void didUpdateWidget(CountdownText old) {
+    super.didUpdateWidget(old);
+    if (old.seconds != widget.seconds) {
+      _base = DateTime.now();
+      _start();
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      Text('${widget.prefix} ${fmtCountdown(_left)}${widget.suffix}', style: widget.style);
 }

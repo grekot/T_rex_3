@@ -65,11 +65,18 @@ class _Conn<S, C> implements DeviceConnection<S, C> {
   Stream<C> get configs => _configs.stream;
   final _configs = StreamController<C>.broadcast();
 
+  /// Nowy State z urządzenia.
+  void pushState(Json j) {
+    _state = j;
+    _states.add(state);
+  }
+
   /// Nowy Config z urządzenia (np. po zmianie nazwy kanału).
   void pushConfig(Json j) {
     _config = j;
     _configs.add(codec.config(j));
   }
+
   @override
   Stream<LinkStatus> get statuses => const Stream.empty();
   @override
@@ -481,6 +488,66 @@ void main() {
     await tester.tap(find.byKey(const Key('summaryAllOff')));
     await tester.pumpAndSettle();
     expect(node.sent.single, {'on': false});
+  });
+
+  testWidgets('switch4 1.4: odliczanie i impuls w kafelku, przegrzanie, rodzaj wejścia, alarmy w podsumowaniu', (
+    tester,
+  ) async {
+    await setUpHub(tester);
+    node.describe = {
+      'type': 'switch',
+      'points': [
+        {'key': 'on1', 'name': 'Schody', 'kind': 'switch', 'access': 'control'},
+        {'key': 'on2', 'name': 'Brama', 'kind': 'action', 'access': 'control'},
+        {'key': 'in2', 'name': 'Drzwi', 'kind': 'status', 'inputKind': 'contact'},
+      ],
+    };
+    node.pushConfig({
+      'name': 'Parter',
+      'channels': 4,
+      'inputs': 4,
+      'indicator': {'on': 60, 'off': 5},
+      'tempWarn': 60,
+      'tempOff': 70,
+      'ch1': {'name': 'Schody', 'autoOff': 300},
+      'ch2': {'name': 'Brama', 'pulse': 500},
+      'input2': {'name': 'Drzwi', 'kind': 'contact', 'out': 0},
+      'input4': {'name': 'Piwnica', 'kind': 'leak', 'out': 0},
+    });
+    node.pushState({...node._state, 'ch1OffIn': 245, 'overheat': true, 'in4': true}..remove('in3Fault'));
+    await tester.pumpAndSettle();
+
+    await show(tester, const DashWidget(id: 'a', view: WidgetView.toggle, device: 'parter', point: 'on1'));
+    expect(find.textContaining('Włączone · wył. za 5 min'), findsOneWidget);
+
+    await show(tester, const DashWidget(id: 'b', view: WidgetView.toggle, device: 'parter', point: 'on2'));
+    expect(find.textContaining('Impuls - dotknij ikony'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('dash-toggle-b')));
+    await tester.pumpAndSettle();
+    expect(node.sent.last, {'on2': true});
+
+    await show(tester, const DashWidget(id: 'c', view: WidgetView.status, device: 'parter', point: 'in2'));
+    expect(find.textContaining('Otwarte'), findsOneWidget, reason: 'kontaktron wg rodzaju z Config');
+
+    await show(
+      tester,
+      const DashWidget(id: 'd', view: WidgetView.toggle, size: WidgetSize.s2x1, device: 'parter', point: 'on'),
+    );
+    expect(find.text('GORĄCO'), findsOneWidget);
+    node.pushState({...node._state, 'overheatOff': true});
+    await tester.pumpAndSettle();
+    expect(find.text('PRZEGRZANIE'), findsOneWidget);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(body: DashSummary(hub: hub)),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('1 alarm'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('przegrzanie - kanały wyłączone'), findsOneWidget);
+    expect(find.textContaining('zalanie: Piwnica'), findsOneWidget);
   });
 
   testWidgets('13.1: grupa wyjść - „1 z 2”, ikona wyłącza wszystko, lista z przełącznikami', (tester) async {

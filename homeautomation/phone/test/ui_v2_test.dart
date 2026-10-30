@@ -633,6 +633,8 @@ void main() {
     expect(conn.sent.last, {'on2': true});
 
     await tester.scrollUntilVisible(find.byKey(const Key('channel-2')), 200, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(find.byKey(const Key('channel-2')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('channel-2')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('channelName')), 'Kinkiet');
@@ -652,15 +654,182 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('mode-edge')));
     await tester.pump();
-    await tester.tap(find.byKey(const Key('inputOut')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Kanał 3: Kanał 3').last);
-    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inputOut-3')));
+    await tester.pump();
     await tester.tap(find.byKey(const Key('inputSave')));
     await tester.pumpAndSettle();
     expect(conn.sent.last, {
       'input5': {'mode': 'edge', 'out': 3},
     });
+    c.dispose();
+  });
+
+  testWidgets('switch4 1.4: przegrzanie, „Pokaż, który to”, odliczanie, impuls, ustawienia kanałów, wejść i progów', (
+    tester,
+  ) async {
+    final store = MemoryDeviceStore();
+    const device = PairedDevice(id: 'swiatlo-4', name: 'Parter', type: DeviceType.onOff);
+    await store.saveDevice(device);
+    final conn =
+        _MemConnection<LightState, LightConfig>(
+            'swiatlo-4',
+            lightCodec,
+            {
+              'id': 'swiatlo-4',
+              'channels': 4,
+              'inputs': 4,
+              'on': true,
+              'on1': true,
+              'on2': false,
+              'on3': false,
+              'on4': false,
+              'in1': false,
+              'in2': false,
+              'in3': true,
+              'in4': false,
+              'overheat': true,
+              'ch1OffIn': 245,
+              'ch3Wait': 12,
+              'ch1Cycles': 1830,
+              'ch1Hours': 412.5,
+              'ch2Cycles': 12,
+              'ch2Hours': 0.1,
+              'temp': 61.4,
+            },
+            {
+              'name': 'Parter',
+              'channels': 4,
+              'inputs': 4,
+              'indicator': {'on': 60, 'off': 5},
+              'tempWarn': 60,
+              'tempOff': 0,
+              'ch1': {'name': 'Schody', 'defaultOn': 'off', 'autoOff': 180, 'autoOffPress': 'off', 'pulse': 0, 'minOff': 0},
+              'ch2': {'name': 'Brama', 'defaultOn': 'off', 'autoOff': 0, 'autoOffPress': 'off', 'pulse': 500, 'minOff': 0},
+              'ch3': {'name': 'Pompa', 'defaultOn': 'last', 'autoOff': 0, 'autoOffPress': 'off', 'pulse': 0, 'minOff': 60},
+              'ch4': {'name': 'Taras', 'defaultOn': 'last', 'autoOff': 0, 'autoOffPress': 'off', 'pulse': 0, 'minOff': 0},
+              'input1': {'name': 'Schody dół', 'mode': 'momentary', 'kind': 'button', 'out': 1, 'longOut': 0, 'invert': false},
+              'input2': {'name': 'Korytarz', 'mode': 'motion', 'kind': 'motion', 'out': 1, 'longOut': 0, 'invert': false},
+              'input3': {'name': 'Drzwi', 'mode': 'momentary', 'kind': 'contact', 'out': 0, 'longOut': 0, 'invert': true},
+              'input4': {'name': 'Wejście 4', 'mode': 'momentary', 'kind': 'button', 'out': 4, 'longOut': 0, 'invert': false},
+            },
+          )
+          ..describe = {
+            'type': 'switch',
+            'channels': 4,
+            'points': [
+              {'key': 'on', 'name': 'Wszystkie', 'kind': 'switch', 'access': 'control'},
+              {'key': 'on1', 'name': 'Schody', 'kind': 'switch', 'access': 'control', 'channel': 1},
+              {'key': 'on2', 'name': 'Brama', 'kind': 'action', 'access': 'control', 'channel': 2},
+              {'key': 'on3', 'name': 'Pompa', 'kind': 'switch', 'access': 'control', 'channel': 3},
+              {'key': 'in3', 'name': 'Drzwi', 'kind': 'status', 'inputKind': 'contact'},
+              {'key': 'temp', 'name': 'Temperatura w obudowie', 'kind': 'sensor', 'unit': '°C', 'decimals': 1},
+            ],
+          };
+    final manager = _StubManager({'swiatlo-4': conn});
+    final c = LightController(device: device, manager: manager);
+    await tester.pumpWidget(_app(store: store, manager: manager, home: GenericDeviceScreen(controller: c)));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('overheatBanner')), findsOneWidget);
+    expect(find.text('Wysoka temperatura w obudowie'), findsOneWidget);
+    expect(find.textContaining('Teraz 61,4 °C'), findsOneWidget);
+    expect(find.textContaining('Wyłączy się za 4:0'), findsOneWidget);
+    expect(find.textContaining('Włączy się za 0:1'), findsOneWidget);
+    expect(find.text('otwarte'), findsOneWidget, reason: 'kontaktron: opis stanu wg rodzaju');
+
+    await tester.tap(find.byKey(const Key('identify')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {'identify': true});
+    expect(find.textContaining('migają przez 10 s'), findsOneWidget);
+
+    await tester.tap(find.descendant(of: find.byKey(const Key('point-on2')), matching: find.text('Impuls')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {'on2': true});
+
+    final list = find.byType(Scrollable).first;
+    // Kanał 1: wyłączanie po 5 min, ponowne naciśnięcie odlicza od nowa.
+    await tester.scrollUntilVisible(find.byKey(const Key('channel-1')), 200, scrollable: list);
+    expect(find.textContaining('1830 łączeń · 412,5 h pracy'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('channel-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('channel-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('channelAutoOff')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('5 min').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('autoOffPress-extend')));
+    await tester.tap(find.byKey(const Key('autoOffPress-extend')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('channelSave')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'ch1': {'autoOff': 300, 'autoOffPress': 'extend'},
+    });
+
+    // Kanał 2 (impulsowy): dłuższy impuls i zerowanie liczników.
+    await tester.ensureVisible(find.byKey(const Key('channel-2')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('channel-2')));
+    await tester.pumpAndSettle();
+    expect(find.text('Impulsowy'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('channelPulse')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('1 s').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('resetCounters')));
+    await tester.tap(find.byKey(const Key('resetCounters')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('channelSave')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'ch2': {'pulse': 1000, 'resetCounters': true},
+    });
+
+    // Wejście 1: dwa kanały, druga funkcja, rodzaj, styk NC.
+    await tester.scrollUntilVisible(find.byKey(const Key('input-1')), 200, scrollable: list);
+    await tester.ensureVisible(find.byKey(const Key('input-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('input-1')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('inputKind')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Łącznik').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('inputOut-4')));
+    await tester.tap(find.byKey(const Key('inputOut-4')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('inputLongOut-2')));
+    await tester.tap(find.byKey(const Key('inputLongOut-2')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('inputInvert')));
+    await tester.tap(find.byKey(const Key('inputInvert')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('inputSave')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'input1': {
+        'out': [1, 4],
+        'longOut': 2,
+        'kind': 'switch',
+        'invert': true,
+      },
+    });
+
+    // Progi temperatury.
+    await tester.scrollUntilVisible(find.byKey(const Key('tempTile')), 200, scrollable: list);
+    expect(find.textContaining('W obudowie 61,4 °C · ostrzeżenie: 60 °C · wyłączenie: nie'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('tempTile')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('tempTile')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('tempOff')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('80 °C').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('tempSave')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {'tempOff': 80});
     c.dispose();
   });
 

@@ -5,6 +5,7 @@ import '../controllers/device_hub.dart';
 import '../controllers/field_errors.dart';
 import '../models/device_type.dart';
 import '../models/json_utils.dart';
+import '../models/light.dart';
 import 'dashboard_tiles.dart' show tileHeatColor;
 import 'device_tiles.dart' show openDevice;
 
@@ -16,12 +17,17 @@ int _lightsOn(Json? s) {
   return s['on'] == true ? 1 : 0;
 }
 
-/// Problemy urządzenia do pigułki „alarmy”: awaria czujnika, usterka wejścia, brak kontaktu.
+/// Problemy urządzenia do pigułki „alarmy”: awaria czujnika, usterka wejścia, przegrzanie, zalanie, brak kontaktu.
 List<String> deviceProblems(DeviceController<Object?, Object?> c) {
   final s = c.stateJson;
   if (s == null) return const [];
+  final cfg = c.config;
   return [
     if (s['sensorFault'] == true) 'awaria czujnika',
+    if (s['overheatOff'] == true) 'przegrzanie - kanały wyłączone' else if (s['overheat'] == true) 'wysoka temperatura',
+    if (cfg is LightConfig)
+      for (final (i, x) in cfg.inputs.indexed)
+        if (x.kind == InputKind.leak && s['in${i + 1}'] == true) 'zalanie: ${x.name}',
     for (final e in s.entries)
       if (RegExp(r'^in(\d+)Fault$').firstMatch(e.key) case final m? when e.value == true)
         'usterka wejścia ${m.group(1)}',

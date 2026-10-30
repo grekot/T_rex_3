@@ -36,6 +36,12 @@ const fieldLabels = <String, String>{
   'notify.ntfyServer': 'Serwer ntfy',
   'notify.ntfyToken': 'Token ntfy',
   'notify.test': 'Próbne powiadomienie',
+  'identify': 'Pokaż, który to',
+  'indicator': 'Diody przycisków',
+  'indicator.on': 'Diody przycisków - kanał włączony',
+  'indicator.off': 'Diody przycisków - kanał wyłączony',
+  'tempWarn': 'Ostrzeżenie o temperaturze',
+  'tempOff': 'Wyłączenie przy przegrzaniu',
 };
 
 /// Kod błędu pola z termostatu → tekst po polsku.
@@ -51,6 +57,7 @@ String describeErrorCode(String code) => switch (code) {
   'sha256' => 'suma pliku się nie zgadza (plik uszkodzony albo podmieniony)',
   'host' => 'niedozwolony adres',
   'busy' => 'trwa inna aktualizacja',
+  'overheat' => 'urządzenie przegrzane - włączanie zablokowane do ostygnięcia',
   '' => 'błąd',
   _ => code,
 };
@@ -63,7 +70,14 @@ String? _channelLabel(String key) {
     'name' => ' - nazwa',
     'defaultOn' => ' - po zaniku zasilania',
     'mode' => ' - tryb',
-    'out' => ' - kanał',
+    'out' => ' - kanały',
+    'autoOff' => ' - wyłączanie po czasie',
+    'autoOffPress' => ' - ponowne naciśnięcie',
+    'pulse' => ' - impuls',
+    'minOff' => ' - minimalna przerwa',
+    'kind' => ' - rodzaj',
+    'longOut' => ' - długie naciśnięcie',
+    'invert' => ' - styk NC',
     _ => '',
   };
   final what = m.group(1) == 'in' || m.group(1) == 'input' ? 'Wejście' : 'Kanał';

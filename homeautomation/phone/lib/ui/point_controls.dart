@@ -4,7 +4,16 @@ import '../models/describe.dart';
 
 /// Wiersz punktu danych z `describe` (pkt 14) z kontrolką wg `kind`.
 class PointTile extends StatelessWidget {
-  const PointTile({super.key, required this.point, required this.value, required this.enabled, required this.onSet});
+  const PointTile({
+    super.key,
+    required this.point,
+    required this.value,
+    required this.enabled,
+    required this.onSet,
+    this.subtitle,
+    this.statusText,
+    this.actionLabel = 'Wykonaj',
+  });
 
   final DataPoint point;
   final Object? value;
@@ -12,6 +21,15 @@ class PointTile extends StatelessWidget {
   /// Poziom dostępu wystarcza do ustawienia.
   final bool enabled;
   final ValueChanged<Object?> onSet;
+
+  /// Druga linia (np. odliczanie do wyłączenia kanału).
+  final Widget? subtitle;
+
+  /// Opis stanu punktu `status` obok ikony (np. „otwarte” dla kontaktronu).
+  final String? statusText;
+
+  /// Napis na przycisku punktu `action`.
+  final String actionLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -23,6 +41,7 @@ class PointTile extends StatelessWidget {
         return SwitchListTile(
           key: key,
           title: Text(p.name),
+          subtitle: subtitle,
           value: value == true,
           onChanged: enabled ? (v) => onSet(v) : null,
         );
@@ -32,7 +51,7 @@ class PointTile extends StatelessWidget {
           key: key,
           title: Text(p.name),
           subtitle: v == null || p.min == null || p.max == null
-              ? null
+              ? subtitle
               : SetpointSlider(point: p, value: v, enabled: enabled, onChanged: onSet),
           trailing: Text(p.format(value), style: t.titleMedium),
         );
@@ -40,6 +59,7 @@ class PointTile extends StatelessWidget {
         return ListTile(
           key: key,
           title: Text(p.name),
+          subtitle: subtitle,
           trailing: DropdownButton<String>(
             value: p.options.contains(value) ? value as String : null,
             items: [for (final o in p.options) DropdownMenuItem(value: o, child: Text(optionLabel(o)))],
@@ -50,19 +70,36 @@ class PointTile extends StatelessWidget {
         return ListTile(
           key: key,
           title: Text(p.name),
-          trailing: FilledButton.tonal(onPressed: enabled ? () => onSet(true) : null, child: const Text('Wykonaj')),
+          subtitle: subtitle,
+          trailing: FilledButton.tonal(onPressed: enabled ? () => onSet(true) : null, child: Text(actionLabel)),
         );
       case PointKind.status:
+        final icon = Icon(
+          value == true ? Icons.check_circle : Icons.radio_button_unchecked,
+          color: value == true ? Theme.of(context).colorScheme.primary : null,
+        );
         return ListTile(
           key: key,
           title: Text(p.name),
-          trailing: Icon(
-            value == true ? Icons.check_circle : Icons.radio_button_unchecked,
-            color: value == true ? Theme.of(context).colorScheme.primary : null,
-          ),
+          subtitle: subtitle,
+          trailing: statusText == null
+              ? icon
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(statusText!, style: t.bodyMedium),
+                    const SizedBox(width: 8),
+                    icon,
+                  ],
+                ),
         );
       case PointKind.sensor:
-        return ListTile(key: key, title: Text(p.name), trailing: Text(p.format(value), style: t.titleMedium));
+        return ListTile(
+          key: key,
+          title: Text(p.name),
+          subtitle: subtitle,
+          trailing: Text(p.format(value), style: t.titleMedium),
+        );
     }
   }
 }

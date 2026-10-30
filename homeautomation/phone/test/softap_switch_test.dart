@@ -2,6 +2,7 @@
 // i przełącznik wielokanałowy (pkt 10.1) na atrapie węzła `switch4`. Prawdziwe gniazda - bez testWidgets
 // (kreator SoftAP: softap_ui_test.dart).
 
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -11,6 +12,7 @@ import 'package:homeautomation/data/device_store.dart';
 import 'package:homeautomation/data/local_api.dart';
 import 'package:homeautomation/data/local_endpoint.dart';
 import 'package:homeautomation/data/pairing.dart';
+import 'package:homeautomation/models/describe.dart';
 import 'package:homeautomation/models/device_info.dart';
 import 'package:homeautomation/models/home.dart';
 import 'package:homeautomation/models/light.dart';
@@ -204,6 +206,185 @@ void main() {
       expect(st.toJson()['in2Fault'], isTrue);
       fake.setInputFault(2, false);
       expect(LightState.fromJson(await api.stateJson()).inputFaults, isEmpty);
+    });
+
+    test('1.4: Config kanałów i wejść, describe (impuls, inputKind, kanały, temp), info, błędy pól', () async {
+      final api = LocalApi(endpoint, token: fake.token);
+      var r = await api.setJson(
+        const LightSet(
+          channel: {
+            1: ChannelPatch(autoOff: 180, autoOffPress: 'extend'),
+            2: ChannelPatch(name: 'Brama', pulse: 500),
+            3: ChannelPatch(minOff: 60),
+          },
+          input: {
+            1: InputPatch(outs: [1, 4], longOuts: [2]),
+            3: InputPatch(kind: InputKind.contact, invert: true, out: 0),
+            2: InputPatch(mode: InputMode.motion, kind: InputKind.motion),
+          },
+          indicatorOn: 80,
+          tempWarn: 55,
+          tempOff: 70,
+        ).toJson(),
+      );
+      expect(r.errors, isEmpty);
+      final cfgJson = await api.configJson();
+      final c = LightConfig.fromJson(cfgJson);
+      expect(
+        (c.channels[0].autoOff, c.channels[0].autoOffPress, c.channels[1].isPulse, c.channels[2].minOff),
+        (180, 'extend', true, 60),
+      );
+      expect(c.inputs[0].outs, [1, 4]);
+      expect(c.inputs[0].longOuts, [2]);
+      expect(c.inputs[0].out, 1);
+      expect((c.inputs[2].kind, c.inputs[2].invert, c.inputs[2].outs.isEmpty), (InputKind.contact, true, true));
+      expect(c.inputs[1].mode, InputMode.motion);
+      expect((c.indicatorOn, c.indicatorOff, c.tempWarn, c.tempOff), (80, 5, 55, 70));
+      expect(cfgJson['input1'], containsPair('out', [1, 4]));
+      expect(cfgJson['input3'], containsPair('out', 0), reason: 'jeden kanał / żaden jako liczba');
+      expect(LightConfig.fromJson(c.toJson()).toJson(), c.toJson());
+
+      final d = await api.describe();
+      expect((d.point('on1')!.kind, d.point('on2')!.kind), (PointKind.switchKind, PointKind.action));
+      expect((d.point('temp')!.unit, d.point('overheat')!.kind), ('°C', PointKind.status));
+      final raw = await api.describeJson();
+      final in1 = (raw['points'] as List).firstWhere((p) => p['key'] == 'in1') as Map;
+      expect(in1['inputKind'], 'button');
+      expect(in1['channels'], [1, 4]);
+      final http = HttpClient();
+      final res = await (await http.getUrl(Uri.parse('http://127.0.0.1:${fake.port}/api/info'))).close();
+      final info = jsonDecode(await res.transform(utf8.decoder).join()) as Map;
+      http.close();
+      expect((info['tempSensor'], info['wifiReconnects']), (true, 0));
+
+      r = await api.setJson({
+        'ch1': {'autoOff': -1, 'autoOffPress': 'x', 'pulse': 50, 'minOff': 4000},
+        'input1': {
+          'kind': 'kot',
+          'out': [1, 9],
+          'longOut': 'a',
+          'invert': 1,
+        },
+        'indicator': {'on': 101},
+        'tempWarn': 20,
+        'tempOff': 'x',
+      });
+      expect(r.errors, {
+        'ch1.autoOff': 'range',
+        'ch1.autoOffPress': 'value',
+        'ch1.pulse': 'range',
+        'ch1.minOff': 'range',
+        'input1.kind': 'value',
+        'input1.out': 'range',
+        'input1.longOut': 'type',
+        'input1.invert': 'type',
+        'indicator.on': 'range',
+        'tempWarn': 'range',
+        'tempOff': 'type',
+      });
+      expect(
+        describeErrors(r.errors),
+        allOf(
+          contains('Kanał 1 - wyłączanie po czasie'),
+          contains('Wejście 1 - długie naciśnięcie'),
+          contains('Ostrzeżenie o temperaturze'),
+        ),
+      );
+    });
+
+    test('1.4: odliczanie autoOff, impuls, minimalna przerwa, przyciski, liczniki, przegrzanie, identify', () async {
+      await fake.stop();
+      var now = DateTime(2026, 10, 30, 12);
+      fake = FakeLight(id: 'swiatlo-0c4f21', name: 'Parter', channels: 4, clock: () => now)..cloudCapable = false;
+      await fake.start(port: 0, address: InternetAddress.loopbackIPv4);
+      final api = LocalApi(LocalEndpoint('127.0.0.1', fake.port), token: fake.token);
+      Future<LightState> state() async => LightState.fromJson(await api.stateJson());
+      void after(int seconds) {
+        now = now.add(Duration(seconds: seconds));
+        fake.tickCountdowns();
+      }
+
+      await api.setJson(
+        const LightSet(
+          channel: {
+            1: ChannelPatch(autoOff: 180, autoOffPress: 'extend'),
+            2: ChannelPatch(pulse: 500),
+            3: ChannelPatch(minOff: 60),
+          },
+          input: {
+            1: InputPatch(longOuts: [4]),
+            2: InputPatch(mode: InputMode.motion, out: 1),
+          },
+        ).toJson(),
+      );
+
+      // Wyłączanie po czasie: odliczanie w State, krótkie naciśnięcie odlicza od nowa, długie wyłącza.
+      await api.setJson({'on1': true});
+      expect((await state()).offIn, {1: 180});
+      after(100);
+      expect((await state()).offIn[1], 80);
+      fake.press(1);
+      expect((await state()).offIn[1], 180, reason: 'extend: od nowa');
+      after(180);
+      var s = await state();
+      expect((s.channelOn[0], s.offIn.containsKey(1)), (false, false));
+      fake.press(2); // czujka ruchu włącza
+      expect((await state()).channelOn[0], isTrue);
+      fake.press(1, true); // długie: longOut = kanał 4
+      s = await state();
+      expect((s.channelOn[0], s.channelOn[3]), (true, true), reason: 'longOut ma pierwszeństwo przed „długie = wyłącz”');
+
+      // Impuls: włączenie na 0,5 s.
+      await api.setJson({'on2': true});
+      s = await state();
+      expect((s.channelOn[1], s.offIn[2]), (true, 1));
+      now = now.add(const Duration(milliseconds: 600));
+      fake.tickCountdowns();
+      expect((await state()).channelOn[1], isFalse);
+
+      // Minimalna przerwa: włączenie zaraz po wyłączeniu czeka, „przełącz” rezygnuje.
+      await api.setJson({'on3': true});
+      await api.setJson({'on3': false});
+      after(10);
+      await api.setJson({'on3': true});
+      s = await state();
+      expect((s.channelOn[2], s.waitIn[3]), (false, 50));
+      after(50);
+      expect((await state()).channelOn[2], isTrue);
+      await api.setJson({'on3': false});
+      await api.setJson({'on3': true});
+      await api.setJson({'toggle3': true});
+      s = await state();
+      expect((s.channelOn[2], s.waitIn.containsKey(3)), (false, false));
+
+      // Liczniki i zerowanie.
+      expect((s.cycles[2], s.cycles[3]), (1, 2));
+      await api.setJson(const LightSet(channel: {3: ChannelPatch(resetCounters: true)}).toJson());
+      s = await state();
+      expect((s.cycles[3], s.hours[3]), (0, 0.0));
+
+      // Przegrzanie: ostrzeżenie, potem wyłączenie wszystkiego i blokada do spadku o 5 °C.
+      await api.setJson({'tempOff': 70});
+      fake.setTemp(61);
+      s = await state();
+      expect((s.overheat, s.overheatOff, s.temp), (true, false, 61.0));
+      fake.setTemp(72);
+      s = await state();
+      expect((s.overheatOff, s.on), (true, false));
+      final r = await api.setJson({'on4': true});
+      expect(r.errors, {'on4': 'overheat'});
+      expect(describeErrors(r.errors), contains('przegrzane'));
+      fake.setTemp(66);
+      expect((await state()).overheatOff, isTrue);
+      fake.setTemp(64);
+      s = await state();
+      expect((s.overheatOff, s.overheat), (false, true));
+
+      // „Pokaż, który to” - poziom control.
+      final guest = LocalApi(LocalEndpoint('127.0.0.1', fake.port), token: fake.addPhone('Gość', access: 'control'));
+      expect((await guest.setJson(const LightSet(identify: true).toJson())).errors, isEmpty);
+      expect(fake.identifyCount, 1);
+      expect(requiredLevelFor({'identify': true}), AccessLevel.control);
     });
 
     test('poziom control wystarcza dla onN / toggleN, nie dla chN', () async {
