@@ -86,7 +86,12 @@ class DeviceController<S, C> extends ChangeNotifier {
   DeviceDescription? _description;
   Future<DeviceDescription?>? _describing;
 
-  /// Opis punktów danych (pkt 14), pobierany raz na połączenie.
+  /// Rośnie, gdy opis może być nieaktualny (nowe połączenie, zmiana Config - np. nazwa kanału `chN`).
+  int get descriptionVersion => _descriptionVersion;
+  int _descriptionVersion = 0;
+
+  /// Opis punktów danych (pkt 14), pobierany raz na połączenie i ponownie po zmianie Config (nazwy kanałów
+  /// i wejść są w `describe`).
   Future<DeviceDescription?> description() {
     if (_description != null) return Future.value(_description);
     final conn = _connection;
@@ -176,6 +181,8 @@ class DeviceController<S, C> extends ChangeNotifier {
       ..add(
         conn.configs.listen((c) {
           _takeName(c);
+          _description = null;
+          _descriptionVersion++;
           notifyChanged();
         }),
       )

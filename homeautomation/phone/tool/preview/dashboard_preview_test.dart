@@ -274,7 +274,38 @@ void main() {
           body: Padding(
             padding: const EdgeInsets.all(12),
             child: DashGrid(
-              widgets: widgets.take(6).toList(),
+              grid: 4,
+              widgets: [
+                const DashWidget(
+                  id: 'e1',
+                  view: WidgetView.status,
+                  device: 'parter',
+                  point: 'in2',
+                  label: 'Brama',
+                ).resized(2, 2),
+                const DashWidget(
+                  id: 'e2',
+                  view: WidgetView.toggle,
+                  device: 'parter',
+                  point: 'on',
+                  label: 'Światła',
+                ).resized(2, 2),
+                // 1×1 przypięty na środku (kolumna 2), obok wolne pola.
+                const DashWidget(
+                  id: 'e3',
+                  view: WidgetView.scene,
+                  sceneId: 'wyjscie',
+                  icon: 'leave',
+                ).resized(1, 1).pinnedAt(1, 2),
+                const DashWidget(
+                  id: 'e4',
+                  view: WidgetView.toggle,
+                  device: 'parter',
+                  point: 'on1',
+                  label: 'Schody',
+                ).resized(4, 2).pinnedAt(0, 3),
+              ],
+              emptyCell: (r, c) => EmptyCell(onDrop: (_) {}),
               builder: (w) => EditableTile(
                 id: w.id,
                 onTap: () {},
@@ -361,6 +392,7 @@ void main() {
         ],
       }),
       g('x3', WidgetView.hub, 'hub1', null, 4, 2),
+      g('x4', WidgetView.schedule, 'termostat-ab12cd', null, 4, 2),
     ];
     final parter = [
       g('p1', WidgetView.toggle, 'parter', 'on', 4, 2),
@@ -405,7 +437,7 @@ void main() {
       ],
     );
     for (final (dark, file) in [(false, 'siatka4_jasny.png'), (true, 'siatka4_ciemny.png')]) {
-      tester.view.physicalSize = const Size(412 * 2.5, 1580 * 2.5);
+      tester.view.physicalSize = const Size(412 * 2.5, 1730 * 2.5);
       await tester.pumpWidget(
         MaterialApp(
           debugShowCheckedModeBanner: false,

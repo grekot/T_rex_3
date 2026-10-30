@@ -110,6 +110,31 @@ class _ThermostatScreenState extends State<ThermostatScreen> with WidgetsBinding
   }
 }
 
+/// Sterowanie termostatem jak na jego ekranie (temperatura, nastawa, tryb, szczegóły) - także w arkuszu z pulpitu.
+class ThermostatControls extends StatelessWidget {
+  const ThermostatControls({super.key, required this.controller});
+
+  final ThermostatController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) => controller.state == null
+          ? const Center(child: Text('Brak połączenia z termostatem.'))
+          : _Body(
+              controller: controller,
+              send: (v) async {
+                final r = await controller.send(v);
+                if (context.mounted && r.errors.isNotEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(describeErrors(r.errors))));
+                }
+              },
+            ),
+    );
+  }
+}
+
 class _Body extends StatelessWidget {
   const _Body({required this.controller, required this.send});
 

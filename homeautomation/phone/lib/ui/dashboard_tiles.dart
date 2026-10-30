@@ -4,9 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../controllers/device_controller.dart';
 import '../controllers/device_hub.dart';
-import '../controllers/field_errors.dart';
+import '../controllers/thermostat_controller.dart';
 import '../data/history.dart';
 import '../data/hub_api.dart';
 import '../models/dashboard.dart';
@@ -14,12 +13,16 @@ import '../models/describe.dart';
 import '../models/home.dart';
 import '../models/hub.dart';
 import '../models/json_utils.dart';
+import '../models/light.dart';
 import '../models/scene.dart';
+import '../models/schedule.dart';
 import '../data/device_icons.dart';
 import 'app_icons.dart';
 import 'device_tiles.dart';
 import 'generic_device_screen.dart' show canSet;
 import 'point_controls.dart';
+import 'thermostat_sheet.dart';
+import 'widgets.dart' show DayTimeline;
 import 'tile_charts.dart';
 
 /// Historia pola urządzenia do wykresu ([hours] wstecz); null = bez chmury (wykresy niedostępne).
@@ -45,11 +48,14 @@ Size dashTileSize(DashWidget w, int grid, double width) {
 /// Siatka pulpitu. [grid] 2: dawna (2 kolumny, `1x1`/`2x1`/`2x2`); 4: kolumny 1-4 × wiersze 64 px (`w`, `h`),
 /// kafelki układane po kolei w pierwszym wolnym miejscu, w którym się mieszczą (mniejsze wypełniają luki).
 class DashGrid extends StatelessWidget {
-  const DashGrid({super.key, required this.widgets, required this.builder, this.grid = 2});
+  const DashGrid({super.key, required this.widgets, required this.builder, this.grid = 2, this.emptyCell});
 
   final List<DashWidget> widgets;
   final Widget Function(DashWidget w) builder;
   final int grid;
+
+  /// Edycja (siatka 4): wolne pola jako miejsca do upuszczenia kafelka, z jednym zapasowym wierszem.
+  final Widget Function(int row, int col)? emptyCell;
 
   @override
   Widget build(BuildContext context) {
@@ -67,11 +73,22 @@ class DashGrid extends StatelessWidget {
         }
         final col = (box.maxWidth - 3 * dashGap) / 4;
         final placed = packGrid4(widgets);
-        final rows = placed.isEmpty ? 0 : placed.map((p) => p.row + p.widget.gridH).reduce(math.max);
+        var rows = placed.isEmpty ? 0 : placed.map((p) => p.row + p.widget.gridH).reduce(math.max);
+        final empty = emptyCell == null ? const <(int, int)>[] : emptyCells4(placed);
+        if (emptyCell != null) rows++;
         return SizedBox(
           height: rows == 0 ? 0 : rows * dashRow4 + (rows - 1) * dashGap,
           child: Stack(
             children: [
+              for (final (r, c) in empty)
+                Positioned(
+                  key: ValueKey('empty-$r-$c'),
+                  left: c * (col + dashGap),
+                  top: r * (dashRow4 + dashGap),
+                  width: col,
+                  height: dashRow4,
+                  child: emptyCell!(r, c),
+                ),
               for (final p in placed)
                 Positioned(
                   key: ValueKey(p.widget.id),
@@ -87,7 +104,8 @@ class DashGrid extends StatelessWidget {
   }
 }
 
-/// Miejsca kafelków w siatce 4 kolumn: każdy w pierwszym wolnym polu (od góry, od lewej), w którym się mieści.
+/// Miejsca kafelków w siatce 4 kolumn. Najpierw przypięte (`x`, `y`) - gdy się mieszczą i pola są wolne;
+/// pozostałe po kolei w pierwszym wolnym polu (od góry, od lewej), w którym się mieszczą. Wynik w kolejności listy.
 List<({DashWidget widget, int row, int col})> packGrid4(List<DashWidget> widgets) {
   final taken = <List<bool>>[];
   bool free(int r, int c, int w, int h) {
@@ -99,25 +117,86 @@ List<({DashWidget widget, int row, int col})> packGrid4(List<DashWidget> widgets
     return true;
   }
 
-  final out = <({DashWidget widget, int row, int col})>[];
-  for (final w in widgets) {
+  void take(int r, int c, int w, int h) {
+    while (taken.length < r + h) {
+      taken.add(List.filled(4, false));
+    }
+    for (var y = r; y < r + h; y++) {
+      for (var x = c; x < c + w; x++) {
+        taken[y][x] = true;
+      }
+    }
+  }
+
+  final at = <String, (int, int)>{};
+  for (final w in widgets.where((w) => w.pinned)) {
+    final gw = w.gridW, gh = w.gridH, c = w.x!, r = w.y!;
+    if (c < 0 || c + gw > 4 || r < 0 || !free(r, c, gw, gh)) continue;
+    take(r, c, gw, gh);
+    at[w.id] = (r, c);
+  }
+  for (final w in widgets.where((w) => !at.containsKey(w.id))) {
     final gw = w.gridW, gh = w.gridH;
     for (var r = 0; ; r++) {
       final c = [for (var x = 0; x + gw <= 4; x++) x].where((x) => free(r, x, gw, gh)).firstOrNull;
       if (c == null) continue;
-      while (taken.length < r + gh) {
-        taken.add(List.filled(4, false));
-      }
-      for (var y = r; y < r + gh; y++) {
-        for (var x = c; x < c + gw; x++) {
-          taken[y][x] = true;
-        }
-      }
-      out.add((widget: w, row: r, col: c));
+      take(r, c, gw, gh);
+      at[w.id] = (r, c);
       break;
     }
   }
-  return out;
+  return [for (final w in widgets) (widget: w, row: at[w.id]!.$1, col: at[w.id]!.$2)];
+}
+
+/// Wolne pola siatki 4 przy danym układzie (do upuszczania kafelków w edycji), z jednym zapasowym wierszem.
+List<(int, int)> emptyCells4(List<({DashWidget widget, int row, int col})> placed) {
+  final rows = placed.isEmpty ? 0 : placed.map((p) => p.row + p.widget.gridH).reduce(math.max);
+  final taken = <(int, int)>{
+    for (final p in placed)
+      for (var y = p.row; y < p.row + p.widget.gridH; y++)
+        for (var x = p.col; x < p.col + p.widget.gridW; x++) (y, x),
+  };
+  return [
+    for (var r = 0; r <= rows; r++)
+      for (var c = 0; c < 4; c++)
+        if (!taken.contains((r, c))) (r, c),
+  ];
+}
+
+/// Nazwa kanału `onN` / wejścia `inN` węzła: z Config (`chN.name`, `inputK.name` - to, co ustawiono w module),
+/// potem z `describe`, na końcu „Kanał N” / „Wejście N”.
+String channelName(DeviceController<Object?, Object?>? c, DeviceDescription? desc, String key) {
+  final m = RegExp(r'^(on|in)(\d+)$').firstMatch(key);
+  if (m == null) return desc?.point(key)?.name ?? fallbackPoint(key).name;
+  final i = int.parse(m.group(2)!);
+  final cfg = c?.config;
+  if (cfg is LightConfig) {
+    final list = m.group(1) == 'on' ? cfg.channels.map((x) => x.name) : cfg.inputs.map((x) => x.name);
+    final names = list.toList();
+    if (i >= 1 && i <= names.length && names[i - 1].trim().isNotEmpty) return names[i - 1];
+  }
+  return desc?.point(key)?.name ?? (m.group(1) == 'on' ? 'Kanał $i' : 'Wejście $i');
+}
+
+/// [p] z nazwą z [channelName] (kanały i wejścia węzła).
+DataPoint withChannelName(DataPoint p, DeviceController<Object?, Object?>? c, DeviceDescription? desc) {
+  if (!RegExp(r'^(on|in)\d+$').hasMatch(p.key)) return p;
+  final name = channelName(c, desc, p.key);
+  return name == p.name
+      ? p
+      : DataPoint(
+          key: p.key,
+          name: name,
+          kind: p.kind,
+          unit: p.unit,
+          decimals: p.decimals,
+          min: p.min,
+          max: p.max,
+          step: p.step,
+          options: p.options,
+          access: p.access,
+          history: p.history,
+        );
 }
 
 /// Punkt, gdy urządzenie (jeszcze) nie podało `describe` - znane pola z kontraktu.
@@ -228,23 +307,22 @@ class _DashTileState extends State<DashTile> {
 
   DeviceController<Object?, Object?>? get _c => w.device == null ? null : widget.hub.controller(w.device!);
 
+  /// Opis pobierany na nowo przy nowym połączeniu i po zmianie Config (np. nazwa kanału).
   void _ensureDescription() {
     final c = _c;
     final conn = c?.connection;
-    if (_desc != null || c == null || conn == null || identical(conn, _askedConnection)) return;
-    _askedConnection = conn;
+    if (c == null || conn == null) return;
+    final asked = (conn, c.descriptionVersion);
+    if (asked == _askedConnection) return;
+    _askedConnection = asked;
     c.description().then((d) {
       if (mounted && d != null) setState(() => _desc = d);
     });
   }
 
-  DataPoint? get _point {
-    final key = w.point;
-    if (key == null) return null;
-    return _desc?.point(key) ?? fallbackPoint(key);
-  }
+  DataPoint? get _point => w.point == null ? null : _pointFor(w.point!);
 
-  DataPoint _pointFor(String key) => _desc?.point(key) ?? fallbackPoint(key);
+  DataPoint _pointFor(String key) => withChannelName(_desc?.point(key) ?? fallbackPoint(key), _c, _desc);
 
   Object? _value(String key, Json? state) => _pending.containsKey(key) ? _pending[key] : _pointFor(key).valueIn(state);
 
@@ -297,7 +375,11 @@ class _DashTileState extends State<DashTile> {
     }
     if (s != null && s.startsWith('point:')) {
       final p = _pointFor(s.substring(6));
-      return '${p.name} ${p.format(_value(p.key, state))}';
+      final v = _value(p.key, state);
+      if (v is bool) {
+        return '${p.name}: ${p.kind == PointKind.switchKind ? (v ? 'wł.' : 'wył.') : _statusLabel(p, v).toLowerCase()}';
+      }
+      return '${p.name} ${p.format(v)}';
     }
     return byState;
   }
@@ -392,6 +474,7 @@ class _DashTileState extends State<DashTile> {
     if (w.view == WidgetView.thermostat) return _thermostat(context, c, level, offline, icon, large);
     if (w.view == WidgetView.weather) return _weather(context, c, offline, icon, large);
     if (w.view == WidgetView.hub) return _hub(context, c, offline, icon, large);
+    if (w.view == WidgetView.schedule) return _schedule(context, c, offline, icon, large);
     if (w.view == WidgetView.chart) {
       final series = w.series.isEmpty
           ? [(deviceId: c.device.id, point: p ?? fallbackPoint('temp'), line: 'smooth')]
@@ -529,7 +612,8 @@ class _DashTileState extends State<DashTile> {
           WidgetView.chart ||
           WidgetView.group ||
           WidgetView.weather ||
-          WidgetView.hub:
+          WidgetView.hub ||
+          WidgetView.schedule:
         final v = _value(p.key, state);
         return shell(
           secondary: w.label == null ? c.device.name : null,
@@ -592,7 +676,7 @@ class _DashTileState extends State<DashTile> {
           items.add(
             _Channels(
               widgetId: '${w.id}-f',
-              names: [for (var i = 1; i <= n; i++) _desc?.point('on$i')?.name ?? 'Kanał $i'],
+              names: [for (var i = 1; i <= n; i++) channelName(c, _desc, 'on$i')],
               on: ons,
               compact: false,
               rows: 1,
@@ -839,6 +923,71 @@ class _DashTileState extends State<DashTile> {
     );
   }
 
+  /// Harmonogram termostatu (`schedule`): okres teraz i następna zmiana, od 4×2 pasek dzisiejszego planu
+  /// z bieżącą godziną. Dotyk - arkusz termostatu na zakładce Harmonogram.
+  Widget _schedule(
+    BuildContext context,
+    DeviceController<Object?, Object?> c,
+    bool offline,
+    IconData icon,
+    bool large,
+  ) {
+    final s = c.stateJson;
+    final cfg = c is ThermostatController ? c.config : null;
+    final comfort = s?['comfortNow'] == true;
+    final auto = s?['mode'] == 'auto';
+    final next = s?['nextChange'] as String?;
+    String fmtT(num? v) => v == null ? '' : '${v.toStringAsFixed(1).replaceAll('.', ',')}°';
+    final String status;
+    if (s == null) {
+      status = 'Brak danych';
+    } else if (s['power'] == false) {
+      status = 'Wyłączony';
+    } else if (!auto) {
+      status = 'Ręcznie · nastawa ${fmtT(s['target'] as num?)}';
+    } else if (s['timeKnown'] == false) {
+      status = 'AUTO bez czasu - eko';
+    } else {
+      final then = comfort ? cfg?.eco : cfg?.comfort;
+      status = [
+        '${comfort ? 'Komfort' : 'Eko'}${next == null ? '' : ' do $next'}',
+        if (next != null && then != null) 'potem ${comfort ? 'eko' : 'komfort'} ${fmtT(then)}',
+        if (s['override'] == true) 'nadpisane',
+      ].join(', ');
+    }
+    final now = DateTime.now();
+    final plan = cfg == null
+        ? null
+        : DayPlan.tryParse(switch (now.weekday) {
+            DateTime.saturday => cfg.schedule.saturday,
+            DateTime.sunday => cfg.schedule.sunday,
+            _ => cfg.schedule.weekday,
+          });
+    void open() => c is ThermostatController
+        ? showThermostatSheet(context, c, initial: ThermostatTab.schedule)
+        : openDevice(context, c);
+    return TileShell(
+      icon: icon,
+      title: w.label ?? 'Harmonogram',
+      secondary: _secondary(s, status),
+      active: auto && comfort && s?['power'] != false,
+      large: large,
+      offline: offline,
+      color: w.color,
+      iconSize: w.iconSize,
+      onIcon: _tapAction(w.iconTap ?? 'details', details: open, device: open),
+      onTap: _tapAction(w.tap ?? 'details', details: open, device: open),
+      body: plan == null
+          ? null
+          : DayTimeline(
+              key: Key('schedule-${w.id}'),
+              periods: plan.periods,
+              height: 16,
+              now: now.hour * 60 + now.minute,
+            ),
+    );
+  }
+
   /// Termostat: temperatura dużą cyfrą, nastawa − / +, plakietka GRZEJE / MRÓZ / AWARIA; dotyk - ekran termostatu.
   Widget _thermostat(
     BuildContext context,
@@ -854,7 +1003,8 @@ class _DashTileState extends State<DashTile> {
     final power = s?['power'] != false;
     final fault = s?['sensorFault'] == true || s?['protect'] == 'faultDuty';
     final mode = s?['mode'] == 'auto' ? 'AUTO' : 'Ręcznie';
-    void open() => openDevice(context, c);
+    // Dotyk: arkusz z całym termostatem (sterowanie, harmonogram, ustawienia) - bez przechodzenia na ekran.
+    void open() => c is ThermostatController ? showThermostatSheet(context, c) : openDevice(context, c);
     return TileShell(
       icon: icon,
       title: w.label ?? c.device.name,
@@ -946,7 +1096,7 @@ class _DashTileState extends State<DashTile> {
       body: _Channels(
         widgetId: w.id,
         channels: chosen,
-        names: [for (final i in chosen) _desc?.point('on$i')?.name ?? 'Kanał $i'],
+        names: [for (final i in chosen) channelName(c, _desc, 'on$i')],
         on: ons,
         compact: w.size == WidgetSize.s1x1 && w.w == null,
         rows: large ? 2 : 1,
@@ -1208,7 +1358,13 @@ class TileShell extends StatelessWidget {
         ),
     ];
     final Widget content;
-    if (tiny) {
+    if (tiny && box.maxWidth < 130) {
+      // Kafelek 1×1: sama ikona na środku (nazwa w podpowiedzi i w ustawieniach).
+      content = Tooltip(
+        message: secondary == null ? title : '$title · $secondary',
+        child: Center(child: iconButton),
+      );
+    } else if (tiny) {
       // Jeden wiersz: ikona, nazwa, treść obok (gdy jest miejsce), plakietka.
       final inline = body != null && box.maxWidth >= 240;
       content = Row(

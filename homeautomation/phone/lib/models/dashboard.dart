@@ -28,7 +28,10 @@ enum WidgetView {
   weather('weather', 'Pogoda'),
 
   /// Stan huba (pkt 13.1).
-  hub('hub', 'Hub');
+  hub('hub', 'Hub'),
+
+  /// Harmonogram termostatu: okres teraz, następna zmiana, pasek dnia (pkt 13.1).
+  schedule('schedule', 'Harmonogram');
 
   const WidgetView(this.wire, this.label);
 
@@ -119,6 +122,14 @@ class DashWidget {
   String? get section => extra['section'] as String?;
   int? get w => (extra['w'] as num?)?.toInt();
   int? get h => (extra['h'] as num?)?.toInt();
+
+  /// Przypięte miejsce w siatce 4: kolumna 0-3, wiersz od 0; null = układany automatycznie.
+  int? get x => (extra['x'] as num?)?.toInt();
+  int? get y => (extra['y'] as num?)?.toInt();
+  bool get pinned => x != null && y != null;
+
+  DashWidget pinnedAt(int x, int y) => patch({'x': x.clamp(0, 4 - gridW), 'y': y < 0 ? 0 : y});
+  DashWidget unpinned() => patch({'x': null, 'y': null});
 
   /// `auto|amber|blue|green|red|purple|grey`; null = auto (akcent).
   String? get color => extra['color'] as String?;
@@ -212,7 +223,8 @@ class DashWidget {
 
   /// Rozmiar w siatce 4 (`w`, `h`) i najbliższy dawny `size` dla starszych wersji.
   DashWidget resized(int w, int h) => _with(
-    extra: {...extra, 'w': w, 'h': h},
+    // Przypięty przy prawej krawędzi przesuwa się w lewo, żeby się zmieścić.
+    extra: {...extra, 'w': w, 'h': h, if (x != null && x! + w > 4) 'x': 4 - w},
     size: w <= 2 ? WidgetSize.s1x1 : (h >= 4 ? WidgetSize.s2x2 : WidgetSize.s2x1),
   );
 

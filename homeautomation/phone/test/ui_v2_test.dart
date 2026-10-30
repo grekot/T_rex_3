@@ -30,6 +30,7 @@ import 'package:homeautomation/ui/add_device_screen.dart';
 import 'package:homeautomation/provisioning/prov_qr.dart';
 import 'package:homeautomation/models/dashboard.dart';
 import 'package:homeautomation/ui/main_screen.dart';
+import 'package:homeautomation/ui/dashboard_tiles.dart' show packGrid4;
 import 'package:homeautomation/ui/app_icons.dart';
 import 'package:homeautomation/ui/device_tiles.dart';
 import 'package:homeautomation/controllers/device_hub.dart';
@@ -382,6 +383,8 @@ void main() {
     // Pod gotowymi kafelkami - lista punktów danych.
     expect(find.byKey(const Key('preset-0')), findsOneWidget);
     await tester.scrollUntilVisible(find.byKey(const Key('pick-mode')), 200);
+    await tester.ensureVisible(find.byKey(const Key('pick-mode')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('pick-mode')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('widgetIcon')));
@@ -546,7 +549,32 @@ void main() {
     await tester.pump();
     await gesture.up();
     await tester.pumpAndSettle();
-    expect(saved().map((x) => x.id), [thermoId, lampId]);
+    // Siatka 4: zamiana miejsc - termostat na górze, lampa pod nim; obydwa przypięte.
+    var placed = {for (final p in packGrid4(saved())) p.widget.id: (p.row, p.col)};
+    expect((placed[thermoId], placed[lampId]), ((0, 0), (2, 0)));
+    expect(saved().every((w) => w.pinned), isTrue);
+
+    // Upuszczenie na wolne pole: lampa (zmniejszona do 1×1) przypięta w kolumnie 2.
+    // Rozmiar 1×1 z arkusza (szybciej niż klikanie uchwytu).
+    await openTile(lampId);
+    await tester.tap(find.byKey(const Key('tileSize4-1x1')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('tileSave')));
+    await tester.tap(find.byKey(const Key('tileSave')));
+    await tester.pumpAndSettle();
+    final target = find.byKey(const ValueKey('empty-2-2'));
+    await tester.ensureVisible(target);
+    await tester.pumpAndSettle();
+    final g2 = await tester.startGesture(tester.getTopLeft(find.byKey(Key('editTile-$lampId'))) + const Offset(20, 20));
+    await tester.pump(const Duration(milliseconds: 600));
+    await g2.moveTo(tester.getCenter(target));
+    await tester.pump();
+    await g2.up();
+    await tester.pumpAndSettle();
+    final lamp = saved().firstWhere((w) => w.id == lampId);
+    expect((lamp.x, lamp.y), (2, 2));
+    placed = {for (final p in packGrid4(saved())) p.widget.id: (p.row, p.col)};
+    expect(placed[lampId], (2, 2));
   });
 
   testWidgets('przełącznik 4-kanałowy: kanał z describe, ustawienia kanału i wejścia', (tester) async {

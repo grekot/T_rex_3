@@ -43,7 +43,7 @@ class _Conn<S, C> implements DeviceConnection<S, C> {
   final String deviceId;
   final DeviceCodec<S, C> codec;
   Json _state;
-  final Json _config;
+  Json _config;
   final sent = <Json>[];
   Json? describe;
   Completer<void>? hold;
@@ -62,7 +62,14 @@ class _Conn<S, C> implements DeviceConnection<S, C> {
   @override
   Stream<S> get states => _states.stream;
   @override
-  Stream<C> get configs => const Stream.empty();
+  Stream<C> get configs => _configs.stream;
+  final _configs = StreamController<C>.broadcast();
+
+  /// Nowy Config z urządzenia (np. po zmianie nazwy kanału).
+  void pushConfig(Json j) {
+    _config = j;
+    _configs.add(codec.config(j));
+  }
   @override
   Stream<LinkStatus> get statuses => const Stream.empty();
   @override
@@ -529,6 +536,7 @@ void main() {
       'Temperatura i wilgotność',
       'Wilgotność - wskaźnik',
       'Wykres 24 h',
+      'Harmonogram',
       'Pogoda',
       'Pogoda z wykresem',
     ]);
@@ -597,5 +605,69 @@ void main() {
     await show4(tester, const DashWidget(id: 'hb', view: WidgetView.hub, device: 'hub1').resized(4, 2));
     await tester.pumpAndSettle();
     expect(find.textContaining('Ostatnio: Zmrok - światła'), findsOneWidget);
+  });
+
+  testWidgets('harmonogram termostatu: okres i następna zmiana, pasek dnia; dotyk - arkusz na zakładce Harmonogram', (
+    tester,
+  ) async {
+    await setUpHub(tester);
+    await show4(
+      tester,
+      const DashWidget(id: 'sc', view: WidgetView.schedule, device: 'termostat-ab12cd').resized(4, 2),
+    );
+    expect(find.text('Komfort do 22:30, potem eko 18,0°'), findsOneWidget);
+    expect(find.byKey(const Key('schedule-sc')), findsOneWidget);
+    await tester.tap(find.text('Harmonogram'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('thermoTab-schedule')), findsOneWidget);
+    expect(find.text('Komfort'), findsWidgets, reason: 'ekran harmonogramu w arkuszu');
+  });
+
+  testWidgets('kafelek termostatu: dotyk otwiera arkusz - sterowanie, harmonogram, ustawienia', (tester) async {
+    await setUpHub(tester);
+    await show4(
+      tester,
+      const DashWidget(id: 'th', view: WidgetView.thermostat, device: 'termostat-ab12cd').resized(4, 2),
+    );
+    await tester.tap(find.text('21,4 °C'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('thermoTab-control')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('thermoTab-settings')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('saveSettings')), findsOneWidget, reason: 'ustawienia termostatu w arkuszu');
+  });
+
+  testWidgets('nazwa kanału zmieniona w ustawieniach modułu od razu na kafelku (opis odświeżany po zmianie Config)', (
+    tester,
+  ) async {
+    await setUpHub(tester);
+    await show4(
+      tester,
+      const DashWidget(id: 'nm', view: WidgetView.toggle, device: 'parter', point: 'on1').resized(2, 2),
+    );
+    expect(find.text('Schody'), findsOneWidget);
+    // Najpierw sam Config (opis z urządzenia jeszcze stary) - nazwa z `chN.name`.
+    node.pushConfig({
+      'name': 'Parter',
+      'channels': 4,
+      for (final (i, n) in ['Wjazd', 'Hol', 'Taras', 'Garaż'].indexed) 'ch${i + 1}': {'name': n},
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Wjazd'), findsOneWidget);
+    final points = (node.describe!['points'] as List).cast<Map<String, dynamic>>();
+    node.describe = {
+      'type': 'switch',
+      'points': [
+        for (final p in points) p['key'] == 'on1' ? {...p, 'name': 'Garaż'} : p,
+      ],
+    };
+    node.pushConfig({
+      'name': 'Parter',
+      'channels': 4,
+      for (final (i, n) in ['Garaż', 'Hol', 'Taras', 'Brama'].indexed) 'ch${i + 1}': {'name': n},
+    });
+    await tester.pumpAndSettle();
+    expect(find.text('Garaż'), findsOneWidget);
+    expect(find.text('Schody'), findsNothing);
   });
 }

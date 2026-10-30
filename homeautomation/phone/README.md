@@ -106,6 +106,13 @@ repozytorium trzeba najpierw uruchomić `node tools/configure.mjs`.
   połączenia pomijani. `weather` - `outdoor` termostatu: temperatura, ikona i opis (numer ikony termostatu 1-9
   albo kod OpenWeatherMap), „sprzed N min”, na kafelku 4×3 wykres z historii `out`. `hub` - urządzenia dostępne /
   wszystkie, automatyki, trwające sceny, ostatnie wykonanie, plakietka BEZ CHMURY; dotyk - ekran huba.
+- **Termostat na pulpicie**: dotyk kafelka termostatu otwiera arkusz (`lib/ui/thermostat_sheet.dart`) z zakładkami
+  Sterowanie (jak ekran termostatu), Harmonogram i Ustawienia (te same ekrany, wymagają `config`). Kafelek
+  **Harmonogram** (`schedule`, pkt 13.1): „Komfort do 22:30, potem eko 18°”, „Ręcznie · nastawa”, „Wyłączony”,
+  „nadpisane”; od 4×2 pasek dzisiejszego planu z bieżącą godziną; dotyk - arkusz na zakładce Harmonogram.
+- **Nazwy kanałów i wejść** na kafelkach, w kreatorze i w grupach: najpierw z Config modułu (`chN.name`,
+  `inputK.name`), potem z `describe`, na końcu „Kanał N”. Opis urządzenia jest pobierany na nowo po każdej zmianie
+  Config (`descriptionVersion`), więc zmiana nazwy w ustawieniach modułu od razu widać na pulpicie.
 - **Gotowe kafelki** (kreator, po wyborze urządzenia, `tilePresets`): termostat (duży, pokrętło, temperatura
   z wilgotnością, wskaźnik wilgotności, wykres 24 h, pogoda), węzeł (wszystkie wyjścia, każdy kanał, każde wejście),
   światło (przełącznik, pasek i pokrętło jasności), hub (stan). Pod nimi - wybór punktu jak dotąd.

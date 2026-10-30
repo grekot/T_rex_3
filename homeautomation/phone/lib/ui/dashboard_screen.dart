@@ -247,7 +247,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   /// Widoki pasujące do punktu kafelka (z `describe`, gdy urządzenie go podało).
   List<WidgetView> _viewsFor(DashWidget w, DeviceDescription? desc) {
-    if (w.isScene || w.view == WidgetView.group || w.view == WidgetView.weather || w.view == WidgetView.hub) {
+    if (w.isScene ||
+        const [WidgetView.group, WidgetView.weather, WidgetView.hub, WidgetView.schedule].contains(w.view)) {
       return [w.view];
     }
     if (w.view == WidgetView.thermostat && w.point == null) return const [WidgetView.thermostat];
@@ -309,9 +310,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// Przeciągnięty kafelek zajmuje miejsce tego, na który go upuszczono (i przechodzi do jego sekcji).
   Future<void> _drop(Dashboard d, String fromId, String toId) {
     final from = d.widgets.indexWhere((x) => x.id == fromId), to = d.widgets.indexWhere((x) => x.id == toId);
-    final moved = d.widgets[from].patch({'section': d.widgets[to].section});
+    final a = d.widgets[from], b = d.widgets[to];
+    if (d.grid == 4 && a.section == b.section) {
+      // Siatka 4, ta sama sekcja: kafelki zamieniają się miejscami (obydwa zostają przypięte).
+      // Przeciągany pierwszy (pierwszeństwo przy nakładaniu), potem obydwa przypięte tam, gdzie faktycznie stanęły.
+      final placed = {for (final p in packGrid4(_inSection(d, a.section))) p.widget.id: p};
+      final pa = placed[a.id]!, pb = placed[b.id]!;
+      var list = [...d.widgets]
+        ..[from] = a.pinnedAt(pb.col, pb.row)
+        ..[to] = b.pinnedAt(pa.col, pa.row);
+      list = reorder(list, from, to);
+      final after = {for (final p in packGrid4(_inSection(d.copyWith(widgets: list), a.section))) p.widget.id: p};
+      list = [
+        for (final w in list)
+          if (w.id == a.id || w.id == b.id) w.pinnedAt(after[w.id]!.col, after[w.id]!.row) else w,
+      ];
+      return _save(d.copyWith(widgets: list));
+    }
+    final moved = a.patch({'section': b.section}).unpinned();
     final list = [...d.widgets]..[from] = moved;
     return _save(d.copyWith(widgets: reorder(list, from, to > from ? to + 1 : to)));
+  }
+
+  /// Widżety jednej sekcji (null - bez sekcji) w kolejności pulpitu.
+  List<DashWidget> _inSection(Dashboard d, String? section) {
+    final ids = {for (final s in d.sections) s.id};
+    return [
+      for (final w in d.widgets)
+        if (section == null ? !ids.contains(w.section) : w.section == section) w,
+    ];
+  }
+
+  /// Upuszczenie na wolne pole siatki 4: kafelek przypięty w tym miejscu (i w tej sekcji), jeśli się mieści.
+  Future<void> _place(Dashboard d, String id, String? section, int row, int col) async {
+    final i = d.widgets.indexWhere((x) => x.id == id);
+    final w = d.widgets[i];
+    final moved = w.patch({'section': section}).pinnedAt(col, row);
+    final others = [
+      for (final x in _inSection(d, section))
+        if (x.id != id) x,
+    ];
+    final taken = <(int, int)>{
+      for (final p in packGrid4(others))
+        for (var y = p.row; y < p.row + p.widget.gridH; y++)
+          for (var x = p.col; x < p.col + p.widget.gridW; x++) (y, x),
+    };
+    final fits = [
+      for (var y = moved.y!; y < moved.y! + w.gridH; y++)
+        for (var x = moved.x!; x < moved.x! + w.gridW; x++) (y, x),
+    ].every((c) => !taken.contains(c));
+    if (!fits) {
+      _snack('Tu się nie zmieści - zwolnij miejsce albo zmniejsz kafelek.');
+      return;
+    }
+    await _save(d.copyWith(widgets: [...d.widgets]..[i] = moved));
   }
 
   /// Przycisk w rogu: kolejny rozmiar (siatka 2: 1×1 → 2×1 → 2×2; siatka 4: kolejny z [grid4Sizes]).
@@ -564,7 +616,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Text(
-            'Dotknij kafelka, aby go ustawić. Przytrzymaj i przeciągnij, aby przenieść. Przycisk w rogu zmienia rozmiar.',
+            'Dotknij kafelka, aby go ustawić. Przytrzymaj i przeciągnij: na wolne pole - kafelek zostaje w tym miejscu, '
+            'na inny kafelek - zamieniają się miejscami. Przycisk w rogu zmienia rozmiar.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
@@ -603,6 +656,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               DashGrid(
                 grid: d.grid,
                 widgets: list,
+                emptyCell: d.grid == 4 ? (r, c) => EmptyCell(onDrop: (id) => _place(d, id, s?.id, r, c)) : null,
                 builder: (w) => EditableTile(
                   id: w.id,
                   onTap: () => _tileSettings(d, w),

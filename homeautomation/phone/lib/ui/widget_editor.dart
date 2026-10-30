@@ -65,7 +65,7 @@ List<DataPoint> fallbackPoints(DeviceType type) => switch (type) {
 Future<List<DataPoint>> pointsOf(DeviceHub hub, PairedDevice d) async {
   final c = hub.controller(d.id);
   final desc = await c?.description().timeout(const Duration(seconds: 8), onTimeout: () => null);
-  return desc?.points ?? fallbackPoints(d.type);
+  return [for (final p in desc?.points ?? fallbackPoints(d.type)) withChannelName(p, c, desc)];
 }
 
 /// Gotowy kafelek do dodania jednym dotknięciem (tytuł, opis, widżet w siatce 4).
@@ -124,6 +124,11 @@ List<TilePreset> tilePresets(PairedDevice d, List<DataPoint> points, Json? state
         ],
         'rangeSwitch': true,
       }),
+    ));
+    out.add((
+      title: 'Harmonogram',
+      subtitle: 'okres teraz, następna zmiana, pasek dnia · 4×2',
+      widget: w(WidgetView.schedule, null, 4, 2),
     ));
     out.add((
       title: 'Pogoda',
@@ -202,7 +207,7 @@ Future<List<GroupCandidate>> groupCandidates(DeviceHub hub) async {
           .timeout(const Duration(seconds: 3), onTimeout: () => null)
           .catchError((_) => null);
       for (var i = 1; i <= n; i++) {
-        out.add((device: d.id, point: 'on$i', name: '${d.name} · ${desc?.point('on$i')?.name ?? 'Kanał $i'}'));
+        out.add((device: d.id, point: 'on$i', name: '${d.name} · ${channelName(c, desc, 'on$i')}'));
       }
     } else {
       out.add((device: d.id, point: 'on', name: d.name));

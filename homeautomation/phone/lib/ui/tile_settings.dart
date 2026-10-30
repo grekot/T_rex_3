@@ -387,6 +387,21 @@ class _TileSettingsState extends State<_TileSettings> {
                   ],
                 ),
               ],
+              if (widget.grid == 4 && _w.pinned) ...[
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    const Icon(Icons.push_pin_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text('Przypięty: kolumna ${_w.x! + 1}, wiersz ${_w.y! + 1}')),
+                    ActionChip(
+                      key: const Key('tilePosAuto'),
+                      label: const Text('Położenie automatyczne'),
+                      onPressed: () => setState(() => _w = _w.unpinned()),
+                    ),
+                  ],
+                ),
+              ],
               if (widget.sections.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 _dropdown<String?>(
@@ -822,6 +837,33 @@ class EditableTile extends StatelessWidget {
             childWhenDragging: Opacity(opacity: 0.3, child: framed(false)),
             child: framed(candidates.isNotEmpty),
           ),
+        );
+      },
+    );
+  }
+}
+
+/// Wolne pole siatki 4 w edycji: miejsce do upuszczenia kafelka (podświetlone, gdy nad nim jest kafelek).
+class EmptyCell extends StatelessWidget {
+  const EmptyCell({super.key, required this.onDrop});
+
+  final ValueChanged<String> onDrop;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return DragTarget<String>(
+      onAcceptWithDetails: (d) => onDrop(d.data),
+      builder: (context, candidates, _) {
+        final hover = candidates.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          decoration: BoxDecoration(
+            color: hover ? cs.primaryContainer.withValues(alpha: 0.6) : cs.surfaceContainerLow.withValues(alpha: 0.5),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: hover ? cs.primary : cs.outlineVariant, width: hover ? 2 : 1),
+          ),
+          child: hover ? Icon(Icons.add, color: cs.primary) : null,
         );
       },
     );

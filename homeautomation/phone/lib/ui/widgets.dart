@@ -78,10 +78,13 @@ Future<DayTime?> pickDayTime(BuildContext context, DayTime initial, {bool isEnd 
 
 /// Pasek doby 0-24 h z zaznaczonymi okresami komfortu.
 class DayTimeline extends StatelessWidget {
-  const DayTimeline({super.key, required this.periods, this.height = 20});
+  const DayTimeline({super.key, required this.periods, this.height = 20, this.now});
 
   final List<TimePeriod> periods;
   final double height;
+
+  /// Minuta doby zaznaczona pionową kreską (np. teraz); null = bez kreski.
+  final int? now;
 
   @override
   Widget build(BuildContext context) {
@@ -93,7 +96,13 @@ class DayTimeline extends StatelessWidget {
           height: height,
           child: CustomPaint(
             size: Size.infinite,
-            painter: _TimelinePainter(periods, comfort: cs.primary, eco: cs.surfaceContainerHighest),
+            painter: _TimelinePainter(
+              periods,
+              comfort: cs.primary,
+              eco: cs.surfaceContainerHighest,
+              now: now,
+              mark: cs.onSurface,
+            ),
           ),
         ),
         const SizedBox(height: 2),
@@ -109,11 +118,13 @@ class DayTimeline extends StatelessWidget {
 }
 
 class _TimelinePainter extends CustomPainter {
-  _TimelinePainter(this.periods, {required this.comfort, required this.eco});
+  _TimelinePainter(this.periods, {required this.comfort, required this.eco, this.now, this.mark = Colors.black});
 
   final List<TimePeriod> periods;
   final Color comfort;
   final Color eco;
+  final int? now;
+  final Color mark;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -130,10 +141,15 @@ class _TimelinePainter extends CustomPainter {
       canvas.drawRect(Rect.fromLTRB(x0, 0, x1, size.height), p);
     }
     canvas.restore();
+    if (now != null) {
+      final x = size.width * now! / 1440;
+      canvas.drawRect(Rect.fromLTRB(x - 1, -3, x + 1, size.height + 3), Paint()..color = mark);
+    }
   }
 
   @override
-  bool shouldRepaint(_TimelinePainter old) => old.periods != periods || old.comfort != comfort || old.eco != eco;
+  bool shouldRepaint(_TimelinePainter old) =>
+      old.periods != periods || old.comfort != comfort || old.eco != eco || old.now != now || old.mark != mark;
 }
 
 /// Nagłówek sekcji na liście ustawień.

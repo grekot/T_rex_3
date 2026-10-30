@@ -30,6 +30,7 @@ const appIcons = <AppIcon>[
   AppIcon('temperature', 'Temperatura', Icons.device_thermostat, 'Ogrzewanie i klimat'),
   AppIcon('heating', 'Grzanie', Icons.local_fire_department_outlined, 'Ogrzewanie i klimat'),
   AppIcon('frost', 'Mróz', Icons.ac_unit, 'Ogrzewanie i klimat'),
+  AppIcon('schedule', 'Harmonogram', Icons.calendar_month_outlined, 'Ogrzewanie i klimat'),
   AppIcon('humidity', 'Wilgotność', Icons.water_drop_outlined, 'Ogrzewanie i klimat'),
   AppIcon('fan', 'Wentylator', Icons.air, 'Ogrzewanie i klimat'),
   AppIcon('outdoor', 'Pogoda', Icons.wb_sunny_outlined, 'Ogrzewanie i klimat'),
@@ -102,6 +103,7 @@ String widgetIconKey({required WidgetView view, String? point, DeviceType? type}
   if (view == WidgetView.group) return 'light';
   if (view == WidgetView.weather) return 'outdoor';
   if (view == WidgetView.hub) return 'hub';
+  if (view == WidgetView.schedule) return 'schedule';
   final p = point ?? '';
   if (RegExp(r'^on\d*$').hasMatch(p) || p == 'toggle') return 'light';
   if (RegExp(r'^in\d+$').hasMatch(p)) return 'button';

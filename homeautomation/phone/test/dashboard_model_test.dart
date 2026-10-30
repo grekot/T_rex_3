@@ -87,4 +87,22 @@ void main() {
       ['a:0,0', 'b:2,0', 'c:2,2', 'd:3,2', 'e:4,0', 'f:3,3'],
     );
   });
+
+  test('siatka 4: przypięte kafelki (x, y) na swoim miejscu, reszta wokół; nachodzący - automatycznie', () {
+    DashWidget t(String id, int w, int h) => DashWidget(id: id, view: WidgetView.value).resized(w, h);
+    final placed = packGrid4([
+      t('a', 2, 2),
+      t('b', 2, 2),
+      t('mid', 1, 1).pinnedAt(1, 2),
+      t('c', 2, 1),
+      t('zly', 2, 2).pinnedAt(1, 2), // nachodzi na „mid”
+    ]);
+    expect(
+      [for (final p in placed) '${p.widget.id}:${p.row},${p.col}'],
+      ['a:0,0', 'b:0,2', 'mid:2,1', 'c:2,2', 'zly:3,0'],
+    );
+    // Przypięty przy prawej krawędzi po powiększeniu przesuwa się w lewo.
+    expect(t('x', 1, 1).pinnedAt(3, 0).resized(2, 1).x, 2);
+    expect(t('x', 1, 1).pinnedAt(3, 0).unpinned().pinned, isFalse);
+  });
 }
