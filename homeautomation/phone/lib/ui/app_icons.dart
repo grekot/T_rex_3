@@ -104,6 +104,7 @@ String widgetIconKey({required WidgetView view, String? point, DeviceType? type}
   if (view == WidgetView.weather) return 'outdoor';
   if (view == WidgetView.hub) return 'hub';
   if (view == WidgetView.schedule) return 'schedule';
+  if (view == WidgetView.valueList) return 'sensor';
   final p = point ?? '';
   if (RegExp(r'^on\d*$').hasMatch(p) || p == 'toggle') return 'light';
   if (RegExp(r'^in\d+$').hasMatch(p)) return 'button';

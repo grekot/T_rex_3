@@ -393,6 +393,26 @@ void main() {
       }),
       g('x3', WidgetView.hub, 'hub1', null, 4, 2),
       g('x4', WidgetView.schedule, 'termostat-ab12cd', null, 4, 2),
+      const DashWidget(id: 'x5', view: WidgetView.valueList, label: 'Rozdzielnia').resized(4, 2).patch({
+        'items': [
+          {'device': 'termostat-ab12cd', 'point': 'temp'},
+          {'device': 'termostat-ab12cd', 'point': 'hum'},
+          {'device': 'termostat-ab12cd', 'point': 'outdoor.temp', 'label': 'Na zewnątrz'},
+          {'device': 'parter', 'point': 'on3', 'label': 'Pompa'},
+        ],
+      }),
+      const DashWidget(id: 'x6', view: WidgetView.valueList, label: 'Salon').resized(2, 2).patch({
+        'items': [
+          {'device': 'termostat-ab12cd', 'point': 'temp'},
+          {'device': 'termostat-ab12cd', 'point': 'hum'},
+        ],
+      }),
+      const DashWidget(id: 'x7', view: WidgetView.valueList, label: 'Piwnica').resized(2, 2).patch({
+        'items': [
+          {'device': 'parter', 'point': 'in2', 'label': 'Drzwi'},
+          {'device': 'nieznane', 'point': 'temp', 'label': 'Temp.'},
+        ],
+      }),
     ];
     final parter = [
       g('p1', WidgetView.toggle, 'parter', 'on', 4, 2),
@@ -437,7 +457,7 @@ void main() {
       ],
     );
     for (final (dark, file) in [(false, 'siatka4_jasny.png'), (true, 'siatka4_ciemny.png')]) {
-      tester.view.physicalSize = const Size(412 * 2.5, 1730 * 2.5);
+      tester.view.physicalSize = const Size(412 * 2.5, 2000 * 2.5);
       await tester.pumpWidget(
         MaterialApp(
           debugShowCheckedModeBanner: false,

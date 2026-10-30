@@ -106,7 +106,10 @@ void main() {
     expect(d.found.map((f) => (f.adapter, f.host)), [
       (HubAdapter.shelly, '192.168.1.50'),
       (HubAdapter.tasmota, '192.168.1.51'),
+      (HubAdapter.ewelink, '192.168.1.52'),
+      (HubAdapter.ewelink, '192.168.1.53'),
     ]);
+    expect((d.found[2].deviceId, d.found[2].model), ('1000a1b2c3', 'strip'));
 
     final id = await api.addDevice({'adapter': 'shelly', 'host': '192.168.1.50', 'id': 'shelly-b12345', 'name': 'Taras'});
     expect(id, 'shelly-b12345');
@@ -134,6 +137,68 @@ void main() {
 
     await api.deleteDevice('shelly-b12345');
     expect((await api.devices()).map((c) => c.id), ['tasmota-a80162']);
+  });
+
+  test('eWeLink LAN: listwa jako kanały, wymagany klucz, zły klucz → error key, poprawienie klucza', () async {
+    const key = '0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9';
+    fake.ewelinkKeys['1000a1b2c3'] = key;
+    for (final c in [0, 1]) {
+      await api.addDevice({
+        'adapter': 'ewelink',
+        'host': '192.168.1.52',
+        'deviceId': '1000a1b2c3',
+        'localKey': key,
+        'channel': c,
+        'name': 'Biurko ${c + 1}',
+        'type': 'switch',
+      });
+    }
+    final id = await api.addDevice({
+      'adapter': 'ewelink',
+      'host': '192.168.1.53',
+      'deviceId': '1000d4e5f6',
+      'localKey': key,
+      'name': 'Gniazdko',
+    });
+    expect(id, 'ewelink-1000d4e5f6');
+    var list = await api.devices();
+    expect(list.map((c) => (c.id, c.adapter, c.channel, c.deviceId, c.error)).toList(), [
+      ('ewelink-1000a1b2c3-1', HubAdapter.ewelink, 0, '1000a1b2c3', null),
+      ('ewelink-1000a1b2c3-2', HubAdapter.ewelink, 1, '1000a1b2c3', null),
+      ('ewelink-1000d4e5f6', HubAdapter.ewelink, null, '1000d4e5f6', null),
+    ]);
+
+    await expectLater(
+      api.addDevice({'adapter': 'ewelink', 'host': '192.168.1.54', 'deviceId': '1000ffffff', 'localKey': 'abc'}),
+      throwsA(isA<ThermostatException>().having((e) => e.message, 'message', contains('Zły klucz urządzenia'))),
+    );
+    await expectLater(
+      api.addDevice({'adapter': 'ewelink', 'host': '192.168.1.54', 'localKey': key}),
+      throwsA(isA<ThermostatException>().having((e) => e.message, 'message', contains('identyfikatora'))),
+    );
+
+    // Zły klucz: hub nie odszyfruje ogłoszeń - error "key"; ten sam id z dobrym kluczem naprawia.
+    await api.addDevice({
+      'adapter': 'ewelink',
+      'host': '192.168.1.52',
+      'id': 'ewelink-1000a1b2c3-1',
+      'deviceId': '1000a1b2c3',
+      'localKey': 'ffffffff-ffff-ffff-ffff-ffffffffffff',
+      'channel': 0,
+    });
+    list = await api.devices();
+    expect((list.first.error, list.first.online), ('key', false));
+    await api.addDevice({
+      'adapter': 'ewelink',
+      'host': '192.168.1.52',
+      'id': 'ewelink-1000a1b2c3-1',
+      'deviceId': '1000a1b2c3',
+      'localKey': key.toUpperCase(),
+      'channel': 0,
+    });
+    list = await api.devices();
+    expect((list.first.error, list.first.online, list.length), (null, true, 3));
+    expect(HubChild.fromJson({'id': 'ewelink-10009abcde-3', 'adapter': 'ewelink', 'host': '1.2.3.4'}).deviceId, '10009abcde');
   });
 
   test('automatyki i sceny w hubie: zapis z updatedAt, błędna reguła, diagnostyka, uruchom, dziennik, czas', () async {

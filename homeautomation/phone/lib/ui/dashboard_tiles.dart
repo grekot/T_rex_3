@@ -402,6 +402,7 @@ class _DashTileState extends State<DashTile> {
     final c = _c;
     final level = w.device == null ? AccessLevel.none : widget.hub.accessFor(w.device!);
     if (w.view == WidgetView.group) return _group(context, icon, large);
+    if (w.view == WidgetView.valueList) return _valueList(context, icon, large);
     if (c == null || level == AccessLevel.none) {
       return TileShell(
         icon: Icons.lock_outline,
@@ -627,7 +628,8 @@ class _DashTileState extends State<DashTile> {
           WidgetView.group ||
           WidgetView.weather ||
           WidgetView.hub ||
-          WidgetView.schedule:
+          WidgetView.schedule ||
+          WidgetView.valueList:
         final v = _value(p.key, state);
         return shell(
           secondary: w.label == null ? c.device.name : null,
@@ -716,6 +718,114 @@ class _DashTileState extends State<DashTile> {
         for (final (i, x) in items.indexed) ...[if (i > 0) const SizedBox(height: 4), x],
       ],
     );
+  }
+
+  /// Opisy urządzeń pozycji kafelka `values` (połączenie, wersja opisu, opis) - pobierane ponownie po zmianie Config.
+  final _itemDescs = <String, (Object?, int, DeviceDescription?)>{};
+
+  DeviceDescription? _descOf(DeviceController<Object?, Object?> c) {
+    final id = c.device.id;
+    final have = _itemDescs[id];
+    if (have != null && identical(have.$1, c.connection) && have.$2 == c.descriptionVersion) return have.$3;
+    final conn = c.connection, version = c.descriptionVersion;
+    _itemDescs[id] = (conn, version, have?.$3);
+    c.description().then((d) {
+      if (mounted) setState(() => _itemDescs[id] = (conn, version, d));
+    }, onError: (_) {});
+    return have?.$3;
+  }
+
+  /// Kilka wartości (`values`, pkt 13.1): pozycje z różnych urządzeń, układ wg rozmiaru kafelka. Dotyk pozycji -
+  /// jej urządzenie, a pozycja `switch` z poziomem `control` przełącza; niedostępne urządzenie wyszarza tylko
+  /// swoją pozycję.
+  Widget _valueList(BuildContext context, IconData icon, bool large) {
+    final cells = [for (final (i, it) in w.items.indexed) _valueCell(context, i, it)];
+    return TileShell(
+      icon: icon,
+      title: w.label ?? 'Wartości',
+      secondary: cells.isEmpty ? 'Brak wartości' : null,
+      large: large,
+      color: w.color,
+      iconSize: w.iconSize,
+      fillBody: true,
+      body: cells.isEmpty ? null : _ValueGrid(children: cells),
+    );
+  }
+
+  Widget _valueCell(BuildContext context, int i, ValueItem it) {
+    final hub = widget.hub;
+    final c = hub.controller(it.device);
+    final level = hub.accessFor(it.device);
+    final ok = c != null && level != AccessLevel.none;
+    final desc = c == null ? null : _descOf(c);
+    final p = withChannelName(desc?.point(it.point) ?? fallbackPoint(it.point), c, desc);
+    final key = '${it.device}/${it.point}';
+    final v = _pending.containsKey(key) ? _pending[key] : (ok ? p.valueIn(c.stateJson) : null);
+    final text = v is bool
+        ? (it.labels != null
+              ? it.labels![v ? 1 : 0]
+              : p.kind == PointKind.switchKind
+              ? (v ? 'wł.' : 'wył.')
+              : _statusLabel(p, v, c?.config))
+        : p.format(v);
+    final canToggle = ok && c.live && p.kind == PointKind.switchKind && level.atLeast(p.access);
+    final theme = Theme.of(context);
+    final muted = DefaultTextStyle.of(context).style.color?.withValues(alpha: 0.72);
+    return Opacity(
+      opacity: ok && c.live ? 1 : 0.4,
+      child: InkWell(
+        key: Key('valueItem-${w.id}-$i'),
+        borderRadius: BorderRadius.circular(8),
+        onTap: !ok
+            ? null
+            : canToggle
+            ? () => _toggleItem(context, c, key, it.point, v != true)
+            : () => openDevice(context, c, hub: hub),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(it.label ?? p.name, maxLines: 1, style: theme.textTheme.bodySmall?.copyWith(color: muted)),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(text, maxLines: 1, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                    if (canToggle) ...[
+                      const SizedBox(width: 4),
+                      Icon(v == true ? Icons.toggle_on : Icons.toggle_off_outlined, size: 22),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _toggleItem(
+    BuildContext context,
+    DeviceController<Object?, Object?> c,
+    String key,
+    String point,
+    bool on,
+  ) async {
+    unawaited(HapticFeedback.selectionClick());
+    setState(() => _pending[key] = on);
+    final r = await c.sendJson({point: on});
+    if (!mounted) return;
+    setState(() => _pending.remove(key));
+    if (r.errors.isNotEmpty && context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('${c.device.name}: ${describeErrors(r.errors)}')));
+    }
   }
 
   /// Grupa wyjść (`group`): ikona - gdy coś świeci, wyłącza wszystko, inaczej włącza; członkowie bez `control`
@@ -1228,6 +1338,38 @@ IconData dashWidgetIcon(DashWidget w, DeviceHub hub) {
 }
 
 enum TileBadgeKind { heat, cool, error }
+
+/// Siatka pozycji kafelka `values`: tyle kolumn, ile się mieści (min. ~76 px), wierszy tyle, ile pozwala wysokość
+/// (min. ~30 px) - w jednym wierszu kafelka wszystko w linii; treść komórek zmniejsza się, nie wychodzi poza kafelek.
+class _ValueGrid extends StatelessWidget {
+  const _ValueGrid({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final n = children.length;
+      final rowsFit = box.maxHeight.isFinite ? math.max(1, box.maxHeight ~/ 30) : n;
+      var cols = (box.maxWidth ~/ 76).clamp(1, n);
+      if ((n / cols).ceil() > rowsFit) cols = (n / rowsFit).ceil();
+      final rows = (n / cols).ceil();
+      return Column(
+        children: [
+          for (var r = 0; r < rows; r++)
+            Expanded(
+              child: Row(
+                children: [
+                  for (var k = 0; k < cols; k++)
+                    Expanded(child: r * cols + k < n ? children[r * cols + k] : const SizedBox.shrink()),
+                ],
+              ),
+            ),
+        ],
+      );
+    },
+  );
+}
 
 /// Plakietka w rogu kafelka (GRZEJE, MRÓZ, USTERKA…).
 class TileBadge {

@@ -7,6 +7,9 @@ enum HubAdapter {
   ownNode('ownNode', 'Własny węzeł'),
   shelly('shelly', 'Shelly'),
   sonoffDiy('sonoffDiy', 'Sonoff DIY'),
+
+  /// Sonoff z eWeLink i „Kontrolą LAN” - zostaje na koncie eWeLink, hub steruje lokalnie (pkt 11 „eWeLink LAN”).
+  ewelink('ewelink', 'Sonoff (eWeLink)'),
   tasmota('tasmota', 'Tasmota'),
   tuya('tuya', 'Tuya');
 
@@ -20,6 +23,12 @@ enum HubAdapter {
   /// Czy przy dodawaniu można podać hasło urządzenia.
   bool get hasPassword => this == shelly || this == tasmota;
 }
+
+/// `devicekey` urządzenia eWeLink (UUID, 36 znaków) - `localKey` przy dodawaniu do huba.
+final ewelinkKeyPattern = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+/// Model eWeLink z kilkoma kanałami (jedno urządzenie huba na kanał).
+bool ewelinkMultiChannel(String? model) => model == 'strip';
 
 /// Urządzenie podrzędne (`GET /api/devices`).
 class HubChild {
@@ -36,6 +45,7 @@ class HubChild {
     this.online = false,
     this.error,
     this.state = const {},
+    this.deviceId,
   });
 
   final String id;
@@ -55,9 +65,12 @@ class HubChild {
   final bool linked;
   final bool online;
 
-  /// `offline`, `unauthorized`, `password`, `not_gen2`, `HTTP 404`…
+  /// `offline`, `unauthorized`, `password`, `not_gen2`, `key` (eWeLink: zły klucz), `HTTP 404`…
   final String? error;
   final Json state;
+
+  /// eWeLink: `deviceId` (z odpowiedzi huba albo z id `ewelink-<deviceId>[-N]`).
+  final String? deviceId;
 
   String get label => name?.isNotEmpty == true ? name! : id;
 
@@ -74,12 +87,15 @@ class HubChild {
     online: asBool(j['online'], 'online'),
     error: asStringOrNull(j['error'], 'error'),
     state: asObjectOrNull(j['state'], 'state') ?? const {},
+    deviceId:
+        asStringOrNull(j['deviceId'], 'deviceId') ??
+        RegExp(r'^ewelink-([0-9a-zA-Z]+)').firstMatch(asString(j['id'], 'id'))?.group(1),
   );
 }
 
 /// Znalezione w sieci, jeszcze niedodane (`GET /api/discover`).
 class HubFound {
-  const HubFound({required this.adapter, required this.host, this.id, this.model, this.type});
+  const HubFound({required this.adapter, required this.host, this.id, this.model, this.type, this.deviceId});
 
   final HubAdapter adapter;
   final String host;
@@ -87,12 +103,16 @@ class HubFound {
   final String? model;
   final String? type;
 
+  /// eWeLink: identyfikator urządzenia z TXT `id`.
+  final String? deviceId;
+
   factory HubFound.fromJson(Json j) => HubFound(
     adapter: HubAdapter.fromWire(j['adapter']),
     host: asString(j['host'], 'host'),
     id: asStringOrNull(j['id'], 'id'),
     model: asStringOrNull(j['model'], 'model'),
     type: asStringOrNull(j['type'], 'type'),
+    deviceId: asStringOrNull(j['deviceId'], 'deviceId'),
   );
 }
 

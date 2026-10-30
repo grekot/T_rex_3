@@ -15,6 +15,7 @@ import 'app_icons.dart';
 import 'automations_screen.dart' show BranchEditorScreen, describeAction;
 import 'dashboard_tiles.dart';
 import 'point_controls.dart';
+import 'values_editor.dart';
 import 'widgets.dart';
 
 /// Widoki, które zna zegarek (pkt 13a: bez wykresów i suwaków).
@@ -435,6 +436,24 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
                 context,
               ).push<DashWidget>(MaterialPageRoute(builder: (_) => GroupPickerScreen(hub: widget.hub)));
               if (w != null && context.mounted) Navigator.of(context).pop(w);
+            },
+          ),
+        if (!widget.forWatch)
+          ListTile(
+            key: const Key('pickValues'),
+            leading: const Icon(Icons.dashboard_outlined),
+            title: const Text('Kilka wartości'),
+            subtitle: const Text('Np. temperatura i wilgotność, także z różnych urządzeń'),
+            onTap: () async {
+              final r = await Navigator.of(context).push<ValuesEdit>(
+                MaterialPageRoute(builder: (_) => ValuesEditorScreen(hub: widget.hub, askLabel: true)),
+              );
+              if (r == null || !context.mounted) return;
+              Navigator.of(context).pop(
+                DashWidget(id: newLocalId('w'), view: WidgetView.valueList, label: r.label).resized(4, 2).patch({
+                  'items': [for (final i in r.items) valueItemJson(i)],
+                }),
+              );
             },
           ),
         ListTile(

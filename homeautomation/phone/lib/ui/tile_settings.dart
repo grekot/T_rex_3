@@ -7,6 +7,7 @@ import '../models/json_utils.dart';
 import 'app_icons.dart';
 import 'dashboard_tiles.dart';
 import 'tile_charts.dart';
+import 'values_editor.dart';
 
 /// Co zrobić z kafelkiem po zamknięciu arkusza ustawień.
 sealed class TileEdit {
@@ -550,6 +551,28 @@ class _TileSettingsState extends State<_TileSettings> {
                           },
                         ),
                     ],
+                  ),
+                ]),
+              if (_w.view == WidgetView.valueList)
+                _group('tileMoreValues', 'Wartości w kafelku', [
+                  Text('${_w.items.length} z $maxValueItems', style: t.bodySmall),
+                  const SizedBox(height: 4),
+                  OutlinedButton.icon(
+                    key: const Key('tileEditValues'),
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Zmień wartości'),
+                    onPressed: () async {
+                      final r = await Navigator.of(context).push<ValuesEdit>(
+                        MaterialPageRoute(
+                          builder: (_) => ValuesEditorScreen(hub: widget.hub, initial: _w.items),
+                        ),
+                      );
+                      if (r != null) {
+                        _patch({
+                          'items': [for (final i in r.items) valueItemJson(i)],
+                        });
+                      }
+                    },
                   ),
                 ]),
               if (_w.view == WidgetView.status)

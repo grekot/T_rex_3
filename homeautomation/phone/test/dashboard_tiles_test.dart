@@ -27,6 +27,7 @@ import 'package:homeautomation/models/home.dart';
 import 'package:homeautomation/models/hub.dart';
 import 'package:homeautomation/models/scene.dart';
 import 'package:homeautomation/ui/automations_screen.dart';
+import 'package:homeautomation/ui/values_editor.dart';
 
 import 'support/memory_cloud_store.dart';
 import 'package:homeautomation/models/describe.dart';
@@ -696,6 +697,137 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('branchAddIf-1')), findsOneWidget);
     expect(tester.widget<TextButton>(find.byKey(const Key('branchOk'))).onPressed, isNull, reason: 'pusty blok');
+  });
+
+  testWidgets('kafelek „Kilka wartości” (values): pozycje z dwóch urządzeń, przełącznik, niedostępne wyszarzone, rozmiary', (
+    tester,
+  ) async {
+    await setUpHub(tester);
+    final j = {
+      'id': 'w7',
+      'view': 'values',
+      'size': '2x1',
+      'label': 'Rozdzielnia',
+      'w': 4,
+      'h': 2,
+      'items': [
+        {'device': 'termostat-ab12cd', 'point': 'temp'},
+        {'device': 'termostat-ab12cd', 'point': 'hum'},
+        {'device': 'parter', 'point': 'on3', 'label': 'Pompa'},
+        {
+          'device': 'parter',
+          'point': 'in2',
+          'labels': ['zamknięte', 'otwarte'],
+        },
+        {'device': 'nieznane-1', 'point': 'temp', 'label': 'Piwnica'},
+      ],
+    };
+    final w = DashWidget.fromJson(j);
+    expect((w.view, w.items.length, w.items[2].label), (WidgetView.valueList, 5, 'Pompa'));
+    expect(w.items[3].labels, ['zamknięte', 'otwarte']);
+    expect(w.toJson(), j, reason: 'zapis bez zmian');
+
+    Future<void> pump(DashWidget w) async {
+      final size = dashTileSize(w, 4, 360);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Center(
+              child: SizedBox.fromSize(size: size, child: DashTile(widget: w, hub: hub)),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await pump(w);
+    expect(find.text('Rozdzielnia'), findsOneWidget);
+    expect(find.text('21,4 °C'), findsOneWidget);
+    expect(find.text('Pompa'), findsOneWidget);
+    expect(find.text('wł.'), findsOneWidget);
+    expect(find.text('otwarte'), findsOneWidget, reason: 'in2 = true, własne napisy');
+    expect(find.text('Piwnica'), findsOneWidget);
+    expect(
+      tester.widget<Opacity>(find.ancestor(of: find.byKey(const Key('valueItem-w7-4')), matching: find.byType(Opacity)).first).opacity,
+      0.4,
+      reason: 'urządzenie niedostępne - tylko ta pozycja wyszarzona',
+    );
+    expect(
+      tester.widget<Opacity>(find.ancestor(of: find.byKey(const Key('valueItem-w7-0')), matching: find.byType(Opacity)).first).opacity,
+      1,
+    );
+
+    // Przełącznik w kafelku (poziom control).
+    await tester.tap(find.byKey(const Key('valueItem-w7-2')));
+    await tester.pumpAndSettle();
+    expect(node.sent.last, {'on3': false});
+    expect(find.text('wył.'), findsOneWidget);
+
+    // Bez przepełnień w innych rozmiarach: 2×2, 4×1, 2×1, 1×1.
+    for (final (cw, ch) in const [(2, 2), (4, 1), (2, 1), (1, 1), (4, 4)]) {
+      await pump(w.resized(cw, ch));
+      expect(tester.takeException(), isNull, reason: '$cw×$ch');
+    }
+  });
+
+  testWidgets('edytor „Kilka wartości”: dodawanie z dwóch urządzeń, etykieta, kolejność, limit', (tester) async {
+    await setUpHub(tester);
+    ValuesEdit? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async => result = await Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => ValuesEditorScreen(hub: hub, askLabel: true)),
+            ),
+            child: const Text('edytor'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('edytor'));
+    await tester.pumpAndSettle();
+    Future<void> add(String device, String point) async {
+      await tester.ensureVisible(find.byKey(const Key('valuesAdd')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('valuesAdd')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key('values-device-$device')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key('values-point-$point')));
+      await tester.pumpAndSettle();
+    }
+
+    await add('termostat-ab12cd', 'temp');
+    await add('parter', 'on4');
+    expect(find.text('Garaż'), findsOneWidget, reason: 'nazwa kanału z describe');
+    await tester.tap(find.byKey(const Key('valuesItem-1')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'Brama garażu');
+    await tester.tap(find.widgetWithText(FilledButton, 'OK'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Wyżej'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('valuesLabel')), 'Garaż i salon');
+    await tester.tap(find.byKey(const Key('valuesDone')));
+    await tester.pumpAndSettle();
+    expect(result!.label, 'Garaż i salon');
+    expect([for (final i in result!.items) valueItemJson(i)], [
+      {'device': 'parter', 'point': 'on4', 'label': 'Brama garażu'},
+      {'device': 'termostat-ab12cd', 'point': 'temp'},
+    ]);
+
+    // Limit 6 pozycji.
+    await tester.tap(find.text('edytor'));
+    await tester.pumpAndSettle();
+    for (var k = 1; k <= 4; k++) {
+      await add('parter', 'on$k');
+    }
+    await add('parter', 'in2');
+    await add('parter', 'in3');
+    expect(find.text('Najwyżej 6 wartości'), findsOneWidget);
+    expect(tester.widget<OutlinedButton>(find.byKey(const Key('valuesAdd'))).onPressed, isNull);
   });
 
   testWidgets('13.1: grupa wyjść - „1 z 2”, ikona wyłącza wszystko, lista z przełącznikami', (tester) async {

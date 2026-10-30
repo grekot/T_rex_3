@@ -248,7 +248,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// Widoki pasujące do punktu kafelka (z `describe`, gdy urządzenie go podało).
   List<WidgetView> _viewsFor(DashWidget w, DeviceDescription? desc) {
     if (w.isScene ||
-        const [WidgetView.group, WidgetView.weather, WidgetView.hub, WidgetView.schedule].contains(w.view)) {
+        const [
+          WidgetView.group,
+          WidgetView.weather,
+          WidgetView.hub,
+          WidgetView.schedule,
+          WidgetView.valueList,
+        ].contains(w.view)) {
       return [w.view];
     }
     if (w.view == WidgetView.thermostat && w.point == null) return const [WidgetView.thermostat];

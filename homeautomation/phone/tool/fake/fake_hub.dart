@@ -28,7 +28,25 @@ class FakeHub extends FakeDevice {
   List<Map<String, dynamic>> discoverable = [
     {'adapter': 'shelly', 'host': '192.168.1.50', 'id': 'shelly-b12345', 'model': 'Plus1PM', 'type': 'switch'},
     {'adapter': 'tasmota', 'host': '192.168.1.51', 'id': 'tasmota-0a0b0c', 'type': 'switch'},
+    {
+      'adapter': 'ewelink',
+      'host': '192.168.1.52',
+      'id': 'ewelink-1000a1b2c3',
+      'deviceId': '1000a1b2c3',
+      'model': 'strip',
+    },
+    {
+      'adapter': 'ewelink',
+      'host': '192.168.1.53',
+      'id': 'ewelink-1000d4e5f6',
+      'deviceId': '1000d4e5f6',
+      'model': 'plug',
+    },
   ];
+
+  /// eWeLink: poprawny `devicekey` urządzeń (deviceId → klucz); inny klucz - `error: "key"` jak po nieudanym
+  /// odszyfrowaniu ogłoszenia. Brak wpisu = każdy poprawny UUID pasuje.
+  final ewelinkKeys = <String, String>{};
 
   /// Ile odpytań `discover` trwa skan (aplikacja odpytuje co 1 s).
   int discoverPolls = 2;
@@ -278,7 +296,7 @@ class FakeHub extends FakeDevice {
     final b = await _body(req);
     if (b == null) return _json({'ok': false, 'error': 'json'}, status: 400);
     final adapter = b['adapter'];
-    if (!const ['ownNode', 'shelly', 'sonoffDiy', 'tasmota', 'tuya'].contains(adapter)) {
+    if (!const ['ownNode', 'shelly', 'sonoffDiy', 'ewelink', 'tasmota', 'tuya'].contains(adapter)) {
       return _json({'ok': false, 'error': 'adapter'}, status: 400);
     }
     if (adapter == 'tuya') return _json({'ok': false, 'error': 'unsupported'}, status: 501);
@@ -291,6 +309,21 @@ class FakeHub extends FakeDevice {
       final t = b['token'];
       if (t is! String || !RegExp(r'^[0-9a-f]{64}$').hasMatch(t)) {
         return _json({'ok': false, 'error': 'token'}, status: 400);
+      }
+    }
+    String? keyError;
+    if (adapter == 'ewelink') {
+      final deviceId = b['deviceId'], key = b['localKey'];
+      if (deviceId is! String || deviceId.isEmpty) return _json({'ok': false, 'error': 'deviceId'}, status: 400);
+      if (key is! String ||
+          !RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$').hasMatch(key)) {
+        return _json({'ok': false, 'error': 'localKey'}, status: 400);
+      }
+      final good = ewelinkKeys[deviceId];
+      if (good != null && good.toLowerCase() != key.toLowerCase()) keyError = 'key';
+      if (b['id'] is! String) {
+        final ch = b['channel'];
+        b['id'] = ch is int ? 'ewelink-$deviceId-${ch + 1}' : 'ewelink-$deviceId';
       }
     }
     final existing = b['id'] is String ? children[b['id']] : null;
@@ -308,9 +341,13 @@ class FakeHub extends FakeDevice {
       'channel': ?b['channel'],
       'mirror': b['mirror'] != false,
       'linked': false,
-      'online': !host.endsWith('.99'),
+      'online': !host.endsWith('.99') && keyError == null,
+      'error': ?keyError,
+      'deviceId': ?b['deviceId'],
+      'model': ?b['model'],
       'state': {'on': false},
     };
+    // Wielokanałowe eWeLink: urządzenie znika z wykrywania dopiero po dodaniu (każdy kanał osobno).
     discoverable.removeWhere((d) => d['host'] == host);
     this.log('Hub: dodano $id ($adapter, $host)');
     _broadcastState();

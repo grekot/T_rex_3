@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../controllers/device_controller.dart';
 import '../controllers/device_hub.dart';
@@ -398,8 +399,35 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
     'unauthorized' => 'zły token',
     'password' => 'złe hasło',
     'not_gen2' => 'stary Shelly (Gen1) - nieobsługiwany',
+    'key' => 'Zły klucz urządzenia',
     _ => e,
   };
+
+  /// eWeLink: nowy `devicekey` - ten sam wpis (`id`) z poprawionym `localKey`.
+  Future<void> _fixKey(HubChild d) async {
+    final key = await showDialog<String>(
+      context: context,
+      builder: (_) => _EwelinkKeyDialog(device: d),
+    );
+    if (key == null || !mounted) return;
+    try {
+      await _api!.addDevice({
+        'adapter': d.adapter.wire,
+        'host': d.host,
+        'id': d.id,
+        'deviceId': ?d.deviceId,
+        'localKey': key,
+        'channel': ?d.channel,
+        'name': ?d.name,
+        'type': ?d.type,
+        if (!d.mirror) 'mirror': false,
+      });
+      _snack('Zapisano nowy klucz. Hub sprawdzi go przy najbliższym ogłoszeniu urządzenia.');
+      _reload();
+    } on ThermostatException catch (e) {
+      _snack(e.message);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -441,8 +469,8 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
                       padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
                       child: Text(
                         'Własne węzły przypisuje się w ich ustawieniach („Przypisz do huba”). '
-                        'Obce (Shelly, Sonoff DIY, Tasmota) - „Szukaj w sieci”. Adresy urządzeń najlepiej '
-                        'zarezerwować w routerze (hub nie śledzi zmian adresu).',
+                        'Obce (Shelly, Sonoff DIY, Sonoff z eWeLink, Tasmota) - „Szukaj w sieci”. Adresy urządzeń '
+                        'najlepiej zarezerwować w routerze (hub śledzi zmiany adresu tylko Sonoffów z eWeLink).',
                       ),
                     ),
                     if (list.isEmpty) const ListTile(title: Text('Hub nie ma jeszcze urządzeń.')),
@@ -454,6 +482,7 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
                           color: d.online ? null : cs.outline,
                         ),
                         title: Text(_name(d)),
+                        onTap: d.adapter == HubAdapter.ewelink && d.error == 'key' ? () => _fixKey(d) : null,
                         subtitle: Text(
                           [
                             d.adapter.label,
@@ -474,10 +503,16 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
                                 onChanged: (v) => _toggle(d, v),
                               ),
                             PopupMenuButton<String>(
-                              onSelected: (a) => a == 'link' ? _link(d) : _delete(d),
+                              onSelected: (a) => switch (a) {
+                                'link' => _link(d),
+                                'key' => _fixKey(d),
+                                _ => _delete(d),
+                              },
                               itemBuilder: (_) => [
                                 if (d.mirror && !d.linked && _canLink)
                                   const PopupMenuItem(value: 'link', child: Text('Do chmury')),
+                                if (d.adapter == HubAdapter.ewelink)
+                                  const PopupMenuItem(value: 'key', child: Text('Zmień klucz urządzenia')),
                                 const PopupMenuItem(value: 'delete', child: Text('Usuń z huba')),
                               ],
                             ),
@@ -550,29 +585,42 @@ class _HubDiscoverScreenState extends State<HubDiscoverScreen> {
       );
       return;
     }
-    final req = await showDialog<Json>(
-      context: context,
-      builder: (_) => _AddDeviceDialog(found: f),
-    );
-    if (req == null || !mounted) return;
+    final List<Json>? reqs;
+    if (f.adapter == HubAdapter.ewelink) {
+      reqs = await showDialog<List<Json>>(
+        context: context,
+        builder: (_) => _EwelinkDialog(found: f),
+      );
+    } else {
+      final r = await showDialog<Json>(
+        context: context,
+        builder: (_) => _AddDeviceDialog(found: f),
+      );
+      reqs = r == null ? null : [r];
+    }
+    if (reqs == null || reqs.isEmpty || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
     final cloud = Services.of(context).cloud;
     try {
-      final id = await widget.api.addDevice(req);
-      _added = true;
-      // Właściciel od razu wpisuje urządzenie do chmury, gdy typ jest znany (pkt 11).
-      final type = f.type;
-      if (widget.canLink && type != null) {
-        await writeDeviceIndex(
-          cloud.store,
-          cloud.homeId!,
-          id,
-          DeviceType.fromWire(type),
-          (req['name'] as String?) ?? id,
-          via: widget.hubId,
-        );
+      final names = <String>[];
+      for (final req in reqs) {
+        final id = await widget.api.addDevice(req);
+        _added = true;
+        // Właściciel od razu wpisuje urządzenie do chmury, gdy typ jest znany (pkt 11).
+        final type = (req['type'] as String?) ?? f.type;
+        if (widget.canLink && type != null) {
+          await writeDeviceIndex(
+            cloud.store,
+            cloud.homeId!,
+            id,
+            DeviceType.fromWire(type),
+            (req['name'] as String?) ?? id,
+            via: widget.hubId,
+          );
+        }
+        names.add((req['name'] as String?) ?? id);
       }
-      messenger.showSnackBar(SnackBar(content: Text('Dodano ${req['name'] ?? id}.')));
+      messenger.showSnackBar(SnackBar(content: Text('Dodano ${names.join(', ')}.')));
       setState(
         () => _result = _result == null
             ? null
@@ -611,7 +659,11 @@ class _HubDiscoverScreenState extends State<HubDiscoverScreen> {
               ListTile(
                 key: Key('found-${f.host}'),
                 leading: const Icon(Icons.add_circle_outline),
-                title: Text(f.id ?? f.host),
+                title: Text(
+                  f.adapter == HubAdapter.ewelink
+                      ? 'Sonoff ${ewelinkMultiChannel(f.model) ? '(listwa)' : ''}'.trim()
+                      : f.id ?? f.host,
+                ),
                 subtitle: Text([f.adapter.label, f.host, ?f.model, ?f.type].join(' · ')),
                 onTap: () => _add(f),
               ),
@@ -954,6 +1006,213 @@ class _AssignToHubScreenState extends State<AssignToHubScreen> {
           );
         },
       ),
+    );
+  }
+}
+
+/// Pole `devicekey` (UUID, 36 znaków) z wklejaniem ze schowka i podpowiedzią, skąd go wziąć.
+class _EwelinkKeyField extends StatelessWidget {
+  const _EwelinkKeyField({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = controller.text.trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          key: const Key('ewelinkKey'),
+          controller: controller,
+          maxLength: 36,
+          autocorrect: false,
+          enableSuggestions: false,
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+          decoration: InputDecoration(
+            labelText: 'Klucz urządzenia (devicekey)',
+            hintText: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+            errorText: text.isEmpty || ewelinkKeyPattern.hasMatch(text) ? null : 'Klucz ma 36 znaków: 8-4-4-4-12',
+            suffixIcon: IconButton(
+              key: const Key('ewelinkPaste'),
+              tooltip: 'Wklej',
+              icon: const Icon(Icons.content_paste),
+              onPressed: () async {
+                final data = await Clipboard.getData(Clipboard.kTextPlain);
+                final v = data?.text?.trim();
+                if (v == null || v.isEmpty) return;
+                controller.text = v;
+                onChanged();
+              },
+            ),
+          ),
+          onChanged: (_) => onChanged(),
+        ),
+        Text(
+          'Klucz pobierasz raz, na komputerze, skryptem tools/ewelink_klucze.py (loguje się do konta eWeLink). '
+          'Urządzenie zostaje w eWeLink, a hub steruje nim w domu bez chmury. W aplikacji eWeLink musi być '
+          'włączona „Kontrola LAN”.',
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      ],
+    );
+  }
+}
+
+/// Dodanie Sonoffa z eWeLink (pkt 11 „eWeLink LAN”): nazwa, klucz urządzenia, a dla listwy (`strip`) wybór kanałów -
+/// każdy kanał to osobne urządzenie huba (`channel` 0-3, nazwy `<nazwa> 1..4`).
+class _EwelinkDialog extends StatefulWidget {
+  const _EwelinkDialog({required this.found});
+
+  final HubFound found;
+
+  @override
+  State<_EwelinkDialog> createState() => _EwelinkDialogState();
+}
+
+class _EwelinkDialogState extends State<_EwelinkDialog> {
+  final _name = TextEditingController();
+  final _key = TextEditingController();
+  final _channels = {1, 2, 3, 4};
+
+  bool get _multi => ewelinkMultiChannel(widget.found.model);
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _key.dispose();
+    super.dispose();
+  }
+
+  List<Json> _requests() {
+    final f = widget.found;
+    final name = _name.text.trim().isEmpty ? (_multi ? 'Listwa' : 'Sonoff') : _name.text.trim();
+    final base = <String, dynamic>{
+      'adapter': f.adapter.wire,
+      'host': f.host,
+      'deviceId': f.deviceId,
+      'localKey': _key.text.trim().toLowerCase(),
+      'type': 'switch',
+    };
+    return [
+      if (!_multi)
+        {...base, 'name': name}
+      else
+        for (final c in _channels.toList()..sort()) {...base, 'channel': c - 1, 'name': '$name $c'},
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final f = widget.found;
+    final ok = ewelinkKeyPattern.hasMatch(_key.text.trim()) && (!_multi || _channels.isNotEmpty) && f.deviceId != null;
+    return AlertDialog(
+      title: Text(_multi ? 'Dodaj listwę Sonoff' : 'Dodaj Sonoff'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text([f.adapter.label, f.host, ?f.model, if (f.deviceId != null) 'id ${f.deviceId}'].join(' · ')),
+            TextField(
+              key: const Key('addName'),
+              controller: _name,
+              maxLength: 28,
+              decoration: InputDecoration(labelText: 'Nazwa', hintText: _multi ? 'np. Biurko' : 'np. Taras'),
+              onChanged: (_) => setState(() {}),
+            ),
+            _EwelinkKeyField(controller: _key, onChanged: () => setState(() {})),
+            if (_multi) ...[
+              const SizedBox(height: 12),
+              Text('Kanały (każdy jako osobne wyjście)', style: Theme.of(context).textTheme.labelLarge),
+              Wrap(
+                spacing: 6,
+                children: [
+                  for (var c = 1; c <= 4; c++)
+                    FilterChip(
+                      key: Key('ewelinkChannel-$c'),
+                      label: Text('$c'),
+                      selected: _channels.contains(c),
+                      onSelected: (v) => setState(() => v ? _channels.add(c) : _channels.remove(c)),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Anuluj')),
+        FilledButton(
+          key: const Key('addOk'),
+          onPressed: ok ? () => Navigator.pop(context, _requests()) : null,
+          child: Text(_multi ? 'Dodaj (${_channels.length})' : 'Dodaj'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Poprawienie klucza urządzenia eWeLink (`error: "key"` - hub nie odszyfrował ogłoszenia).
+class _EwelinkKeyDialog extends StatefulWidget {
+  const _EwelinkKeyDialog({required this.device});
+
+  final HubChild device;
+
+  @override
+  State<_EwelinkKeyDialog> createState() => _EwelinkKeyDialogState();
+}
+
+class _EwelinkKeyDialogState extends State<_EwelinkKeyDialog> {
+  final _key = TextEditingController();
+
+  @override
+  void dispose() {
+    _key.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.device;
+    final ok = ewelinkKeyPattern.hasMatch(_key.text.trim());
+    return AlertDialog(
+      title: Text('Klucz: ${d.label}'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (d.error == 'key')
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Hub nie może odczytać stanu urządzenia - klucz jest zły albo urządzenie było ponownie '
+                  'parowane w eWeLink (nowy klucz).',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            _EwelinkKeyField(controller: _key, onChanged: () => setState(() {})),
+            if (d.channel != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  'Inne kanały tej listwy mają ten sam klucz - popraw go także przy nich.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Anuluj')),
+        FilledButton(
+          key: const Key('ewelinkKeySave'),
+          onPressed: ok ? () => Navigator.pop(context, _key.text.trim().toLowerCase()) : null,
+          child: const Text('Zapisz'),
+        ),
+      ],
     );
   }
 }

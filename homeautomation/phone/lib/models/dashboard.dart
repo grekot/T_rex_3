@@ -31,7 +31,10 @@ enum WidgetView {
   hub('hub', 'Hub'),
 
   /// Harmonogram termostatu: okres teraz, następna zmiana, pasek dnia (pkt 13.1).
-  schedule('schedule', 'Harmonogram');
+  schedule('schedule', 'Harmonogram'),
+
+  /// Kilka wartości z dowolnych urządzeń w jednym kafelku (`items`, do 6, pkt 13.1).
+  valueList('values', 'Kilka wartości');
 
   const WidgetView(this.wire, this.label);
 
@@ -79,6 +82,15 @@ const _coreKeys = {'id', 'view', 'size', 'device', 'point', 'label', 'sceneId', 
 double? _num(Object? v) => v is num ? v.toDouble() : null;
 List<String>? _strings(Object? v) => v is List ? [for (final x in v) '$x'] : null;
 List<Object?> _list(Object? v) => v is List ? v : (v is Map ? v.values.toList() : const []);
+
+/// Pozycja kafelka `values` (pkt 13.1).
+typedef ValueItem = ({String device, String point, String? label, List<String>? labels});
+
+/// [ValueItem] do JSON-a pulpitu (bez pustych pól).
+Json valueItemJson(ValueItem i) => {'device': i.device, 'point': i.point, 'label': ?i.label, 'labels': ?i.labels};
+
+/// Najwięcej pozycji w kafelku `values`.
+const maxValueItems = 6;
 
 class DashWidget {
   const DashWidget({
@@ -173,6 +185,23 @@ class DashWidget {
     for (final m in _list(extra['members']))
       if (m is Map && m['device'] is String && m['point'] is String)
         (device: m['device'] as String, point: m['point'] as String),
+  ];
+
+  /// Pozycje kafelka `values`: urządzenie, punkt, własna etykieta i napisy stanu `[nie, tak]`.
+  List<ValueItem> get items => [
+    for (final x in _list(extra['items']))
+      if (x is Map && x['device'] is String && x['point'] is String)
+        (
+          device: x['device'] as String,
+          point: x['point'] as String,
+          label: x['label'] is String ? x['label'] as String : null,
+          labels:
+              x['labels'] is List &&
+                  (x['labels'] as List).length == 2 &&
+                  (x['labels'] as List).every((s) => s is String)
+              ? [for (final l in x['labels'] as List) l as String]
+              : null,
+        ),
   ];
 
   /// Znacznik celu wskaźnika (`point:<klucz>`).

@@ -106,6 +106,12 @@ repozytorium trzeba najpierw uruchomić `node tools/configure.mjs`.
   połączenia pomijani. `weather` - `outdoor` termostatu: temperatura, ikona i opis (numer ikony termostatu 1-9
   albo kod OpenWeatherMap), „sprzed N min”, na kafelku 4×3 wykres z historii `out`. `hub` - urządzenia dostępne /
   wszystkie, automatyki, trwające sceny, ostatnie wykonanie, plakietka BEZ CHMURY; dotyk - ekran huba.
+- **Kilka wartości** (`values`, pkt 13.1): do 6 pozycji `items` `{"device","point","label"?,"labels"?}` z dowolnych
+  urządzeń w jednym kafelku (np. temperatura i wilgotność z dwóch modułów). Etykieta, jednostka i miejsca po
+  przecinku z `describe` (nazwy kanałów z Config), stany jako „wł.” / „wył.”, wg rodzaju wejścia albo `labels`;
+  układ wg rozmiaru (w jednej linii, kolumny, siatka - treść się zmniejsza, nie wychodzi poza kafelek). Dotyk
+  pozycji - jej urządzenie, pozycja `switch` z `control` przełącza; urządzenie niedostępne wyszarza tylko swoją
+  pozycję. Kreator: „Kilka wartości” na liście urządzeń (`ValuesEditorScreen`), zmiana w arkuszu kafelka.
 - **Termostat na pulpicie**: dotyk kafelka termostatu otwiera arkusz (`lib/ui/thermostat_sheet.dart`) z zakładkami
   Sterowanie (jak ekran termostatu), Harmonogram i Ustawienia (te same ekrany, wymagają `config`). Kafelek
   **Harmonogram** (`schedule`, pkt 13.1): „Komfort do 22:30, potem eko 18°”, „Ręcznie · nastawa”, „Wyłączony”,
@@ -210,6 +216,10 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   (`POST /api/devices/{id}/set`, `202 pending` = urządzenie odpowie za chwilę), „Do chmury” (właściciel wpisuje
   `deviceIndex/{id}` z `via`), usuwanie (z wpisami w bazie); **Szukaj w sieci**: `GET /api/discover` co 1 s, aż
   `scanning: false`, dodanie z nazwą, hasłem (Shelly, Tasmota) i kanałem; Tuya - komunikat (faza 4);
+  **Sonoff (eWeLink)** (pkt 11 „eWeLink LAN”, urządzenie zostaje w eWeLink): klucz urządzenia `devicekey` (UUID 36
+  znaków, walidacja, wklejanie ze schowka, podpowiedź o `tools/ewelink_klucze.py`) jako `localKey`; listwa (`strip`)
+  - wybór kanałów 1-4, osobne `POST /api/devices` z `channel` 0-3 i nazwami „<nazwa> 1..4”; błąd `key` na liście
+  („Zły klucz urządzenia”) - dotknięcie albo menu „Zmień klucz urządzenia” (POST z tym samym `id`);
 - **Automatyki**: w domu wprost w hubie (`/api/automations`: diagnostyka - pominięte reguły, wschód/zachód, czas;
   „Uruchom teraz”; dziennik), poza domem `homes/{h}/automations/{id}` z `updatedAt` i Set `{"reload":true}`.
   Edytor: kiedy (godzina z dniami, wschód/zachód z przesunięciem, stan urządzenia z „przez N s”, przycisk / wejście
