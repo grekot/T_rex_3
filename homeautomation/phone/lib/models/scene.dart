@@ -1,21 +1,60 @@
 // Sceny (ARCHITEKTURA.md pkt 4.6, API.md pkt 11-13): `homes/{h}/scenes/{id}` `{"name","actions":[...]}`.
-// Akcje jak w automatykach: `{"device","set"}`, `{"delay": s}`, `{"scene": id}`, `{"notify","level"}`, `{"log"}`.
+// Akcje jak w automatykach: `{"device","set"}`, `{"delay": s}`, `{"scene": id}`, `{"notify","level"}`, `{"log"}`,
+// krok warunkowy `{"if":[warunki],"then":[akcje],"else":[akcje]}` (ARCHITEKTURA pkt 4.5, wykonuje hub).
 // Pisze właściciel domu; `updatedAt` (ms) - przy uzgadnianiu z hubem wygrywa nowszy (pkt 11).
 
 import 'json_utils.dart';
 
 /// Jedna akcja sceny.
 class SceneAction {
-  const SceneAction.set(String this.device, Json this.set) : delay = null, scene = null, notify = null, level = null, log = null;
-  const SceneAction.delay(int this.delay) : device = null, set = null, scene = null, notify = null, level = null, log = null;
-  const SceneAction.scene(String this.scene) : device = null, set = null, delay = null, notify = null, level = null, log = null;
+  const SceneAction.set(String this.device, Json this.set)
+    : delay = null,
+      scene = null,
+      notify = null,
+      level = null,
+      log = null,
+      raw = null;
+  const SceneAction.delay(int this.delay)
+    : device = null,
+      set = null,
+      scene = null,
+      notify = null,
+      level = null,
+      log = null,
+      raw = null;
+  const SceneAction.scene(String this.scene)
+    : device = null,
+      set = null,
+      delay = null,
+      notify = null,
+      level = null,
+      log = null,
+      raw = null;
   const SceneAction.notify(String this.notify, {this.level = 'info'})
     : device = null,
       set = null,
       delay = null,
       scene = null,
+      log = null,
+      raw = null;
+  const SceneAction.log(String this.log)
+    : device = null,
+      set = null,
+      delay = null,
+      scene = null,
+      notify = null,
+      level = null,
+      raw = null;
+
+  /// Krok warunkowy (`if` / `then` / `else`) albo akcja nieznana tej wersji - zapisywana bez zmian.
+  const SceneAction.raw(Json this.raw)
+    : device = null,
+      set = null,
+      delay = null,
+      scene = null,
+      notify = null,
+      level = null,
       log = null;
-  const SceneAction.log(String this.log) : device = null, set = null, delay = null, scene = null, notify = null, level = null;
 
   final String? device;
   final Json? set;
@@ -33,7 +72,13 @@ class SceneAction {
   /// Wpis w dzienniku huba.
   final String? log;
 
+  /// Akcja w postaci JSON-a ([SceneAction.raw]).
+  final Json? raw;
+
   bool get isSet => device != null && set != null;
+
+  /// Krok warunkowy „Jeśli…”.
+  bool get isBranch => raw?['if'] is List;
 
   static SceneAction? fromJson(Json j) {
     final device = j['device'], set = j['set'], delay = j['delay'], scene = j['scene'];
@@ -44,10 +89,10 @@ class SceneAction {
       return SceneAction.notify(j['notify'] as String, level: j['level'] is String ? j['level'] as String : 'info');
     }
     if (j['log'] is String) return SceneAction.log(j['log'] as String);
-    return null;
+    return j.isEmpty ? null : SceneAction.raw(j);
   }
 
-  Json toJson() => {
+  Json toJson() => raw ?? {
     'device': ?device,
     'set': ?set,
     'delay': ?delay,

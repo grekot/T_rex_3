@@ -178,7 +178,7 @@ class _GenericDeviceScreenState extends State<GenericDeviceScreen> {
                 style: TextStyle(color: ls.overheatOff ? cs.onErrorContainer : cs.onTertiaryContainer),
               ),
               subtitle: Text(
-                '${ls.temp == null ? '' : 'Teraz ${fmtTemp(ls.temp)}. '}'
+                '${ls.temp == null ? '' : 'Teraz ${fmtTemp(ls.temp)}${ls.hum == null ? '' : ', ${ls.hum} %'}. '}'
                 '${ls.overheatOff ? 'Włączanie jest zablokowane, aż urządzenie ostygnie o 5 °C.' : 'Sprawdź obciążenie kanałów i wentylację puszki.'}',
                 style: TextStyle(color: ls.overheatOff ? cs.onErrorContainer : cs.onTertiaryContainer),
               ),
@@ -889,6 +889,7 @@ class _ExtrasSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final temp = state?.temp;
+    final hum = state?.hum == null ? '' : ', ${state!.hum} %';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -908,7 +909,7 @@ class _ExtrasSection extends StatelessWidget {
             leading: const Icon(Icons.device_thermostat),
             title: const Text('Ochrona przed przegrzaniem'),
             subtitle: Text(
-              '${temp == null ? 'Brak czujnika w obudowie' : 'W obudowie ${fmtTemp(temp)}'} · '
+              '${temp == null ? 'Brak czujnika w obudowie' : 'W obudowie ${fmtTemp(temp)}$hum'} · '
               'ostrzeżenie: ${_deg(config.tempWarn ?? 0)} · wyłączenie: ${_deg(config.tempOff ?? 0)}',
             ),
             trailing: const Icon(Icons.edit_outlined),

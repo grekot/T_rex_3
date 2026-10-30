@@ -695,6 +695,7 @@ void main() {
               'ch2Cycles': 12,
               'ch2Hours': 0.1,
               'temp': 61.4,
+              'hum': 48,
             },
             {
               'name': 'Parter',
@@ -732,7 +733,7 @@ void main() {
 
     expect(find.byKey(const Key('overheatBanner')), findsOneWidget);
     expect(find.text('Wysoka temperatura w obudowie'), findsOneWidget);
-    expect(find.textContaining('Teraz 61,4 °C'), findsOneWidget);
+    expect(find.textContaining('Teraz 61,4 °C, 48 %'), findsOneWidget);
     expect(find.textContaining('Wyłączy się za 4:0'), findsOneWidget);
     expect(find.textContaining('Włączy się za 0:1'), findsOneWidget);
     expect(find.text('otwarte'), findsOneWidget, reason: 'kontaktron: opis stanu wg rodzaju');
@@ -818,7 +819,7 @@ void main() {
 
     // Progi temperatury.
     await tester.scrollUntilVisible(find.byKey(const Key('tempTile')), 200, scrollable: list);
-    expect(find.textContaining('W obudowie 61,4 °C · ostrzeżenie: 60 °C · wyłączenie: nie'), findsOneWidget);
+    expect(find.textContaining('W obudowie 61,4 °C, 48 % · ostrzeżenie: 60 °C · wyłączenie: nie'), findsOneWidget);
     await tester.ensureVisible(find.byKey(const Key('tempTile')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('tempTile')));

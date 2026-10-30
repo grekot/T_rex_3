@@ -77,6 +77,10 @@ class FakeLight extends FakeDevice {
 
   /// Temperatura w obudowie (null = brak czujnika DS18B20); zmiana przez [setTemp].
   double? temp = 31.4;
+
+  /// Rodzaj czujnika (`/api/info` `sensor`); przy DHT także wilgotność `hum`.
+  String sensor = 'ds18b20';
+  int? hum;
   bool overheat = false, overheatOff = false;
 
   /// Ile razy przyszło `identify`.
@@ -103,8 +107,9 @@ class FakeLight extends FakeDevice {
   int get inputCount => inputs;
 
   @override
-  Map<String, Object?> get extraInfo =>
-      multi ? {'wifiReconnects': wifiReconnects, 'tempSensor': temp != null} : const {};
+  Map<String, Object?> get extraInfo => multi
+      ? {'wifiReconnects': wifiReconnects, 'tempSensor': temp != null, 'sensor': temp == null ? 'none' : sensor}
+      : const {};
 
   @override
   String get typeWire => dimmable ? 'dimmer' : 'switch';
@@ -146,6 +151,7 @@ class FakeLight extends FakeDevice {
             'ch${i + 1}Hours': _hoursOf(i),
           },
           'temp': ?temp,
+          'hum': ?hum,
           'wifiRssi': -60,
           'uptime': DateTime.now().difference(_started).inSeconds,
         }
@@ -199,6 +205,7 @@ class FakeLight extends FakeDevice {
                 if (_outs(inCfg[k - 1]['out']) case final o when o.length == 1) 'channel': o.single,
                 if (_outs(inCfg[k - 1]['out']) case final o when o.length > 1) 'channels': o,
               },
+            if (hum != null) {'key': 'hum', 'name': 'Wilgotność w obudowie', 'kind': 'sensor', 'unit': '%'},
             if (temp != null) ...[
               {'key': 'temp', 'name': 'Temperatura w obudowie', 'kind': 'sensor', 'unit': '°C', 'decimals': 1},
               {'key': 'overheat', 'name': 'Przegrzanie', 'kind': 'status'},

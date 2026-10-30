@@ -159,6 +159,8 @@ class DeviceHub extends ChangeNotifier {
         await Future<void>.delayed(Duration(seconds: a.delay!));
       } else if (a.notify != null) {
         problems.add('Powiadomienie „${a.notify}” wysyła tylko hub.');
+      } else if (a.raw != null) {
+        problems.add(a.isBranch ? 'Krok „Jeśli…” wykonuje tylko hub - pominięty.' : 'Krok huba pominięty.');
       } else if (a.scene != null) {
         final inner = this.scene(a.scene!);
         if (inner == null || depth >= 3) {

@@ -1,4 +1,5 @@
-// Edytor automatyk huba (ARCHITEKTURA pkt 4.5): wyzwalacz od słońca, akcja „Powiadomienie”, zapis; błędna reguła.
+// Edytor automatyk huba (ARCHITEKTURA pkt 4.5): wyzwalacz od słońca, akcja „Powiadomienie”, zapis; błędna reguła;
+// krok warunkowy „Jeśli…” (if / then / else, 2 poziomy) w automatyce i w scenie.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +17,7 @@ import 'package:homeautomation/data/room_store.dart';
 import 'package:homeautomation/models/device_type.dart';
 import 'package:homeautomation/models/hub.dart';
 import 'package:homeautomation/models/room.dart';
+import 'package:homeautomation/models/scene.dart';
 import 'package:homeautomation/provisioning/ble_transport.dart';
 import 'package:homeautomation/provisioning/provisioner.dart';
 import 'package:homeautomation/services.dart';
@@ -141,6 +143,150 @@ void main() {
     await tester.pumpAndSettle();
     final texts = [for (final e in find.byType(Text).evaluate()) (e.widget as Text).data].join(' | ');
     expect(find.text('Zmrok'), findsOneWidget, reason: 'loads=${service.loads} $texts');
+    hub.dispose();
+  });
+
+  testWidgets('krok „Jeśli…”: warunek, „to”, „w przeciwnym razie” z drugim blokiem (bez trzeciego), opis, zapis', (
+    tester,
+  ) async {
+    final store = MemoryDeviceStore();
+    final manager = ConnectionManager(store: store, discovery: _NoDiscovery());
+    final hub = DeviceHub(store: store, manager: manager, cloud: NoCloudAccess());
+    final hubController = DeviceController(
+      device: const PairedDevice(id: 'hub-51e96c', name: 'Hub', type: DeviceType.hub),
+      manager: manager,
+      codec: rawCodec,
+    );
+    final service = _MemAutomations(hubController);
+    await tester.pumpWidget(
+      Services(
+        store: store,
+        discovery: _NoDiscovery(),
+        manager: manager,
+        pairing: PairingService(store: store),
+        cloud: NoCloudAccess(),
+        provisioning: _NoBle(),
+        rooms: _MemRooms(),
+        child: TermostatApp(home: AutomationsScreen(hub: hub, controller: hubController, service: service)),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    Future<void> menu(Key key, String item) async {
+      await tester.ensureVisible(find.byKey(key));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(key));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(item).last);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> log(String text) async {
+      await tester.enterText(find.byType(TextField).last, text);
+      await tester.tap(find.widgetWithText(FilledButton, 'OK'));
+      await tester.pumpAndSettle();
+    }
+
+    await tester.tap(find.byKey(const Key('newAutomation')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('automationName')), 'Światło');
+    await menu(const Key('addTrigger'), 'Wschód / zachód słońca');
+    await tester.tap(find.byKey(const Key('sunOk')));
+    await tester.pumpAndSettle();
+
+    await menu(const Key('addAction'), 'Jeśli… (warunek)');
+    expect(find.byKey(const Key('branchOk')), findsOneWidget);
+    await menu(const Key('branchAddIf-1'), 'Za dnia');
+    await menu(const Key('branchAddThen-1'), 'Wpis w dzienniku');
+    await log('A');
+    await menu(const Key('branchAddElse-1'), 'Jeśli… (warunek)');
+    // Drugi poziom: bez kolejnego „Jeśli…”.
+    await menu(const Key('branchAddIf-2'), 'Po zmroku');
+    await tester.tap(find.byKey(const Key('branchAddThen-2')));
+    await tester.pumpAndSettle();
+    expect(find.text('Jeśli… (warunek)'), findsNothing, reason: 'najwyżej 2 poziomy');
+    await tester.tap(find.text('Wpis w dzienniku').last);
+    await tester.pumpAndSettle();
+    await log('B');
+    await tester.tap(find.byKey(const Key('branchOk')));
+    await tester.pumpAndSettle();
+    expect(find.text('Jeśli po zmroku → 1 akcja'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('branchOk')));
+    await tester.pumpAndSettle();
+    expect(find.text('Jeśli za dnia → 1 akcja, inaczej → 1 akcja'), findsOneWidget);
+
+    // Edycja bloku: dotknięcie otwiera go z zawartością.
+    await tester.tap(find.byKey(const Key('branch-0-0')));
+    await tester.pumpAndSettle();
+    expect(find.text('dziennik: A'), findsOneWidget);
+    await menu(const Key('branchAddThen-1'), 'Przerwa');
+    await tester.enterText(find.byType(TextField).last, '5');
+    await tester.tap(find.widgetWithText(FilledButton, 'OK'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('branchOk')));
+    await tester.pumpAndSettle();
+    expect(find.text('Jeśli za dnia → 2 akcje, inaczej → 1 akcja'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('automationSave')));
+    await tester.pumpAndSettle();
+    expect(service.items.values.single.toJson()['then'], [
+      {
+        'if': [
+          {'sun': 'day'},
+        ],
+        'then': [
+          {'log': 'A'},
+          {'delay': 5},
+        ],
+        'else': [
+          {
+            'if': [
+              {'sun': 'night'},
+            ],
+            'then': [
+              {'log': 'B'},
+            ],
+          },
+        ],
+      },
+    ]);
+    hub.dispose();
+  });
+
+  test('scena: krok „Jeśli…” i nieznana akcja zapisywane bez zmian; bez huba pomijane z komunikatem', () async {
+    final j = {
+      'name': 'Taras',
+      'actions': [
+        {
+          'if': [
+            {'device': 'swiatlo-79cfe4', 'point': 'on4', 'eq': false},
+          ],
+          'then': [
+            {
+              'device': 'swiatlo-79cfe4',
+              'set': {'on4': true},
+            },
+          ],
+          'else': [
+            {
+              'device': 'swiatlo-79cfe4',
+              'set': {'on4': false},
+            },
+          ],
+        },
+        {'przyszlaAkcja': 1},
+      ],
+    };
+    final scene = Scene.fromJson('s1', j);
+    expect((scene.actions[0].isBranch, scene.actions[1].isBranch, scene.actions[1].raw != null), (true, false, true));
+    expect(scene.toJson(), j);
+    final store = MemoryDeviceStore();
+    final hub = DeviceHub(
+      store: store,
+      manager: ConnectionManager(store: store, discovery: _NoDiscovery()),
+      cloud: NoCloudAccess(),
+    );
+    expect(await hub.runScene(scene), ['Krok „Jeśli…” wykonuje tylko hub - pominięty.', 'Krok huba pominięty.']);
     hub.dispose();
   });
 }

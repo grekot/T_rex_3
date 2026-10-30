@@ -12,6 +12,7 @@ import '../models/json_utils.dart';
 import '../models/scene.dart';
 import '../services.dart';
 import 'app_icons.dart';
+import 'automations_screen.dart' show BranchEditorScreen, describeAction;
 import 'dashboard_tiles.dart';
 import 'point_controls.dart';
 import 'widgets.dart';
@@ -656,6 +657,8 @@ String describeScene(DeviceHub hub, Scene scene) => scene.actions
           ? 'powiadomienie'
           : a.log != null
           ? 'dziennik'
+          : a.raw != null
+          ? (a.isBranch ? 'jeśli…' : 'akcja huba')
           : 'scena ${hub.scene(a.scene!)?.name ?? a.scene}',
     )
     .join(' · ');
@@ -689,6 +692,18 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
     if (step != null) setState(() => _actions = [..._actions, step]);
   }
 
+  /// Krok „Jeśli…” (nowy albo edycja kroku [i]) - wykonuje go hub.
+  Future<void> _editBranch([int? i]) async {
+    final j = await Navigator.of(context).push<Json>(
+      MaterialPageRoute(
+        builder: (_) => BranchEditorScreen(hub: widget.hub, initial: i == null ? null : _actions[i].raw),
+      ),
+    );
+    if (j == null) return;
+    final step = SceneAction.raw(j);
+    setState(() => _actions = i == null ? [..._actions, step] : ([..._actions]..[i] = step));
+  }
+
   Future<void> _addDelay() async {
     final text = await showTextInputDialog(context, title: 'Przerwa (sekundy)', initial: '30', maxLength: 5);
     final s = int.tryParse(text ?? '');
@@ -718,6 +733,10 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
       ? 'powiadomienie: ${a.notify} (wysyła hub)'
       : a.log != null
       ? 'dziennik: ${a.log}'
+      : a.isBranch
+      ? '${describeAction(widget.hub, a.raw!)} (wykonuje hub)'
+      : a.raw != null
+      ? 'akcja huba'
       : 'scena ${widget.hub.scene(a.scene!)?.name ?? a.scene}';
 
   Future<void> _addNotify() async {
@@ -773,7 +792,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
             children: [
               for (final (i, a) in _actions.indexed)
                 ListTile(
-                  key: ValueKey('step-$i-${a.device ?? a.delay ?? a.scene ?? a.notify ?? a.log}'),
+                  key: ValueKey('step-$i-${a.device ?? a.delay ?? a.scene ?? a.notify ?? a.log ?? a.raw.hashCode}'),
                   leading: ReorderableDragStartListener(index: i, child: const Icon(Icons.drag_handle)),
                   title: Text(
                     a.isSet
@@ -784,8 +803,13 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                         ? 'Powiadomienie'
                         : a.log != null
                         ? 'Dziennik'
+                        : a.isBranch
+                        ? 'Jeśli…'
+                        : a.raw != null
+                        ? 'Akcja'
                         : 'Scena',
                   ),
+                  onTap: a.isBranch ? () => _editBranch(i) : null,
                   subtitle: Text(_actionText(a)),
                   trailing: IconButton(
                     tooltip: 'Usuń krok',
@@ -804,13 +828,20 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
                 icon: const Icon(Icons.timer_outlined),
                 label: const Text('Przerwa'),
               ),
-              if (widget.hub.hubs.isNotEmpty)
+              if (widget.hub.hubs.isNotEmpty) ...[
                 TextButton.icon(
                   key: const Key('sceneAddNotify'),
                   onPressed: _addNotify,
                   icon: const Icon(Icons.notifications_outlined),
                   label: const Text('Powiadomienie'),
                 ),
+                TextButton.icon(
+                  key: const Key('sceneAddIf'),
+                  onPressed: _editBranch,
+                  icon: const Icon(Icons.call_split),
+                  label: const Text('Jeśli…'),
+                ),
+              ],
             ],
           ),
         ],
@@ -834,6 +865,15 @@ class _SceneStepScreenState extends State<SceneStepScreen> {
   Future<List<DataPoint>>? _points;
   DataPoint? _point;
   Object? _value;
+
+  /// „Przełącz” zamiast wł. / wył. (`toggle` / `toggleN`, pkt 12).
+  bool _toggle = false;
+
+  /// Klucz przełączania dla punktu `on` / `onN`, inaczej null (np. `power` termostatu nie ma przełączania).
+  static String? _toggleKey(DataPoint p) {
+    final m = RegExp(r'^on(\d*)$').firstMatch(p.key);
+    return p.kind == PointKind.switchKind && m != null ? 'toggle${m.group(1)}' : null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -888,6 +928,7 @@ class _SceneStepScreenState extends State<SceneStepScreen> {
                       subtitle: Text(kindLabel(p.kind)),
                       onTap: () => setState(() {
                         _point = p;
+                        _toggle = false;
                         _value = switch (p.kind) {
                           PointKind.switchKind || PointKind.action => true,
                           PointKind.select => p.options.firstOrNull,
@@ -910,7 +951,9 @@ class _SceneStepScreenState extends State<SceneStepScreen> {
               const SizedBox(height: 24),
               FilledButton(
                 key: const Key('stepDone'),
-                onPressed: () => Navigator.of(context).pop(SceneAction.set(_device!.id, _point!.setFor(_value))),
+                onPressed: () => Navigator.of(
+                  context,
+                ).pop(SceneAction.set(_device!.id, _toggle ? {_toggleKey(_point!)!: true} : _point!.setFor(_value))),
                 child: const Text('Dodaj krok'),
               ),
             ],
@@ -921,13 +964,18 @@ class _SceneStepScreenState extends State<SceneStepScreen> {
   }
 
   Widget _valuePicker(DataPoint p) => switch (p.kind) {
-    PointKind.switchKind => SegmentedButton<bool>(
-      segments: const [
-        ButtonSegment(value: true, label: Text('Włącz')),
-        ButtonSegment(value: false, label: Text('Wyłącz')),
+    PointKind.switchKind => SegmentedButton<String>(
+      key: const Key('stepSwitch'),
+      segments: [
+        const ButtonSegment(value: 'on', label: Text('Włącz')),
+        const ButtonSegment(value: 'off', label: Text('Wyłącz')),
+        if (_toggleKey(p) != null) const ButtonSegment(value: 'toggle', label: Text('Przełącz')),
       ],
-      selected: {_value == true},
-      onSelectionChanged: (s) => setState(() => _value = s.first),
+      selected: {_toggle ? 'toggle' : (_value == true ? 'on' : 'off')},
+      onSelectionChanged: (s) => setState(() {
+        _toggle = s.first == 'toggle';
+        if (!_toggle) _value = s.first == 'on';
+      }),
     ),
     PointKind.select => Wrap(
       spacing: 8,

@@ -12,7 +12,7 @@ import '../models/hub.dart';
 import '../models/json_utils.dart';
 import '../models/scene.dart';
 import '../services.dart';
-import 'dashboard_tiles.dart' show describeSet, fallbackPoint;
+import 'dashboard_tiles.dart' show channelName, describeSet, fallbackPoint;
 import 'point_controls.dart' show optionLabel;
 import 'widget_editor.dart';
 import 'widgets.dart';
@@ -43,12 +43,45 @@ String _value(Object? v) => switch (v) {
 
 String _deviceName(DeviceHub hub, Object? id) => hub.device('$id')?.name ?? '$id';
 
-String _pointName(String? key) => key == null ? '?' : fallbackPoint(key).name;
+/// Nazwa punktu; kanały i wejścia węzła (`onN`, `inN`) z nazwami z modułu.
+String _pointName(DeviceHub hub, Object? device, String? key) {
+  if (key == null) return '?';
+  final c = device == null ? null : hub.controller('$device');
+  return RegExp(r'^(on|in)\d+$').hasMatch(key) ? channelName(c, null, key) : fallbackPoint(key).name;
+}
 
 String _stateText(DeviceHub hub, Json j) {
   final op = _ops.keys.firstWhere(j.containsKey, orElse: () => 'eq');
   final forS = j['for'] is num ? ' przez ${j['for']} s' : '';
-  return '${_deviceName(hub, j['device'])}: ${_pointName(j['point'] as String?)} ${_ops[op]} ${_value(j[op])}$forS';
+  final v = j[op];
+  // Kanał (`on` / `onN`): „wł.” / „wył.” zamiast „tak” / „nie”.
+  final value = v is bool && RegExp(r'^on\d*$').hasMatch('${j['point']}') ? (v ? 'wł.' : 'wył.') : _value(v);
+  return '${_deviceName(hub, j['device'])}: ${_pointName(hub, j['device'], j['point'] as String?)} '
+      '${_ops[op]} $value$forS';
+}
+
+/// Set akcji po polsku: kanały jako „Taras - wł.” / „Taras - przełącz” (`onN`, `toggleN`, pkt 10.1 i 12),
+/// `on` / `toggle` węzła wielokanałowego - „wszystkie kanały”; reszta jak [describeSet].
+String _describeDeviceSet(DeviceHub hub, Object? device, Json set) {
+  final c = hub.controller('$device');
+  final channels = c?.stateJson?['channels'];
+  final multi = channels is int && channels > 1;
+  final parts = <String>[];
+  final rest = <String, dynamic>{};
+  for (final e in set.entries) {
+    final m = RegExp(r'^(on|toggle)(\d*)$').firstMatch(e.key);
+    final toggle = m?.group(1) == 'toggle';
+    if (m == null || (toggle ? e.value != true : e.value is! bool)) {
+      rest[e.key] = e.value;
+      continue;
+    }
+    final n = m.group(2)!;
+    final what = n.isEmpty ? (multi ? 'wszystkie kanały' : null) : channelName(c, null, 'on$n');
+    final verb = toggle ? 'przełącz' : (e.value == true ? 'wł.' : 'wył.');
+    parts.add(what == null ? verb : '$what - $verb');
+  }
+  if (rest.isNotEmpty) parts.add(describeSet(rest));
+  return parts.join(', ');
 }
 
 /// Opis wyzwalacza po polsku.
@@ -65,7 +98,7 @@ String describeTrigger(DeviceHub hub, Json j) {
       'long' => 'długie naciśnięcie',
       _ => 'naciśnięcie',
     };
-    return '$press: ${_deviceName(hub, j['device'])}, ${_pointName(j['input'] as String)}';
+    return '$press: ${_deviceName(hub, j['device'])}, ${_pointName(hub, j['device'], j['input'] as String)}';
   }
   if (j['device'] != null) return 'gdy ${_stateText(hub, j)}';
   if (j['scene'] is String) return 'po scenie „${hub.scene(j['scene'] as String)?.name ?? j['scene']}”';
@@ -81,10 +114,28 @@ String describeCondition(DeviceHub hub, Json j) {
   return '$j';
 }
 
+/// „1 akcja”, „3 akcje”, „5 akcji”.
+String _actionsCount(Object? list) {
+  final n = list is List ? list.length : 0;
+  if (n == 0) return 'nic';
+  final word = n == 1 ? 'akcja' : (n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'akcje' : 'akcji');
+  return '$n $word';
+}
+
 /// Opis akcji po polsku.
 String describeAction(DeviceHub hub, Json j) {
+  if (j['if'] is List) {
+    final conds = [
+      for (final c in j['if'] as List)
+        if (c is Map) describeCondition(hub, c.cast<String, dynamic>()),
+    ].join(' i ');
+    final otherwise = j['else'] is List && (j['else'] as List).isNotEmpty
+        ? ', inaczej → ${_actionsCount(j['else'])}'
+        : '';
+    return 'Jeśli $conds → ${_actionsCount(j['then'])}$otherwise';
+  }
   if (j['device'] != null && j['set'] is Map) {
-    return '${_deviceName(hub, j['device'])}: ${describeSet((j['set'] as Map).cast<String, dynamic>())}';
+    return '${_deviceName(hub, j['device'])}: ${_describeDeviceSet(hub, j['device'], (j['set'] as Map).cast<String, dynamic>())}';
   }
   if (j['delay'] is num) return 'czekaj ${j['delay']} s';
   if (j['scene'] is String) return 'scena „${hub.scene(j['scene'] as String)?.name ?? j['scene']}”';
@@ -347,7 +398,7 @@ class AutomationEditorScreen extends StatefulWidget {
   State<AutomationEditorScreen> createState() => _AutomationEditorScreenState();
 }
 
-class _AutomationEditorScreenState extends State<AutomationEditorScreen> {
+class _AutomationEditorScreenState extends State<AutomationEditorScreen> with _RuleEditing {
   late final _name = TextEditingController(text: widget.initial?.name ?? '');
   late bool _enabled = widget.initial?.enabled ?? true;
   late List<Json> _when = [...?widget.initial?.when];
@@ -356,6 +407,7 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> {
   List<String> _problems = const [];
   bool _saving = false;
 
+  @override
   DeviceHub get hub => widget.hub;
 
   @override
@@ -390,82 +442,6 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> {
       if (mounted) setState(() => _saving = false);
     }
   }
-
-  // ---- wybór urządzenia i punktu
-
-  Future<(PairedDevice, DataPoint)?> _pickPoint({bool inputs = false, bool writable = false}) async {
-    final d = await showDialog<PairedDevice>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('Urządzenie'),
-        children: [
-          for (final d in hub.devices)
-            if (d.type.wire != 'hub')
-              SimpleDialogOption(
-                key: Key('auto-device-${d.id}'),
-                onPressed: () => Navigator.pop(ctx, d),
-                child: Text(d.name),
-              ),
-        ],
-      ),
-    );
-    if (d == null || !mounted) return null;
-    var points = await pointsOf(hub, d);
-    points = [
-      for (final p in points)
-        if (inputs ? RegExp(r'^in\d+$').hasMatch(p.key) : (!writable || p.kind.writable)) p,
-    ];
-    if (inputs && points.isEmpty) {
-      // Bez describe: wejścia wg stanu urządzenia.
-      final n = (hub.controller(d.id)?.stateJson?['inputs'] as num?)?.toInt() ?? 8;
-      points = [for (var k = 1; k <= n; k++) fallbackPoint('in$k')];
-    }
-    if (!mounted) return null;
-    final p = await showDialog<DataPoint>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: Text(d.name),
-        children: [
-          for (final p in points)
-            SimpleDialogOption(
-              key: Key('auto-point-${p.key}'),
-              onPressed: () => Navigator.pop(ctx, p),
-              child: Text(p.name),
-            ),
-          if (points.isEmpty) const Padding(padding: EdgeInsets.all(16), child: Text('Brak punktów danych.')),
-        ],
-      ),
-    );
-    return p == null ? null : (d, p);
-  }
-
-  /// Warunek / wyzwalacz stanu: urządzenie → punkt → operator i wartość → „przez N s”.
-  Future<Json?> _stateRule({required bool trigger}) async {
-    final picked = await _pickPoint();
-    if (picked == null || !mounted) return null;
-    final (d, p) = picked;
-    return showDialog<Json>(
-      context: context,
-      builder: (_) => _StateDialog(device: d, point: p, trigger: trigger),
-    );
-  }
-
-  Future<String?> _time(String title, {String initial = '18:00'}) async {
-    final parts = initial.split(':');
-    final t = await showTimePicker(
-      context: context,
-      helpText: title,
-      initialTime: TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])),
-    );
-    if (t == null) return null;
-    String two(int x) => x.toString().padLeft(2, '0');
-    return '${two(t.hour)}:${two(t.minute)}';
-  }
-
-  Future<List<int>?> _daysDialog([List<int> initial = const [1, 2, 3, 4, 5, 6, 7]]) => showDialog<List<int>>(
-    context: context,
-    builder: (_) => _DaysDialog(initial: initial),
-  );
 
   Future<void> _addTrigger(String kind) async {
     Json? t;
@@ -503,124 +479,13 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> {
   }
 
   Future<void> _addCondition(String kind) async {
-    Json? c;
-    switch (kind) {
-      case 'time':
-        final from = await _time('Od', initial: '22:00');
-        if (from == null) return;
-        final to = await _time('Do', initial: '06:00');
-        if (to == null) return;
-        final days = await _daysDialog();
-        if (days == null) return;
-        c = {'time': '$from-$to', if (days.length < 7) 'days': days};
-      case 'days':
-        final days = await _daysDialog(const [6, 7]);
-        if (days != null) c = {'days': days};
-      case 'day' || 'night':
-        c = {'sun': kind};
-      case 'state':
-        c = await _stateRule(trigger: false);
-    }
-    if (c != null) setState(() => _if = [..._if, c!]);
+    final c = await _conditionOf(kind);
+    if (c != null) setState(() => _if = [..._if, c]);
   }
-
-  Future<Scene?> _pickScene() => showDialog<Scene>(
-    context: context,
-    builder: (ctx) => SimpleDialog(
-      title: const Text('Scena'),
-      children: [
-        for (final s in hub.scenes) SimpleDialogOption(onPressed: () => Navigator.pop(ctx, s), child: Text(s.name)),
-        if (hub.scenes.isEmpty) const Padding(padding: EdgeInsets.all(16), child: Text('Nie ma jeszcze scen.')),
-      ],
-    ),
-  );
 
   Future<void> _addAction(String kind) async {
-    Json? a;
-    switch (kind) {
-      case 'set':
-        final step = await Navigator.of(
-          context,
-        ).push<SceneAction>(MaterialPageRoute(builder: (_) => SceneStepScreen(hub: hub)));
-        if (step != null) a = step.toJson();
-      case 'delay':
-        final text = await showTextInputDialog(
-          context,
-          title: 'Przerwa (sekundy, do 24 h)',
-          initial: '60',
-          maxLength: 5,
-        );
-        final s = int.tryParse(text ?? '');
-        if (s != null && s > 0) a = {'delay': s};
-      case 'scene':
-        final s = await _pickScene();
-        if (s != null) a = {'scene': s.id};
-      case 'notify':
-        a = await showDialog<Json>(context: context, builder: (_) => const _NotifyDialog());
-      case 'log':
-        final text = await showTextInputDialog(context, title: 'Wpis w dzienniku', maxLength: 60);
-        if (text != null && text.trim().isNotEmpty) a = {'log': text.trim()};
-    }
-    if (a != null) setState(() => _then = [..._then, a!]);
-  }
-
-  Widget _section<T>({
-    required String title,
-    required String help,
-    required List<Json> items,
-    required String Function(Json) describe,
-    required void Function(List<Json>) onChanged,
-    required Map<String, String> add,
-    required void Function(String) onAdd,
-    required Key addKey,
-    bool reorderable = false,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SectionHeader(title),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Text(help, style: Theme.of(context).textTheme.bodySmall),
-        ),
-        for (final (i, j) in items.indexed)
-          ListTile(
-            dense: true,
-            title: Text(describe(j)),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (reorderable && i > 0)
-                  IconButton(
-                    tooltip: 'Wyżej',
-                    icon: const Icon(Icons.arrow_upward),
-                    onPressed: () => onChanged(reorder(items, i, i - 1)),
-                  ),
-                IconButton(
-                  tooltip: 'Usuń',
-                  icon: const Icon(Icons.delete_outline),
-                  onPressed: () => onChanged([...items]..removeAt(i)),
-                ),
-              ],
-            ),
-          ),
-        Align(
-          alignment: Alignment.centerLeft,
-          child: PopupMenuButton<String>(
-            key: addKey,
-            onSelected: onAdd,
-            itemBuilder: (_) => [for (final e in add.entries) PopupMenuItem(value: e.key, child: Text(e.value))],
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [Icon(Icons.add), SizedBox(width: 8), Text('Dodaj')],
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
+    final a = await _actionOf(kind, 0);
+    if (a != null) setState(() => _then = [..._then, a]);
   }
 
   @override
@@ -683,13 +548,7 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> {
             items: _if,
             describe: (j) => describeCondition(hub, j),
             onChanged: (l) => setState(() => _if = l),
-            add: const {
-              'time': 'Pora dnia',
-              'days': 'Dni tygodnia',
-              'day': 'Za dnia',
-              'night': 'Po zmroku',
-              'state': 'Stan urządzenia',
-            },
+            add: _conditionKinds,
             onAdd: _addCondition,
             addKey: const Key('addCondition'),
           ),
@@ -699,13 +558,7 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> {
             items: _then,
             describe: (j) => describeAction(hub, j),
             onChanged: (l) => setState(() => _then = l),
-            add: const {
-              'set': 'Ustaw urządzenie',
-              'delay': 'Przerwa',
-              'scene': 'Uruchom scenę',
-              'notify': 'Powiadomienie',
-              'log': 'Wpis w dzienniku',
-            },
+            add: _actionKinds(0),
             onAdd: _addAction,
             addKey: const Key('addAction'),
             reorderable: true,
@@ -715,6 +568,347 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> {
     );
   }
 }
+
+/// Blok „Jeśli…” w akcjach automatyki albo sceny: `{"if":[warunki],"then":[akcje],"else":[akcje]}`
+/// (ARCHITEKTURA pkt 4.5). Warunki jak w „Tylko jeśli”, bez „trwa od”; „to” albo „w przeciwnym razie” niepuste.
+class BranchEditorScreen extends StatefulWidget {
+  const BranchEditorScreen({super.key, required this.hub, this.depth = 1, this.initial});
+
+  final DeviceHub hub;
+
+  /// Poziom zagnieżdżenia (1-2).
+  final int depth;
+  final Json? initial;
+
+  @override
+  State<BranchEditorScreen> createState() => _BranchEditorScreenState();
+}
+
+class _BranchEditorScreenState extends State<BranchEditorScreen> with _RuleEditing {
+  late List<Json> _if = _list('if');
+  late List<Json> _then = _list('then');
+  late List<Json> _else = _list('else');
+
+  @override
+  DeviceHub get hub => widget.hub;
+
+  List<Json> _list(String key) => [
+    for (final x in (widget.initial?[key] is List ? widget.initial![key] as List : const []))
+      if (x is Map) x.cast<String, dynamic>(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final ready = _if.isNotEmpty && (_then.isNotEmpty || _else.isNotEmpty);
+    final d = widget.depth;
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(d > 1 ? 'Jeśli… (w bloku)' : 'Jeśli…'),
+        actions: [
+          TextButton(
+            key: const Key('branchOk'),
+            onPressed: ready
+                ? () => Navigator.pop(context, <String, dynamic>{
+                    'if': _if,
+                    if (_then.isNotEmpty) 'then': _then,
+                    if (_else.isNotEmpty) 'else': _else,
+                  })
+                : null,
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.only(bottom: 32),
+        children: [
+          _section(
+            title: 'Jeśli',
+            help: 'Wszystkie muszą być spełnione w chwili wykonania tego kroku.',
+            items: _if,
+            describe: (j) => describeCondition(hub, j),
+            onChanged: (l) => setState(() => _if = l),
+            add: _conditionKinds,
+            onAdd: (k) async {
+              final c = await _conditionOf(k, allowFor: false);
+              if (c != null) setState(() => _if = [..._if, c]);
+            },
+            addKey: Key('branchAddIf-$d'),
+          ),
+          _section(
+            title: 'To',
+            help: 'Akcje, gdy warunki są spełnione.',
+            items: _then,
+            describe: (j) => describeAction(hub, j),
+            onChanged: (l) => setState(() => _then = l),
+            add: _actionKinds(d),
+            onAdd: (k) async {
+              final a = await _actionOf(k, d);
+              if (a != null) setState(() => _then = [..._then, a]);
+            },
+            addKey: Key('branchAddThen-$d'),
+            reorderable: true,
+            depth: d,
+          ),
+          _section(
+            title: 'W przeciwnym razie',
+            help: 'Akcje, gdy warunki nie są spełnione (można nic nie dodawać).',
+            items: _else,
+            describe: (j) => describeAction(hub, j),
+            onChanged: (l) => setState(() => _else = l),
+            add: _actionKinds(d),
+            onAdd: (k) async {
+              final a = await _actionOf(k, d);
+              if (a != null) setState(() => _else = [..._else, a]);
+            },
+            addKey: Key('branchAddElse-$d'),
+            reorderable: true,
+            depth: d,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Wspólne dla edytora automatyki i bloku „Jeśli…”: wybór urządzeń, warunki, akcje, sekcje listy.
+mixin _RuleEditing<W extends StatefulWidget> on State<W> {
+  DeviceHub get hub;
+
+  // ---- wybór urządzenia i punktu
+
+  Future<(PairedDevice, DataPoint)?> _pickPoint({bool inputs = false, bool writable = false}) async {
+    final d = await showDialog<PairedDevice>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Urządzenie'),
+        children: [
+          for (final d in hub.devices)
+            if (d.type.wire != 'hub')
+              SimpleDialogOption(
+                key: Key('auto-device-${d.id}'),
+                onPressed: () => Navigator.pop(ctx, d),
+                child: Text(d.name),
+              ),
+        ],
+      ),
+    );
+    if (d == null || !mounted) return null;
+    var points = await pointsOf(hub, d);
+    points = [
+      for (final p in points)
+        if (inputs ? RegExp(r'^in\d+$').hasMatch(p.key) : (!writable || p.kind.writable)) p,
+    ];
+    if (inputs && points.isEmpty) {
+      // Bez describe: wejścia wg stanu urządzenia.
+      final n = (hub.controller(d.id)?.stateJson?['inputs'] as num?)?.toInt() ?? 8;
+      points = [for (var k = 1; k <= n; k++) fallbackPoint('in$k')];
+    }
+    if (!mounted) return null;
+    final p = await showDialog<DataPoint>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: Text(d.name),
+        children: [
+          for (final p in points)
+            SimpleDialogOption(
+              key: Key('auto-point-${p.key}'),
+              onPressed: () => Navigator.pop(ctx, p),
+              child: Text(p.name),
+            ),
+          if (points.isEmpty) const Padding(padding: EdgeInsets.all(16), child: Text('Brak punktów danych.')),
+        ],
+      ),
+    );
+    return p == null ? null : (d, p);
+  }
+
+  /// Warunek / wyzwalacz stanu: urządzenie → punkt → operator i wartość → „przez N s”.
+  Future<Json?> _stateRule({required bool trigger, bool allowFor = true}) async {
+    final picked = await _pickPoint();
+    if (picked == null || !mounted) return null;
+    final (d, p) = picked;
+    return showDialog<Json>(
+      context: context,
+      builder: (_) => _StateDialog(device: d, point: p, trigger: trigger, allowFor: allowFor),
+    );
+  }
+
+  Future<String?> _time(String title, {String initial = '18:00'}) async {
+    final parts = initial.split(':');
+    final t = await showTimePicker(
+      context: context,
+      helpText: title,
+      initialTime: TimeOfDay(hour: int.parse(parts[0]), minute: int.parse(parts[1])),
+    );
+    if (t == null) return null;
+    String two(int x) => x.toString().padLeft(2, '0');
+    return '${two(t.hour)}:${two(t.minute)}';
+  }
+
+  Future<List<int>?> _daysDialog([List<int> initial = const [1, 2, 3, 4, 5, 6, 7]]) => showDialog<List<int>>(
+    context: context,
+    builder: (_) => _DaysDialog(initial: initial),
+  );
+
+  /// Nowy warunek wybranego rodzaju ([allowFor] - pole „trwa od”; w bloku „Jeśli…” bez niego).
+  Future<Json?> _conditionOf(String kind, {bool allowFor = true}) async {
+    Json? c;
+    switch (kind) {
+      case 'time':
+        final from = await _time('Od', initial: '22:00');
+        if (from == null) return null;
+        final to = await _time('Do', initial: '06:00');
+        if (to == null) return null;
+        final days = await _daysDialog();
+        if (days == null) return null;
+        c = {'time': '$from-$to', if (days.length < 7) 'days': days};
+      case 'days':
+        final days = await _daysDialog(const [6, 7]);
+        if (days != null) c = {'days': days};
+      case 'day' || 'night':
+        c = {'sun': kind};
+      case 'state':
+        c = await _stateRule(trigger: false, allowFor: allowFor);
+    }
+    return c;
+  }
+
+  Future<Scene?> _pickScene() => showDialog<Scene>(
+    context: context,
+    builder: (ctx) => SimpleDialog(
+      title: const Text('Scena'),
+      children: [
+        for (final s in hub.scenes) SimpleDialogOption(onPressed: () => Navigator.pop(ctx, s), child: Text(s.name)),
+        if (hub.scenes.isEmpty) const Padding(padding: EdgeInsets.all(16), child: Text('Nie ma jeszcze scen.')),
+      ],
+    ),
+  );
+
+  /// Nowa akcja wybranego rodzaju; [depth] - poziom bloków „Jeśli…” (0 = główna lista).
+  Future<Json?> _actionOf(String kind, int depth) async {
+    Json? a;
+    switch (kind) {
+      case 'set':
+        final step = await Navigator.of(
+          context,
+        ).push<SceneAction>(MaterialPageRoute(builder: (_) => SceneStepScreen(hub: hub)));
+        if (step != null) a = step.toJson();
+      case 'delay':
+        final text = await showTextInputDialog(
+          context,
+          title: 'Przerwa (sekundy, do 24 h)',
+          initial: '60',
+          maxLength: 5,
+        );
+        final s = int.tryParse(text ?? '');
+        if (s != null && s > 0) a = {'delay': s};
+      case 'scene':
+        final s = await _pickScene();
+        if (s != null) a = {'scene': s.id};
+      case 'notify':
+        a = await showDialog<Json>(context: context, builder: (_) => const _NotifyDialog());
+      case 'if':
+        a = await _editBranch(null, depth + 1);
+      case 'log':
+        final text = await showTextInputDialog(context, title: 'Wpis w dzienniku', maxLength: 60);
+        if (text != null && text.trim().isNotEmpty) a = {'log': text.trim()};
+    }
+    return a;
+  }
+
+  /// Blok „Jeśli…” (nowy albo [initial]) na poziomie [depth] (1-2, ARCHITEKTURA pkt 4.5).
+  Future<Json?> _editBranch(Json? initial, int depth) => Navigator.of(context).push<Json>(
+    MaterialPageRoute(
+      builder: (_) => BranchEditorScreen(hub: hub, depth: depth, initial: initial),
+    ),
+  );
+
+  Widget _section<T>({
+    required String title,
+    required String help,
+    required List<Json> items,
+    required String Function(Json) describe,
+    required void Function(List<Json>) onChanged,
+    required Map<String, String> add,
+    required void Function(String) onAdd,
+    required Key addKey,
+    bool reorderable = false,
+    int depth = 0,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SectionHeader(title),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(help, style: Theme.of(context).textTheme.bodySmall),
+        ),
+        for (final (i, j) in items.indexed)
+          ListTile(
+            key: j['if'] is List ? Key('branch-$depth-$i') : null,
+            dense: true,
+            title: Text(describe(j)),
+            onTap: j['if'] is List
+                ? () async {
+                    final edited = await _editBranch(j, depth + 1);
+                    if (edited != null) onChanged([...items]..[i] = edited);
+                  }
+                : null,
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (reorderable && i > 0)
+                  IconButton(
+                    tooltip: 'Wyżej',
+                    icon: const Icon(Icons.arrow_upward),
+                    onPressed: () => onChanged(reorder(items, i, i - 1)),
+                  ),
+                IconButton(
+                  tooltip: 'Usuń',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: () => onChanged([...items]..removeAt(i)),
+                ),
+              ],
+            ),
+          ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: PopupMenuButton<String>(
+            key: addKey,
+            onSelected: onAdd,
+            itemBuilder: (_) => [for (final e in add.entries) PopupMenuItem(value: e.key, child: Text(e.value))],
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [Icon(Icons.add), SizedBox(width: 8), Text('Dodaj')],
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Rodzaje warunków („Tylko jeśli” i blok „Jeśli…”).
+const _conditionKinds = {
+  'time': 'Pora dnia',
+  'days': 'Dni tygodnia',
+  'day': 'Za dnia',
+  'night': 'Po zmroku',
+  'state': 'Stan urządzenia',
+};
+
+/// Rodzaje akcji; „Jeśli…” najwyżej na 2 poziomach (na drugim już bez niego).
+Map<String, String> _actionKinds(int depth) => {
+  'set': 'Ustaw urządzenie',
+  'delay': 'Przerwa',
+  'scene': 'Uruchom scenę',
+  'notify': 'Powiadomienie',
+  'log': 'Wpis w dzienniku',
+  if (depth < 2) 'if': 'Jeśli… (warunek)',
+};
 
 class _DaysDialog extends StatefulWidget {
   const _DaysDialog({required this.initial});
@@ -855,11 +1049,14 @@ class _NotifyDialogState extends State<_NotifyDialog> {
 
 /// Warunek / wyzwalacz stanu punktu: operator, wartość, „przez N s”.
 class _StateDialog extends StatefulWidget {
-  const _StateDialog({required this.device, required this.point, required this.trigger});
+  const _StateDialog({required this.device, required this.point, required this.trigger, this.allowFor = true});
 
   final PairedDevice device;
   final DataPoint point;
   final bool trigger;
+
+  /// Pole „trwa od / co najmniej” (w bloku „Jeśli…” go nie ma).
+  final bool allowFor;
 
   @override
   State<_StateDialog> createState() => _StateDialogState();
@@ -935,15 +1132,16 @@ class _StateDialogState extends State<_StateDialog> {
                 decoration: InputDecoration(labelText: 'Wartość', suffixText: p.unit),
                 onChanged: (_) => setState(() {}),
               ),
-            TextField(
-              key: const Key('stateFor'),
-              controller: _for,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: widget.trigger ? 'Trwa co najmniej (s, opcjonalnie)' : 'Trwa od (s, opcjonalnie)',
+            if (widget.allowFor)
+              TextField(
+                key: const Key('stateFor'),
+                controller: _for,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: widget.trigger ? 'Trwa co najmniej (s, opcjonalnie)' : 'Trwa od (s, opcjonalnie)',
+                ),
+                onChanged: (_) => setState(() {}),
               ),
-              onChanged: (_) => setState(() {}),
-            ),
           ],
         ),
       ),

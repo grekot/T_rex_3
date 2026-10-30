@@ -24,6 +24,9 @@ import 'package:homeautomation/ui/dashboard_summary.dart';
 import 'package:homeautomation/ui/dashboard_tiles.dart';
 import 'package:homeautomation/ui/widget_editor.dart';
 import 'package:homeautomation/models/home.dart';
+import 'package:homeautomation/models/hub.dart';
+import 'package:homeautomation/models/scene.dart';
+import 'package:homeautomation/ui/automations_screen.dart';
 
 import 'support/memory_cloud_store.dart';
 import 'package:homeautomation/models/describe.dart';
@@ -548,6 +551,151 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('przegrzanie - kanały wyłączone'), findsOneWidget);
     expect(find.textContaining('zalanie: Piwnica'), findsOneWidget);
+  });
+
+  testWidgets('automatyka: akcja „Przełącz” kanału (toggleN), opis z nazwą kanału, reguła z toggle4 bez zmian', (
+    tester,
+  ) async {
+    await setUpHub(tester);
+    node.describe = {
+      'type': 'switch',
+      'points': [
+        {'key': 'on', 'name': 'Wszystkie', 'kind': 'switch', 'access': 'control'},
+        ...(node.describe!['points'] as List),
+      ],
+    };
+    // Reguła zrobiona na hubie ręcznie: wejście 1 → przełącz kanał 4.
+    final rule = Automation.fromJson('test-in1-on4', {
+      'name': 'Test',
+      'enabled': true,
+      'when': [
+        {'device': 'parter', 'point': 'in1', 'eq': true},
+      ],
+      'then': [
+        {
+          'device': 'parter',
+          'set': {'toggle4': true},
+        },
+      ],
+    });
+    expect(rule.toJson()['then'], [
+      {
+        'device': 'parter',
+        'set': {'toggle4': true},
+      },
+    ]);
+    expect(describeAction(hub, rule.then.single), 'Parter: Kanał 4 - przełącz');
+    expect(describeTrigger(hub, rule.when.single), 'gdy Parter: Wejście 1 = tak');
+    node.pushConfig({
+      'name': 'Parter',
+      'channels': 4,
+      'inputs': 4,
+      'ch4': {'name': 'Taras'},
+      'input1': {'name': 'Schody dół', 'out': 1},
+    });
+    await tester.pump();
+    expect(describeAction(hub, rule.then.single), 'Parter: Taras - przełącz');
+    expect(describeTrigger(hub, rule.when.single), 'gdy Parter: Schody dół = tak');
+    expect(
+      describeAction(hub, {
+        'device': 'parter',
+        'set': {'toggle': true},
+      }),
+      'Parter: wszystkie kanały - przełącz',
+    );
+    expect(
+      describeAction(hub, {
+        'device': 'parter',
+        'set': {'on2': false},
+      }),
+      'Parter: Kanał 2 - wył.',
+    );
+
+    // Krok „Ustaw urządzenie”: włącz / wyłącz / przełącz dla kanału i dla wszystkich (`toggle`).
+    SceneAction? picked;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async =>
+                picked = await Navigator.of(context).push(MaterialPageRoute(builder: (_) => SceneStepScreen(hub: hub))),
+            child: const Text('krok'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('krok'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('step-device-parter')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('step-point-on4')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Przełącz'));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('stepDone')));
+    await tester.pumpAndSettle();
+    expect(picked!.toJson(), {
+      'device': 'parter',
+      'set': {'toggle4': true},
+    });
+
+    await tester.tap(find.text('krok'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('step-device-parter')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('step-point-on')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Przełącz'));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('stepDone')));
+    await tester.pumpAndSettle();
+    expect(picked!.toJson(), {
+      'device': 'parter',
+      'set': {'toggle': true},
+    });
+  });
+
+  testWidgets('edytor sceny z hubem: krok „Jeśli…” z opisem, edycja i dodawanie', (tester) async {
+    await setUpHub(tester);
+    final scene = Scene.fromJson('s1', {
+      'name': 'Taras',
+      'actions': [
+        {
+          'if': [
+            {'device': 'parter', 'point': 'on4', 'eq': false},
+          ],
+          'then': [
+            {
+              'device': 'parter',
+              'set': {'on4': true},
+            },
+          ],
+          'else': [
+            {
+              'device': 'parter',
+              'set': {'on4': false},
+            },
+          ],
+        },
+      ],
+    });
+    await tester.pumpWidget(MaterialApp(home: SceneEditorScreen(hub: hub, initial: scene)));
+    await tester.pumpAndSettle();
+    expect(find.text('Jeśli…'), findsWidgets);
+    expect(
+      find.text('Jeśli Parter: Kanał 4 = wył. → 1 akcja, inaczej → 1 akcja (wykonuje hub)'),
+      findsOneWidget,
+    );
+    await tester.tap(find.textContaining('Jeśli Parter'));
+    await tester.pumpAndSettle();
+    expect(find.text('Parter: Kanał 4 - wł.'), findsOneWidget, reason: '„to” w edytorze bloku');
+    expect(find.text('Parter: Kanał 4 - wył.'), findsOneWidget, reason: '„w przeciwnym razie”');
+    await tester.tap(find.byKey(const Key('branchOk')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('sceneAddIf')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('branchAddIf-1')), findsOneWidget);
+    expect(tester.widget<TextButton>(find.byKey(const Key('branchOk'))).onPressed, isNull, reason: 'pusty blok');
   });
 
   testWidgets('13.1: grupa wyjść - „1 z 2”, ikona wyłącza wszystko, lista z przełącznikami', (tester) async {

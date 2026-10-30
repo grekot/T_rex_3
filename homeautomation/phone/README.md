@@ -137,8 +137,10 @@ repozytorium trzeba najpierw uruchomić `node tools/configure.mjs`.
   pola wg typu) → wygląd, rozmiar i podpis.
 - **Sceny** (`homes/{h}/scenes/{id}` `{"name","actions":[…]}`, ARCHITEKTURA pkt 4.6): układa właściciel (bez konta -
   każdy), domownicy wybierają gotowe; widżet wskazuje `sceneId`. Akcje: ustawienie urządzenia (`device` + `set`),
-  przerwa (`delay`), inna scena. **Uruchom**: gdy w domu jest hub z moim `control` - polecenie `{"runScene": id}`
-  do huba; bez huba telefon wysyła akcje po kolei z moimi uprawnieniami (przerwy do 60 s, dłuższe tylko hub).
+  przerwa (`delay`), inna scena, z hubem także powiadomienie i krok „Jeśli…” (jak w automatykach). **Uruchom**: gdy
+  w domu jest hub z moim `control` - polecenie `{"runScene": id}` do huba; bez huba telefon wysyła akcje po kolei
+  z moimi uprawnieniami (przerwy do 60 s, dłuższe i krok „Jeśli…” tylko hub). Akcje nieznane tej wersji zostają
+  w scenie bez zmian.
   Błędy (np. brak uprawnień) wracają w komunikacie.
 
 ## Pulpit zegarka (pkt 13a)
@@ -211,8 +213,10 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
 - **Automatyki**: w domu wprost w hubie (`/api/automations`: diagnostyka - pominięte reguły, wschód/zachód, czas;
   „Uruchom teraz”; dziennik), poza domem `homes/{h}/automations/{id}` z `updatedAt` i Set `{"reload":true}`.
   Edytor: kiedy (godzina z dniami, wschód/zachód z przesunięciem, stan urządzenia z „przez N s”, przycisk / wejście
-  węzła krótko / podwójnie / długo, po scenie), tylko jeśli (pora, dni, dzień / noc, stan), wtedy (ustaw urządzenie,
-  przerwa, scena, powiadomienie z wagą, wpis w dzienniku); błędną regułę hub odrzuca z listą problemów;
+  węzła krótko / podwójnie / długo, po scenie), tylko jeśli (pora, dni, dzień / noc, stan), wtedy (ustaw urządzenie -
+  także „Przełącz” kanału: `toggle` / `toggleN`, przerwa, scena, powiadomienie z wagą, wpis w dzienniku, krok
+  „Jeśli…”: `{"if":[warunki],"then":[…],"else":[…]}` - warunki jak „tylko jeśli” bez „trwa od”, najwyżej 2 poziomy,
+  dotknięcie bloku go edytuje); opisy z nazwami kanałów i wejść z modułu; błędną regułę hub odrzuca z listą problemów;
 - **Sceny** (wykonuje je hub; akcja „Powiadomienie” tylko z hubem); po zapisie w chmurze `updatedAt` i `reload`;
 - **Położenie domu** (Set `location`, podpowiedź z ustawień pogody termostatu) - wschód i zachód w automatykach;
 - ustawienia wspólne (chmura - łączenie zapisuje też `deviceIndex/{hubId}` `{"type":"hub"}`, telefony, firmware, WiFi).

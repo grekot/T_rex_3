@@ -255,7 +255,13 @@ void main() {
       final res = await (await http.getUrl(Uri.parse('http://127.0.0.1:${fake.port}/api/info'))).close();
       final info = jsonDecode(await res.transform(utf8.decoder).join()) as Map;
       http.close();
-      expect((info['tempSensor'], info['wifiReconnects']), (true, 0));
+      expect((info['tempSensor'], info['wifiReconnects'], info['sensor']), (true, 0, 'ds18b20'));
+      // DHT22 (1.4.2): wilgotność w State i describe.
+      fake
+        ..sensor = 'dht22'
+        ..hum = 48;
+      expect(LightState.fromJson(await api.stateJson()).hum, 48);
+      expect((await api.describe()).point('hum')!.unit, '%');
 
       r = await api.setJson({
         'ch1': {'autoOff': -1, 'autoOffPress': 'x', 'pulse': 50, 'minOff': 4000},

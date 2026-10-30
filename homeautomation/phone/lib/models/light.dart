@@ -26,6 +26,7 @@ class LightState {
     this.cycles = const {},
     this.hours = const {},
     this.temp,
+    this.hum,
   });
 
   final String id;
@@ -55,7 +56,7 @@ class LightState {
   /// Numery wejść (od 1) z `inNFault: true`: usterka przewodu - wejście zablokowane, samo wraca po 60 s.
   final Set<int> inputFaults;
 
-  /// Temperatura w obudowie ponad `tempWarn` (czujnik DS18B20).
+  /// Temperatura w obudowie ponad `tempWarn` (czujnik DS18B20 albo DHT11 / DHT22).
   final bool overheat;
 
   /// Ponad `tempOff`: wszystkie kanały wyłączone, włączanie zablokowane do ostygnięcia.
@@ -73,6 +74,9 @@ class LightState {
 
   /// °C w obudowie, gdy jest czujnik.
   final double? temp;
+
+  /// % wilgotności, tylko z czujnikiem DHT (switch4 1.4.2).
+  final int? hum;
 
   bool get multi => channels > 1;
 
@@ -109,6 +113,7 @@ class LightState {
       cycles: perChannel('Cycles', (v) => v.toInt()),
       hours: perChannel('Hours', (v) => v.toDouble()),
       temp: asDoubleOrNull(j['temp'], 'temp'),
+      hum: asIntOrNull(j['hum'], 'hum'),
     );
   }
 
@@ -134,6 +139,7 @@ class LightState {
     for (final e in cycles.entries) 'ch${e.key}Cycles': e.value,
     for (final e in hours.entries) 'ch${e.key}Hours': e.value,
     'temp': ?temp,
+    'hum': ?hum,
   };
 }
 
