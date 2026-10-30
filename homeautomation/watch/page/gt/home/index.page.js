@@ -576,9 +576,16 @@ Page(
         // bez stanu w chmurze: węzeł bez chmury (przełącznik do czasu huba) albo urządzenie jeszcze nie połączone
         sub = !d.tile.hasData ? "brak danych w chmurze" : on ? "włączone" : "wyłączone";
         if (d.type === "dimmer" && on && typeof values.level === "number") sub = "jasność " + values.level + "%";
-        if (control && d.tile.hasData && t.size !== "big") pill = { text: on ? "WŁ" : "WYŁ", on, pending: !!local };
+        // dotknięte, a urządzenie jeszcze nie potwierdziło: wyraźnie „w drodze” (szara pigułka z „…”), żeby nie
+        // wyglądało na włączone, zanim przekaźnik naprawdę się przełączy
+        const label = (on ? "WŁ" : "WYŁ") + (local ? "…" : "");
+        if (local) {
+          sub = local.key ? "czeka na urządzenie…" : "wysyłanie…";
+          subColor = COLOR_ORANGE;
+        }
+        if (control && d.tile.hasData && t.size !== "big") pill = { text: label, on: on && !local, pending: !!local };
         else {
-          value = d.tile.hasData ? (on ? "WŁ" : "WYŁ") : "--";
+          value = d.tile.hasData ? label : "--";
           valueColor = local ? COLOR_GREY : on ? COLOR_ORANGE : COLOR_GREY;
         }
       } else if (item.kind === "stepper" || item.kind === "value") {

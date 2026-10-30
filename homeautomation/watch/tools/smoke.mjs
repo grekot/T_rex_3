@@ -366,7 +366,9 @@ function makePage(name) {
         (w) => w.type === "TEXT" && w !== n && w !== pillText && w !== badgeText && w.visible && !["−", "+"].includes(w.props.text)
       );
       const value = texts.slice().sort((x, y) => y.props.text_size - x.props.text_size)[0];
-      const sub = texts.length > 1 ? texts.slice().sort((x, y) => x.props.text_size - y.props.text_size)[0] : null;
+      // linia opisu: najmniejszy tekst - także jedyny, gdy wartość ukrywa pigułka (opis ma 16-20 px)
+      const smallest = texts.slice().sort((x, y) => x.props.text_size - y.props.text_size)[0];
+      const sub = texts.length > 1 || (smallest && smallest.props.text_size <= 20) ? smallest : null;
       return {
         w: bg.props.w,
         h: bg.props.h,
@@ -494,13 +496,16 @@ test("lista bez pulpitu: strona na pokój, światło przełączane jednym dotkni
   const sufit = p.tile("Sufit");
   sufit.tap();
   sufit.tapPill();
-  assert.equal(p.tile("Sufit").pill, "WŁ");
-  assert.ok(p.tile("Sufit").pillOn);
+  // do potwierdzenia: „WŁ…” na szarej pigułce i opis „wysyłanie…” / „czeka na urządzenie…”
+  assert.equal(p.tile("Sufit").pill, "WŁ…");
+  assert.ok(!p.tile("Sufit").pillOn, "nie wygląda na włączone przed potwierdzeniem");
   assert.ok(p.tile("Sufit").pillPending);
+  assert.equal(p.tile("Sufit").sub, "wysyłanie…");
   await run(50);
+  assert.equal(p.tile("Sufit").sub, "czeka na urządzenie…");
   assert.deepEqual(side.commands, [{ on: true }], "jedno polecenie mimo podwójnego trafienia");
   await run(2500);
-  assert.equal(p.tile("Sufit").pill, "WŁ", "stary stan nie cofa przełącznika");
+  assert.equal(p.tile("Sufit").pill, "WŁ…", "stary stan nie cofa przełącznika");
   const key = Object.keys(tree["swiatlo-0c4f21"].commands)[0];
   tree["swiatlo-0c4f21"].lastCommand = { key, ok: true };
   tree["swiatlo-0c4f21"].state.on = true;
@@ -508,6 +513,8 @@ test("lista bez pulpitu: strona na pokój, światło przełączane jednym dotkni
   const homeBefore = count("HOME");
   await run(1100);
   assert.equal(p.tile("Sufit").pill, "WŁ");
+  assert.ok(p.tile("Sufit").pillOn);
+  assert.equal(p.tile("Sufit").sub, "włączone");
   assert.ok(!p.tile("Sufit").pillPending, "potwierdzone szybkim pytaniem (ACK), bez czekania na obieg");
   assert.ok(p.has("Sufit: potwierdzone po"), p.texts().join(" | "));
   assert.equal(count("HOME"), homeBefore, "w czasie szybkiego pytania zwykły obieg czeka");
@@ -516,7 +523,7 @@ test("lista bez pulpitu: strona na pokój, światło przełączane jednym dotkni
   assert.deepEqual(log.toasts, [], "udane przełączenie bez komunikatu");
   p.tile("Sufit").tap();
   await run(50);
-  assert.equal(p.tile("Sufit").pill, "WYŁ");
+  assert.equal(p.tile("Sufit").pill, "WYŁ…");
   const key2 = Object.keys(tree["swiatlo-0c4f21"].commands)[1];
   tree["swiatlo-0c4f21"].lastCommand = { key: key2, ok: false, errors: { on: "forbidden" } };
   await run(5000);
