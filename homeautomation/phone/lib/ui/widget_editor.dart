@@ -724,9 +724,9 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
   }
 
   Future<void> _addDelay() async {
-    final text = await showTextInputDialog(context, title: 'Przerwa (sekundy)', initial: '30', maxLength: 5);
-    final s = int.tryParse(text ?? '');
-    if (s != null && s > 0) setState(() => _actions = [..._actions, SceneAction.delay(s)]);
+    final text = await showTextInputDialog(context, title: 'Przerwa (sekundy, np. 0.5)', initial: '30', maxLength: 5);
+    final s = parseDelay(text);
+    if (s != null) setState(() => _actions = [..._actions, SceneAction.delay(s)]);
   }
 
   Future<void> _save() async {

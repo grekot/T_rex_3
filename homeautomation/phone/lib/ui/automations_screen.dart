@@ -6,6 +6,7 @@ import '../data/automation_store.dart';
 import '../data/errors.dart';
 import '../data/hub_api.dart';
 import '../data/device_store.dart';
+import '../models/automation_templates.dart';
 import '../models/dashboard.dart' show reorder;
 import '../models/describe.dart';
 import '../models/hub.dart';
@@ -96,6 +97,9 @@ String describeTrigger(DeviceHub hub, Json j) {
     final press = switch (j['press']) {
       'double' => 'podwójne naciśnięcie',
       'long' => 'długie naciśnięcie',
+      'down' => 'wciśnięcie / zwarcie',
+      'up' => 'puszczenie / rozwarcie',
+      'change' => 'zmiana stanu',
       _ => 'naciśnięcie',
     };
     return '$press: ${_deviceName(hub, j['device'])}, ${_pointName(hub, j['device'], j['input'] as String)}';
@@ -167,9 +171,12 @@ class AutomationsScreen extends StatefulWidget {
   State<AutomationsScreen> createState() => _AutomationsScreenState();
 }
 
-class _AutomationsScreenState extends State<AutomationsScreen> {
+class _AutomationsScreenState extends State<AutomationsScreen> with _RuleEditing {
   late HubAutomations _service;
   Future<AutomationsInfo>? _load;
+
+  @override
+  DeviceHub get hub => widget.hub;
 
   @override
   void didChangeDependencies() {
@@ -188,15 +195,63 @@ class _AutomationsScreenState extends State<AutomationsScreen> {
 
   void _snack(String t) => ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(t)));
 
-  Future<void> _save(Automation a) async {
+  Future<void> _save(Automation a) => _saveAll([a]);
+
+  /// Po błędzie lista i tak się odświeża: reguły zapisane przed nim już są w hubie.
+  Future<void> _saveAll(List<Automation> rules) async {
     try {
-      await _service.save(a);
-      _reload();
+      for (final a in rules) {
+        await _service.save(a);
+      }
     } on HubInvalidException catch (e) {
       _snack(e.message);
     } on ThermostatException catch (e) {
       _snack(e.message);
     }
+    if (mounted) _reload();
+  }
+
+  /// Szablon → wejście → wyjście (→ czas) → zapis gotowych reguł.
+  Future<void> _fromTemplate() async {
+    final template = await showDialog<AutomationTemplate>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Szablon'),
+        children: [
+          for (final t in AutomationTemplate.values)
+            SimpleDialogOption(
+              key: Key('template-${t.name}'),
+              onPressed: () => Navigator.pop(ctx, t),
+              child: ListTile(title: Text(t.title), subtitle: Text(t.subtitle), contentPadding: EdgeInsets.zero),
+            ),
+        ],
+      ),
+    );
+    if (template == null || !mounted) return;
+    final input = await _pickPoint(inputs: true, title: 'Wejście');
+    if (input == null || !mounted) return;
+    final output = await _pickPoint(outputs: true, title: 'Wyjście');
+    if (output == null || !mounted) return;
+    num seconds = 180;
+    if (template == AutomationTemplate.timer) {
+      final s = parseDelay(
+        await showTextInputDialog(context, title: 'Czas włączenia (sekundy)', initial: '180', maxLength: 5),
+      );
+      if (s == null) return;
+      seconds = s;
+    }
+    await _saveAll(
+      buildTemplate(
+        template,
+        inputDevice: input.$1.id,
+        input: input.$2.key,
+        inputName: input.$2.name,
+        outputDevice: output.$1.id,
+        output: output.$2.key,
+        outputName: output.$2.name,
+        seconds: seconds,
+      ),
+    );
   }
 
   Future<void> _edit([Automation? a]) async {
@@ -242,6 +297,12 @@ class _AutomationsScreenState extends State<AutomationsScreen> {
       appBar: AppBar(
         title: const Text('Automatyki'),
         actions: [
+          IconButton(
+            key: const Key('automationTemplates'),
+            tooltip: 'Z szablonu',
+            icon: const Icon(Icons.auto_awesome_outlined),
+            onPressed: _fromTemplate,
+          ),
           IconButton(tooltip: 'Dziennik', icon: const Icon(Icons.history), onPressed: _log),
           IconButton(tooltip: 'Odśwież', icon: const Icon(Icons.refresh), onPressed: _reload),
         ],
@@ -404,6 +465,7 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> with _R
   late List<Json> _when = [...?widget.initial?.when];
   late List<Json> _if = [...?widget.initial?.conditions];
   late List<Json> _then = [...?widget.initial?.then];
+  late String _mode = widget.initial?.mode ?? 'single';
   List<String> _problems = const [];
   bool _saving = false;
 
@@ -425,6 +487,7 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> with _R
       when: _when,
       conditions: _if,
       then: _then,
+      mode: _mode,
     );
     setState(() {
       _saving = true;
@@ -464,7 +527,14 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> with _R
           builder: (ctx) => SimpleDialog(
             title: Text(picked.$2.name),
             children: [
-              for (final (v, l) in const [('short', 'Krótkie naciśnięcie'), ('double', 'Podwójne'), ('long', 'Długie')])
+              for (final (v, l) in const [
+                ('short', 'Krótkie naciśnięcie'),
+                ('double', 'Podwójne'),
+                ('long', 'Długie'),
+                ('down', 'Wciśnięcie / zwarcie (od razu)'),
+                ('up', 'Puszczenie / rozwarcie'),
+                ('change', 'Każda zmiana stanu'),
+              ])
                 SimpleDialogOption(key: Key('press-$v'), onPressed: () => Navigator.pop(ctx, v), child: Text(l)),
             ],
           ),
@@ -562,6 +632,13 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> with _R
             onAdd: _addAction,
             addKey: const Key('addAction'),
             reorderable: true,
+          ),
+          SwitchListTile(
+            key: const Key('automationRestart'),
+            title: const Text('Nowe wyzwolenie liczy od nowa'),
+            subtitle: const Text('Przerywa trwające wykonanie i zaczyna od początku, np. czas światła po ruchu.'),
+            value: _mode == 'restart',
+            onChanged: (v) => setState(() => _mode = v ? 'restart' : 'single'),
           ),
         ],
       ),
@@ -676,11 +753,17 @@ mixin _RuleEditing<W extends StatefulWidget> on State<W> {
 
   // ---- wybór urządzenia i punktu
 
-  Future<(PairedDevice, DataPoint)?> _pickPoint({bool inputs = false, bool writable = false}) async {
+  /// [outputs] - tylko kanały (`on`, `onN`); [title] - nazwa kroku w wyborze urządzenia.
+  Future<(PairedDevice, DataPoint)?> _pickPoint({
+    bool inputs = false,
+    bool writable = false,
+    bool outputs = false,
+    String title = 'Urządzenie',
+  }) async {
     final d = await showDialog<PairedDevice>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        title: const Text('Urządzenie'),
+        title: Text(title),
         children: [
           for (final d in hub.devices)
             if (d.type.wire != 'hub')
@@ -696,7 +779,12 @@ mixin _RuleEditing<W extends StatefulWidget> on State<W> {
     var points = await pointsOf(hub, d);
     points = [
       for (final p in points)
-        if (inputs ? RegExp(r'^in\d+$').hasMatch(p.key) : (!writable || p.kind.writable)) p,
+        if (outputs
+            ? p.kind.writable && RegExp(r'^on\d*$').hasMatch(p.key)
+            : inputs
+            ? RegExp(r'^in\d+$').hasMatch(p.key)
+            : (!writable || p.kind.writable))
+          p,
     ];
     if (inputs && points.isEmpty) {
       // Bez describe: wejścia wg stanu urządzenia.
@@ -796,12 +884,12 @@ mixin _RuleEditing<W extends StatefulWidget> on State<W> {
       case 'delay':
         final text = await showTextInputDialog(
           context,
-          title: 'Przerwa (sekundy, do 24 h)',
+          title: 'Przerwa (sekundy, np. 0.5, do 24 h)',
           initial: '60',
           maxLength: 5,
         );
-        final s = int.tryParse(text ?? '');
-        if (s != null && s > 0) a = {'delay': s};
+        final s = parseDelay(text);
+        if (s != null) a = {'delay': s};
       case 'scene':
         final s = await _pickScene();
         if (s != null) a = {'scene': s.id};

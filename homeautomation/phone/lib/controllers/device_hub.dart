@@ -167,11 +167,12 @@ class DeviceHub extends ChangeNotifier {
         final r = await c.sendJson(a.set!);
         if (r.errors.isNotEmpty) problems.add('$name: ${describeErrors(r.errors)}');
       } else if (a.delay != null) {
-        if (Duration(seconds: a.delay!) > maxDelay) {
+        final wait = Duration(milliseconds: (a.delay! * 1000).round());
+        if (wait > maxDelay) {
           problems.add('Opóźnienie ${a.delay} s wykona tylko hub - dalsze kroki pominięte.');
           break;
         }
-        await Future<void>.delayed(Duration(seconds: a.delay!));
+        await Future<void>.delayed(wait);
       } else if (a.notify != null) {
         problems.add('Powiadomienie „${a.notify}” wysyła tylko hub.');
       } else if (a.raw != null) {

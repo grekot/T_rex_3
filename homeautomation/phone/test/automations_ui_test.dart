@@ -14,8 +14,10 @@ import 'package:homeautomation/data/discovery.dart';
 import 'package:homeautomation/data/hub_api.dart';
 import 'package:homeautomation/data/pairing.dart';
 import 'package:homeautomation/data/room_store.dart';
+import 'package:homeautomation/models/automation_templates.dart';
 import 'package:homeautomation/models/device_type.dart';
 import 'package:homeautomation/models/hub.dart';
+import 'package:homeautomation/models/json_utils.dart';
 import 'package:homeautomation/models/room.dart';
 import 'package:homeautomation/models/scene.dart';
 import 'package:homeautomation/provisioning/ble_transport.dart';
@@ -93,7 +95,9 @@ void main() {
         cloud: NoCloudAccess(),
         provisioning: _NoBle(),
         rooms: _MemRooms(),
-        child: TermostatApp(home: AutomationsScreen(hub: hub, controller: hubController, service: service)),
+        child: TermostatApp(
+          home: AutomationsScreen(hub: hub, controller: hubController, service: service),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -167,7 +171,9 @@ void main() {
         cloud: NoCloudAccess(),
         provisioning: _NoBle(),
         rooms: _MemRooms(),
-        child: TermostatApp(home: AutomationsScreen(hub: hub, controller: hubController, service: service)),
+        child: TermostatApp(
+          home: AutomationsScreen(hub: hub, controller: hubController, service: service),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -250,6 +256,237 @@ void main() {
         ],
       },
     ]);
+    hub.dispose();
+  });
+
+  testWidgets('tryb restart zostaje po włączniku i edycji; opisy down / up / change; przerwa z ułamkiem', (
+    tester,
+  ) async {
+    final store = MemoryDeviceStore();
+    final manager = ConnectionManager(store: store, discovery: _NoDiscovery());
+    final hub = DeviceHub(store: store, manager: manager, cloud: NoCloudAccess());
+    final hubController = DeviceController(
+      device: const PairedDevice(id: 'hub-51e96c', name: 'Hub', type: DeviceType.hub),
+      manager: manager,
+      codec: rawCodec,
+    );
+    final service = _MemAutomations(hubController);
+    service.items['ruch'] = Automation.fromJson('ruch', {
+      'name': 'Ruch',
+      'mode': 'restart',
+      'when': [
+        {'device': 'wej-1', 'input': 'in1', 'press': 'down'},
+        {'device': 'wej-1', 'input': 'in1', 'press': 'up'},
+        {'device': 'wej-1', 'input': 'in1', 'press': 'change'},
+      ],
+      'then': [
+        {'delay': 0.5},
+      ],
+    });
+    await tester.pumpWidget(
+      Services(
+        store: store,
+        discovery: _NoDiscovery(),
+        manager: manager,
+        pairing: PairingService(store: store),
+        cloud: NoCloudAccess(),
+        provisioning: _NoBle(),
+        rooms: _MemRooms(),
+        child: TermostatApp(
+          home: AutomationsScreen(hub: hub, controller: hubController, service: service),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(Switch));
+    await tester.pumpAndSettle();
+    expect((service.items['ruch']!.enabled, service.items['ruch']!.mode), (false, 'restart'));
+
+    await tester.tap(find.byKey(const Key('automation-ruch')));
+    await tester.pumpAndSettle();
+    for (final press in ['wciśnięcie / zwarcie', 'puszczenie / rozwarcie', 'zmiana stanu']) {
+      expect(find.textContaining('$press: wej-1'), findsOneWidget);
+    }
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('automationRestart')),
+      200,
+      scrollable: find.descendant(of: find.byType(ListView).last, matching: find.byType(Scrollable)).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('czekaj 0.5 s'), findsOneWidget);
+    expect(tester.widget<SwitchListTile>(find.byKey(const Key('automationRestart'))).value, isTrue);
+
+    await tester.tap(find.byKey(const Key('automationSave')));
+    await tester.pumpAndSettle();
+    expect(service.items['ruch']!.toJson()['mode'], 'restart');
+    expect(service.items['ruch']!.toJson()['then'], [
+      {'delay': 0.5},
+    ]);
+
+    await tester.tap(find.byKey(const Key('automation-ruch')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('automationRestart')),
+      200,
+      scrollable: find.descendant(of: find.byType(ListView).last, matching: find.byType(Scrollable)).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('automationRestart')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('automationSave')));
+    await tester.pumpAndSettle();
+    expect(service.items['ruch']!.toJson().containsKey('mode'), isFalse, reason: 'single to domyślny tryb');
+    hub.dispose();
+  });
+
+  test('szablony: reguły jak w tabeli trybów wejść', () {
+    List<Json> rules(AutomationTemplate t, {String output = 'on2'}) => [
+      for (final a in buildTemplate(
+        t,
+        inputDevice: 'wej',
+        input: 'in1',
+        inputName: 'Wejście 1',
+        outputDevice: 'wyj',
+        output: output,
+        outputName: 'Taras',
+        seconds: 0.5,
+      ))
+        a.toJson()..remove('name'),
+    ];
+    Json trigger(String press) => {'device': 'wej', 'input': 'in1', 'press': press};
+    Json set(Json s) => {'device': 'wyj', 'set': s};
+    Json rule(String press, List<Json> then, {String? mode}) => {
+      'enabled': true,
+      'when': [trigger(press)],
+      'if': <Json>[],
+      'then': then,
+      'mode': ?mode,
+    };
+
+    expect(rules(AutomationTemplate.button), [
+      rule('down', [
+        set({'toggle2': true}),
+      ]),
+    ]);
+    expect(rules(AutomationTemplate.staircase, output: 'on').single['then'], [
+      set({'toggle': true}),
+    ]);
+    expect(rules(AutomationTemplate.staircase).single['when'], [trigger('change')]);
+    expect(rules(AutomationTemplate.follow), [
+      rule('down', [
+        set({'on2': true}),
+      ]),
+      rule('up', [
+        set({'on2': false}),
+      ]),
+    ]);
+    expect(rules(AutomationTemplate.timer), [
+      rule('down', [
+        set({'on2': true}),
+        {'delay': 0.5},
+        set({'on2': false}),
+      ], mode: 'restart'),
+    ]);
+
+    final two = buildTemplate(
+      AutomationTemplate.follow,
+      inputDevice: 'wej',
+      input: 'in1',
+      inputName: 'Bardzo długa nazwa wejścia modułu w piwnicy',
+      outputDevice: 'wyj',
+      output: 'on1',
+      outputName: 'Taras',
+    );
+    expect(two[0].id, isNot(two[1].id));
+    expect(two.every((a) => a.name.length <= 40), isTrue);
+  });
+
+  testWidgets('szablon „na czas”: wejście, wyjście, czas, zapis', (tester) async {
+    final store = MemoryDeviceStore();
+    await store.saveDevice(const PairedDevice(id: 'wej', name: 'Wejścia', type: DeviceType.onOff));
+    await store.saveDevice(const PairedDevice(id: 'wyj', name: 'Wyjścia', type: DeviceType.onOff));
+    final manager = ConnectionManager(store: store, discovery: _NoDiscovery());
+    final hub = DeviceHub(store: store, manager: manager, cloud: NoCloudAccess());
+    await tester.runAsync(hub.load);
+    final hubController = DeviceController(
+      device: const PairedDevice(id: 'hub-51e96c', name: 'Hub', type: DeviceType.hub),
+      manager: manager,
+      codec: rawCodec,
+    );
+    final service = _MemAutomations(hubController);
+    await tester.pumpWidget(
+      Services(
+        store: store,
+        discovery: _NoDiscovery(),
+        manager: manager,
+        pairing: PairingService(store: store),
+        cloud: NoCloudAccess(),
+        provisioning: _NoBle(),
+        rooms: _MemRooms(),
+        child: TermostatApp(
+          home: AutomationsScreen(hub: hub, controller: hubController, service: service),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    Future<void> tap(String key) async {
+      await tester.pumpAndSettle(
+        const Duration(milliseconds: 100),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(seconds: 20),
+      );
+      await tester.tap(find.byKey(Key(key)));
+      await tester.pumpAndSettle(
+        const Duration(milliseconds: 100),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(seconds: 20),
+      );
+    }
+
+    await tap('automationTemplates');
+    await tap('template-timer');
+    await tap('auto-device-wej');
+    await tap('auto-point-in3');
+    expect(find.text('Wyjście'), findsOneWidget);
+    await tap('auto-device-wyj');
+    await tap('auto-point-on');
+    await tester.enterText(find.byType(TextField).last, '90');
+    await tester.tap(find.widgetWithText(FilledButton, 'OK'));
+    await tester.pumpAndSettle();
+
+    final a = service.items.values.single;
+    expect(a.mode, 'restart');
+    expect(a.when.single, {'device': 'wej', 'input': 'in3', 'press': 'down'});
+    expect(a.then[1], {'delay': 90});
+    hub.dispose();
+  });
+
+  test('przerwa z ułamkiem: wpis, zapis sceny bez zmian, wykonanie bez huba', () async {
+    expect(
+      [
+        for (final t in ['60', '0.5', '0,5', '0', '-1', 'x', '', null]) parseDelay(t),
+      ],
+      [60, 0.5, 0.5, null, null, null, null, null],
+    );
+    final j = {
+      'name': 'Impuls',
+      'actions': [
+        {'delay': 0.05},
+        {'delay': 2},
+      ],
+    };
+    final scene = Scene.fromJson('s1', j);
+    expect(scene.toJson(), j);
+    final store = MemoryDeviceStore();
+    final hub = DeviceHub(
+      store: store,
+      manager: ConnectionManager(store: store, discovery: _NoDiscovery()),
+      cloud: NoCloudAccess(),
+    );
+    final problems = await hub.runScene(scene, maxDelay: const Duration(seconds: 1));
+    expect(problems, ['Opóźnienie 2 s wykona tylko hub - dalsze kroki pominięte.']);
     hub.dispose();
   });
 

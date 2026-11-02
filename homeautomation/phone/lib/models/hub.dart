@@ -144,6 +144,7 @@ class Automation {
     this.when = const [],
     this.conditions = const [],
     this.then = const [],
+    this.mode = 'single',
     this.updatedAt,
   });
 
@@ -156,19 +157,29 @@ class Automation {
   final List<Json> conditions;
   final List<Json> then;
 
+  /// `single` albo `restart` - nowe wyzwolenie przerywa trwające wykonanie i zaczyna od początku.
+  final String mode;
+
   /// ms; przy uzgadnianiu z chmurą wygrywa nowszy.
   final int? updatedAt;
 
-  Automation copyWith({String? name, bool? enabled, List<Json>? when, List<Json>? conditions, List<Json>? then}) =>
-      Automation(
-        id: id,
-        name: name ?? this.name,
-        enabled: enabled ?? this.enabled,
-        when: when ?? this.when,
-        conditions: conditions ?? this.conditions,
-        then: then ?? this.then,
-        updatedAt: updatedAt,
-      );
+  Automation copyWith({
+    String? name,
+    bool? enabled,
+    List<Json>? when,
+    List<Json>? conditions,
+    List<Json>? then,
+    String? mode,
+  }) => Automation(
+    id: id,
+    name: name ?? this.name,
+    enabled: enabled ?? this.enabled,
+    when: when ?? this.when,
+    conditions: conditions ?? this.conditions,
+    then: then ?? this.then,
+    mode: mode ?? this.mode,
+    updatedAt: updatedAt,
+  );
 
   static List<Json> _list(Object? v) => [
     for (final x in (v is List ? v : const []))
@@ -182,6 +193,7 @@ class Automation {
     when: _list(j['when']),
     conditions: _list(j['if']),
     then: _list(j['then']),
+    mode: asString(j['mode'], 'mode', 'single'),
     updatedAt: j['updatedAt'] is num ? (j['updatedAt'] as num).toInt() : null,
   );
 
@@ -191,6 +203,7 @@ class Automation {
     'when': when,
     'if': conditions,
     'then': then,
+    if (mode != 'single') 'mode': mode,
     'updatedAt': ?(updatedAt ?? this.updatedAt),
   };
 }

@@ -5,6 +5,12 @@
 
 import 'json_utils.dart';
 
+/// Przerwa wpisana w sekundach, także z ułamkiem („0.5”, „0,5”); null, gdy nie jest dodatnią liczbą.
+num? parseDelay(String? text) {
+  final s = num.tryParse((text ?? '').replaceAll(',', '.'));
+  return s != null && s.isFinite && s > 0 ? s : null;
+}
+
 /// Jedna akcja sceny.
 class SceneAction {
   const SceneAction.set(String this.device, Json this.set)
@@ -14,7 +20,7 @@ class SceneAction {
       level = null,
       log = null,
       raw = null;
-  const SceneAction.delay(int this.delay)
+  const SceneAction.delay(num this.delay)
     : device = null,
       set = null,
       scene = null,
@@ -59,8 +65,8 @@ class SceneAction {
   final String? device;
   final Json? set;
 
-  /// Sekundy.
-  final int? delay;
+  /// Sekundy, także z ułamkiem.
+  final num? delay;
 
   /// Inna scena.
   final String? scene;
@@ -83,7 +89,7 @@ class SceneAction {
   static SceneAction? fromJson(Json j) {
     final device = j['device'], set = j['set'], delay = j['delay'], scene = j['scene'];
     if (device is String && set is Map) return SceneAction.set(device, set.cast<String, dynamic>());
-    if (delay is num) return SceneAction.delay(delay.toInt());
+    if (delay is num) return SceneAction.delay(delay);
     if (scene is String) return SceneAction.scene(scene);
     if (j['notify'] is String) {
       return SceneAction.notify(j['notify'] as String, level: j['level'] is String ? j['level'] as String : 'info');
@@ -93,13 +99,13 @@ class SceneAction {
   }
 
   Json toJson() => raw ?? {
-    'device': ?device,
-    'set': ?set,
-    'delay': ?delay,
-    'scene': ?scene,
-    'notify': ?notify,
-    if (notify != null) 'level': level ?? 'info',
-    'log': ?log,
+      'device': ?device,
+      'set': ?set,
+      'delay': ?delay,
+      'scene': ?scene,
+      'notify': ?notify,
+      if (notify != null) 'level': level ?? 'info',
+      'log': ?log,
   };
 }
 

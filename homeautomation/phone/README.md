@@ -243,10 +243,13 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
 - **Automatyki**: w domu wprost w hubie (`/api/automations`: diagnostyka - pominięte reguły, wschód/zachód, czas;
   „Uruchom teraz”; dziennik), poza domem `homes/{h}/automations/{id}` z `updatedAt` i Set `{"reload":true}`.
   Edytor: kiedy (godzina z dniami, wschód/zachód z przesunięciem, stan urządzenia z „przez N s”, przycisk / wejście
-  węzła krótko / podwójnie / długo, po scenie), tylko jeśli (pora, dni, dzień / noc, stan), wtedy (ustaw urządzenie -
+  węzła krótko / podwójnie / długo albo od razu `down` / `up` / `change`, po scenie), tylko jeśli (pora, dni, dzień / noc, stan), wtedy (ustaw urządzenie -
   także „Przełącz” kanału: `toggle` / `toggleN`, przerwa, scena, powiadomienie z wagą, wpis w dzienniku, krok
   „Jeśli…”: `{"if":[warunki],"then":[…],"else":[…]}` - warunki jak „tylko jeśli” bez „trwa od”, najwyżej 2 poziomy,
-  dotknięcie bloku go edytuje); opisy z nazwami kanałów i wejść z modułu; błędną regułę hub odrzuca z listą problemów;
+  dotknięcie bloku go edytuje); przerwa także z ułamkiem, tryb „Nowe wyzwolenie liczy od nowa” (`mode: restart`);
+  opisy z nazwami kanałów i wejść z modułu; błędną regułę hub odrzuca z listą problemów. „Z szablonu”
+  (`automation_templates.dart`): wejście jednego węzła steruje wyjściem drugiego - przycisk, łącznik schodowy, łącznik
+  (dwie reguły), czujka na czas. `down` / `up` / `change` i `mode` wymagają firmware huba z tymi funkcjami;
 - **Sceny** (wykonuje je hub; akcja „Powiadomienie” tylko z hubem); po zapisie w chmurze `updatedAt` i `reload`;
 - **Położenie domu** (Set `location`, podpowiedź z ustawień pogody termostatu) - wschód i zachód w automatykach;
 - ustawienia wspólne (chmura - łączenie zapisuje też `deviceIndex/{hubId}` `{"type":"hub"}`, telefony, firmware, WiFi).
