@@ -1,14 +1,14 @@
 // Połączenie zegarka z hubem przez węzeł btnode (API.md pkt 15.2-15.4): łączenie w tle, odczyt stanu co 5 s,
-// polecenia z oknem 500 ms, licznik ramek, wyniki 0-6. Bez API zegarka - transport i zapis licznika są wstrzykiwane
+// polecenia z oknem 1500 ms, licznik ramek, wyniki 0-6. Bez API zegarka - transport i zapis licznika są wstrzykiwane
 // (utils/bttransport.js na zegarku, atrapa huba w testach: test/btlink.test.mjs, tools/smoke.mjs).
 //
 // transport: { open(lastMac) -> Promise<{ mac }>, write(Uint8Array), close(), onFrame(cb), onClose(cb) }
 // storage:   { loadCounter() -> number, saveCounter(n), loadMac() -> string|null, saveMac(mac) }
-import { commandFrame, stateFrame, decodeAck, decodeState, frameType, T_ACK, T_PART, T_END, MAX_COUNT, R_COUNTER, R_CFGVER, F_CFGVER } from "./btframes.js";
+import { commandFrame, stateFrame, decodeAck, decodeState, frameType, T_ACK, T_PART, T_END, MAX_COUNT, R_MAC, R_COUNTER, R_CFGVER, F_CFGVER } from "./btframes.js";
 import { hexToBytes } from "./sha256.js";
 
 export const STATE_EVERY_MS = 5000;
-export const ACK_WAIT_MS = 500; // brak potwierdzenia -> droga przez chmurę (pkt 15.4)
+export const ACK_WAIT_MS = 1500; // brak potwierdzenia -> droga przez chmurę (pkt 15.4; pomiar: ack po 585-1215 ms)
 export const STATE_WAIT_MS = 2000;
 export const READY_WAIT_MS = 2500; // po połączeniu: powiadomienia działają dopiero po zapisie CCCD
 export const READY_RETRY_MS = 300;
@@ -51,6 +51,7 @@ export function createBtLink(opts) {
   let ready = false;
   let opening = false;
   let cfgStale = false;
+  let keyBad = false; // hub odrzuca polecenia (wynik 1), choć lista ma to samo cfgVer - klucz nieważny
   let cloud = null; // flaga z 0x83: hub ma internet
   let stateFails = 0;
   let lastState = 0;
@@ -59,7 +60,7 @@ export function createBtLink(opts) {
   let queue = Promise.resolve();
 
   const emit = (kind, arg) => listeners[kind].forEach((fn) => fn(arg));
-  const status = () => ({ ready, cfgStale, cloud, lastState, connecting: opening });
+  const status = () => ({ ready, cfgStale, keyBad, cloud, lastState, connecting: opening });
   const changed = () => emit("status", status());
 
   function take() {
@@ -184,6 +185,16 @@ export function createBtLink(opts) {
     return false;
   }
 
+  // Po wyniku 1: odczyt stanu mówi, czy to inna lista (flaga cfgVer - nowa przyjdzie przez telefon), czy zły klucz
+  function recheck() {
+    readState().then((ok) => {
+      if (ok && !cfgStale && !keyBad) {
+        keyBad = true;
+        changed();
+      }
+    });
+  }
+
   function schedule(ms) {
     if (timer) cancel(timer);
     timer = later(tick, ms);
@@ -228,24 +239,26 @@ export function createBtLink(opts) {
       cfg = next;
       key = hexToBytes(cfg.key);
       cfgStale = false;
+      keyBad = false;
       if (keyChanged && ready) drop();
       changed();
     },
     config: () => cfg,
     status,
-    canCommand: () => ready && !cfgStale,
+    canCommand: () => ready && !cfgStale && !keyBad,
     // Polecenie przez BLE -> { result, value, counter } albo { result: null, counter } (brak potwierdzenia);
-    // null, gdy nie ma połączenia. Wynik 3: licznik od huba i jedna powtórka.
+    // null, gdy nie ma połączenia. Wynik 3: licznik od huba i jedna powtórka. Wynik 1: w tle odczyt stanu (recheck).
     async command(index, value) {
-      if (!ready || cfgStale) return null;
+      if (!ready || cfgStale || keyBad) return null;
       let ctr = take();
-      let a = await exchange("ack", commandFrame(key, cfg.slot, ctr, index, value), ctr, T.ackWait);
+      let a = await exchange("ack", commandFrame(key, cfg.slot, ctr, index, value, cfg.cfgVer), ctr, T.ackWait);
       if (a && a.result === R_COUNTER) {
         counter = a.value >>> 0;
         storage.saveCounter(counter);
         ctr = take();
-        a = await exchange("ack", commandFrame(key, cfg.slot, ctr, index, value), ctr, T.ackWait);
+        a = await exchange("ack", commandFrame(key, cfg.slot, ctr, index, value, cfg.cfgVer), ctr, T.ackWait);
       }
+      if (a && a.result === R_MAC) recheck();
       if (a && a.result === R_CFGVER && !cfgStale) {
         cfgStale = true;
         changed();

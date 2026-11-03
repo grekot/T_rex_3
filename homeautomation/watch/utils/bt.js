@@ -103,6 +103,13 @@ export function btState(now) {
   return g.btState || null;
 }
 
+// Kłopot z Bluetooth do linii stanu albo "" - hub odrzuca polecenia, choć lista jest aktualna (klucz nieważny)
+export function btProblem() {
+  const g = gd();
+  const st = g && g.bt ? g.bt.status() : null;
+  return st && st.keyBad ? "Bluetooth: połącz zegarek ponownie" : "";
+}
+
 // Źródło stanu do ikony przy tytule: "bt" | "cloud" | "none"
 export function stateSource(cloudOk, now) {
   if (btState(now)) return "bt";
@@ -113,7 +120,8 @@ export function stateSource(cloudOk, now) {
 // -> null: brak połączenia albo punktu na liście pilota - zwykła droga przez chmurę;
 //    { done: true }: hub potwierdził (wynik 0), stan z potwierdzenia już w btState;
 //    { error: "..." }: hub odmówił (2 - uprawnienia, 6 - zła wartość) - chmura też odmówi;
-//    { cmdKey }: brak potwierdzenia albo wynik 1/4/5 - to samo polecenie przez chmurę z tym kluczem.
+//    { cmdKey }: brak potwierdzenia w 1500 ms albo wynik 1/4/5 - to samo polecenie przez chmurę z tym kluczem
+//    (po wyniku 1 połączenie samo sprawdza, czy to inna lista, czy zły klucz - btProblem).
 export async function btSend(device, point, value, arg) {
   const g = gd();
   const link = g && g.bt;

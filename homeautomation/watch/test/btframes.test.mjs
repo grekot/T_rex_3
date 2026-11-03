@@ -27,9 +27,19 @@ const SLOT = 3;
 const hex = (b) => bytesToHex(b);
 
 // Zegarek -> hub
-assert.equal(hex(commandFrame(KEY, SLOT, 1000, 2, 2150)), "010103000003e8020000086640e9f6a9630c484a");
-assert.equal(hex(commandFrame(KEY, SLOT, 1001, 0, 1)), "010103000003e9000000000130695141248e130a");
-assert.equal(hex(commandFrame(KEY, SLOT, 1002, 5, -250)), "010103000003ea05ffffff0690b1e737c3ea0674");
+// 0x01: MAC z bajtów ramki + cfgVer listy (2 B, niewysyłany) - API.md 15.2 od 7097c77. Wektory w BTNODE_GATT_WEKTORY.md
+// są jeszcze sprzed tej zmiany (sesja btnode-hub je aktualizuje) - do tego czasu sprawdzenie niezależnym HMAC z node:crypto.
+const macOf = (bytes) => createHmac("sha256", Buffer.from(KEY)).update(Buffer.from(bytes)).digest().subarray(0, 8).toString("hex");
+for (const [ctr, index, value, cfgVer, body] of [
+  [1000, 2, 2150, 4, "010103000003e80200000866"],
+  [1001, 0, 1, 4, "010103000003e90000000001"],
+  [1002, 5, -250, 0x1234, "010103000003ea05ffffff06"],
+]) {
+  const f = hex(commandFrame(KEY, SLOT, ctr, index, value, cfgVer));
+  assert.equal(f.slice(0, 24), body);
+  assert.equal(f.slice(24), macOf([...hexToBytes(body), cfgVer >> 8, cfgVer & 0xff]), "MAC z cfgVer " + cfgVer);
+}
+assert.notEqual(hex(commandFrame(KEY, SLOT, 1000, 2, 2150, 4)), hex(commandFrame(KEY, SLOT, 1000, 2, 2150, 5)), "inna lista - inny MAC");
 assert.equal(hex(stateFrame(KEY, SLOT, 1003, 4, 0, 5)), "010203000003eb00040005595a983940061d98");
 assert.equal(commandFrame(KEY, SLOT, 1, 0, 0).length, 20, "ramka polecenia 20 B");
 assert.equal(stateFrame(KEY, SLOT, 1, 0, 0, 0).length, 19);

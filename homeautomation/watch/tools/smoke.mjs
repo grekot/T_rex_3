@@ -965,18 +965,29 @@ test("Bluetooth: konfiguracja z telefonu, stan z huba, przełączenie bez chmury
   const ctr = Number(files["btlicznik.txt"]);
   assert.ok(ctr >= bt.hub.commands[0].ctr, "licznik zapisany");
 
-  // hub nie odpowiada w 500 ms -> to samo polecenie przez chmurę z kluczem "<pilot>:<licznik>"
+  // hub nie odpowiada w 1500 ms -> to samo polecenie przez chmurę z kluczem "<pilot>:<licznik>"
   await run(400); // podwójne dotknięcie
   bt.hub.drop = true;
   p.tile("Sufit").tapPill();
   await run(50);
   assert.deepEqual(side.commands, [], "najpierw czekamy na Bluetooth");
+  await run(1000);
+  assert.deepEqual(side.commands, [], "1,05 s - dalej czekamy");
   await run(600);
   assert.deepEqual(side.commands, [{ on: false }]);
   const sent = bt.hub.frames.filter((f) => f[1] === 0x01).at(-1);
   const sentCtr = ((sent[3] << 24) | (sent[4] << 16) | (sent[5] << 8) | sent[6]) >>> 0;
   assert.deepEqual(side.cmdKeys, ["zegarek-1:" + sentCtr]);
   bt.hub.drop = false;
+
+  // wynik 1 przy tej samej liście (klucz nieważny): od razu chmura, w linii stanu prośba o ponowne połączenie
+  await run(5000);
+  bt.hub.badKey = true;
+  p.tile("Sufit").tapPill();
+  await run(100);
+  assert.equal(side.commands.length, 2, "bez czekania 1,5 s");
+  assert.ok(p.has("Bluetooth: połącz zegarek ponownie"), p.texts().join(" | "));
+  bt.hub.badKey = false;
   assert.equal(p.destroy(), 0, "po zamknięciu żadnych timerów (także połączenia)");
   assert.ok(bt.transports.every((t) => !t.connected), "połączenie zamknięte");
   btCleanup();

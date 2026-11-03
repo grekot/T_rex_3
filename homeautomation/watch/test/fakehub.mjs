@@ -60,7 +60,9 @@ export function createFakeHub({ keyHex, slot, cfgVer, values, onCommand }) {
       if (f[0] !== 1 || f[2] !== slot) return;
       const ctr = get32(f, 3) >>> 0;
       const body = Array.from(f).slice(0, f.length - 8);
-      const ok = mac8(key, body).every((b, i) => b === f[f.length - 8 + i]);
+      // polecenie: HMAC także z cfgVer listy (niewysyłany) - hub liczy ze swoim
+      const signedBody = f[1] === 0x01 ? body.concat([(hub.cfgVer >> 8) & 0xff, hub.cfgVer & 0xff]) : body;
+      const ok = !(f[1] === 0x01 && hub.badKey) && mac8(key, signedBody).every((b, i) => b === f[f.length - 8 + i]);
       if (f[1] === 0x01) {
         const index = f[7];
         const value = get32(f, 8);

@@ -52,10 +52,11 @@ wie, pod jaki ekran układać pulpit.
 i lista wyborów z `describe`), zegarek trzyma je w pamięci (`ble.json`, razem z ostatnim pulpitem `pulpit.json`, licznikiem
 ramek i ostatnim węzłem – pliki `@zos/fs`). Po otwarciu aplikacji łączy się w tle z węzłem `HA-BT` (ostatni użyty, inaczej
 najsilniejszy z 1 s skanu; ponawianie jak w `bt-proba`), czyta stan ramką `0x02` co 5 s i wysyła polecenia ramką `0x01`
-(HMAC-SHA256 w JS, `utils/sha256.js`, ramki `utils/btframes.js`). Polecenie z kafelka, ekranu termostatu i scena
-(`runScene` z `arg` = id sceny) idą najpierw przez Bluetooth; bez potwierdzenia w 500 ms albo przy wyniku 1/4/5 – to
-samo przez chmurę z `"cmdKey": "<id pilota>:<licznik>"`; wynik 2 → „Brak uprawnień”, 6 → „Zła wartość”, 3 → licznik od
-huba i powtórka, 4 (inna lista) → polecenia przez chmurę do nowej listy z telefonu. Stan z Bluetooth (świeższy niż 15 s)
+(HMAC-SHA256 w JS, `utils/sha256.js`, ramki `utils/btframes.js`; HMAC polecenia obejmuje też `cfgVer` listy).
+Polecenie z kafelka, ekranu termostatu i scena (`runScene` z `arg` = id sceny) idą najpierw przez Bluetooth; bez
+potwierdzenia w 1500 ms albo przy wyniku 1/5 – to samo przez chmurę z `"cmdKey": "<id pilota>:<licznik>"`; wynik 2 →
+„Brak uprawnień”, 6 → „Zła wartość”, 3 → licznik od huba i powtórka. Po wyniku 1 zegarek czyta stan: flaga „inne
+`cfgVer`” → polecenia przez chmurę do nowej listy z telefonu, bez flagi → „Bluetooth: połącz zegarek ponownie”. Stan z Bluetooth (świeższy niż 15 s)
 przykrywa chmurę; ikona nad tytułem: Bluetooth / chmura / brak. Bez telefonu pulpit pokazuje ostatni zapisany układ
 („--” do pierwszego odczytu) i działa przez Bluetooth; „Telefon niedostępny” znika, gdy Bluetooth działa.
 

@@ -25,7 +25,7 @@ import {
   applyAck,
 } from "../../../utils/termostat";
 import { ask, setTop, onTap, toast, parseParams } from "../../../utils/page";
-import { onBt, btState, btSend, stateSource } from "../../../utils/bt";
+import { onBt, btState, btSend, btProblem, stateSource } from "../../../utils/bt";
 import { applyBtView } from "../../../utils/btpoints";
 import { canControl } from "../../../utils/home";
 import {
@@ -374,7 +374,7 @@ Page(
         this.sendNext();
       };
       s.sentAt = Date.now();
-      // najpierw Bluetooth (pkt 15.4); bez potwierdzenia w 500 ms albo wynik 4/5 - telefon z tym samym cmdKey
+      // najpierw Bluetooth (pkt 15.4); bez potwierdzenia w 1500 ms albo wynik 1/5 - telefon z tym samym cmdKey
       const point = Object.keys(item.values)[0];
       btSend(s.id, point, item.values[point])
         .catch(() => null)
@@ -443,6 +443,7 @@ Page(
       else if (s.error) msg = "Błąd: " + s.error;
       else if (s.sending || s.queue.length) msg = "Wysyłanie...";
       else if (s.awaitKey) msg = "Czekam na termostat...";
+      else msg = btProblem();
       s.msg.setProperty(hmUI.prop.TEXT, msg);
     },
   })

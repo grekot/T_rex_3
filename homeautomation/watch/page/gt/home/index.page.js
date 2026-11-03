@@ -29,7 +29,7 @@ import { canControl, formatPoint, stepPoint, emptyMessage, iconAsset } from "../
 import { layoutPages } from "../../../utils/layout";
 import { APP_VERSION } from "../../../utils/version";
 import { ask, setTop, isTop, onTap, toast } from "../../../utils/page";
-import { ensureBt, stopBt, onBt, btState, btSend, stateSource } from "../../../utils/bt";
+import { ensureBt, stopBt, onBt, btState, btSend, btProblem, stateSource } from "../../../utils/bt";
 import { applyBt, normalizeBle } from "../../../utils/btpoints";
 import { loadBle, saveBle, loadPulpit, savePulpit } from "../../../utils/btstore";
 import { createBleTransport } from "../../../utils/bttransport";
@@ -459,8 +459,8 @@ Page(
       if (item.kind === "toggle" && canControl(item.level) && d.tile.hasData) this.toggle(item, d);
     },
 
-    // Polecenie: najpierw Bluetooth (pkt 15.4) - jeden punkt z listy pilota; bez potwierdzenia w 500 ms albo
-    // przy wyniku 4/5 to samo przez telefon i chmurę z cmdKey (urządzenie nie wykona go drugi raz).
+    // Polecenie: najpierw Bluetooth (pkt 15.4) - jeden punkt z listy pilota; bez potwierdzenia w 1500 ms albo
+    // przy wyniku 1/5 to samo przez telefon i chmurę z cmdKey (urządzenie nie wykona go drugi raz).
     // done(r): { ok: true, bt: true } - potwierdził hub; odpowiedź SET z telefonu; null - telefon niedostępny.
     sendSet(id, values, done) {
       const s = this.state;
@@ -652,6 +652,7 @@ Page(
       else if (s.error) status = "Błąd: " + s.error;
       else if (s.sending) status = "Wysyłanie...";
       else if (s.flash) status = s.flash.text;
+      else status = btProblem();
       s.status.setProperty(hmUI.prop.TEXT, status);
     },
 

@@ -104,6 +104,28 @@ assert.equal(nextCounter(0, 0), 1, "zegar sprzed epoki");
   link.setConfig({ ...cfg, cfgVer: 5 });
   await until(() => !link.status().cfgStale && link.canCommand());
 
+  // polecenie ze starą listą: cfgVer w HMAC (pkt 15.2) - hub odrzuca wynikiem 1, odczyt stanu pokazuje inną listę
+  hub.cfgVer = 6;
+  const old = await link.command(2, 1);
+  assert.equal(old.result, 1);
+  await until(() => link.status().cfgStale);
+  assert.equal(link.status().keyBad, false, "inna lista to nie zły klucz");
+  link.setConfig({ ...cfg, cfgVer: 6 });
+  await until(() => link.canCommand());
+  assert.equal((await link.command(2, 1)).result, 0, "z nową listą działa");
+
+  // wynik 1 przy tej samej liście: klucz nieważny - polecenia już tylko przez chmurę
+  hub.badKey = true;
+  assert.equal((await link.command(2, 0)).result, 1);
+  await until(() => link.status().keyBad);
+  assert.equal(link.status().cfgStale, false);
+  assert.equal(link.canCommand(), false);
+  assert.equal(await link.command(2, 0), null);
+  hub.badKey = false;
+  link.setConfig({ ...cfg, cfgVer: 6 }); // nowy klucz z telefonu
+  assert.equal(link.status().keyBad, false);
+  await until(() => link.canCommand());
+
   // rozłączenie -> ponowne łączenie
   const opened = tr.opened;
   tr.disconnect();

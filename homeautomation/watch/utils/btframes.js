@@ -14,10 +14,10 @@ export const MAX_COUNT = 32; // punktów w jednym odczycie stanu
 
 // Wyniki potwierdzenia
 export const R_OK = 0;
-export const R_MAC = 1; // zły MAC / nieznany slot
+export const R_MAC = 1; // zły MAC (też inne cfgVer listy) / nieznany slot
 export const R_FORBIDDEN = 2;
 export const R_COUNTER = 3; // licznik za mały - w polu wartość ostatni licznik huba
-export const R_CFGVER = 4; // lista punktów w hubie inna (zegarek pobiera ją przez telefon)
+export const R_CFGVER = 4; // zarezerwowane (inne cfgVer widać w odczycie stanu)
 export const R_OFFLINE = 5; // urządzenie nie odpowiedziało w 2 s
 export const R_VALUE = 6;
 
@@ -52,12 +52,14 @@ function signed(key, a) {
   return Uint8Array.from(a.concat(mac(key, a)));
 }
 
-// 0x01 polecenie: punkt (indeks w liście) i wartość int32 -> 20 B
-export function commandFrame(key, slot, counter, index, value) {
+// 0x01 polecenie: punkt (indeks w liście) i wartość int32 -> 20 B. Do HMAC dochodzi na końcu cfgVer listy zegarka
+// (2 B, niewysyłany, API.md 15.2 od 7097c77) - polecenie do starej listy hub odrzuci wynikiem 1.
+export function commandFrame(key, slot, counter, index, value, cfgVer) {
   const a = header(T_COMMAND, slot, counter);
   a.push(index & 0xff);
   put32(a, value | 0);
-  return signed(key, a);
+  const v = (cfgVer >>> 0) & 0xffff;
+  return Uint8Array.from(a.concat(mac(key, a.concat([v >>> 8, v & 0xff]))));
 }
 
 // 0x02 odczyt stanu punktów od..od+ile-1 -> 19 B
