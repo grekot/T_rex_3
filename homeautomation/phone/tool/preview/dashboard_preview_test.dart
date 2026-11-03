@@ -305,7 +305,6 @@ void main() {
                   label: 'Schody',
                 ).resized(4, 2).pinnedAt(0, 3),
               ],
-              emptyCell: (r, c) => EmptyCell(onDrop: (_) {}),
               builder: (w) => EditableTile(
                 id: w.id,
                 onTap: () {},
