@@ -27,7 +27,8 @@ Future<List<AvailableUpdate>> collectUpdates(CloudStore store, String uid, Firmw
         final u = toJsonObject(await store.read('homes/$h/devices/$id/updates').catchError((_) => null));
         if (u == null) continue;
         for (final d in HubUpdates.fromJson(u).devices) {
-          if (d.hasUpdate && !d.state.busy) out.add((name: nameOf(d.id), key: '${d.id}@${d.next}'));
+          if (!d.hasUpdate || d.state.busy) continue;
+          out.add((name: d.label({for (final k in [d.id, ?d.parent]) k: nameOf(k)}), key: '${d.id}@${d.next}'));
         }
       }
     }

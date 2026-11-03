@@ -327,7 +327,12 @@ class DeviceHubUpdates implements UpdateBackend {
           hubId: c.device.id,
           hubName: c.device.name,
           updates: u,
-          names: {for (final d in u.devices) d.id: hub.device(d.id)?.name ?? d.id},
+          names: {
+            for (final d in u.devices) ...{
+              d.id: hub.device(d.id)?.name ?? d.id,
+              for (final p in [?d.parent]) p: hub.device(p)?.name ?? p,
+            },
+          },
         ),
       );
     }

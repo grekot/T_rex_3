@@ -174,9 +174,13 @@ class HubUpdateEntry {
     this.ready = false,
     this.state = HubUpdateState.idle,
     this.error,
+    this.parent,
   });
 
   final String id;
+
+  /// Drugi układ węzła (pkt 3e, `btnode`: `<id>-ble`) - id węzła, do którego należy.
+  final String? parent;
   final String? fwId;
   final String? current;
   final String? available;
@@ -205,8 +209,26 @@ class HubUpdateEntry {
     'crash' => 'nowa wersja się zawieszała - węzeł wrócił do poprzedniej',
     'boot' => 'nowa wersja nie wystartowała - węzeł wrócił do poprzedniej',
     'offline' => 'węzeł nie odpowiada',
+    'no_return' => 'węzeł nie wrócił po aktualizacji',
+    // Drugi układ węzła (`/api/bleota`): `ble <powód>`.
+    final String e when e.startsWith('ble ') =>
+      'układ Bluetooth: ${switch (e.substring(4)) {
+        'no_boot' => 'nowa wersja nie wystartowała - wrócił do poprzedniej',
+        'verify' => 'błąd sprawdzenia pliku',
+        'timeout' || 'end_timeout' => 'nie odpowiada podczas wgrywania',
+        'read' => 'błąd odczytu pliku w węźle',
+        final r => r,
+      }}',
     final e => e,
   };
+
+  /// Nazwa na liście: węzeł z [names], drugi układ - „`<węzeł> - układ Bluetooth`”.
+  String label(Map<String, String> names) {
+    final p = parent;
+    if (p == null) return names[id] ?? id;
+    final part = fwId?.contains('lolin32') == true || id.endsWith('-ble') ? 'układ Bluetooth' : 'drugi układ';
+    return '${names[p] ?? p} - $part';
+  }
 
   factory HubUpdateEntry.fromJson(Json j) => HubUpdateEntry(
     id: asString(j['id'], 'id'),
@@ -223,6 +245,7 @@ class HubUpdateEntry {
     ready: asBool(j['ready'], 'ready'),
     state: HubUpdateState.fromWire(j['state']),
     error: asStringOrNull(j['error'], 'error'),
+    parent: asStringOrNull(j['parent'], 'parent'),
   );
 }
 

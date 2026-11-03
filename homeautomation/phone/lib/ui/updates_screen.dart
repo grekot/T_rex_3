@@ -319,7 +319,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
   }
 
   Widget _hubEntry(HubUpdatesView h, HubUpdateEntry d, Set<String> sel, ColorScheme cs) {
-    final name = h.names[d.id] ?? d.id;
+    final name = d.label(h.names);
     final version = d.hasUpdate
         ? '${d.current} → ${d.next}${d.twoSteps ? ' (potem ${d.available})' : ''}'
         : (d.current ?? '?');

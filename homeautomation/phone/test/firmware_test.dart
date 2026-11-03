@@ -168,6 +168,22 @@ void main() {
     expect((hubMap.devices.single.state, hubMap.devices.single.selectable), (HubUpdateState.updating, false));
   });
 
+  test('drugi układ węzła (btnode, pkt 3e): nazwa „<węzeł> - układ Bluetooth”, błędy ble', () {
+    final ble = HubUpdateEntry.fromJson({
+      'id': 'bt-e2d8f8-ble',
+      'parent': 'bt-e2d8f8',
+      'fwId': 'btnode-lolin32',
+      'current': '1.0.0',
+      'error': 'ble no_boot',
+    });
+    const names = {'bt-e2d8f8': 'Bramka w salonie'};
+    expect(ble.label(names), 'Bramka w salonie - układ Bluetooth');
+    expect(ble.label(const {}), 'bt-e2d8f8 - układ Bluetooth');
+    expect(HubUpdateEntry.fromJson({'id': 'bt-e2d8f8'}).label(names), 'Bramka w salonie');
+    expect(ble.errorLabel, 'układ Bluetooth: nowa wersja nie wystartowała - wrócił do poprzedniej');
+    expect(HubUpdateEntry.fromJson({'id': 'a', 'error': 'ble xyz'}).errorLabel, 'układ Bluetooth: xyz');
+  });
+
   test('katalog: z sieci, kopia bez internetu, bez kopii - błąd', () async {
     final cache = MemoryTextCache();
     var online = true;
@@ -206,18 +222,20 @@ void main() {
       'checked': 1793000000,
       'devices': [
         {'id': 'sw1', 'current': '1.3.0', 'available': '1.4.0', 'ready': true, 'state': 'idle'},
+        {'id': 'bt1-ble', 'parent': 'bt1', 'fwId': 'btnode-lolin32', 'current': '1.0.0', 'next': '1.1.0'},
       ],
     });
+    store.set('homes/h1/deviceIndex/bt1', {'type': 'btnode', 'name': 'Bramka', 'via': 'hub1'});
     store.set('homes/h2/devices/x/info', {'type': 'thermostat', 'fw': '1.0.0', 'fwId': 'thermostat-n16r8'});
     final m = FirmwareManifest.fromJson(_manifestJson);
     final found = await collectUpdates(store, 'own', m);
-    expect(found.map((a) => a.key), ['t1@2.2.0', 'sw1@1.4.0']);
-    expect(found.map((a) => a.name), ['Salon', 'Taras']);
+    expect(found.map((a) => a.key), ['t1@2.2.0', 'sw1@1.4.0', 'bt1-ble@1.1.0']);
+    expect(found.map((a) => a.name), ['Salon', 'Taras', 'Bramka - układ Bluetooth']);
 
     final n = updateNotice(found, const {})!;
-    expect(n.title, 'Dostępne aktualizacje (2)');
+    expect(n.title, 'Dostępne aktualizacje (3)');
     expect(n.body, startsWith('Salon, Taras'));
-    expect(updateNotice(found, {'t1@2.2.0', 'sw1@1.4.0'}), isNull, reason: 'już powiadomione');
+    expect(updateNotice(found, {'t1@2.2.0', 'sw1@1.4.0', 'bt1-ble@1.1.0'}), isNull, reason: 'już powiadomione');
     expect(updateNotice(found, {'t1@2.1.0'}), isNotNull, reason: 'nowa wersja');
   });
 
@@ -244,12 +262,13 @@ void main() {
         HubUpdatesView(
           hubId: 'hub1',
           hubName: 'Hub',
-          names: {'sw1': 'Taras', 'sw2': 'Schody'},
+          names: {'sw1': 'Taras', 'sw2': 'Schody', 'bt1': 'Bramka'},
           updates: HubUpdates(
             checked: 1793000000,
             devices: [
               HubUpdateEntry(id: 'sw1', current: '1.3.0', available: '1.4.0', next: '1.4.0', ready: true),
               HubUpdateEntry(id: 'sw2', current: '1.3.0', available: '1.4.0', next: '1.4.0'),
+              HubUpdateEntry(id: 'bt1-ble', parent: 'bt1', fwId: 'btnode-lolin32', current: '1.0.0'),
             ],
           ),
         ),
@@ -289,6 +308,7 @@ void main() {
     await tester.dragUntilVisible(find.byKey(const Key('hubApply-hub1')), find.byType(ListView), const Offset(0, -200));
     await tester.pump();
     expect(find.textContaining('hub jeszcze pobiera plik'), findsOneWidget);
+    expect(find.text('Bramka - układ Bluetooth'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.byKey(const Key('hubApply-hub1'))).onPressed, isNull);
     await tester.tap(find.byKey(const Key('hubUpd-sw1')));
     await tester.pump();
