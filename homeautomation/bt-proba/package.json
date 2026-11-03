@@ -1,0 +1,15 @@
+{
+  "name": "bt-proba",
+  "version": "0.1.0",
+  "description": "Pomiar połączenia Amazfit T-Rex 3 z węzłem ESP32 przez BLE",
+  "main": "app.js",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "test": "node test/stats.test.mjs"
+  },
+  "dependencies": {
+    "@silver-zepp/easy-ble": "1.7.8-e",
+    "@zeppos/zml": "^0.0.9"
+  }
+}
