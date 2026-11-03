@@ -14,7 +14,7 @@ const until = async (cond, ms = 2000) => {
     await wait(5);
   }
 };
-const TIMING = { stateEvery: 60, ackWait: 80, stateWait: 80, readyWait: 300, readyRetry: 40, retryPause: 10, reconnect: 100 };
+const TIMING = { stateEvery: 60, ackWait: 80, stateWait: 80, readyWait: 300, readyRetry: 40, readyStateWait: 80, retryPause: 10, reconnect: 100 };
 
 function memStore(counter = 0) {
   const s = { counter, mac: null, saves: 0 };
@@ -55,7 +55,7 @@ assert.equal(nextCounter(0, 0), 1, "zegar sprzed epoki");
   const hub = createFakeHub({ keyHex: KEY, slot: 3, cfgVer: 4, values: [{ status: 1, value: 2143 }, { status: 1, value: 2100 }, { status: 1, value: 0 }] });
   const tr = fakeTransport(hub);
   tr.failOpen = 1; // pierwsza próba połączenia nie wychodzi
-  hub.mute = 2; // dwa pierwsze odczyty giną (powiadomienia jeszcze nie działają)
+  hub.mute = 2; // dwa pierwsze echa giną (powiadomienia jeszcze nie działają)
   const store = memStore(0);
   const link = createBtLink({ cfg, transport: tr, storage: store, timing: TIMING });
   const states = [];
@@ -64,6 +64,8 @@ assert.equal(nextCounter(0, 0), 1, "zegar sprzed epoki");
   link.start();
   await until(() => link.status().ready);
   assert.equal(tr.opened, 2, "ponowienie po nieudanym łączeniu");
+  const sent = hub.frames.map((f) => f[0] === 0x50 ? "echo" : f[1]);
+  assert.deepEqual(sent.slice(0, 4), ["echo", "echo", "echo", 0x02], "najpierw echo do skutku, potem jedno 0x02");
   assert.equal(store.s.mac, "AA:BB:CC:00:11:22", "zapamiętany adres");
   assert.ok(states.length >= 1);
   assert.deepEqual(states[0].points, [{ status: 1, value: 2143 }, { status: 1, value: 2100 }, { status: 1, value: 0 }]);

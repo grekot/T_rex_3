@@ -51,7 +51,8 @@ wie, pod jaki ekran układać pulpit.
 (`homeId`, `hub`, `id`, `slot`, `key`) i listę punktów pilota `homes/{h}/remotes/{id}` (`points`, `cfgVer`; rodzaj punktu
 i lista wyborów z `describe`), zegarek trzyma je w pamięci (`ble.json`, razem z ostatnim pulpitem `pulpit.json`, licznikiem
 ramek i ostatnim węzłem – pliki `@zos/fs`). Po otwarciu aplikacji łączy się w tle z węzłem `HA-BT` (ostatni użyty, inaczej
-najsilniejszy z 1 s skanu; ponawianie jak w `bt-proba`), czyta stan ramką `0x02` co 5 s i wysyła polecenia ramką `0x01`
+najsilniejszy z 1 s skanu; ponawianie jak w `bt-proba`; gotowość: echo ramki `0x50` z węzła, potem jedno `0x02`,
+ponowienie po 1,5 s), czyta stan ramką `0x02` co 5 s i wysyła polecenia ramką `0x01`
 (HMAC-SHA256 w JS, `utils/sha256.js`, ramki `utils/btframes.js`; HMAC polecenia obejmuje też `cfgVer` listy).
 Polecenie z kafelka, ekranu termostatu i scena (`runScene` z `arg` = id sceny) idą najpierw przez Bluetooth; bez
 potwierdzenia w 1500 ms albo przy wyniku 1/5 – to samo przez chmurę z `"cmdKey": "<id pilota>:<licznik>"`; wynik 2 →

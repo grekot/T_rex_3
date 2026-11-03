@@ -57,6 +57,8 @@ export function createFakeHub({ keyHex, slot, cfgVer, values, onCommand }) {
         hub.mute--;
         return;
       }
+      // węzeł odsyła echo każdego zapisu, który nie zaczyna się wersją protokołu (sprawdzenie CCCD przez 0x50)
+      if (f[0] !== 1) return send(Uint8Array.from(f));
       if (f[0] !== 1 || f[2] !== slot) return;
       const ctr = get32(f, 3) >>> 0;
       const body = Array.from(f).slice(0, f.length - 8);

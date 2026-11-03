@@ -9,9 +9,14 @@ import { hexToBytes } from "./sha256.js";
 
 export const STATE_EVERY_MS = 5000;
 export const ACK_WAIT_MS = 1500; // brak potwierdzenia -> droga przez chmurę (pkt 15.4; pomiar: ack po 585-1215 ms)
-export const STATE_WAIT_MS = 2000;
-export const READY_WAIT_MS = 2500; // po połączeniu: powiadomienia działają dopiero po zapisie CCCD
+export const STATE_WAIT_MS = 2000; // pomiar: zapis 0x02 -> ostatnia ramka stanu ok. 0,5 s
+// Gotowość: echo 0x50 z samego węzła (bez huba) potwierdza, że powiadomienia działają (zapis CCCD), potem jedno 0x02;
+// ponowienie odczytu dopiero po READY_STATE_WAIT_MS - częstsze zapchałoby kolejkę huba (8 ramek)
+export const ECHO = 0x50;
+export const READY_WAIT_MS = 2500;
 export const READY_RETRY_MS = 300;
+export const READY_STATE_WAIT_MS = 1500;
+export const READY_STATE_TRIES = 2;
 export const OPEN_TRIES = 3; // jak w BT proba: połączenie, które nie powstało, ponawiamy od razu
 export const RETRY_PAUSE_MS = 200;
 export const RECONNECT_MS = 8000; // po nieudanych próbach albo rozłączeniu
@@ -31,6 +36,7 @@ const DEFAULTS = {
   stateWait: STATE_WAIT_MS,
   readyWait: READY_WAIT_MS,
   readyRetry: READY_RETRY_MS,
+  readyStateWait: READY_STATE_WAIT_MS,
   retryPause: RETRY_PAUSE_MS,
   reconnect: RECONNECT_MS,
 };
@@ -56,7 +62,7 @@ export function createBtLink(opts) {
   let stateFails = 0;
   let lastState = 0;
   let timer = null;
-  let pending = null; // { type: "state", counter, parts, resolve } | { type: "ack", counter, resolve }
+  let pending = null; // { type: "state" | "ack" | "echo", counter, parts, frame, resolve }
   let queue = Promise.resolve();
 
   const emit = (kind, arg) => listeners[kind].forEach((fn) => fn(arg));
@@ -73,10 +79,13 @@ export function createBtLink(opts) {
     const t = frameType(f);
     const p = pending;
     if (!p) return;
-    if (t === T_ACK && p.type === "ack") {
+    if (p.type === "echo") {
+      if (f && f.length === p.frame.length && Array.prototype.every.call(f, (b, i) => b === p.frame[i])) p.resolve(true);
+    } else if (t === T_ACK && p.type === "ack") {
       const a = decodeAck(key, cfg.slot, f);
       if (a && a.counter === p.counter) p.resolve(a);
     } else if (t === T_PART && p.type === "state") {
+      if (f[3] === 0) p.parts = []; // część 0 zaczyna odpowiedź - resztki spóźnionej poprzedniej odpadają
       p.parts.push(f);
     } else if (t === T_END && p.type === "state") {
       const s = decodeState(key, cfg.slot, p.parts.concat([f]));
@@ -113,7 +122,7 @@ export function createBtLink(opts) {
           resolve(v);
         };
         const t = later(() => finish(null), waitMs);
-        pending = { type, counter: ctr, parts: [], resolve: finish };
+        pending = { type, counter: ctr, parts: [], frame, resolve: finish };
         try {
           transport.write(frame);
         } catch (e) {
@@ -156,16 +165,26 @@ export function createBtLink(opts) {
     return any;
   }
 
+  // Echo z węzła: ramka 0x50 + 4 bajty, wraca bez huba -> true, gdy powiadomienia już działają
+  let echoNo = 0;
+  function echo(waitMs) {
+    const n = (++echoNo + (now() & 0xffff) * 65536) >>> 0;
+    const frame = Uint8Array.from([ECHO, (n >>> 24) & 0xff, (n >>> 16) & 0xff, (n >>> 8) & 0xff, n & 0xff]);
+    return exchange("echo", frame, -n - 1, waitMs).then((v) => v === true);
+  }
+
   async function open() {
     opening = true;
     changed();
     for (let tries = 1; tries <= OPEN_TRIES && running; tries++) {
       try {
         const r = await transport.open(storage.loadMac());
-        // gotowość = pierwsza odpowiedź huba na odczyt stanu (ponawiany, aż zadziałają powiadomienia)
+        // gotowość: echo z węzła (powiadomienia działają), potem odpowiedź huba na odczyt stanu
         const end = now() + T.readyWait;
+        let notify = false;
+        while (!notify && running && now() < end) notify = await echo(T.readyRetry);
         let ok = false;
-        while (!ok && running && now() < end) ok = await readState(T.readyRetry);
+        for (let i = 0; notify && !ok && running && i < READY_STATE_TRIES; i++) ok = await readState(T.readyStateWait);
         if (ok) {
           if (r && r.mac) storage.saveMac(r.mac);
           opening = false;
