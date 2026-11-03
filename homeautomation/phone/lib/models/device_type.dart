@@ -9,6 +9,9 @@ enum DeviceType {
 
   /// Czujnik (np. Bluetooth przez hub, pkt 11): tylko odczyt, punkty z `describe`.
   sensor('sensor', 'Czujnik'),
+
+  /// Bramka Bluetooth (`nodes/btnode`): przekazuje hubowi czujniki Bluetooth i zegarki (pkt 11, 15).
+  btnode('btnode', 'Bramka Bluetooth'),
   unknown('', 'Urządzenie');
 
   const DeviceType(this.wire, this.label);
@@ -17,13 +20,15 @@ enum DeviceType {
   final String wire;
   final String label;
 
-  /// Brak typu = urządzenie z API 1, czyli termostat.
+  /// Brak typu (null) = urządzenie z API 1, czyli termostat. Pusty tekst to zapisany typ nieznany (do 1.6.0 tak
+  /// zapisywał się każdy typ spoza listy, np. `btnode`) - nie termostat.
   static DeviceType fromWire(String? v) => switch (v) {
-    null || '' || 'thermostat' => thermostat,
+    null || 'thermostat' => thermostat,
     'switch' => onOff,
     'dimmer' => dimmer,
     'hub' => hub,
     'sensor' => sensor,
+    'btnode' => btnode,
     _ => unknown,
   };
 

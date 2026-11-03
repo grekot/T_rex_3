@@ -18,6 +18,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 part 'fake_device.dart';
 part 'fake_light.dart';
 part 'fake_hub.dart';
+part 'fake_btnode.dart';
 
 typedef Clock = DateTime Function();
 

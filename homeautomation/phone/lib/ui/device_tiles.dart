@@ -9,6 +9,7 @@ import 'format.dart';
 import '../controllers/device_hub.dart';
 import '../data/device_icons.dart';
 import 'app_icons.dart';
+import 'btnode_section.dart';
 import 'generic_device_screen.dart';
 import 'hub_screen.dart';
 import 'thermostat_screen.dart';
@@ -53,7 +54,7 @@ Future<void> openDevice(BuildContext context, DeviceController<Object?, Object?>
             ? ThermostatScreen(controller: c)
             : c.device.type == DeviceType.hub && hub != null
             ? HubScreen(controller: c, hub: hub)
-            : GenericDeviceScreen(controller: c),
+            : GenericDeviceScreen(controller: c, hub: hub),
       ),
     );
 
@@ -269,11 +270,18 @@ class _GenericTile extends StatelessWidget {
       onTap: () => openDevice(context, c, hub: hub),
       onLongPress: onLongPress,
       child: Text(
-        c.device.type == DeviceType.hub && c.stateJson != null
-            ? 'Hub · ${c.stateJson!['online'] ?? 0}/${c.stateJson!['devices'] ?? 0} urządzeń'
-                  '${c.stateJson!['cloud'] == true ? '' : ' · bez chmury'}'
-            : c.device.type.label,
-        style: Theme.of(context).textTheme.bodySmall,
+        switch (c.stateJson) {
+          final s? when c.device.type == DeviceType.hub =>
+            'Hub · ${s['online'] ?? 0}/${s['devices'] ?? 0} urządzeń${s['cloud'] == true ? '' : ' · bez chmury'}',
+          final s? when c.device.type == DeviceType.btnode => btnodeSummary(s),
+          _ => c.device.type.label,
+        },
+        key: Key('tileText-${c.device.id}'),
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: c.device.type == DeviceType.btnode && c.stateJson?['bleOk'] == false
+              ? Theme.of(context).colorScheme.error
+              : null,
+        ),
       ),
     );
   }

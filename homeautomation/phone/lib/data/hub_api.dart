@@ -1,6 +1,7 @@
 import '../models/firmware.dart';
 import '../models/hub.dart';
 import '../models/json_utils.dart';
+import '../models/remote.dart';
 import '../models/scene.dart';
 import 'errors.dart';
 import 'local_api.dart';
@@ -112,6 +113,16 @@ class HubApi {
       key: asString(j['key'], 'key'),
       cfgVer: asInt(j['cfgVer'], 'cfgVer', 1),
     );
+  }
+
+  /// Zarejestrowane zegarki i piloty (bez kluczy) - z `lastUsed` i węzłem `via`.
+  Future<List<HubRemote>> remotes() async {
+    final v = await api.request('GET', '/api/remotes');
+    if (v is Map) _ok(v);
+    return [
+      for (final e in (v is List ? v : const []))
+        if (e is Map) HubRemote.fromJson(e.cast<String, dynamic>()),
+    ];
   }
 
   /// Nowa lista punktów pilota (ten sam dokument co `homes/{h}/remotes/{id}`).

@@ -1,6 +1,6 @@
 // Atrapa urządzenia HomeAutomation (kontrakt v2) do testów aplikacji bez sprzętu.
 //
-//   dart run tool/fake_device.dart [--type thermostat|switch|dimmer|hub] [--port 8080]
+//   dart run tool/fake_device.dart [--type thermostat|switch|dimmer|hub|btnode] [--port 8080]
 //       [--id termostat-ab12cd] [--name Salon] [--token <hex>] [--no-mdns] [--fast]
 //       [--channels 4] [--prov softap] [--pop ab12cd34] [--no-cloud]
 //
@@ -10,7 +10,8 @@
 // Kilka urządzeń naraz: osobne procesy z innym --port i --id.
 // Klawisze (Enter po każdym): k/j = gałka +/-0,5 (termostat), f = awaria czujnika (termostat),
 // w = przycisk na ścianie (światło; w1..w8 = wejście węzła wielokanałowego, l1..l8 = długie naciśnięcie,
-// x1..x8 = usterka wejścia, h65 = temperatura w obudowie 65 °C), b = zajęty (503 busy), p = kod parowania, s = stan,
+// x1..x8 = usterka wejścia, h65 = temperatura w obudowie 65 °C), c / u = bramka Bluetooth: zegarek połączony /
+// układ Bluetooth nie odpowiada, b = zajęty (503 busy), p = kod parowania, s = stan,
 // t = token, q = koniec.
 
 import 'dart:async';
@@ -24,7 +25,7 @@ import 'fake/mdns_responder.dart';
 
 Future<void> main(List<String> argv) async {
   final parser = ArgParser()
-    ..addOption('type', defaultsTo: 'thermostat', allowed: ['thermostat', 'switch', 'dimmer', 'hub'], help: 'Typ urządzenia')
+    ..addOption('type', defaultsTo: 'thermostat', allowed: ['thermostat', 'switch', 'dimmer', 'hub', 'btnode'], help: 'Typ urządzenia')
     ..addOption('port', defaultsTo: '8080', help: 'Port HTTP/WebSocket')
     ..addOption('id', help: 'Identyfikator (domyślnie termostat-ab12cd / swiatlo-0c4f21)')
     ..addOption('name', help: 'Nazwa urządzenia')
@@ -44,7 +45,15 @@ Future<void> main(List<String> argv) async {
 
   final type = args.option('type')!;
   final period = Duration(seconds: args.flag('fast') ? 5 : 30);
-  final FakeDevice fake = type == 'hub'
+  final FakeDevice fake = type == 'btnode'
+      ? FakeBtNode(
+          id: args.option('id') ?? 'bt-a1b2c3',
+          name: args.option('name') ?? 'Bramka Bluetooth',
+          token: args.option('token'),
+          statePeriod: period,
+          log: stdout.writeln,
+        )
+      : type == 'hub'
       ? FakeHub(
           id: args.option('id') ?? 'hub-51e96c',
           name: args.option('name') ?? 'Hub',
@@ -147,6 +156,12 @@ Future<void> main(List<String> argv) async {
           'Temperatura ${l.temp} °C · ostrzeżenie: ${l.overheat ? 'TAK' : 'nie'} · '
           'wyłączenie: ${l.overheatOff ? 'TAK' : 'nie'}',
         );
+      case ('c', final FakeBtNode n):
+        n.toggleConn();
+        stdout.writeln('Połączenia Bluetooth: ${n.bleConns}');
+      case ('u', final FakeBtNode n):
+        n.toggleBle();
+        stdout.writeln('Układ Bluetooth: ${n.bleOk ? 'działa' : 'NIE ODPOWIADA'}');
       case ('b', _):
         fake.busy = !fake.busy;
         stdout.writeln('Zajęty (busy): ${fake.busy ? 'TAK' : 'nie'}');

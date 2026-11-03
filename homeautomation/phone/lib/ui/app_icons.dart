@@ -77,6 +77,7 @@ const appIcons = <AppIcon>[
   // Urządzenia
   AppIcon('hub', 'Hub', Icons.device_hub, 'Urządzenia'),
   AppIcon('node', 'Węzeł', Icons.developer_board, 'Urządzenia'),
+  AppIcon('bluetooth', 'Bramka Bluetooth', Icons.bluetooth, 'Urządzenia'),
   AppIcon('relay', 'Przekaźniki', Icons.view_module_outlined, 'Urządzenia'),
   AppIcon('router', 'Sieć', Icons.router_outlined, 'Urządzenia'),
   AppIcon('chart', 'Wykres', Icons.show_chart, 'Urządzenia'),
@@ -94,6 +95,7 @@ String deviceIconKey(DeviceType type) => switch (type) {
   DeviceType.dimmer => 'dimmer',
   DeviceType.onOff => 'light',
   DeviceType.sensor => 'sensor',
+  DeviceType.btnode => 'bluetooth',
   _ => 'node',
 };
 

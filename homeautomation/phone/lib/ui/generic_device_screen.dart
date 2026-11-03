@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
 import '../controllers/device_controller.dart';
+import '../controllers/device_hub.dart';
 import '../controllers/field_errors.dart';
 import '../data/device_store.dart';
 import '../models/describe.dart';
+import '../models/device_type.dart';
 import '../models/home.dart';
 import '../models/json_utils.dart';
 import '../models/light.dart';
+import 'btnode_section.dart';
 import 'device_admin_section.dart';
 import 'format.dart';
 import 'pairing_screen.dart';
@@ -16,9 +19,12 @@ import 'widgets.dart';
 /// Szczegóły urządzenia innego niż termostat: lista punktów danych z `describe` (pkt 14) z kontrolkami
 /// wg rodzaju i poziomu dostępu, a niżej ustawienia techniczne.
 class GenericDeviceScreen extends StatefulWidget {
-  const GenericDeviceScreen({super.key, required this.controller});
+  const GenericDeviceScreen({super.key, required this.controller, this.hub});
 
   final DeviceController<Object?, Object?> controller;
+
+  /// Urządzenia domu - bramka Bluetooth pokazuje przez hub, co do niej należy.
+  final DeviceHub? hub;
 
   @override
   State<GenericDeviceScreen> createState() => _GenericDeviceScreenState();
@@ -217,50 +223,54 @@ class _GenericDeviceScreenState extends State<GenericDeviceScreen> {
               ),
             ),
           ),
-        FutureBuilder<DeviceDescription?>(
-          future: _describe,
-          builder: (context, snap) {
-            final d = snap.data;
-            if (snap.connectionState == ConnectionState.waiting && d == null) {
-              return const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
-              );
-            }
-            if (d == null || d.points.isEmpty) {
-              // Bez opisu: surowy stan.
+        // Bramka Bluetooth: własne sekcje zamiast listy punktów (`scanAll` przełącza hub przy szukaniu czujników).
+        if (c.device.type == DeviceType.btnode)
+          BtNodeSection(controller: c, hub: widget.hub)
+        else
+          FutureBuilder<DeviceDescription?>(
+            future: _describe,
+            builder: (context, snap) {
+              final d = snap.data;
+              if (snap.connectionState == ConnectionState.waiting && d == null) {
+                return const Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (d == null || d.points.isEmpty) {
+                // Bez opisu: surowy stan.
+                return Card(
+                  child: Column(
+                    children: [
+                      for (final e in state.entries.where((e) => e.value is! Map))
+                        ListTile(dense: true, title: Text(e.key), trailing: Text('${e.value}')),
+                    ],
+                  ),
+                );
+              }
               return Card(
                 child: Column(
                   children: [
-                    for (final e in state.entries.where((e) => e.value is! Map))
-                      ListTile(dense: true, title: Text(e.key), trailing: Text('${e.value}')),
+                    for (final p in d.points)
+                      PointTile(
+                        point: p,
+                        value: p.valueIn(state),
+                        enabled: c.access.atLeast(p.access),
+                        subtitle: _pointSubtitle(p),
+                        statusText: _statusText(p, p.valueIn(state)),
+                        actionLabel: p.kind == PointKind.action && RegExp(r'^on\d+$').hasMatch(p.key)
+                            ? 'Impuls'
+                            : 'Wykonaj',
+                        onSet: (v) async {
+                          final r = await c.sendJson(p.setFor(v));
+                          if (context.mounted && r.errors.isNotEmpty) showSaveResult(context, r.errors, describeErrors);
+                        },
+                      ),
                   ],
                 ),
               );
-            }
-            return Card(
-              child: Column(
-                children: [
-                  for (final p in d.points)
-                    PointTile(
-                      point: p,
-                      value: p.valueIn(state),
-                      enabled: c.access.atLeast(p.access),
-                      subtitle: _pointSubtitle(p),
-                      statusText: _statusText(p, p.valueIn(state)),
-                      actionLabel: p.kind == PointKind.action && RegExp(r'^on\d+$').hasMatch(p.key)
-                          ? 'Impuls'
-                          : 'Wykonaj',
-                      onSet: (v) async {
-                        final r = await c.sendJson(p.setFor(v));
-                        if (context.mounted && r.errors.isNotEmpty) showSaveResult(context, r.errors, describeErrors);
-                      },
-                    ),
-                ],
-              ),
-            );
-          },
-        ),
+            },
+          ),
         if (c.lastSendError != null)
           Padding(
             padding: const EdgeInsets.only(top: 8),

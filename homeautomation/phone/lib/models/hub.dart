@@ -32,18 +32,28 @@ final bleKeyPattern = RegExp(r'^[0-9a-fA-F]{32}$');
 
 /// Węzeł `btnode` w `GET /api/ble/seen`.
 class BleNode {
-  const BleNode({required this.id, this.online = false, this.bleOk, this.scanAll});
+  const BleNode({required this.id, this.online = false, this.bleOk, this.scanAll, this.received, this.lost, this.age});
 
   final String id;
   final bool online;
   final bool? bleOk;
   final bool? scanAll;
 
+  /// Komunikaty odebrane przez hub od tego węzła i zgubione po drodze (luki w `seq`).
+  final int? received;
+  final int? lost;
+
+  /// s od ostatniego komunikatu.
+  final int? age;
+
   factory BleNode.fromJson(Json j) => BleNode(
     id: asString(j['id'], 'id'),
     online: asBool(j['online'], 'online'),
     bleOk: j['bleOk'] is bool ? j['bleOk'] as bool : null,
     scanAll: j['scanAll'] is bool ? j['scanAll'] as bool : null,
+    received: asIntOrNull(j['received'], 'received'),
+    lost: asIntOrNull(j['lost'], 'lost'),
+    age: asIntOrNull(j['age'], 'age'),
   );
 }
 

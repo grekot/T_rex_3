@@ -265,6 +265,16 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   `deviceId` = MAC; właściciel wpisuje `deviceIndex` z `type: sensor` (nowy `DeviceType.sensor`). Na liście: węzeł,
   bateria, „Zły klucz urządzenia” z poprawieniem klucza. Przyciski czujnika (`kind: button` w `describe`) - wyzwalacz
   automatyk: krótko / podwójnie / potrójnie / długo;
+  **Bramka Bluetooth** (węzeł `btnode`, `DeviceType.btnode`, ikona Bluetooth): „Przypisz do huba” daje hubowi token
+  `config` (jak inne węzły; `control` tylko termostat). Ekran bramki (`BtNodeSection` zamiast listy z `describe` -
+  `scanAll` przełącza hub): układ Bluetooth (`bleOk`, `bleFw`, `bleUptime`), połączenia zegarków teraz (`bleConns`),
+  rozgłoszenia na minutę, szukanie w toku, łącze z hubem (`GET /api/ble/seen` `nodes`: odebrane / zgubione), błędy
+  UART (`linkCrcErrors`); przez hub (w domu, co 15 s): czujniki z `state.via` = ta bramka z wartościami i siłą sygnału
+  (dotknięcie - ekran czujnika), „W zasięgu: N nowych czujników” i „Dodaj czujnik Bluetooth” (`HubBleScreen`),
+  zegarki i piloty z `GET /api/remotes` (`via`, `lastUsed`; starszy hub - bez tej części). Kafelek: „Bramka Bluetooth ·
+  2 połączenia”, „Układ Bluetooth nie odpowiada”. Typ nieznany zapisywał się do 1.6.0 jako `""`, a `""` czytało się
+  jak termostat (API 1) - teraz termostat to tylko brak pola, a urządzenie z typem nieznanym bierze typ z
+  `GET /api/info` po połączeniu lokalnym i zapisuje go. Atrapa: `dart run tool/fake_device.dart --type btnode`;
   **Sonoff (eWeLink)** (pkt 11 „eWeLink LAN”, urządzenie zostaje w eWeLink): klucz urządzenia `devicekey` (UUID 36
   znaków, walidacja, wklejanie ze schowka, podpowiedź o `tools/ewelink_klucze.py`) jako `localKey`; listwa (`strip`)
   - wybór kanałów 1-4, osobne `POST /api/devices` z `channel` 0-3 i nazwami „<nazwa> 1..4”; błąd `key` na liście

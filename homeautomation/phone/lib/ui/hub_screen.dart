@@ -987,13 +987,17 @@ class _AssignToHubScreenState extends State<AssignToHubScreen> {
                   ),
                 )
               else
-                Text(
-                  _thermostat
-                      ? 'Hub dostanie od termostatu token „sterowanie” i będzie mógł używać go w automatykach '
-                            '(np. „wszyscy wyszli → eko”). Termostat dalej sam łączy się z chmurą.'
-                      : 'Hub dostanie od ${c.device.name} własny token, będzie zbierał jego stan (także dla '
-                            'automatyk) i przekaże go do chmury - spoza domu sterujesz nim przez hub.',
-                ),
+                Text(switch (c.device.type) {
+                  DeviceType.thermostat =>
+                    'Hub dostanie od termostatu token „sterowanie” i będzie mógł używać go w automatykach '
+                        '(np. „wszyscy wyszli → eko”). Termostat dalej sam łączy się z chmurą.',
+                  DeviceType.btnode =>
+                    'Hub dostanie od bramki token „konfiguracja”: odbiera przez nią czujniki Bluetooth i zegarki, '
+                        'włącza szukanie czujników i aktualizuje jej oprogramowanie.',
+                  _ =>
+                    'Hub dostanie od ${c.device.name} własny token, będzie zbierał jego stan (także dla '
+                        'automatyk) i przekaże go do chmury - spoza domu sterujesz nim przez hub.',
+                }),
               const SizedBox(height: 16),
               if (hubs.isEmpty) const Text('Ten telefon nie jest sparowany z żadnym hubem w sieci domowej.'),
               RadioGroup<String>(

@@ -44,6 +44,37 @@ class WatchBleLink {
   Json toJson() => {'homeId': homeId, 'hub': hub, 'id': id, 'slot': slot, 'key': key};
 }
 
+/// Zegarek albo pilot zarejestrowany w hubie (`GET hub/api/remotes`, bez klucza).
+class HubRemote {
+  const HubRemote({required this.id, this.kind = 'watch', this.name, this.lastUsed, this.via});
+
+  final String id;
+
+  /// `watch` / `pilot`.
+  final String kind;
+  final String? name;
+
+  /// Ostatnie polecenie albo odczyt (czas uniksowy, s); null = jeszcze nigdy.
+  final int? lastUsed;
+
+  /// Węzeł `btnode`, przez który przyszła ostatnia ramka.
+  final String? via;
+
+  String get label => name?.isNotEmpty == true ? name! : id;
+
+  factory HubRemote.fromJson(Json j) {
+    final used = asIntOrNull(j['lastUsed'], 'lastUsed');
+    final via = asStringOrNull(j['via'], 'via');
+    return HubRemote(
+      id: asString(j['id'], 'id'),
+      kind: asString(j['kind'], 'kind', 'watch'),
+      name: asStringOrNull(j['name'], 'name'),
+      lastUsed: used == null || used <= 0 ? null : used,
+      via: via == null || via.isEmpty ? null : via,
+    );
+  }
+}
+
 /// Punkt pilota: urządzenie i pole (`runScene` huba z `arg` = scena). Indeks w ramkach = pozycja na liście.
 typedef RemotePoint = ({String device, String point, String? arg});
 

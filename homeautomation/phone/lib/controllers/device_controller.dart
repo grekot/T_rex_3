@@ -232,6 +232,7 @@ class DeviceController<S, C> extends ChangeNotifier {
 
   /// Lokalnie: poziom tokenu z `GET /api/me` (zmienia się np. po potwierdzeniu `idToken`).
   Future<void> _refreshMyAccess(LocalConnection<S, C> conn) async {
+    if (_device.type == DeviceType.unknown) unawaited(_refreshType(conn));
     try {
       final me = await conn.api.me(timeout: const Duration(seconds: 3));
       if (me.access == AccessLevel.none || me.access == _device.access) return;
@@ -240,6 +241,19 @@ class DeviceController<S, C> extends ChangeNotifier {
       notifyChanged();
     } on Object {
       // Starsze firmware bez /api/me - zostaje zapamiętany poziom.
+    }
+  }
+
+  /// Typ nieznany (np. zapisany przed wersją, która go zna): typ z `GET /api/info`.
+  Future<void> _refreshType(LocalConnection<S, C> conn) async {
+    try {
+      final info = await conn.api.info(timeout: const Duration(seconds: 3));
+      if (info.type == DeviceType.unknown || info.type == _device.type || _disposed) return;
+      _device = _device.copyWith(type: info.type);
+      unawaited(_saveIfPaired());
+      notifyChanged();
+    } on Object {
+      // Zostaje typ nieznany - ekran z `describe`.
     }
   }
 
