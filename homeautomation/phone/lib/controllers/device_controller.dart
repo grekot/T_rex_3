@@ -36,6 +36,7 @@ class DeviceController<S, C> extends ChangeNotifier {
   String? _lastSendError;
   bool _disposed = false;
   int _generation = 0;
+  bool _rerouting = false;
 
   PairedDevice get device => _device;
   DeviceConnection<S, C>? get connection => _connection;
@@ -138,30 +139,60 @@ class DeviceController<S, C> extends ChangeNotifier {
       _step = null;
       _description = null;
       if (conn is LocalConnection<S, C>) unawaited(_refreshMyAccess(conn));
-    } on UnauthorizedException catch (e) {
-      if (gen != _generation) return;
-      _needsPairing = true;
-      _phase = ConnectPhase.failed;
-      _error = e.message;
-    } on ThermostatException catch (e) {
-      if (gen != _generation) return;
-      _phase = ConnectPhase.failed;
-      _error = e.message;
     } on Object catch (e) {
       if (gen != _generation) return;
-      _phase = ConnectPhase.failed;
-      _error = 'Nieoczekiwany błąd: $e';
+      _fail(e);
     }
     notifyChanged();
+  }
+
+  void _fail(Object e) {
+    _phase = ConnectPhase.failed;
+    _needsPairing = e is UnauthorizedException;
+    _error = e is ThermostatException ? e.message : 'Nieoczekiwany błąd: $e';
   }
 
   /// Po powrocie aplikacji z tła: jeśli łącze lokalne leży albo jesteśmy w chmurze,
   /// spróbuj znów wybrać najlepszą drogę.
   Future<void> refreshRoute() async {
-    if (_phase == ConnectPhase.connecting) return;
+    if (_phase == ConnectPhase.connecting || _rerouting) return;
     final c = _connection;
-    if (c == null || c.kind == ConnectionKind.cloud || c.status != LinkStatus.online) {
+    if (c == null || _phase == ConnectPhase.failed) {
       await connect();
+    } else if (c.kind == ConnectionKind.cloud || c.status != LinkStatus.online) {
+      await _reroute();
+    }
+  }
+
+  /// Nowa droga bez zamykania obecnej: stan zostaje na ekranie, przełączamy na gotowe połączenie.
+  /// Chmura zamiast działającej chmury (np. poza domem) - zostaje stare połączenie.
+  Future<void> _reroute() async {
+    final gen = ++_generation;
+    _rerouting = true;
+    try {
+      final conn = await manager.connectWith(_device, codec);
+      final old = _connection;
+      final keepOld =
+          conn.kind == ConnectionKind.cloud && old?.kind == ConnectionKind.cloud && old?.status == LinkStatus.online;
+      if (gen != _generation || _disposed || keepOld) {
+        await conn.close();
+        return;
+      }
+      await _dropConnection();
+      _attach(conn);
+      _phase = ConnectPhase.connected;
+      _step = null;
+      _error = null;
+      _description = null;
+      if (conn is LocalConnection<S, C>) unawaited(_refreshMyAccess(conn));
+    } on Object catch (e) {
+      // Bez nowej drogi zostaje stare połączenie, jeśli działa
+      if (gen != _generation || _disposed || _connection?.status == LinkStatus.online) return;
+      await _dropConnection();
+      _fail(e);
+    } finally {
+      _rerouting = false;
+      notifyChanged();
     }
   }
 

@@ -521,6 +521,8 @@ flutter test
   i `config` (`forbidden`, `/api/clients` GET/PATCH/POST/DELETE, `describe`), OTA, chmura `/api/cloud` (konto
   urządzenia: linking → binding → linked), ochrona przed zamarzaniem, stan na żywo, set przez WS i HTTP,
   wybór drogi.
+- `route_refresh_test.dart`: powrót z tła - nowa droga w tle, stary stan na ekranie do przełączenia, chmura
+  zamiast działającej chmury bez zmian.
 - `cloud_connection_test.dart`: chmura na RTDB w pamięci (`homes/{h}/devices`, `commands/{h}/{id}` z `by`), offline,
   lista z typami.
 - `home_widgets_test.dart`: widżety na ekranie telefonu - JSON konfiguracji, kratki ze stanu, stan na żywo, łączenie tylko
