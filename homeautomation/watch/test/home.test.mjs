@@ -241,4 +241,12 @@ const withIcons = watchPages(
 assert.deepEqual(withIcons.map((it) => it.icon), ["lamp", "ceiling", undefined]);
 assert.equal("icon" in withIcons[2], false);
 
+// wersja zgłaszana w users/{uid}/watches = wersja w app.json (podbijana przy każdym wydaniu na zegarek)
+{
+  const { readFileSync } = await import("node:fs");
+  const { APP_VERSION } = await import("../utils/version.js");
+  const app = JSON.parse(readFileSync(new URL("../app.json", import.meta.url), "utf8"));
+  assert.equal(app.app.version.name, APP_VERSION, "utils/version.js zgodne z app.json");
+}
+
 console.log("home.test.mjs: OK");

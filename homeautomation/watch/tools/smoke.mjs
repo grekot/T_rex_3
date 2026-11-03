@@ -476,7 +476,7 @@ test("lista: zgłoszenie zegarka, kafelek termostatu, odświeżanie co 5 s, po z
     width: 480,
     height: 480,
     shape: "round",
-    app: "1.0.0",
+    app: "1.1.0",
     lastSeen: { ".sv": "timestamp" },
   });
   assert.ok(side.requests.some((r) => r.method === "HOME" && r.params.watch === WATCH), "pulpit tego zegarka");

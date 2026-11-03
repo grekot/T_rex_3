@@ -1,6 +1,7 @@
 // Ustawienia w aplikacji Zepp: logowanie tym samym kontem, którym termostat jest podłączony do chmury
 // (to samo co w aplikacji HomeAutomation na telefonie, Zakupach i Na szczycie).
 // Hasło trafia do Side Service tylko na czas logowania i jest od razu usuwane.
+import { APP_VERSION } from "../utils/version";
 
 const PASSWORD_MASK = "••••••••";
 
@@ -139,6 +140,7 @@ AppSettingsPage({
       Text({ style: { ...HINT, marginTop: "16px" } }, [
         "Jeśli logowanie nie rusza, otwórz aplikację Dom na zegarku.",
       ]),
+      Text({ style: { ...HINT, marginTop: "16px" } }, ["Dom " + APP_VERSION]),
     ]);
   },
 });
