@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import '../controllers/device_controller.dart';
 import '../controllers/device_hub.dart';
 import '../data/cloud_access.dart';
 import '../data/home_repository.dart';
@@ -225,6 +226,8 @@ class _HomeWidgetConfigScreenState extends State<HomeWidgetConfigScreen> {
       final c = hub.controller(d.id);
       if (d.type == DeviceType.thermostat) {
         out.add(_tile(HomeWidgetItem.thermostat(d.id), c?.device.name ?? d.name, icon: Icons.thermostat));
+      } else if (d.type == DeviceType.sensor) {
+        out.add(_sensorTile(d.id, c?.device.name ?? d.name, c));
       } else if (d.type.isLight) {
         final n = channelCount(c?.stateJson);
         final name = c?.device.name ?? d.name;
@@ -248,9 +251,22 @@ class _HomeWidgetConfigScreenState extends State<HomeWidgetConfigScreen> {
             );
           }
         }
+        // Węzeł z czujnikiem temperatury / wilgotności (np. switch4 z DHT).
+        if (canShowAsSensor(d.type, c?.stateJson)) out.add(_sensorTile(d.id, name, c));
       }
     }
     return out;
+  }
+
+  /// „Czujnik”: podgląd wartości, które pokaże kratka.
+  Widget _sensorTile(String id, String name, DeviceController<Object?, Object?>? c) {
+    final values = c == null ? const <String>[] : sensorValues(c);
+    return _tile(
+      HomeWidgetItem.sensor(id),
+      name,
+      subtitle: values.isEmpty ? 'Czujnik' : 'Czujnik · ${values.join(' · ')}',
+      icon: Icons.sensors,
+    );
   }
 
   @override

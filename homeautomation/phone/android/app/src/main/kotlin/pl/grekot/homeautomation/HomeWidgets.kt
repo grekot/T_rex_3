@@ -97,6 +97,7 @@ object HomeWidgets {
         "thermostat" -> R.drawable.ic_widget_thermostat
         "flame" -> R.drawable.ic_widget_flame
         "scene" -> R.drawable.ic_widget_scene
+        "sensor" -> R.drawable.ic_widget_sensor
         "lock" -> R.drawable.ic_widget_lock
         else -> R.drawable.ic_widget_bulb
     }

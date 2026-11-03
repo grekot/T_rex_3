@@ -6,7 +6,10 @@ import 'json_utils.dart';
 enum HomeWidgetKind {
   output('output'),
   thermostat('thermostat'),
-  scene('scene');
+  scene('scene'),
+
+  /// Czujnik: nazwa i do 3 wartości (punkty `sensor` z `describe`).
+  sensor('sensor');
 
   const HomeWidgetKind(this.wire);
 
@@ -15,11 +18,12 @@ enum HomeWidgetKind {
   static HomeWidgetKind? fromWire(Object? v) => values.where((k) => k.wire == v).firstOrNull;
 }
 
-/// Pozycja widżetu: wyjście (`point`: `on` albo `onN`), termostat albo scena.
+/// Pozycja widżetu: wyjście (`point`: `on` albo `onN`), termostat, scena albo czujnik.
 class HomeWidgetItem {
   const HomeWidgetItem.output(String this.device, String this.point) : kind = HomeWidgetKind.output, sceneId = null;
   const HomeWidgetItem.thermostat(String this.device) : kind = HomeWidgetKind.thermostat, point = null, sceneId = null;
   const HomeWidgetItem.scene(String this.sceneId) : kind = HomeWidgetKind.scene, device = null, point = null;
+  const HomeWidgetItem.sensor(String this.device) : kind = HomeWidgetKind.sensor, point = null, sceneId = null;
 
   final HomeWidgetKind kind;
   final String? device;
@@ -32,6 +36,7 @@ class HomeWidgetItem {
       HomeWidgetKind.output when device is String && point is String => HomeWidgetItem.output(device, point),
       HomeWidgetKind.thermostat when device is String => HomeWidgetItem.thermostat(device),
       HomeWidgetKind.scene when scene is String => HomeWidgetItem.scene(scene),
+      HomeWidgetKind.sensor when device is String => HomeWidgetItem.sensor(device),
       _ => null,
     };
   }
@@ -92,7 +97,7 @@ class HomeWidgetConfig {
 }
 
 /// Jedna kratka widżetu do narysowania po stronie Androida.
-/// [icon]: `bulb`, `thermostat`, `flame`, `scene`, `lock`. [open] - dotknięcie otwiera to urządzenie w aplikacji.
+/// [icon]: `bulb`, `thermostat`, `flame`, `scene`, `sensor`, `lock`. [open] - dotknięcie otwiera to urządzenie w aplikacji.
 class WidgetCell {
   const WidgetCell({
     required this.title,

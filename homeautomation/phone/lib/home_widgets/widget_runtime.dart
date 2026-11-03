@@ -45,6 +45,9 @@ class WidgetRuntime {
   String? _message;
   bool _paused = false;
 
+  /// Połączenia, na których już pytaliśmy o `describe` dla czujnika (raz na połączenie).
+  final _described = Expando<bool>();
+
   /// Hub domu (testy).
   DeviceHub? hub(String homeId) => _hubs[homeId];
 
@@ -145,10 +148,22 @@ class WidgetRuntime {
     _renderTimer = Timer(debounce, _render);
   }
 
+  /// Czujnik pokazuje punkty z `describe` - pobieramy go raz na połączenie i rysujemy jeszcze raz.
+  void _describeSensors(HomeWidgetConfig config, DeviceHub hub) {
+    for (final item in config.items.where((i) => i.kind == HomeWidgetKind.sensor)) {
+      final c = hub.controller(item.device!);
+      final conn = c?.connection;
+      if (c == null || conn == null || c.cachedDescription != null || _described[conn] == true) continue;
+      _described[conn] = true;
+      unawaited(c.description().then((d) => d == null ? null : _scheduleRender()));
+    }
+  }
+
   void _render() {
     final out = <String, Object?>{};
     for (final config in _configs) {
       final hub = _hubs[config.homeId];
+      if (hub != null && _message == null) _describeSensors(config, hub);
       out['${config.id}'] = [
         for (var i = 0; i < config.items.length; i++)
           if (_message != null)
@@ -205,7 +220,7 @@ class WidgetRuntime {
         await _tapOutput(hub, id, index, item);
       case HomeWidgetKind.scene:
         await _tapScene(hub, config.homeId, id, index, item);
-      case HomeWidgetKind.thermostat:
+      case HomeWidgetKind.thermostat || HomeWidgetKind.sensor:
         break; // otwiera aplikację po stronie Androida
     }
   }

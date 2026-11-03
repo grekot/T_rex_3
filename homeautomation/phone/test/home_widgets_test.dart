@@ -113,6 +113,7 @@ void main() {
   late _Conn<ThermostatState, ThermostatConfig> thermo;
   late _Conn<LightState, LightConfig> other;
   late _Conn<Json, Json> hubConn;
+  late _Conn<Json, Json> salon;
   late _Manager manager;
   late MemoryDeviceStore store;
   late LocalSceneStore scenes;
@@ -139,6 +140,8 @@ void main() {
     await store.saveDevice(const PairedDevice(id: 'lampa', name: 'Lampa', type: DeviceType.onOff));
     await store.saveDevice(const PairedDevice(id: 'termostat-ab12cd', name: 'Salon'));
     await store.saveDevice(const PairedDevice(id: 'hub1', name: 'Hub', type: DeviceType.hub));
+    await store.saveDevice(const PairedDevice(id: 'ble-b8f862d84911', name: 'Salon BT', type: DeviceType.sensor));
+    await store.saveDevice(const PairedDevice(id: 'gabinet', name: 'Gabinet', type: DeviceType.sensor));
     node =
         _Conn(
             'parter',
@@ -161,7 +164,34 @@ void main() {
       (jsonDecode(configJson) as Map).cast<String, dynamic>(),
     );
     hubConn = _Conn<Json, Json>('hub1', rawCodec, {'id': 'hub1'}, {'name': 'Hub'});
-    manager = _Manager({'parter': node, 'lampa': other, 'termostat-ab12cd': thermo, 'hub1': hubConn}, store);
+    salon =
+        _Conn<Json, Json>('ble-b8f862d84911', rawCodec, {
+            'temp': 22.4,
+            'hum': 58,
+            'battery': 87,
+            'pressure': 997.8,
+            'rssi': -60,
+            'online': true,
+          }, {'name': 'Salon BT'})
+          ..describe = {
+            'type': 'sensor',
+            'points': [
+              {'key': 'battery', 'name': 'Bateria', 'kind': 'sensor', 'unit': '%', 'decimals': 0},
+              {'key': 'rssi', 'name': 'Sygnał', 'kind': 'sensor', 'unit': 'dBm', 'decimals': 0},
+              {'key': 'temp', 'name': 'Temperatura', 'kind': 'sensor', 'unit': '°C', 'decimals': 1},
+              {'key': 'hum', 'name': 'Wilgotność', 'kind': 'sensor', 'unit': '%', 'decimals': 0},
+              {'key': 'pressure', 'name': 'Ciśnienie', 'kind': 'sensor', 'unit': 'hPa', 'decimals': 1},
+            ],
+          };
+    final gabinet = _Conn<Json, Json>('gabinet', rawCodec, {'temp': 21.0, 'hum': 45}, {'name': 'Gabinet'});
+    manager = _Manager({
+      'parter': node,
+      'lampa': other,
+      'termostat-ab12cd': thermo,
+      'hub1': hubConn,
+      'ble-b8f862d84911': salon,
+      'gabinet': gabinet,
+    }, store);
     scenes = LocalSceneStore(cache: MemoryTextCache());
     renders = [];
     runtime = makeRuntime();
@@ -211,6 +241,33 @@ void main() {
     expect(t['title'], 'Salon');
     expect(t['value'], endsWith('°'));
     expect(t['open'], 'termostat-ab12cd');
+  });
+
+  test('czujnik: 3 wartości z describe (bez sygnału, bateria na końcu), bez describe - znane pola, niedostępny', () async {
+    runtime.update([
+      config(1, const [HomeWidgetItem.sensor('ble-b8f862d84911'), HomeWidgetItem.sensor('gabinet')]),
+    ]);
+    await settle();
+    await settle();
+    final s = cell(1);
+    expect((s['title'], s['value'], s['subtitle'], s['icon'], s['open'], s['dimmed']), (
+      'Salon BT',
+      '22,4 °C',
+      '58 % · 997,8 hPa',
+      'sensor',
+      'ble-b8f862d84911',
+      false,
+    ));
+    expect((cell(1, 1)['value'], cell(1, 1)['subtitle']), ('21,0 °C', '45 %'));
+    salon.push({'temp': 22.6, 'online': false});
+    await settle();
+    expect((cell(1)['value'], cell(1)['subtitle'], cell(1)['dimmed']), ('22,6 °C', 'Niedostępny · ostatni odczyt', true));
+    await runtime.tap(1, 0);
+    expect(salon.sent, isEmpty, reason: 'dotknięcie otwiera aplikację (Android)');
+    final back = HomeWidgetConfig.fromJson(
+      jsonDecode(jsonEncode(config(2, const [HomeWidgetItem.sensor('gabinet')]).toJson())) as Map<String, dynamic>,
+    );
+    expect(back.items, const [HomeWidgetItem.sensor('gabinet')]);
   });
 
   test('stan na żywo trafia na widżet bez dotykania', () async {
@@ -335,12 +392,22 @@ void main() {
     await tester.tap(find.byKey(const Key('widget-item-parter-on1')));
     await tester.pump();
     await tester.ensureVisible(find.byKey(const Key('widget-item--noc')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('widget-item--noc')));
     await tester.pump();
-    expect(find.text('Pozycje (2 z 6)'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('widget-item-ble-b8f862d84911-')));
+    await tester.pumpAndSettle();
+    expect(find.text('Czujnik · 22,4 °C · 58 % · 998 hPa'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('widget-item-ble-b8f862d84911-')));
+    await tester.pump();
+    expect(find.text('Pozycje (3 z 6)'), findsOneWidget);
     await tester.tap(find.byKey(const Key('widget-save')));
     await tester.pump();
-    expect(saved, const [HomeWidgetItem.output('parter', 'on1'), HomeWidgetItem.scene('noc')]);
+    expect(saved, const [
+      HomeWidgetItem.output('parter', 'on1'),
+      HomeWidgetItem.scene('noc'),
+      HomeWidgetItem.sensor('ble-b8f862d84911'),
+    ]);
     hub.dispose();
   });
 }

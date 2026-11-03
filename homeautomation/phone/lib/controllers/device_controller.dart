@@ -106,6 +106,9 @@ class DeviceController<S, C> extends ChangeNotifier {
         .whenComplete(() => _describing = null);
   }
 
+  /// Opis już pobrany na tym połączeniu (bez pytania urządzenia); null = jeszcze nie.
+  DeviceDescription? get cachedDescription => _description;
+
   ConnectionKind? get kind => _connection?.kind;
   LinkStatus? get linkStatus => _connection?.status;
 

@@ -170,7 +170,10 @@ Widżety systemowe, niezależne od pulpitów w aplikacji. Na ekranie telefonu: p
   (`lib/home_widgets/widget_config.dart`, przy kilku domach wybór w pasku); na Androidzie 12+ przytrzymanie widżetu → zmiana.
 - **Pozycje**: wyjście (cały włącznik, wszystkie wyjścia węzła albo jeden kanał; kanał impulsowy wysyła impuls),
   termostat (temperatura, nastawa, grzanie; dotknięcie otwiera jego ekran), scena (jak na pulpicie: przez huba,
-  bez huba akcje po kolei z telefonu). Pomarańczowe tło = włączone / grzeje, przygaszone = brak kontaktu.
+  bez huba akcje po kolei z telefonu), czujnik (`sensor`: urządzenie typu `sensor`, np. Bluetooth przez hub, albo węzeł
+  z `temp` / `hum` w State; duża pierwsza wartość, pod nią dwie kolejne - punkty `kind: sensor` z `describe` po kolei,
+  bez `rssi`, bateria na końcu; bez opisu znane pola; `online: false` = przygaszony „Niedostępny · ostatni odczyt”;
+  dotknięcie otwiera ekran urządzenia). Pomarańczowe tło = włączone / grzeje, przygaszone = brak kontaktu.
 - **Na żywo**: `LiveWidgetService.kt` to usługa pierwszoplanowa `specialUse` (stałe, ciche powiadomienie „Widżety na
   żywo”) z osobnym silnikiem Fluttera (`homeWidgetServiceMain`). `WidgetRuntime` używa tych samych `DeviceHub` i dróg
   co aplikacja (lokalnie → chmura), z połączeniami tylko do urządzeń z widżetów (`DeviceHub.wanted`; przy scenach także
