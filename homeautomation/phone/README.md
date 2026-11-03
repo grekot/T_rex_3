@@ -89,7 +89,7 @@ repozytorium trzeba najpierw uruchomić `node tools/configure.mjs`.
   „Nowy układ” albo karta w edycji: `toGrid4()` przelicza dawne rozmiary), rozmiary 1×1…4×4 (`w`, `h`), kafelki
   w pierwszym wolnym miejscu (`packGrid4`). Pasek 4×1: wszystko w jednej linii, suwak obok nazwy. **Sekcje** z
   nagłówkami (pulpit startowy - sekcja na pokój; w edycji: nowa sekcja, zmiana nazwy, kolejność, usunięcie;
-  przeciągnięty kafelek przechodzi do sekcji kafelka docelowego). **Podsumowanie** nad pulpitem
+  przeciągnięty kafelek przechodzi do sekcji, nad którą go upuszczono). **Podsumowanie** nad pulpitem
   (`lib/ui/dashboard_summary.dart`): pigułki świateł („Wyłącz wszystkie”), grzania i alarmów (awaria czujnika,
   usterka wejścia, brak kontaktu).
 - **Ustawienia kafelka 13.1** (arkusz, części rozwijane): kolor (`color`, z tego samego wzoru co motyw), rozmiar
@@ -125,8 +125,11 @@ repozytorium trzeba najpierw uruchomić `node tools/configure.mjs`.
   **Grupa wyjść** - osobna pozycja na liście urządzeń (`GroupPickerScreen`); członków zmienia arkusz kafelka.
 - **Edycja na siatce** (ołówek): te same kafelki co na pulpicie, z obrysem. Dotyk - arkusz ustawień z podglądem na
   żywo (`lib/ui/tile_settings.dart`): podpis, ikona, rozmiar, wygląd (z pasujących do punktu z `describe`),
-  Wcześniej / Później, Duplikuj, Edytuj scenę, Usuń. Przytrzymanie i przeciągnięcie - kafelek zajmuje miejsce tego,
-  na który go upuszczono. Uchwyt w rogu - kolejny rozmiar (1×1 → 2×1 → 2×2).
+  Wcześniej / Później, Duplikuj, Edytuj scenę, Usuń. Przytrzymanie i przeciągnięcie - siatka 4: jak na ekranie
+  głównym telefonu, obrys pokazuje, gdzie kafelek stanie, a pozostałe rozsuwają się na żywo (`arrangeGrid4`:
+  przykryte idą w zwolnione miejsce, inaczej na najbliższe wolne pole); po upuszczeniu cała sekcja zostaje
+  przypięta tak, jak w podglądzie; przy krawędzi ekranu lista sama się przewija. Siatka 2: kafelek zajmuje miejsce
+  tego, na który go upuszczono. Uchwyt w rogu - kolejny rozmiar (1×1 → 2×1 → 2×2).
 - Podgląd pulpitu do obrazka (prawdziwe czcionki, jasny i ciemny motyw):
   `flutter test tool/preview/dashboard_preview_test.dart --update-goldens` → `tool/preview/pulpit_*.png`,
   `edycja_*.png`, `siatka4_*.png`.

@@ -46,6 +46,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<Room> _rooms = const [];
   StreamSubscription<List<Room>>? _roomsSub;
 
+  /// Edytor: przewijanie przy krawędzi w trakcie przeciągania kafelka.
+  final _scroll = ScrollController();
+  final _editorKey = GlobalKey();
+  bool _dragging = false;
+  Timer? _autoScroll;
+  double _scrollStep = 0;
+
   /// Bez konta - jeden dom „w telefonie”.
   String get _homeId => widget.session?.current?.id ?? 'local';
   bool get _owner => widget.session?.isOwner ?? false;
@@ -76,6 +83,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void dispose() {
     _sub?.cancel();
     _roomsSub?.cancel();
+    _autoScroll?.cancel();
+    _scroll.dispose();
     super.dispose();
   }
 
@@ -313,63 +322,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await _save(d.copyWith(widgets: list));
   }
 
-  /// Przeciągnięty kafelek zajmuje miejsce tego, na który go upuszczono (i przechodzi do jego sekcji).
+  /// Siatka 2: przeciągnięty kafelek zajmuje miejsce tego, na który go upuszczono (i przechodzi do jego sekcji).
   Future<void> _drop(Dashboard d, String fromId, String toId) {
     final from = d.widgets.indexWhere((x) => x.id == fromId), to = d.widgets.indexWhere((x) => x.id == toId);
-    final a = d.widgets[from], b = d.widgets[to];
-    if (d.grid == 4 && a.section == b.section) {
-      // Siatka 4, ta sama sekcja: kafelki zamieniają się miejscami (obydwa zostają przypięte).
-      // Przeciągany pierwszy (pierwszeństwo przy nakładaniu), potem obydwa przypięte tam, gdzie faktycznie stanęły.
-      final placed = {for (final p in packGrid4(_inSection(d, a.section))) p.widget.id: p};
-      final pa = placed[a.id]!, pb = placed[b.id]!;
-      var list = [...d.widgets]
-        ..[from] = a.pinnedAt(pb.col, pb.row)
-        ..[to] = b.pinnedAt(pa.col, pa.row);
-      list = reorder(list, from, to);
-      final after = {for (final p in packGrid4(_inSection(d.copyWith(widgets: list), a.section))) p.widget.id: p};
-      list = [
-        for (final w in list)
-          if (w.id == a.id || w.id == b.id) w.pinnedAt(after[w.id]!.col, after[w.id]!.row) else w,
-      ];
-      return _save(d.copyWith(widgets: list));
-    }
-    final moved = a.patch({'section': b.section}).unpinned();
+    final moved = d.widgets[from].patch({'section': d.widgets[to].section}).unpinned();
     final list = [...d.widgets]..[from] = moved;
     return _save(d.copyWith(widgets: reorder(list, from, to > from ? to + 1 : to)));
   }
 
-  /// Widżety jednej sekcji (null - bez sekcji) w kolejności pulpitu.
-  List<DashWidget> _inSection(Dashboard d, String? section) {
-    final ids = {for (final s in d.sections) s.id};
-    return [
-      for (final w in d.widgets)
-        if (section == null ? !ids.contains(w.section) : w.section == section) w,
-    ];
+  /// Siatka 4: upuszczony kafelek [id] przechodzi do [section]; cała sekcja przypięta tak, jak widać w podglądzie.
+  Future<void> _arrange(Dashboard d, String id, String? section, Map<String, (int, int)> at) => _save(
+    d.copyWith(
+      widgets: [
+        for (final w in d.widgets)
+          if (at[w.id] case (final r, final c))
+            (w.id == id ? w.patch({'section': section}) : w).pinnedAt(c, r)
+          else
+            w,
+      ],
+    ),
+  );
+
+  /// Przewijanie edytora, gdy przeciągany kafelek jest przy górnej albo dolnej krawędzi.
+  void _autoScrollAt(Offset global) {
+    final box = _editorKey.currentContext?.findRenderObject() as RenderBox?;
+    if (!_dragging || box == null) return _stopAutoScroll();
+    final y = box.globalToLocal(global).dy;
+    const edge = 72.0;
+    _scrollStep = y < edge ? -12 : (y > box.size.height - edge ? 12 : 0);
+    if (_scrollStep == 0) return _stopAutoScroll();
+    _autoScroll ??= Timer.periodic(const Duration(milliseconds: 16), (_) {
+      if (!_scroll.hasClients) return;
+      final p = _scroll.position;
+      final to = (p.pixels + _scrollStep).clamp(p.minScrollExtent, p.maxScrollExtent);
+      if (to != p.pixels) _scroll.jumpTo(to);
+    });
   }
 
-  /// Upuszczenie na wolne pole siatki 4: kafelek przypięty w tym miejscu (i w tej sekcji), jeśli się mieści.
-  Future<void> _place(Dashboard d, String id, String? section, int row, int col) async {
-    final i = d.widgets.indexWhere((x) => x.id == id);
-    final w = d.widgets[i];
-    final moved = w.patch({'section': section}).pinnedAt(col, row);
-    final others = [
-      for (final x in _inSection(d, section))
-        if (x.id != id) x,
-    ];
-    final taken = <(int, int)>{
-      for (final p in packGrid4(others))
-        for (var y = p.row; y < p.row + p.widget.gridH; y++)
-          for (var x = p.col; x < p.col + p.widget.gridW; x++) (y, x),
-    };
-    final fits = [
-      for (var y = moved.y!; y < moved.y! + w.gridH; y++)
-        for (var x = moved.x!; x < moved.x! + w.gridW; x++) (y, x),
-    ].every((c) => !taken.contains(c));
-    if (!fits) {
-      _snack('Tu się nie zmieści - zwolnij miejsce albo zmniejsz kafelek.');
-      return;
-    }
-    await _save(d.copyWith(widgets: [...d.widgets]..[i] = moved));
+  void _stopAutoScroll() {
+    _autoScroll?.cancel();
+    _autoScroll = null;
+  }
+
+  void _endDrag() {
+    _dragging = false;
+    _stopAutoScroll();
   }
 
   /// Przycisk w rogu: kolejny rozmiar (siatka 2: 1×1 → 2×1 → 2×2; siatka 4: kolejny z [grid4Sizes]).
@@ -613,17 +610,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  /// Tryb edycji na siatce: te same kafelki co na pulpicie, dotyk - ustawienia, przytrzymanie - przeciąganie,
-  /// przycisk w rogu - rozmiar.
+  /// Tryb edycji na siatce: te same kafelki co na pulpicie, dotyk - ustawienia, przytrzymanie - przeciąganie
+  /// (siatka 4: pozostałe rozsuwają się na żywo), przycisk w rogu - rozmiar.
   Widget _editor(BuildContext context, Dashboard d) {
+    final byId = {for (final w in d.widgets) w.id: w};
+    return Listener(
+      onPointerMove: (e) => _autoScrollAt(e.position),
+      // Także gdy kafelek, z którego zaczęto, zniknął z listy przy przewijaniu (wtedy nie zgłosi końca).
+      onPointerUp: (_) => _endDrag(),
+      onPointerCancel: (_) => _endDrag(),
+      child: _editorList(context, d, byId),
+    );
+  }
+
+  Widget _editorList(BuildContext context, Dashboard d, Map<String, DashWidget> byId) {
     return ListView(
+      key: _editorKey,
+      controller: _scroll,
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: Text(
-            'Dotknij kafelka, aby go ustawić. Przytrzymaj i przeciągnij: na wolne pole - kafelek zostaje w tym miejscu, '
-            'na inny kafelek - zamieniają się miejscami. Przycisk w rogu zmienia rozmiar.',
+            d.grid == 4
+                ? 'Dotknij kafelka, aby go ustawić. Przytrzymaj i przeciągnij - pozostałe kafelki zrobią miejsce, '
+                      'a obrys pokaże, gdzie stanie (także w innej sekcji). Przycisk w rogu zmienia rozmiar.'
+                : 'Dotknij kafelka, aby go ustawić. Przytrzymaj i przeciągnij na inny kafelek, aby zająć jego miejsce. '
+                      'Przycisk w rogu zmienia rozmiar.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ),
@@ -662,12 +675,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
               DashGrid(
                 grid: d.grid,
                 widgets: list,
-                emptyCell: d.grid == 4 ? (r, c) => EmptyCell(onDrop: (id) => _place(d, id, s?.id, r, c)) : null,
+                lookup: d.grid == 4 ? (id) => byId[id] : null,
+                onArrange: d.grid == 4 ? (id, at) => _arrange(d, id, s?.id, at) : null,
                 builder: (w) => EditableTile(
                   id: w.id,
                   onTap: () => _tileSettings(d, w),
                   onResize: () => _resize(d, w),
-                  onDrop: (from) => _drop(d, from, w.id),
+                  onDrop: d.grid == 4 ? null : (from) => _drop(d, from, w.id),
+                  onDragging: (on) {
+                    if (on) {
+                      _dragging = true;
+                    } else {
+                      _endDrag();
+                    }
+                  },
                   child: DashTile(widget: w, hub: widget.hub, history: _history),
                 ),
               ),

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show mapEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -48,61 +49,225 @@ Size dashTileSize(DashWidget w, int grid, double width) {
 
 /// Siatka pulpitu. [grid] 2: dawna (2 kolumny, `1x1`/`2x1`/`2x2`); 4: kolumny 1-4 × wiersze 64 px (`w`, `h`),
 /// kafelki układane po kolei w pierwszym wolnym miejscu, w którym się mieszczą (mniejsze wypełniają luki).
-class DashGrid extends StatelessWidget {
-  const DashGrid({super.key, required this.widgets, required this.builder, this.grid = 2, this.emptyCell});
+class DashGrid extends StatefulWidget {
+  const DashGrid({
+    super.key,
+    required this.widgets,
+    required this.builder,
+    this.grid = 2,
+    this.lookup,
+    this.onArrange,
+  });
 
   final List<DashWidget> widgets;
   final Widget Function(DashWidget w) builder;
   final int grid;
 
-  /// Edycja (siatka 4): wolne pola jako miejsca do upuszczenia kafelka, z jednym zapasowym wierszem.
-  final Widget Function(int row, int col)? emptyCell;
+  /// Edycja siatki 4 (gdy podane): przeciągany kafelek (z tej sekcji albo z innej - [lookup] po id) pokazuje,
+  /// gdzie stanie, a pozostałe rozsuwają się na żywo ([arrangeGrid4]). Wolne pola widać, z zapasowym wierszem.
+  final DashWidget? Function(String id)? lookup;
+
+  /// Upuszczono kafelek [id]: nowy układ całej sekcji (id → wiersz, kolumna).
+  final void Function(String id, Map<String, (int, int)> at)? onArrange;
+
+  @override
+  State<DashGrid> createState() => _DashGridState();
+}
+
+class _DashGridState extends State<DashGrid> {
+  final _box = GlobalKey();
+
+  /// Kafelek przeciągany nad tą siatką i podgląd układu z nim.
+  DashWidget? _moving;
+  Map<String, (int, int)>? _preview;
+
+  void _move(DragTargetDetails<String> d, double col) {
+    final w = widget.lookup!(d.data);
+    final box = _box.currentContext?.findRenderObject() as RenderBox?;
+    if (w == null || box == null) return;
+    // Lewy górny róg przeciąganego kafelka → najbliższe pole siatki.
+    final p = box.globalToLocal(d.offset);
+    final others = [
+      for (final x in widget.widgets)
+        if (x.id != w.id) x,
+    ];
+    final bottom = others.isEmpty ? 0 : packGrid4(others).map((p) => p.row + p.widget.gridH).reduce(math.max);
+    final r = (p.dy / (dashRow4 + dashGap)).round().clamp(0, bottom);
+    final c = (p.dx / (col + dashGap)).round().clamp(0, 4 - w.gridW);
+    final at = arrangeGrid4(widget.widgets, w, r, c);
+    if (_moving?.id == w.id && mapEquals(at, _preview)) return;
+    setState(() {
+      _moving = w;
+      _preview = at;
+    });
+  }
+
+  void _leave() {
+    if (_moving != null) setState(() => _moving = _preview = null);
+  }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, box) {
-        if (grid != 4) {
+        if (widget.grid != 4) {
           return Wrap(
             spacing: dashGap,
             runSpacing: dashGap,
             children: [
-              for (final w in widgets)
-                SizedBox.fromSize(key: ValueKey(w.id), size: dashTileSize(w, 2, box.maxWidth), child: builder(w)),
+              for (final w in widget.widgets)
+                SizedBox.fromSize(key: ValueKey(w.id), size: dashTileSize(w, 2, box.maxWidth), child: widget.builder(w)),
             ],
           );
         }
         final col = (box.maxWidth - 3 * dashGap) / 4;
-        final placed = packGrid4(widgets);
-        var rows = placed.isEmpty ? 0 : placed.map((p) => p.row + p.widget.gridH).reduce(math.max);
-        final empty = emptyCell == null ? const <(int, int)>[] : emptyCells4(placed);
-        if (emptyCell != null) rows++;
-        return SizedBox(
+        final editing = widget.onArrange != null;
+        final moving = _moving;
+        // Kafelek z innej sekcji: tu tylko obrys miejsca, w którym stanie.
+        final foreign = moving != null && !widget.widgets.any((x) => x.id == moving.id) ? moving : null;
+        final all = [...widget.widgets, ?foreign];
+        final at = _preview ?? {for (final p in packGrid4(widget.widgets)) p.widget.id: (p.row, p.col)};
+        final taken = <(int, int)>{
+          for (final w in all)
+            if (at[w.id] case (final r, final c))
+              for (var y = r; y < r + w.gridH; y++)
+                for (var x = c; x < c + w.gridW; x++) (y, x),
+        };
+        var rows = taken.isEmpty ? 0 : taken.map((t) => t.$1 + 1).reduce(math.max);
+        if (editing) rows++;
+        Widget positioned(DashWidget w, Widget child) {
+          final (r, c) = at[w.id]!;
+          final size = dashTileSize(w, 4, box.maxWidth);
+          return AnimatedPositioned(
+            key: ValueKey(identical(w, foreign) ? 'drop-${w.id}' : w.id),
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            left: c * (col + dashGap),
+            top: r * (dashRow4 + dashGap),
+            width: size.width,
+            height: size.height,
+            child: child,
+          );
+        }
+
+        final grid = SizedBox(
+          key: _box,
           height: rows == 0 ? 0 : rows * dashRow4 + (rows - 1) * dashGap,
           child: Stack(
             children: [
-              for (final (r, c) in empty)
-                Positioned(
-                  key: ValueKey('empty-$r-$c'),
-                  left: c * (col + dashGap),
-                  top: r * (dashRow4 + dashGap),
-                  width: col,
-                  height: dashRow4,
-                  child: emptyCell!(r, c),
-                ),
-              for (final p in placed)
-                Positioned(
-                  key: ValueKey(p.widget.id),
-                  left: p.col * (col + dashGap),
-                  top: p.row * (dashRow4 + dashGap),
-                  child: SizedBox.fromSize(size: dashTileSize(p.widget, 4, box.maxWidth), child: builder(p.widget)),
-                ),
+              if (editing)
+                for (var r = 0; r < rows; r++)
+                  for (var c = 0; c < 4; c++)
+                    if (!taken.contains((r, c)))
+                      Positioned(
+                        key: ValueKey('empty-$r-$c'),
+                        left: c * (col + dashGap),
+                        top: r * (dashRow4 + dashGap),
+                        width: col,
+                        height: dashRow4,
+                        child: const DropSpot(),
+                      ),
+              for (final w in widget.widgets) positioned(w, widget.builder(w)),
+              if (foreign != null) positioned(foreign, const DropSpot(target: true)),
             ],
           ),
+        );
+        if (!editing) return grid;
+        return DragTarget<String>(
+          onWillAcceptWithDetails: (d) => widget.lookup!(d.data) != null,
+          onMove: (d) => _move(d, col),
+          onLeave: (_) => _leave(),
+          onAcceptWithDetails: (d) {
+            final at = _preview;
+            if (_moving?.id == d.data && at != null) widget.onArrange!(d.data, at);
+            _leave();
+          },
+          builder: (context, _, _) => grid,
         );
       },
     );
   }
+}
+
+/// Pole siatki 4 w edycji: wolne miejsce albo ([target]) obrys miejsca, w którym stanie przeciągany kafelek.
+class DropSpot extends StatelessWidget {
+  const DropSpot({super.key, this.target = false});
+
+  final bool target;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: target ? cs.primaryContainer.withValues(alpha: 0.6) : cs.surfaceContainerLow.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(target ? 20 : 14),
+        border: Border.all(color: target ? cs.primary : cs.outlineVariant, width: target ? 2 : 1),
+      ),
+    );
+  }
+}
+
+/// Układ sekcji siatki 4 po przesunięciu [moving] na pole ([row], [col]) - jak na ekranie głównym telefonu.
+/// Kafelki, na które nie nachodzi, zostają na miejscu. Te, na które nachodzi, idą najpierw w zwolnione miejsce
+/// przesuwanego (gdy się tam zmieszczą - zamiana), inaczej na najbliższe wolne pole (przy remisie niżej, potem w lewo).
+/// Liczone zawsze od układu sprzed przeciągania, więc podgląd nie „pływa”.
+Map<String, (int, int)> arrangeGrid4(List<DashWidget> widgets, DashWidget moving, int row, int col) {
+  final before = packGrid4(widgets);
+  final from = before.where((p) => p.widget.id == moving.id).firstOrNull;
+  final taken = <(int, int)>{};
+  List<(int, int)> cells(int r, int c, int w, int h) => [
+    for (var y = r; y < r + h; y++)
+      for (var x = c; x < c + w; x++) (y, x),
+  ];
+  bool free(int r, int c, int w, int h) => cells(r, c, w, h).every((x) => !taken.contains(x));
+  final vacated = from == null ? const <(int, int)>{} : cells(from.row, from.col, moving.gridW, moving.gridH).toSet();
+
+  final at = <String, (int, int)>{moving.id: (row, col)};
+  taken.addAll(cells(row, col, moving.gridW, moving.gridH));
+  final others = [
+    for (final p in before)
+      if (p.widget.id != moving.id) p,
+  ]..sort((a, b) => a.row != b.row ? a.row.compareTo(b.row) : a.col.compareTo(b.col));
+  final pushed = <({DashWidget widget, int row, int col})>[];
+  for (final p in others) {
+    if (free(p.row, p.col, p.widget.gridW, p.widget.gridH)) {
+      taken.addAll(cells(p.row, p.col, p.widget.gridW, p.widget.gridH));
+      at[p.widget.id] = (p.row, p.col);
+    } else {
+      pushed.add(p);
+    }
+  }
+  for (final p in pushed) {
+    final gw = p.widget.gridW, gh = p.widget.gridH;
+    // Wiersz pod ostatnim zajętym jest pusty, więc miejsce zawsze się znajdzie.
+    final bottom = taken.isEmpty ? 0 : taken.map((t) => t.$1 + 1).reduce(math.max);
+    (int, int)? best;
+    List<int>? bestScore;
+    for (var r = 0; r <= bottom; r++) {
+      for (var c = 0; c + gw <= 4; c++) {
+        if (!free(r, c, gw, gh)) continue;
+        final swap = cells(r, c, gw, gh).every(vacated.contains);
+        final score = [swap ? 0 : 1, (r - p.row).abs() + (c - p.col).abs(), -r, c];
+        if (bestScore == null || _before(score, bestScore)) {
+          best = (r, c);
+          bestScore = score;
+        }
+      }
+    }
+    final (r, c) = best!;
+    taken.addAll(cells(r, c, gw, gh));
+    at[p.widget.id] = (r, c);
+  }
+  return at;
+}
+
+/// Porównanie leksykograficzne ocen miejsc w [arrangeGrid4].
+bool _before(List<int> a, List<int> b) {
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return a[i] < b[i];
+  }
+  return false;
 }
 
 /// Miejsca kafelków w siatce 4 kolumn. Najpierw przypięte (`x`, `y`) - gdy się mieszczą i pola są wolne;
@@ -147,21 +312,6 @@ List<({DashWidget widget, int row, int col})> packGrid4(List<DashWidget> widgets
     }
   }
   return [for (final w in widgets) (widget: w, row: at[w.id]!.$1, col: at[w.id]!.$2)];
-}
-
-/// Wolne pola siatki 4 przy danym układzie (do upuszczania kafelków w edycji), z jednym zapasowym wierszem.
-List<(int, int)> emptyCells4(List<({DashWidget widget, int row, int col})> placed) {
-  final rows = placed.isEmpty ? 0 : placed.map((p) => p.row + p.widget.gridH).reduce(math.max);
-  final taken = <(int, int)>{
-    for (final p in placed)
-      for (var y = p.row; y < p.row + p.widget.gridH; y++)
-        for (var x = p.col; x < p.col + p.widget.gridW; x++) (y, x),
-  };
-  return [
-    for (var r = 0; r <= rows; r++)
-      for (var c = 0; c < 4; c++)
-        if (!taken.contains((r, c))) (r, c),
-  ];
 }
 
 /// Nazwa kanału `onN` / wejścia `inN` węzła: z Config (`chN.name`, `inputK.name` - to, co ustawiono w module),

@@ -105,4 +105,19 @@ void main() {
     expect(t('x', 1, 1).pinnedAt(3, 0).resized(2, 1).x, 2);
     expect(t('x', 1, 1).pinnedAt(3, 0).unpinned().pinned, isFalse);
   });
+
+  test('siatka 4: przeciąganie rozsuwa kafelki - zamiana, zwolnione miejsce, najbliższe wolne pole', () {
+    DashWidget t(String id, int w, int h) => DashWidget(id: id, view: WidgetView.value).resized(w, h);
+    String show(Map<String, (int, int)> at) => [for (final e in at.entries) '${e.key}:${e.value.$1},${e.value.$2}'].join(' ');
+    // Dwa 1×1 obok siebie: zamiana.
+    final a = t('a', 1, 1), b = t('b', 1, 1);
+    expect(show(arrangeGrid4([a, b], a, 0, 1)), 'a:0,1 b:0,0');
+    // 2×2 na dwa 1×1: one idą w zwolnione miejsce, pasek pod spodem zostaje.
+    final big = t('big', 2, 2), c = t('c', 1, 1), d = t('d', 1, 1), e = t('e', 4, 1);
+    expect(show(arrangeGrid4([big, c, d, e], big, 0, 2)), 'big:0,2 e:2,0 c:0,1 d:1,1');
+    // Kafelek z innej sekcji (spoza listy): przykryty spycha się na najbliższe wolne pole.
+    expect(show(arrangeGrid4([big, c], t('x', 4, 1), 0, 0)), 'x:0,0 big:1,0 c:1,2');
+    // Bez nachodzenia nic się nie rusza.
+    expect(show(arrangeGrid4([big, c], c, 3, 3)), 'c:3,3 big:0,0');
+  });
 }

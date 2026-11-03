@@ -538,7 +538,7 @@ void main() {
     await tester.pumpAndSettle();
     expect((saved().first.gridW, saved().first.gridH), (4, 1));
 
-    // Przeciąganie: termostat upuszczony na lampę zajmuje jej miejsce.
+    // Przeciąganie: termostat przesunięty w miejsce lampy (nad nim) - lampa przechodzi w zwolnione miejsce.
     await tester.ensureVisible(find.byKey(Key('editTile-$thermoId')));
     await tester.pumpAndSettle();
     final gesture = await tester.startGesture(
@@ -549,7 +549,7 @@ void main() {
     await tester.pump();
     await gesture.up();
     await tester.pumpAndSettle();
-    // Siatka 4: zamiana miejsc - termostat na górze, lampa pod nim; obydwa przypięte.
+    // Siatka 4: termostat na górze, lampa pod nim; obydwa przypięte.
     var placed = {for (final p in packGrid4(saved())) p.widget.id: (p.row, p.col)};
     expect((placed[thermoId], placed[lampId]), ((0, 0), (2, 0)));
     expect(saved().every((w) => w.pinned), isTrue);

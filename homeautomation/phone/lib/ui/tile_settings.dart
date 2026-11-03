@@ -782,7 +782,8 @@ class EditableTile extends StatelessWidget {
     required this.child,
     required this.onTap,
     required this.onResize,
-    required this.onDrop,
+    this.onDrop,
+    this.onDragging,
   });
 
   final String id;
@@ -790,8 +791,11 @@ class EditableTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onResize;
 
-  /// Upuszczono tu kafelek o tym id.
-  final ValueChanged<String> onDrop;
+  /// Upuszczono tu kafelek o tym id (siatka 2); null - upuszczanie obsługuje [DashGrid] (siatka 4).
+  final ValueChanged<String>? onDrop;
+
+  /// Początek (true) i koniec (false) przeciągania tego kafelka.
+  final ValueChanged<bool>? onDragging;
 
   @override
   Widget build(BuildContext context) {
@@ -842,51 +846,30 @@ class EditableTile extends StatelessWidget {
             ),
           ],
         );
+        Widget draggable(bool hover) => LongPressDraggable<String>(
+          data: id,
+          onDragStarted: () => onDragging?.call(true),
+          onDragEnd: (_) => onDragging?.call(false),
+          feedback: Material(
+            color: Colors.transparent,
+            elevation: 8,
+            borderRadius: radius,
+            child: SizedBox(
+              width: box.maxWidth,
+              height: box.maxHeight,
+              child: IgnorePointer(child: Opacity(opacity: 0.92, child: child)),
+            ),
+          ),
+          // Siatka 4: kafelek w siatce stoi tam, gdzie wyląduje - widać po nim obrys.
+          childWhenDragging: onDrop == null ? const DropSpot(target: true) : Opacity(opacity: 0.3, child: framed(false)),
+          child: framed(hover),
+        );
+        final drop = onDrop;
+        if (drop == null) return draggable(false);
         return DragTarget<String>(
           onWillAcceptWithDetails: (d) => d.data != id,
-          onAcceptWithDetails: (d) => onDrop(d.data),
-          builder: (context, candidates, _) => LongPressDraggable<String>(
-            data: id,
-            feedback: Material(
-              color: Colors.transparent,
-              elevation: 8,
-              borderRadius: radius,
-              child: SizedBox(
-                width: box.maxWidth,
-                height: box.maxHeight,
-                child: IgnorePointer(child: Opacity(opacity: 0.92, child: child)),
-              ),
-            ),
-            childWhenDragging: Opacity(opacity: 0.3, child: framed(false)),
-            child: framed(candidates.isNotEmpty),
-          ),
-        );
-      },
-    );
-  }
-}
-
-/// Wolne pole siatki 4 w edycji: miejsce do upuszczenia kafelka (podświetlone, gdy nad nim jest kafelek).
-class EmptyCell extends StatelessWidget {
-  const EmptyCell({super.key, required this.onDrop});
-
-  final ValueChanged<String> onDrop;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return DragTarget<String>(
-      onAcceptWithDetails: (d) => onDrop(d.data),
-      builder: (context, candidates, _) {
-        final hover = candidates.isNotEmpty;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          decoration: BoxDecoration(
-            color: hover ? cs.primaryContainer.withValues(alpha: 0.6) : cs.surfaceContainerLow.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: hover ? cs.primary : cs.outlineVariant, width: hover ? 2 : 1),
-          ),
-          child: hover ? Icon(Icons.add, color: cs.primary) : null,
+          onAcceptWithDetails: (d) => drop(d.data),
+          builder: (context, candidates, _) => draggable(candidates.isNotEmpty),
         );
       },
     );
