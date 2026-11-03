@@ -9,11 +9,13 @@
 // (getApp().globalData.messaging) obsługuje udawany Side Service z prawdziwym utils/cloud.js
 // na „bazie” home/u1/... w pamięci. Lista: kafelki, pokoje, przełączanie światła, wejście do
 // termostatu (lista pod spodem nie odpytuje); termostat: − / +, tryb, ostrzeżenia, polecenia.
+// Bluetooth (pkt 15): globalData.btTransportFactory podstawia atrapę huba z test/fakehub.mjs, @zos/fs - pliki w pamięci.
 import fs from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import assert from "node:assert/strict";
 import { poll, pollHome, pollAck, send, registerWatch, newCache } from "../utils/cloud.js";
+import { createFakeHub, fakeTransport } from "../test/fakehub.mjs";
 
 const dir = process.argv[2];
 if (!dir) {
@@ -48,7 +50,9 @@ let rooms;
 let board;
 let access;
 let scenes = null;
+let remotes = null; // homes/h1/remotes (pilot = ten zegarek, pkt 15.1)
 const watches = {};
+const files = {}; // @zos/fs zegarka
 function resetDb() {
   tree = {
     "termostat-aaa": {
@@ -81,11 +85,11 @@ async function fetchJson(req) {
   const p = req.url.slice(DB.length + 1).split(".json")[0].split("/").map(decodeURIComponent);
   const root = {
     users: { u1: { homes: side.homes ? { h1: true } : null, watches, watchDashboards: { h1: { [WATCH]: board } } } },
-    homes: { h1: { name: "Dom", ownerUid: "wlasciciel", access: { u1: access }, rooms, scenes, deviceIndex: indexOf(tree), devices: tree } },
+    homes: { h1: { name: "Dom", ownerUid: "wlasciciel", access: { u1: access }, rooms, scenes, remotes, deviceIndex: indexOf(tree), devices: tree } },
   };
-  if (req.headers && req.headers["X-HTTP-Method-Override"] === "PUT") {
+  if (req.headers && req.headers["X-HTTP-Method-Override"] === "PATCH") {
     assert.deepEqual(p.slice(0, 3), ["users", "u1", "watches"]);
-    watches[p[3]] = JSON.parse(req.body);
+    watches[p[3]] = { ...(watches[p[3]] || {}), ...JSON.parse(req.body) };
     return null;
   }
   if (req.method === "POST") {
@@ -97,6 +101,7 @@ async function fetchJson(req) {
     assert.equal(node[key].by, "u1", "by = uid zalogowanej osoby");
     assert.equal(node[key].source, "watch");
     side.commands.push(node[key].values);
+    side.cmdKeys.push(node[key].cmdKey || null);
     return { name: key };
   }
   let node = root;
@@ -107,7 +112,7 @@ async function fetchJson(req) {
 }
 
 // Udawany Side Service
-const side = { homes: true, configured: true, loggedIn: true, online: true, cache: newCache(), http: [], commands: [], pushes: 0, requests: [] };
+const side = { homes: true, configured: true, loggedIn: true, online: true, cache: newCache(), http: [], commands: [], cmdKeys: [], pushes: 0, requests: [] };
 const callFns = new Set();
 const messaging = {
   onCall(fn) {
@@ -134,7 +139,7 @@ const messaging = {
     if (req.method === "REGISTER") return registerWatch({ ...ctx, info: p.info, appVersion: p.app });
     if (req.method === "POLL") return poll({ ...ctx, homeId: p.home, id: p.id, pending: p.pending, now: clock.now });
     if (req.method === "ACK") return pollAck({ ...ctx, homeId: p.home, id: p.id, key: p.key, type: p.type, points: p.points, now: clock.now });
-    if (req.method === "SET") return send({ ...ctx, homeId: p.home, id: p.id, values: p.values });
+    if (req.method === "SET") return send({ ...ctx, homeId: p.home, id: p.id, values: p.values, cmdKey: p.cmdKey });
     return Promise.resolve({ ok: false, error: "?" });
   },
 };
@@ -196,6 +201,7 @@ function makePage(name) {
         if (p === "MORE") Object.assign(w.props, v);
         else if (p === "TEXT") w.props.text = v;
         else if (p === "VISIBLE") w.visible = !!v;
+        else if (p === "SRC") w.props.src = v;
         else throw new Error("nieznana właściwość " + p);
       },
       addEventListener(ev, fn) {
@@ -216,7 +222,7 @@ function makePage(name) {
         if (i >= 0) widgets.splice(i, 1);
       },
       widget: { FILL_RECT: "FILL_RECT", TEXT: "TEXT", CIRCLE: "CIRCLE", IMG: "IMG" },
-      prop: { MORE: "MORE", TEXT: "TEXT", VISIBLE: "VISIBLE" },
+      prop: { MORE: "MORE", TEXT: "TEXT", VISIBLE: "VISIBLE", SRC: "SRC" },
       event: { CLICK_UP: "CLICK_UP", CLICK_DOWN: "CLICK_DOWN", MOVE_OUT: "MOVE_OUT" },
       align: { CENTER_H: "CH", CENTER_V: "CV", LEFT: "L", RIGHT: "R" },
       text_style: { NONE: "NONE", WRAP: "WRAP", ELLIPSIS: "ELLIPSIS" },
@@ -262,6 +268,14 @@ function makePage(name) {
       },
     },
     "@zos/display": { setWakeUpRelaunch() {}, setPageBrightTime() {} },
+    "@zos/fs": {
+      readFileSync(o) {
+        return files[o.path];
+      },
+      writeFileSync(o) {
+        files[o.path] = String(o.data);
+      },
+    },
   };
 
   const G = {
@@ -341,7 +355,13 @@ function makePage(name) {
       return widgets.find((w) => w.type === "TEXT" && w.props.text_size === 58).props.text;
     },
     flameVisible() {
-      return widgets.find((w) => w.type === "IMG").visible;
+      return widgets.find((w) => w.type === "IMG" && w.props.src === "flame.png").visible;
+    },
+    // ikona źródła stanu nad tytułem: "bt" | "cloud" | "none"
+    source() {
+      const w = widgets.find((x) => x.type === "IMG" && /icons\/src_/.test(x.props.src || ""));
+      assert.ok(w, "brak ikony źródła");
+      return /src_(\w+)\.png/.exec(w.props.src)[1];
     },
     activeMode() {
       const seg = widgets.filter((w) => w.type === "FILL_RECT" && w.props.w === 140 && w.visible);
@@ -872,9 +892,151 @@ test("termostat: telefon niedostępny", async () => {
   p.destroy();
 });
 
+// --- Bluetooth (pkt 15) ---
+
+const BT_KEY = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f";
+// pilot: 0 światło, 1 temperatura, 2 nastawa, 3 tryb termostatu
+function btSetup() {
+  tree["swiatlo-0c4f21"] = { info: { type: "switch", name: "Sufit" }, state: { on: false }, lastSeen: clock.now };
+  remotes = {
+    "zegarek-1": {
+      cfgVer: 4,
+      points: [
+        { device: "swiatlo-0c4f21", point: "on" },
+        { device: "termostat-aaa", point: "temp" },
+        { device: "termostat-aaa", point: "target" },
+        { device: "termostat-aaa", point: "mode" },
+      ],
+    },
+  };
+  watches[WATCH] = { ...(watches[WATCH] || {}), ble: { homeId: "h1", hub: "hub-1", id: "zegarek-1", slot: 3, key: BT_KEY } };
+  const hub = createFakeHub({
+    keyHex: BT_KEY,
+    slot: 3,
+    cfgVer: 4,
+    values: [
+      { status: 1, value: 0 },
+      { status: 1, value: 2250 },
+      { status: 1, value: 2100 },
+      { status: 1, value: 1 },
+    ],
+  });
+  const bt = { hub, transports: [] };
+  globalData.btTransportFactory = () => {
+    const tr = fakeTransport(hub, { defer: (fn) => Promise.resolve().then(fn) });
+    bt.transports.push(tr);
+    return tr;
+  };
+  side.cache = newCache();
+  side.commands = [];
+  side.cmdKeys = [];
+  return bt;
+}
+function btCleanup() {
+  delete tree["swiatlo-0c4f21"];
+  remotes = null;
+  delete (watches[WATCH] || {}).ble;
+  globalData.btTransportFactory = undefined;
+  side.online = true;
+  side.cache = newCache();
+}
+
+test("Bluetooth: konfiguracja z telefonu, stan z huba, przełączenie bez chmury, zapas przez chmurę z cmdKey", async () => {
+  const bt = btSetup();
+  const p = await makePage("home").start();
+  assert.equal(p.source(), "cloud", "przed połączeniem - chmura");
+  await run(600);
+  assert.ok(watches[WATCH].ble, "zgłoszenie zegarka nie skasowało klucza od telefonu");
+  assert.equal(JSON.parse(files["ble.json"]).id, "zegarek-1", "konfiguracja w pamięci zegarka");
+  assert.ok(JSON.parse(files["pulpit.json"]).pages.length, "pulpit w pamięci zegarka");
+  assert.equal(files["btwezel.txt"], "AA:BB:CC:00:11:22", "zapamiętany węzeł");
+  assert.equal(p.source(), "bt");
+  assert.equal(p.tile("Salon").value, "22,5°", "temperatura z Bluetooth przykrywa chmurę (21,4)");
+  assert.equal(p.tile("Sufit").pill, "WYŁ");
+
+  // przełączenie: jedna ramka 0x01, potwierdzenie huba, bez polecenia w chmurze
+  p.tile("Sufit").tapPill();
+  await run(50);
+  assert.deepEqual(bt.hub.commands.map((c) => [c.index, c.value]), [[0, 1]]);
+  assert.deepEqual(side.commands, [], "nic przez chmurę");
+  assert.equal(p.tile("Sufit").pill, "WŁ");
+  assert.ok(p.tile("Sufit").pillOn && !p.tile("Sufit").pillPending);
+  assert.ok(p.has("Sufit: potwierdzone po 0,0 s (Bluetooth)"), p.texts().join(" | "));
+  const ctr = Number(files["btlicznik.txt"]);
+  assert.ok(ctr >= bt.hub.commands[0].ctr, "licznik zapisany");
+
+  // hub nie odpowiada w 500 ms -> to samo polecenie przez chmurę z kluczem "<pilot>:<licznik>"
+  await run(400); // podwójne dotknięcie
+  bt.hub.drop = true;
+  p.tile("Sufit").tapPill();
+  await run(50);
+  assert.deepEqual(side.commands, [], "najpierw czekamy na Bluetooth");
+  await run(600);
+  assert.deepEqual(side.commands, [{ on: false }]);
+  const sent = bt.hub.frames.filter((f) => f[1] === 0x01).at(-1);
+  const sentCtr = ((sent[3] << 24) | (sent[4] << 16) | (sent[5] << 8) | sent[6]) >>> 0;
+  assert.deepEqual(side.cmdKeys, ["zegarek-1:" + sentCtr]);
+  bt.hub.drop = false;
+  assert.equal(p.destroy(), 0, "po zamknięciu żadnych timerów (także połączenia)");
+  assert.ok(bt.transports.every((t) => !t.connected), "połączenie zamknięte");
+  btCleanup();
+});
+
+test("Bluetooth bez telefonu: pulpit z pamięci, stan i sterowanie przez węzeł, termostat", async () => {
+  const bt = btSetup();
+  const first = await makePage("home").start();
+  await run(600);
+  first.destroy();
+  side.online = false;
+  log.toasts = [];
+  const p = await makePage("home").start();
+  assert.ok(p.has("DOM"), "tytuł z pamięci");
+  assert.equal(p.tile("Salon").value, "--,-°", "stan z pamięci nie udaje aktualnego");
+  await run(600);
+  assert.equal(p.source(), "bt");
+  assert.equal(p.tile("Salon").value, "22,5°");
+  assert.ok(!p.has("Telefon niedostępny"), "z Bluetooth bez komunikatu o telefonie");
+  p.tile("Sufit").tapPill();
+  await run(50);
+  assert.equal(p.tile("Sufit").pill, "WŁ");
+  assert.equal(bt.hub.commands.at(-1).value, 1);
+
+  // termostat: widok z Bluetooth, nastawa przez węzeł
+  p.tile("Salon").tap();
+  const th = await openThermostat();
+  assert.ok(th.has("22,5°"), th.texts().join(" | "));
+  assert.equal(th.source(), "bt");
+  assert.equal(th.target(), "21,0°");
+  assert.equal(th.activeMode(), "auto");
+  th.key("KEY_UP");
+  await run(1100);
+  assert.equal(bt.hub.commands.at(-1).index, 2);
+  assert.equal(bt.hub.commands.at(-1).value, 2150);
+  assert.ok(log.toasts.some((t) => /^Zapisano \(.*Bluetooth\)$/.test(t)), log.toasts.join(" | "));
+  assert.equal(th.target(), "21,5°");
+  assert.ok(!th.has("Telefon niedostępny"));
+  th.tap("RĘCZNY");
+  await run(100);
+  assert.equal(bt.hub.commands.at(-1).index, 3);
+  assert.equal(bt.hub.commands.at(-1).value, 0, "tryb = indeks na liście (manual, auto)");
+  assert.equal(th.activeMode(), "manual");
+  assert.deepEqual(side.commands, [], "nic przez chmurę");
+
+  // węzeł milknie: po 15 s stan z Bluetooth przestaje się liczyć - ikona „brak” (telefonu też nie ma)
+  bt.hub.drop = true;
+  await run(20000);
+  assert.equal(th.source(), "none");
+  assert.ok(th.has("Brak połączenia z telefonem"), th.texts().join(" | "));
+  th.destroy();
+  bt.hub.drop = false;
+  assert.equal(p.destroy(), 0);
+  btCleanup();
+});
+
 for (const [name, fn] of tests) {
   try {
     globalData.top = undefined;
+    Object.keys(files).forEach((k) => delete files[k]);
     await fn();
     await flush();
     console.log("ok   " + name);

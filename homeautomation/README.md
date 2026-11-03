@@ -29,8 +29,9 @@ Szczegóły, uruchomienie i testy: [phone/README.md](phone/README.md).
 
 ## Zegarek (`watch/`)
 
-Aplikacja Zepp OS **„Dom”** na Amazfit T-Rex 3 (appId 1087170, API 3.0). Tylko przez chmurę
-(SmartTermostatOLED `docs/API.md`, pkt 8, 12, 13a), tak jak Na szczycie: Side Service w aplikacji Zepp na telefonie
+Aplikacja Zepp OS **„Dom”** na Amazfit T-Rex 3 (appId 1087170, API 3.0). Przez chmurę
+(SmartTermostatOLED `docs/API.md`, pkt 8, 12, 13a) i – gdy telefon nadał zegarkowi klucz – przez Bluetooth do huba
+(pkt 15, niżej). Chmura tak jak w Na szczycie: Side Service w aplikacji Zepp na telefonie
 loguje się REST-em kontem osoby (e-mail i hasło w ustawieniach aplikacji w Zepp) i czyta Realtime Database
 – **tylko gdy aplikacja na zegarku jest otwarta** (co ~5 s). W tle nic się nie dzieje
 (powiadomienia o awariach przychodzą z aplikacji na telefonie).
@@ -42,8 +43,21 @@ loguje się REST-em kontem osoby (e-mail i hasło w ustawieniach aplikacji w Zep
 **Dom**: domy osoby z `users/{uid}/homes`; przy kilku domach wybór w ustawieniach w Zepp
 („Dom na zegarku”, lista pojawia się po pierwszym otwarciu aplikacji na zegarku), inaczej pierwszy.
 
-**Zgłoszenie zegarka**: przy każdym uruchomieniu Side Service zapisuje `users/{uid}/watches/{deviceSource}`
-(nazwa modelu, `width`, `height`, `shape`, wersja aplikacji, `lastSeen`) – telefon wie, pod jaki ekran układać pulpit.
+**Zgłoszenie zegarka**: przy każdym uruchomieniu Side Service zapisuje (PATCH – bez kasowania `ble` od telefonu)
+`users/{uid}/watches/{deviceSource}` (nazwa modelu, `width`, `height`, `shape`, wersja aplikacji, `lastSeen`) – telefon
+wie, pod jaki ekran układać pulpit.
+
+**Bluetooth bez telefonu** (pkt 15, `utils/bt*.js`): Side Service czyta `users/{uid}/watches/{deviceSource}/ble`
+(`homeId`, `hub`, `id`, `slot`, `key`) i listę punktów pilota `homes/{h}/remotes/{id}` (`points`, `cfgVer`; rodzaj punktu
+i lista wyborów z `describe`), zegarek trzyma je w pamięci (`ble.json`, razem z ostatnim pulpitem `pulpit.json`, licznikiem
+ramek i ostatnim węzłem – pliki `@zos/fs`). Po otwarciu aplikacji łączy się w tle z węzłem `HA-BT` (ostatni użyty, inaczej
+najsilniejszy z 1 s skanu; ponawianie jak w `bt-proba`), czyta stan ramką `0x02` co 5 s i wysyła polecenia ramką `0x01`
+(HMAC-SHA256 w JS, `utils/sha256.js`, ramki `utils/btframes.js`). Polecenie z kafelka, ekranu termostatu i scena
+(`runScene` z `arg` = id sceny) idą najpierw przez Bluetooth; bez potwierdzenia w 500 ms albo przy wyniku 1/4/5 – to
+samo przez chmurę z `"cmdKey": "<id pilota>:<licznik>"`; wynik 2 → „Brak uprawnień”, 6 → „Zła wartość”, 3 → licznik od
+huba i powtórka, 4 (inna lista) → polecenia przez chmurę do nowej listy z telefonu. Stan z Bluetooth (świeższy niż 15 s)
+przykrywa chmurę; ikona nad tytułem: Bluetooth / chmura / brak. Bez telefonu pulpit pokazuje ostatni zapisany układ
+(„--” do pierwszego odczytu) i działa przez Bluetooth; „Telefon niedostępny” znika, gdy Bluetooth działa.
 
 **Pulpit zegarka** (`page/gt/home`, pkt 13a): `users/{uid}/watchDashboards/{homeId}/{deviceSource}`, układany na
 telefonie (ekran „Zegarek”) osobno od pulpitów telefonu – tych zegarek nie pokazuje. Gdy pod `deviceSource` nie ma
@@ -112,9 +126,10 @@ Potem w Zepp: Profil → urządzenie → Aplikacje → Dom → Ustawienia – za
 
 Testy: `npm test` w `homeautomation/watch` (czyste funkcje w `utils/`: adresy REST, uprawnienia, dekodowanie
 pulpitu zegarka, układ kafelków w wierszach na okrągłym i kwadratowym ekranie, zgłoszenie zegarka, logika
-termostatu, obieg Side Service na udawanej bazie z regułami właściciela i domownika).
+termostatu, obieg Side Service na udawanej bazie z regułami właściciela i domownika; ramki Bluetooth na wektorach
+z `SmartTermostatOLED/docs/BTNODE_GATT_WEKTORY.md`, połączenie na atrapie huba `test/fakehub.mjs`).
 Test dymny prawdziwych bundli w Node `vm`: opis na początku `tools/smoke.mjs`. Ikona i podglądy:
 `python tools/gen_assets.py`.
 
-Niesprawdzone na zegarku: wszystko poza buildem i testami w Node (wygląd, przewijanie listy, odczyt
-przez telefon, czasy odpowiedzi BLE, zachowanie przy wygaszonym ekranie).
+Niesprawdzone na zegarku: Bluetooth do węzła btnode i huba (tylko testy w Node na wektorach i atrapie huba), ikona
+źródła stanu, pulpit z pamięci bez telefonu.

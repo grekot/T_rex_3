@@ -29,6 +29,8 @@ const text = (x, y, w, h, size, color, extra) => ({
 });
 
 // Nazwa termostatu (przy kilku: stuknięcie = następny)
+// Źródło stanu nad nazwą (pkt 15.4): assets icons/src_bt | src_cloud | src_none
+export const SOURCE_STYLE = { x: (DEVICE_WIDTH - px(22)) / 2, y: px(6), w: px(22), h: px(22), src: "icons/src_none.png" };
 export const NAME_STYLE = text(px(90), px(30), DEVICE_WIDTH - px(180), px(36), px(24), COLOR_ORANGE, {
   text_style: hmUI.text_style.ELLIPSIS,
 });

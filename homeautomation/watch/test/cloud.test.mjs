@@ -105,10 +105,12 @@ function fakeDb() {
     const method = (req.headers && req.headers["X-HTTP-Method-Override"]) || req.method;
     calls.push(method + " " + path.join("/") + (/shallow/.test(req.url) ? "?shallow" : ""));
     const body = req.body ? JSON.parse(req.body) : null;
-    if (method === "PUT") {
+    if (method === "PUT" || method === "PATCH") {
       if (path[0] !== "users" || path[1] !== uid) throw denied();
       const parent = path.slice(0, -1).reduce((o, k) => (o[k] = o[k] || {}), tree);
-      parent[path[path.length - 1]] = JSON.parse(JSON.stringify(body).replace('{".sv":"timestamp"}', String(NOW)));
+      const value = JSON.parse(JSON.stringify(body).replace('{".sv":"timestamp"}', String(NOW)));
+      const last = path[path.length - 1];
+      parent[last] = method === "PATCH" ? { ...(parent[last] || {}), ...value } : value;
       return body;
     }
     if (method === "POST") {
@@ -141,6 +143,13 @@ const items = (r) => r.pages.flatMap((p) => p.items.map((it) => [it.kind, it.dev
 let reg = await registerWatch({ ...as("dom"), info: { deviceSource: 8716545, name: "Amazfit T-Rex 3", width: 480, height: 480, shape: "round" }, appVersion: "1.0.0" });
 assert.deepEqual(reg, { ok: true, watchId: WATCH });
 assert.deepEqual(tree.users.dom.watches[WATCH], { name: "Amazfit T-Rex 3", deviceSource: 8716545, width: 480, height: 480, shape: "round", app: "1.0.0", lastSeen: NOW });
+// ponowne zgłoszenie nie kasuje klucza Bluetooth, który zapisał telefon
+tree.users.dom.watches[WATCH].ble = { id: "zegarek-1", slot: 3 };
+await registerWatch({ ...as("dom"), info: { deviceSource: 8716545, name: "Amazfit T-Rex 3", width: 480, height: 480, shape: "round" }, appVersion: "1.0.1" });
+assert.deepEqual(tree.users.dom.watches[WATCH].ble, { id: "zegarek-1", slot: 3 });
+assert.equal(tree.users.dom.watches[WATCH].app, "1.0.1");
+delete tree.users.dom.watches[WATCH].ble;
+tree.users.dom.watches[WATCH].app = "1.0.0";
 reg = await registerWatch({ ...as("dom"), info: {}, appVersion: "1.0.0" });
 assert.equal(reg.ok, false);
 
@@ -359,6 +368,48 @@ assert.deepEqual(ack.ack, { ok: true, text: "Zapisano" });
 assert.deepEqual(ack.values, { on: true });
 assert.equal(ack.tile.on, true);
 assert.equal(ack.tile.hasData, true);
+
+// --- Bluetooth (pkt 15.1): klucz i slot z users/{uid}/watches/{watchId}/ble, punkty z homes/{h}/remotes/{id} ---
+tree.users.owner.watches = {
+  [WATCH]: { name: "T-Rex 3", ble: { homeId: "h1", hub: "hub-51e96c", id: "zegarek-8716545", slot: 3, key: "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f" } },
+};
+tree.homes.h1.remotes = {
+  "zegarek-8716545": {
+    kind: "watch",
+    cfgVer: 4,
+    points: [
+      { device: "termostat-aaa", point: "target" },
+      { device: "termostat-aaa", point: "mode" },
+      { device: "swiatlo-1", point: "on" },
+    ],
+  },
+};
+tree.homes.h1.devices["termostat-aaa"].describe.points.push({ key: "mode", name: "Tryb", kind: "select", options: ["manual", "auto"] });
+r = await pollHome({ ...as("owner"), wantedHome: null, watchId: WATCH, pending: null, cache: newCache(), now: NOW });
+assert.equal(r.ble.id, "zegarek-8716545");
+assert.equal(r.ble.slot, 3);
+assert.equal(r.ble.cfgVer, 4);
+assert.deepEqual(
+  r.ble.points.map((p) => [p.device, p.point, p.kind, p.options]),
+  [
+    ["termostat-aaa", "target", null, null],
+    ["termostat-aaa", "mode", "select", ["manual", "auto"]],
+    ["swiatlo-1", "on", null, null],
+  ],
+  "rodzaj i lista wyborów z describe"
+);
+// zegarek bez rejestracji Bluetooth, inny dom - bez konfiguracji
+r = await pollHome({ ...as("owner"), wantedHome: null, watchId: "999", pending: null, cache: newCache(), now: NOW });
+assert.equal(r.ble, null);
+tree.users.owner.watches[WATCH].ble.homeId = "h2";
+r = await pollHome({ ...as("owner"), wantedHome: null, watchId: WATCH, pending: null, cache: newCache(), now: NOW });
+assert.equal(r.ble, null, "klucz dla innego domu");
+delete tree.users.owner.watches;
+delete tree.homes.h1.remotes;
+
+// droga zapasowa: to samo polecenie przez chmurę z cmdKey (pkt 15.4)
+const viaCloud = await send({ ...as("owner"), homeId: "h1", id: "swiatlo-1", values: { on: true }, cmdKey: "zegarek-8716545:1234" });
+assert.equal(tree.commands.h1["swiatlo-1"][viaCloud.key].cmdKey, "zegarek-8716545:1234");
 
 // --- ekran termostatu ---
 db.calls.length = 0;

@@ -3,6 +3,8 @@
 // Realtime Database; strona pyta o stan co ~5 s tylko wtedy, gdy jest otwarta.
 // Naciśnięcia − / + (także przyciski zegarka góra/dół) zbieramy i wysyłamy jedno polecenie po 1 s
 // bez dotyku. Otwiera ją kafelek termostatu na liście (params: {"id": deviceId}).
+// Z połączeniem Bluetooth (utils/bt.js, pkt 15) stan z odczytów huba przykrywa chmurę, a nastawa i tryb idą
+// najpierw przez Bluetooth; bez potwierdzenia - przez telefon z cmdKey.
 import * as hmUI from "@zos/ui";
 import { onKey, offKey, KEY_UP, KEY_DOWN, KEY_EVENT_CLICK } from "@zos/interaction";
 import { setWakeUpRelaunch, setPageBrightTime } from "@zos/display";
@@ -23,8 +25,11 @@ import {
   applyAck,
 } from "../../../utils/termostat";
 import { ask, setTop, onTap, toast, parseParams } from "../../../utils/page";
+import { onBt, btState, btSend, stateSource } from "../../../utils/bt";
+import { applyBtView } from "../../../utils/btpoints";
 import { canControl } from "../../../utils/home";
 import {
+  SOURCE_STYLE,
   NAME_STYLE,
   ALERT_STYLE,
   TEMP_STYLE,
@@ -70,7 +75,9 @@ Page(
 
     build() {
       const s = this.state;
-      s.view = null;
+      s.view = null; // stan z chmury z Bluetooth na wierzchu (refresh)
+      s.cloudView = null;
+      s.cloudAt = 0;
       s.screen = "Łączenie z telefonem...";
       s.localTarget = null;
       s.localMode = null;
@@ -83,6 +90,7 @@ Page(
         setPageBrightTime({ brightTime: 30000 });
       } catch (e) {}
 
+      s.source = hmUI.createWidget(hmUI.widget.IMG, SOURCE_STYLE);
       s.name = hmUI.createWidget(hmUI.widget.TEXT, NAME_STYLE);
       s.center = hmUI.createWidget(hmUI.widget.TEXT, CENTER_STYLE);
 
@@ -138,6 +146,12 @@ Page(
         s.keyHooked = true;
       } catch (e) {}
 
+      s.offBt = onBt(() => {
+        if (s.destroyed) return;
+        this.refresh();
+        this.render();
+      });
+      this.refresh();
       this.render();
       if (s.id) this.poll();
       else this.showScreen("Brak urządzenia");
@@ -146,6 +160,7 @@ Page(
     onDestroy() {
       const s = this.state;
       s.destroyed = true;
+      if (s.offBt) s.offBt();
       setTop("home");
       if (s.pollTimer) clearTimeout(s.pollTimer);
       if (s.sendTimer) clearTimeout(s.sendTimer);
@@ -203,10 +218,23 @@ Page(
         .catch(() => done(null, true));
     },
 
+    // Widok: chmura + stan z Bluetooth (bez chmury sam Bluetooth); potem lokalne zmiany dogonione przez stan
+    refresh() {
+      const s = this.state;
+      const now = Date.now();
+      const bt = btState(now);
+      const b = bt && s.id ? bt[s.id] : null;
+      s.view = b ? applyBtView(s.cloudView || { hasData: false, power: true }, b) : s.cloudView;
+      if (s.view && s.view.hasData) {
+        s.localTarget = settleLocal(s.localTarget, s.view.target, now);
+        s.localMode = settleLocal(s.localMode, s.view.mode, now);
+      }
+    },
+
     phoneDown() {
       const s = this.state;
       s.phoneDown = true;
-      if (!s.view) s.screen = "Brak połączenia z telefonem";
+      if (!s.cloudView) s.screen = "Brak połączenia z telefonem"; // widoczne, gdy nie ma też stanu z Bluetooth
       this.checkAckTimeout();
       this.render();
     },
@@ -223,8 +251,10 @@ Page(
         else s.screen = "Błąd: " + (r.error || "nieznany");
         return this.render();
       }
-      const v = r.view || { hasData: false };
-      s.view = v;
+      s.cloudView = r.view || { hasData: false };
+      s.cloudAt = now;
+      this.refresh();
+      const v = s.view;
       if (!v.hasData) s.screen = "Termostat nie wysłał jeszcze danych do chmury";
 
       if (s.awaitKey && r.ack) {
@@ -235,8 +265,7 @@ Page(
         s.awaitKey = null;
       }
       this.checkAckTimeout();
-      s.localTarget = settleLocal(s.localTarget, v.target, now);
-      s.localMode = settleLocal(s.localMode, v.mode, now);
+      this.refresh();
       this.render();
     },
 
@@ -250,6 +279,7 @@ Page(
     showScreen(text) {
       const s = this.state;
       s.view = null;
+      s.cloudView = null;
       this.forget();
       s.screen = text;
       this.render();
@@ -322,7 +352,12 @@ Page(
         s.sending = false;
         if (s.destroyed) return;
         const mine = (it) => s[it.field] && s[it.field].sentAt === it.local.sentAt;
-        if (r && r.ok && r.key) {
+        if (r && r.bt) {
+          // hub potwierdził, nowa wartość jest już w stanie z Bluetooth
+          if (mine(item)) s[item.field] = null;
+          this.refresh();
+          toast("Zapisano (" + seconds(Date.now() - s.sentAt) + ", Bluetooth)");
+        } else if (r && r.ok && r.key) {
           if (mine(item)) s[item.field] = { ...s[item.field], key: r.key };
           s.awaitKey = r.key;
           s.awaitAt = Date.now();
@@ -339,9 +374,20 @@ Page(
         this.sendNext();
       };
       s.sentAt = Date.now();
-      ask(this, { method: "SET", params: { home: s.home, id: s.id, values: item.values } })
-        .then((r) => done(r || null))
-        .catch(() => done(null));
+      // najpierw Bluetooth (pkt 15.4); bez potwierdzenia w 500 ms albo wynik 4/5 - telefon z tym samym cmdKey
+      const point = Object.keys(item.values)[0];
+      btSend(s.id, point, item.values[point])
+        .catch(() => null)
+        .then((bt) => {
+          if (s.destroyed) return;
+          if (bt && bt.done) return done({ ok: true, bt: true });
+          if (bt && bt.error) return done({ ok: false, error: bt.error });
+          const params = { home: s.home, id: s.id, values: item.values };
+          if (bt && bt.cmdKey) params.cmdKey = bt.cmdKey;
+          ask(this, { method: "SET", params })
+            .then((r) => done(r || null))
+            .catch(() => done(null));
+        });
     },
 
     // --- ekran ---
@@ -350,6 +396,13 @@ Page(
       const s = this.state;
       const v = s.view;
       const hasData = !!(v && v.hasData);
+      const now = Date.now();
+      const bt = !!btState(now);
+      const source = stateSource(!s.phoneDown && s.cloudAt > 0, now);
+      if (source !== s.sourceShown) {
+        s.sourceShown = source;
+        s.source.setProperty(hmUI.prop.SRC, "icons/src_" + source + ".png");
+      }
       s.name.setProperty(hmUI.prop.TEXT, (v && v.name) || s.title || s.id || "TERMOSTAT");
       s.center.setProperty(hmUI.prop.VISIBLE, !hasData);
       s.main.forEach((w) => w.setProperty(hmUI.prop.VISIBLE, hasData));
@@ -386,7 +439,7 @@ Page(
       s.info.setProperty(hmUI.prop.MORE, { ...INFO_STYLE, text: info.text, color: info.override ? COLOR_ORANGE : COLOR_GREY });
 
       let msg = "";
-      if (s.phoneDown) msg = "Telefon niedostępny";
+      if (s.phoneDown && !bt) msg = "Telefon niedostępny";
       else if (s.error) msg = "Błąd: " + s.error;
       else if (s.sending || s.queue.length) msg = "Wysyłanie...";
       else if (s.awaitKey) msg = "Czekam na termostat...";

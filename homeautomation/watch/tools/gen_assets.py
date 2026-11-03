@@ -129,6 +129,41 @@ def make_tile_icons():
     save(im, "sleep")
 
 
+def make_source_icons():
+    """Źródło stanu nad tytułem pulpitu 22x22 (pkt 15.4): Bluetooth / chmura / brak (przekreślona chmura)."""
+    N = 22
+    S = N * SS
+    out = os.path.join(ROOT, "assets", "gt.r", "icons")
+    w = int(S * 0.1)
+
+    def save(im, name):
+        im.resize((N, N), Image.LANCZOS).save(os.path.join(out, name + ".png"))
+
+    # Bluetooth: runa z dwóch trójkątów
+    im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    d = ImageDraw.Draw(im)
+    BLUE = (66, 165, 245)
+    x0, x1, xm = S * 0.28, S * 0.72, S * 0.5
+    d.line([(x0, S * 0.3), (x1, S * 0.7), (xm, S * 0.92), (xm, S * 0.08), (x1, S * 0.3), (x0, S * 0.7)], fill=BLUE, width=w, joint="curve")
+    save(im, "src_bt")
+
+    def cloud(color):
+        im = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+        d = ImageDraw.Draw(im)
+        d.ellipse([S * 0.06, S * 0.42, S * 0.42, S * 0.78], fill=color)
+        d.ellipse([S * 0.24, S * 0.2, S * 0.7, S * 0.66], fill=color)
+        d.ellipse([S * 0.56, S * 0.38, S * 0.94, S * 0.76], fill=color)
+        d.rectangle([S * 0.24, S * 0.58, S * 0.76, S * 0.78], fill=color)
+        return im, d
+
+    im, d = cloud(WHITE)
+    save(im, "src_cloud")
+    im, d = cloud(GREY)
+    d.line([(S * 0.1, S * 0.1), (S * 0.9, S * 0.9)], fill=(0, 0, 0, 0), width=w * 2)
+    d.line([(S * 0.1, S * 0.1), (S * 0.9, S * 0.9)], fill=(255, 82, 82), width=w)
+    save(im, "src_none")
+
+
 def text_c(d, cx, cy, s, f, fill):
     d.text((cx, cy), s, font=f, fill=fill, anchor="mm")
 
@@ -199,6 +234,7 @@ if __name__ == "__main__":
     make_icon()
     make_flame()
     make_tile_icons()
+    make_source_icons()
     make_preview()
     make_list_preview()
     print("ok: assets/gt.r/icon.png, assets/gt.r/flame.png, docs/home.png, docs/thermostat.png")

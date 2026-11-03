@@ -6,7 +6,7 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "test": "node test/firebase.test.mjs && node test/termostat.test.mjs && node test/devices.test.mjs && node test/home.test.mjs && node test/layout.test.mjs && node test/cloud.test.mjs",
+    "test": "node test/firebase.test.mjs && node test/termostat.test.mjs && node test/devices.test.mjs && node test/home.test.mjs && node test/layout.test.mjs && node test/cloud.test.mjs && node test/btframes.test.mjs && node test/btpoints.test.mjs && node test/btlink.test.mjs",
     "configure": "node tools/configure_watch.mjs",
     "assets": "python tools/gen_assets.py"
   },
@@ -14,6 +14,7 @@
     "@zeppos/device-types": "^3.0.0"
   },
   "dependencies": {
+    "@silver-zepp/easy-ble": "1.7.8-e",
     "@zeppos/zml": "^0.0.9"
   }
 }

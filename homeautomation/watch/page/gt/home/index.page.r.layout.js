@@ -45,6 +45,8 @@ const left = { align_h: hmUI.align.LEFT, text_style: hmUI.text_style.ELLIPSIS };
 export const TITLE_STYLE = text(px(90), px(24), DEVICE_WIDTH - px(180), px(34), px(24), COLOR_ORANGE, {
   text_style: hmUI.text_style.ELLIPSIS,
 });
+// Źródło stanu nad tytułem (pkt 15.4): assets icons/src_bt | src_cloud | src_none
+export const SOURCE_STYLE = { x: (DEVICE_WIDTH - px(22)) / 2, y: px(3), w: px(22), h: px(22), src: "icons/src_none.png" };
 // Telefon niedostępny / Wysyłanie...
 export const STATUS_STYLE = text(px(100), px(58), DEVICE_WIDTH - px(200), px(26), px(18), COLOR_GREY);
 // Ekran bez kafelków: logowanie, brak konfiguracji, łączenie...

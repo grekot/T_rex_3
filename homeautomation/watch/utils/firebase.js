@@ -106,6 +106,16 @@ export function writeRequest(db, idToken, parts, value) {
   };
 }
 
+// Zapis wybranych pól węzła (PATCH) - reszta zostaje (np. users/{uid}/watches/{id}/ble zapisany przez telefon)
+export function updateRequest(db, idToken, parts, fields) {
+  return {
+    url: dbUrl(db, parts, idToken),
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-HTTP-Method-Override": "PATCH" },
+    body: JSON.stringify(fields),
+  };
+}
+
 // homes/{homeId}/devices/{id}[/state | config | lastSeen | lastCommand | config/name | info | describe]
 export function devicePath(homeId, id, node) {
   return ["homes", homeId, "devices", id].concat(node ? String(node).split("/") : []);
@@ -115,12 +125,16 @@ export function devicePath(homeId, id, node) {
 // "ts" wypełnia serwer bazy; "by" = uid zalogowanej osoby (reguły wymagają by == auth.uid, urządzenie sprawdza
 // poziom autora, pkt 12); "source" tylko informacyjnie.
 // Potwierdzenie przychodzi w homes/{homeId}/devices/{id}/lastCommand.
-export function commandRequest(db, idToken, homeId, id, values, uid) {
+// cmdKey (pkt 15.4) - to samo polecenie, które zegarek próbował wysłać przez Bluetooth: "<id pilota>:<licznik>";
+// urządzenie i hub pamiętają ostatnie klucze, więc powtórka nie wykona się drugi raz.
+export function commandRequest(db, idToken, homeId, id, values, uid, cmdKey) {
+  const body = { values, ts: { ".sv": "timestamp" }, by: uid, source: "watch" };
+  if (cmdKey) body.cmdKey = cmdKey;
   return {
     url: dbUrl(db, ["commands", homeId, id], idToken),
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ values, ts: { ".sv": "timestamp" }, by: uid, source: "watch" }),
+    body: JSON.stringify(body),
   };
 }
 

@@ -174,7 +174,8 @@ function handle(req) {
   }
   if (req.method === "SET") {
     if (!p.home || !p.id || !p.values) return Promise.resolve({ ok: false, error: "Złe polecenie" });
-    return withSession((ctx) => send({ ...ctx, homeId: p.home, id: p.id, values: p.values }));
+    const cmdKey = typeof p.cmdKey === "string" && p.cmdKey ? p.cmdKey : null;
+    return withSession((ctx) => send({ ...ctx, homeId: p.home, id: p.id, values: p.values, cmdKey }));
   }
   return Promise.resolve({ ok: false, error: "Nieznane żądanie: " + req.method });
 }

@@ -6,6 +6,7 @@ import {
   dbUrl,
   readRequest,
   writeRequest,
+  updateRequest,
   devicePath,
   commandRequest,
   decodeDevices,
@@ -47,11 +48,19 @@ assert.equal(wr.method, "POST");
 assert.equal(wr.headers["X-HTTP-Method-Override"], "PUT");
 assert.deepEqual(JSON.parse(wr.body), { name: "T-Rex 3", lastSeen: { ".sv": "timestamp" } });
 
+// Zapis pól: X-HTTP-Method-Override: PATCH (zgłoszenie zegarka nie kasuje ble od telefonu)
+const up = updateRequest(DB, "tok", ["users", "u1", "watches", "8716545"], { app: "1.0.0" });
+assert.equal(up.method, "POST");
+assert.equal(up.headers["X-HTTP-Method-Override"], "PATCH");
+assert.deepEqual(JSON.parse(up.body), { app: "1.0.0" });
+
 // Polecenie: POST do commands, znacznik czasu serwera, "by" = uid (wymagają tego reguły bazy)
 const cmd = commandRequest(DB, "tok", "h1", "termostat-ab12cd", { target: 21.5 }, "u1");
 assert.equal(cmd.method, "POST");
 assert.equal(cmd.url, DB + "/commands/h1/termostat-ab12cd.json?auth=tok", "polecenia poza devices (pkt 8.1)");
 assert.deepEqual(JSON.parse(cmd.body), { values: { target: 21.5 }, ts: { ".sv": "timestamp" }, by: "u1", source: "watch" });
+assert.equal(JSON.parse(commandRequest(DB, "tok", "h1", "t", { on: true }, "u1", "zegarek-1:77").body).cmdKey, "zegarek-1:77");
+assert.equal("cmdKey" in JSON.parse(cmd.body), false, "bez próby przez Bluetooth - bez cmdKey");
 
 // Odpowiedzi
 assert.deepEqual(decodeDevices('{"termostat-b":true,"termostat-a":true}'), ["termostat-a", "termostat-b"]);

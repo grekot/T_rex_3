@@ -1,9 +1,10 @@
 // Odczyt i polecenia w Realtime Database - kroki Side Service bez API Zepp (fetchJson wstrzykiwany,
 // testy w test/cloud.test.mjs). fetchJson(request) zwraca sparsowaną odpowiedź albo rzuca
 // Error z polem status. Ścieżki według API.md pkt 8.1, 12, 13a (users/{uid}/..., homes/{homeId}/...).
-import { readRequest, writeRequest, devicePath, commandRequest, decodeDevices, pushKeyOf } from "./firebase.js";
+import { readRequest, updateRequest, devicePath, commandRequest, decodeDevices, pushKeyOf } from "./firebase.js";
 import { buildView, ackResult } from "./termostat.js";
 import { typeOf, tileView, arrangeDevices } from "./devices.js";
+import { normalizeBle } from "./btpoints.js";
 import {
   pickHome,
   levelOf,
@@ -104,9 +105,32 @@ async function homeContext(fetchJson, db, token, uid, wantedHome, watchId, scree
         if (got[i]) describes[id] = got[i];
       });
     }
+    // Bluetooth (pkt 15.1): klucz i slot tego zegarka + lista punktów pilota; rodzaj i lista wyborów z describe
+    let ble = null;
+    const bleRaw = watchId ? await quiet(["users", uid, "watches", watchId, "ble"]) : null;
+    if (bleRaw && typeof bleRaw === "object" && typeof bleRaw.id === "string" && (!bleRaw.homeId || bleRaw.homeId === homeId)) {
+      const remote = await quiet(["homes", homeId, "remotes", bleRaw.id]);
+      const rawPoints = remote && typeof remote === "object" ? remote.points : null;
+      const list = Array.isArray(rawPoints) ? rawPoints : rawPoints && typeof rawPoints === "object" ? Object.values(rawPoints) : [];
+      const need = {};
+      list.forEach((p) => {
+        if (p && typeof p.device === "string" && !describes[p.device] && devices[p.device]) need[p.device] = true;
+      });
+      const ds = Object.keys(need);
+      const got = await Promise.all(ds.map((id) => quiet(devicePath(homeId, id, "describe"))));
+      ds.forEach((id, i) => {
+        if (got[i]) describes[id] = got[i];
+      });
+      const points = list.map((p) => {
+        const d = describePoint(describes[p && p.device], p && p.point) || {};
+        return { ...(p || {}), kind: d.kind || null, options: Array.isArray(d.options) ? d.options : null };
+      });
+      ble = normalizeBle({ ...bleRaw, homeId, cfgVer: remote && remote.cfgVer, points });
+    }
     ctx = {
       homes,
       homeId,
+      ble,
       homeName: (homes.find((h) => h.id === homeId) || {}).name || homeId,
       owner,
       devices,
@@ -220,6 +244,8 @@ export async function pollHome({ fetchJson, db, token, uid, wantedHome, watchId,
     },
     pages,
     devices,
+    // konfiguracja Bluetooth tego zegarka (zegarek trzyma ją u siebie i łączy się z węzłem btnode)
+    ble: ctx.ble || null,
   };
 }
 
@@ -241,7 +267,8 @@ export async function pollAck({ fetchJson, db, token, homeId, id, key, type, poi
 export async function registerWatch({ fetchJson, db, token, uid, info, appVersion }) {
   const rec = watchRecord(info, appVersion);
   if (!rec) return { ok: false, error: "Brak danych zegarka" };
-  await fetchJson(writeRequest(db, token, ["users", uid, "watches", rec.id], rec.body));
+  // PATCH, nie PUT: w tym węźle telefon trzyma klucz Bluetooth zegarka (ble, pkt 15.1)
+  await fetchJson(updateRequest(db, token, ["users", uid, "watches", rec.id], rec.body));
   return { ok: true, watchId: rec.id };
 }
 
@@ -258,8 +285,8 @@ export async function poll({ fetchJson, db, token, homeId, id, pending, now }) {
 }
 
 // Polecenie Set (pkt 7, 10) z "by": uid -> { ok, key } (klucz porównujemy później z lastCommand.key)
-export async function send({ fetchJson, db, token, uid, homeId, id, values }) {
-  const key = pushKeyOf(await fetchJson(commandRequest(db, token, homeId, id, values, uid)));
+export async function send({ fetchJson, db, token, uid, homeId, id, values, cmdKey }) {
+  const key = pushKeyOf(await fetchJson(commandRequest(db, token, homeId, id, values, uid, cmdKey)));
   if (!key) throw new Error("Brak klucza polecenia");
   return { ok: true, key };
 }

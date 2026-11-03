@@ -5,6 +5,9 @@
 // jedno polecenie po 1 s bez dotyku), status, value, scene (▶ wysyła polecenia sceny). Przy dostępie
 // „view” bez przycisków. Przy uruchomieniu zegarek zgłasza się (model, ekran) - telefon układa pod niego pulpit.
 // Stan przychodzi przez Side Service co ~5 s, tylko gdy ta strona jest otwarta i na wierzchu.
+// Bluetooth (pkt 15): z konfiguracją pilota zegarek łączy się w tle z węzłem btnode, czyta stan co 5 s i wysyła
+// polecenia najpierw tą drogą (utils/bt.js); pulpit i konfiguracja leżą też w pamięci zegarka, więc bez telefonu
+// widać ostatni pulpit ze stanem z Bluetooth. Ikona nad tytułem: Bluetooth / chmura / brak.
 import * as hmUI from "@zos/ui";
 import { push } from "@zos/router";
 import { setWakeUpRelaunch, setPageBrightTime } from "@zos/display";
@@ -26,10 +29,15 @@ import { canControl, formatPoint, stepPoint, emptyMessage, iconAsset } from "../
 import { layoutPages } from "../../../utils/layout";
 import { APP_VERSION } from "../../../utils/version";
 import { ask, setTop, isTop, onTap, toast } from "../../../utils/page";
+import { ensureBt, stopBt, onBt, btState, btSend, stateSource } from "../../../utils/bt";
+import { applyBt, normalizeBle } from "../../../utils/btpoints";
+import { loadBle, saveBle, loadPulpit, savePulpit } from "../../../utils/btstore";
+import { createBleTransport } from "../../../utils/bttransport";
 import {
   SCREEN,
   GEOMETRY_PX,
   TITLE_STYLE,
+  SOURCE_STYLE,
   STATUS_STYLE,
   CENTER_STYLE,
   headerStyle,
@@ -85,7 +93,9 @@ Page(
       s.homeId = null;
       s.title = "";
       s.pages = [];
-      s.devices = {};
+      s.devices = {}; // urządzenia z chmury ze stanem z Bluetooth na wierzchu (merge)
+      s.cloudDevices = {};
+      s.cloudAt = 0;
       s.locals = {}; // "urządzenie/punkt" -> wartość ustawiona dotknięciem, zanim baza ją pokaże
       s.awaiting = {}; // urządzenie -> { key, at }
       s.sendTimers = {};
@@ -106,9 +116,12 @@ Page(
         setPageBrightTime({ brightTime: 30000 });
       } catch (e) {}
 
+      s.source = hmUI.createWidget(hmUI.widget.IMG, SOURCE_STYLE);
       s.titleText = hmUI.createWidget(hmUI.widget.TEXT, TITLE_STYLE);
       s.status = hmUI.createWidget(hmUI.widget.TEXT, STATUS_STYLE);
       s.center = hmUI.createWidget(hmUI.widget.TEXT, CENTER_STYLE);
+      this.fromMemory();
+      s.offBt = onBt(() => this.btChanged());
       this.render();
       this.register();
       this.poll();
@@ -117,6 +130,8 @@ Page(
     onDestroy() {
       const s = this.state;
       s.destroyed = true;
+      if (s.offBt) s.offBt();
+      stopBt(); // pulpit to pierwsza strona - jej zamknięcie kończy aplikację
       if (s.pollTimer) clearTimeout(s.pollTimer);
       if (s.flashTimer) clearTimeout(s.flashTimer);
       Object.keys(s.sendTimers).forEach((k) => clearTimeout(s.sendTimers[k]));
@@ -144,6 +159,70 @@ Page(
         .catch(() => {
           s.registering = false;
         });
+    },
+
+    // Ostatni pulpit i konfiguracja Bluetooth z pamięci zegarka: bez telefonu jest co pokazać i czym sterować
+    fromMemory() {
+      const s = this.state;
+      const p = loadPulpit();
+      if (p && typeof p.homeId === "string" && Array.isArray(p.pages) && p.pages.length && p.devices) {
+        s.homeId = p.homeId;
+        s.title = p.title || "";
+        s.pages = p.pages;
+        s.cloudDevices = p.devices;
+        s.devices = p.devices;
+        s.snapSig = JSON.stringify(p);
+      }
+      const ble = normalizeBle(loadBle());
+      s.bleSig = JSON.stringify(ble);
+      if (ble && s.homeId && ble.homeId === s.homeId) ensureBt(ble, createBleTransport);
+    },
+
+    // Pulpit do pamięci bez stanu (stan z pamięci byłby nieaktualny - do pierwszego odczytu kafelki pokazują „--”)
+    remember() {
+      const s = this.state;
+      const devices = {};
+      Object.keys(s.cloudDevices).forEach((id) => {
+        const d = s.cloudDevices[id];
+        devices[id] = { name: d.name, type: d.type, tile: { type: (d.tile || {}).type || d.type, hasData: false }, values: {} };
+      });
+      const snap = { homeId: s.homeId, title: s.title, pages: s.pages, devices };
+      const sig = JSON.stringify(snap);
+      if (sig === s.snapSig) return;
+      s.snapSig = sig;
+      savePulpit(snap);
+    },
+
+    // Konfiguracja Bluetooth z telefonu (null = ten zegarek nie ma pilota w tym domu)
+    bleConfig(raw, homeId) {
+      const s = this.state;
+      const cfg = normalizeBle(raw);
+      const sig = JSON.stringify(cfg);
+      if (sig !== s.bleSig) {
+        s.bleSig = sig;
+        saveBle(cfg);
+      }
+      ensureBt(cfg && cfg.homeId === homeId ? cfg : null, createBleTransport);
+    },
+
+    // Chmura + Bluetooth: stan z Bluetooth (świeższy) przykrywa wartości z chmury
+    merge() {
+      const s = this.state;
+      const now = Date.now();
+      s.devices = applyBt(s.cloudDevices, btState(now) || {});
+      Object.keys(s.locals).forEach((k) => {
+        const [id, point] = splitKey(k);
+        const d = s.devices[id];
+        s.locals[k] = d ? settleLocal(s.locals[k], (d.values || {})[point], now) : null;
+        if (!s.locals[k]) delete s.locals[k];
+      });
+    },
+
+    btChanged() {
+      const s = this.state;
+      if (s.destroyed) return;
+      if (s.pages.length) this.merge();
+      this.render();
     },
 
     once(name) {
@@ -207,7 +286,7 @@ Page(
     phoneDown() {
       const s = this.state;
       s.phoneDown = true;
-      if (!s.pages.length) s.screen = "Brak połączenia z telefonem";
+      if (!s.pages.length) s.screen = btState() ? "Bluetooth działa, ale pulpitu nie ma jeszcze w zegarku - otwórz Dom przy telefonie" : "Brak połączenia z telefonem";
       this.checkAckTimeouts();
       this.render();
     },
@@ -228,24 +307,24 @@ Page(
       if (r.homeId !== s.homeId) this.forget();
       s.homeId = r.homeId;
       s.title = r.title || "";
+      s.cloudAt = now;
+      if (r.ble !== undefined) this.bleConfig(r.ble, r.homeId);
       if (!r.pages || !r.pages.length) {
         s.pages = [];
         s.devices = {};
+        s.cloudDevices = {};
         s.screen = emptyMessage(r.diag);
         return this.render();
       }
       s.pages = r.pages;
-      s.devices = r.devices || {};
-      Object.keys(s.devices).forEach((id) => {
-        if (s.devices[id].ack) this.acked(id, s.devices[id].ack, now);
+      s.cloudDevices = r.devices || {};
+      this.remember();
+      s.devices = applyBt(s.cloudDevices, btState(now) || {});
+      Object.keys(s.cloudDevices).forEach((id) => {
+        if (s.cloudDevices[id].ack) this.acked(id, s.cloudDevices[id].ack, now);
       });
       this.checkAckTimeouts();
-      Object.keys(s.locals).forEach((k) => {
-        const [id, point] = splitKey(k);
-        const d = s.devices[id];
-        s.locals[k] = d ? settleLocal(s.locals[k], (d.values || {})[point], now) : null;
-        if (!s.locals[k]) delete s.locals[k];
-      });
+      this.merge();
       this.render();
     },
 
@@ -307,16 +386,13 @@ Page(
         stop();
         if (s.destroyed) return;
         const now = Date.now();
-        const cur = s.devices[id];
+        const cur = s.cloudDevices[id];
         if (r && r.ok && cur) {
           // stan z odpowiedzi; o kontakcie (offline) dalej decyduje zwykły obieg
-          cur.tile = { ...r.tile, offline: cur.tile.offline, ago: cur.tile.ago };
+          cur.tile = { ...r.tile, offline: (cur.tile || {}).offline, ago: (cur.tile || {}).ago };
           cur.values = { ...(cur.values || {}), ...(r.values || {}) };
           if (r.ack) this.acked(id, r.ack, now);
-          this.eachLocal(id, (k) => {
-            s.locals[k] = settleLocal(s.locals[k], (cur.values || {})[splitKey(k)[1]], now);
-            if (!s.locals[k]) delete s.locals[k];
-          });
+          this.merge();
         }
         if (s.awaiting[id]) this.ackSoon(id, ACK_EVERY_MS);
         this.render();
@@ -359,6 +435,7 @@ Page(
       const s = this.state;
       s.pages = [];
       s.devices = {};
+      s.cloudDevices = {};
       this.forget();
       s.title = "";
       s.screen = text;
@@ -382,7 +459,9 @@ Page(
       if (item.kind === "toggle" && canControl(item.level) && d.tile.hasData) this.toggle(item, d);
     },
 
-    // Polecenie przez telefon; done(r) dostaje odpowiedź Side Service albo null (telefon niedostępny)
+    // Polecenie: najpierw Bluetooth (pkt 15.4) - jeden punkt z listy pilota; bez potwierdzenia w 500 ms albo
+    // przy wyniku 4/5 to samo przez telefon i chmurę z cmdKey (urządzenie nie wykona go drugi raz).
+    // done(r): { ok: true, bt: true } - potwierdził hub; odpowiedź SET z telefonu; null - telefon niedostępny.
     sendSet(id, values, done) {
       const s = this.state;
       s.sending++;
@@ -393,9 +472,21 @@ Page(
         done(r);
         this.render();
       };
-      ask(this, { method: "SET", params: { home: s.homeId, id, values } })
-        .then((r) => finish(r || null))
-        .catch(() => finish(null));
+      const points = Object.keys(values);
+      const point = points.length === 1 ? points[0] : null;
+      const viaBt = point ? btSend(id, point, values[point], point === "runScene" ? values[point] : null) : Promise.resolve(null);
+      viaBt
+        .catch(() => null)
+        .then((bt) => {
+          if (s.destroyed) return;
+          if (bt && bt.done) return finish({ ok: true, bt: true });
+          if (bt && bt.error) return finish({ ok: false, error: bt.error });
+          const params = { home: s.homeId, id, values };
+          if (bt && bt.cmdKey) params.cmdKey = bt.cmdKey;
+          ask(this, { method: "SET", params })
+            .then((r) => finish(r || null))
+            .catch(() => finish(null));
+        });
     },
 
     // Wysyła wartość z locals[k]; po odpowiedzi czekamy na lastCommand
@@ -416,7 +507,12 @@ Page(
       values[point] = sent.value;
       this.sendSet(id, values, (r) => {
         const mine = s.locals[k] && s.locals[k].sentAt === sent.sentAt;
-        if (r && r.ok && r.key) {
+        if (r && r.bt) {
+          // stan z potwierdzenia huba jest już w danych z Bluetooth
+          if (mine) delete s.locals[k];
+          this.merge();
+          this.flash(d.name + ": potwierdzone po " + seconds(Date.now() - sent.sentAt) + " (Bluetooth)");
+        } else if (r && r.ok && r.key) {
           if (mine) s.locals[k] = { ...s.locals[k], key: r.key };
           s.awaiting[id] = { key: r.key, at: Date.now(), sentAt: sent.sentAt };
           this.ackSoon(id, ACK_FIRST_MS);
@@ -507,7 +603,7 @@ Page(
         t.pill = add(hmUI.widget.FILL_RECT, parts.pill);
         t.pillText = add(hmUI.widget.TEXT, parts.pillText);
         t.badge = add(hmUI.widget.TEXT, parts.badge);
-        onTap(t.widgets.slice(), () => this.tapped(item, buttons));
+        onTap(t.widgets.slice(), () => this.tapped(t.item, buttons));
         [
           [parts.minus, -1],
           [parts.plus, 1],
@@ -516,7 +612,7 @@ Page(
           const circle = add(hmUI.widget.CIRCLE, btn.circle);
           const label = add(hmUI.widget.TEXT, btn.text);
           onTap([circle, label], () => {
-            if (this.once(item.key + dir)) this.step(item, dir);
+            if (this.once(item.key + dir)) this.step(t.item, dir);
           });
         });
         s.tiles.push(t);
@@ -533,13 +629,26 @@ Page(
         this.rebuild();
       }
       s.titleText.setProperty(hmUI.prop.TEXT, String(s.title || "Dom").toUpperCase());
+      const now = Date.now();
+      const bt = !!btState(now);
+      const source = stateSource(!s.phoneDown && s.cloudAt > 0, now);
+      if (source !== s.sourceShown) {
+        s.sourceShown = source;
+        s.source.setProperty(hmUI.prop.SRC, "icons/src_" + source + ".png");
+      }
       const hasTiles = s.pages.length > 0;
       s.center.setProperty(hmUI.prop.VISIBLE, !hasTiles);
       if (!hasTiles) s.center.setProperty(hmUI.prop.TEXT, s.screen || "");
-      s.tiles.forEach((t) => this.renderTile(t));
+      // kafelki zostają, gdy układ ten sam, ale reszta opisu (hub sceny, kroki, zakresy) mogła się zmienić
+      const byKey = {};
+      s.pages.forEach((p) => p.items.forEach((it) => (byKey[it.key] = it)));
+      s.tiles.forEach((t) => {
+        if (byKey[t.item.key]) t.item = byKey[t.item.key];
+        this.renderTile(t);
+      });
 
       let status = "";
-      if (s.phoneDown) status = "Telefon niedostępny";
+      if (s.phoneDown) status = bt ? "" : "Telefon niedostępny"; // z Bluetooth pulpit działa bez telefonu
       else if (s.error) status = "Błąd: " + s.error;
       else if (s.sending) status = "Wysyłanie...";
       else if (s.flash) status = s.flash.text;
