@@ -339,15 +339,19 @@ class FakeHub extends FakeDevice {
       'host': host,
       'name': b['name'] ?? id,
       'channel': ?b['channel'],
+      'channels': ?b['channels'],
       'mirror': b['mirror'] != false,
       'linked': false,
       'online': !host.endsWith('.99') && keyError == null,
       'error': ?keyError,
       'deviceId': ?b['deviceId'],
       'model': ?b['model'],
-      'state': {'on': false},
+      'state': {
+        'on': false,
+        if (b['channels'] case final int n) ...{'channels': n, for (var i = 1; i <= n; i++) 'on$i': false},
+      },
     };
-    // Wielokanałowe eWeLink: urządzenie znika z wykrywania dopiero po dodaniu (każdy kanał osobno).
+    // eWeLink: urządzenie znika z wykrywania po dodaniu (cały moduł albo pierwszy z kanałów starszych wpisów).
     discoverable.removeWhere((d) => d['host'] == host);
     this.log('Hub: dodano $id ($adapter, $host)');
     _broadcastState();

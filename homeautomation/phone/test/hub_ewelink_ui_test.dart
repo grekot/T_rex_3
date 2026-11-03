@@ -1,5 +1,5 @@
 // Dodawanie Sonoffa z eWeLink przez hub (API.md pkt 11 „eWeLink LAN”): klucz urządzenia (walidacja, wklejanie),
-// listwa jako osobne kanały. Bez gniazd - [HubApi] w pamięci.
+// listwa jako jedno urządzenie z kanałami. Bez gniazd - [HubApi] w pamięci.
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -63,7 +63,7 @@ class _MemHubApi extends HubApi {
 }
 
 void main() {
-  testWidgets('Sonoff (eWeLink): listwa - klucz z walidacją i wklejaniem, wybór kanałów → osobne urządzenia', (
+  testWidgets('Sonoff (eWeLink): listwa - klucz z walidacją i wklejaniem, liczba kanałów → jedno urządzenie', (
     tester,
   ) async {
     const key = '0A1B2C3D-4E5F-6071-8293-A4B5C6D7E8F9';
@@ -110,30 +110,28 @@ void main() {
     await tester.tap(find.byKey(const Key('ewelinkPaste')));
     await tester.pumpAndSettle();
     expect(find.text('Klucz ma 36 znaków: 8-4-4-4-12'), findsNothing);
-    await tester.ensureVisible(find.byKey(const Key('ewelinkChannel-4')));
-    await tester.tap(find.byKey(const Key('ewelinkChannel-4')));
+    await tester.ensureVisible(find.byKey(const Key('ewelinkChannels')));
+    await tester.tap(find.descendant(of: find.byKey(const Key('ewelinkChannels')), matching: find.text('3')));
     await tester.pump();
-    expect(find.text('Dodaj (3)'), findsOneWidget);
     await tester.tap(find.byKey(const Key('addOk')));
     await tester.pumpAndSettle();
     expect(api.added, [
-      for (final c in [0, 1, 2])
-        {
-          'adapter': 'ewelink',
-          'host': '192.168.1.52',
-          'deviceId': '1000a1b2c3',
-          'localKey': key.toLowerCase(),
-          'type': 'switch',
-          'channel': c,
-          'name': 'Biurko ${c + 1}',
-        },
+      {
+        'adapter': 'ewelink',
+        'host': '192.168.1.52',
+        'deviceId': '1000a1b2c3',
+        'localKey': key.toLowerCase(),
+        'type': 'switch',
+        'name': 'Biurko',
+        'channels': 3,
+      },
     ]);
-    expect(find.text('Dodano Biurko 1, Biurko 2, Biurko 3.'), findsOneWidget);
+    expect(find.text('Dodano Biurko.'), findsOneWidget);
 
     // Gniazdko (plug): jedno urządzenie, bez kanałów.
     await tester.tap(find.byKey(const Key('found-192.168.1.53')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('ewelinkChannel-1')), findsNothing);
+    expect(find.byKey(const Key('ewelinkChannels')), findsNothing);
     await tester.tap(find.byKey(const Key('ewelinkPaste')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('addOk')));

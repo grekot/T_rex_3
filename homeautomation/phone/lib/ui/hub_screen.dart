@@ -418,6 +418,7 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
         'deviceId': ?d.deviceId,
         'localKey': key,
         'channel': ?d.channel,
+        'channels': ?d.channels,
         'name': ?d.name,
         'type': ?d.type,
         if (!d.mirror) 'mirror': false,
@@ -1060,8 +1061,8 @@ class _EwelinkKeyField extends StatelessWidget {
   }
 }
 
-/// Dodanie Sonoffa z eWeLink (pkt 11 „eWeLink LAN”): nazwa, klucz urządzenia, a dla listwy (`strip`) wybór kanałów -
-/// każdy kanał to osobne urządzenie huba (`channel` 0-3, nazwy `<nazwa> 1..4`).
+/// Dodanie Sonoffa z eWeLink (pkt 11 „eWeLink LAN”): nazwa, klucz urządzenia, a dla listwy (`strip`) liczba kanałów -
+/// cały moduł to jedno urządzenie huba (`channels`), jak własny węzeł `switch4`; nazwy kanałów - w ustawieniach.
 class _EwelinkDialog extends StatefulWidget {
   const _EwelinkDialog({required this.found});
 
@@ -1074,7 +1075,7 @@ class _EwelinkDialog extends StatefulWidget {
 class _EwelinkDialogState extends State<_EwelinkDialog> {
   final _name = TextEditingController();
   final _key = TextEditingController();
-  final _channels = {1, 2, 3, 4};
+  int _channels = 4;
 
   bool get _multi => ewelinkMultiChannel(widget.found.model);
 
@@ -1096,17 +1097,14 @@ class _EwelinkDialogState extends State<_EwelinkDialog> {
       'type': 'switch',
     };
     return [
-      if (!_multi)
-        {...base, 'name': name}
-      else
-        for (final c in _channels.toList()..sort()) {...base, 'channel': c - 1, 'name': '$name $c'},
+      {...base, 'name': name, if (_multi) 'channels': _channels},
     ];
   }
 
   @override
   Widget build(BuildContext context) {
     final f = widget.found;
-    final ok = ewelinkKeyPattern.hasMatch(_key.text.trim()) && (!_multi || _channels.isNotEmpty) && f.deviceId != null;
+    final ok = ewelinkKeyPattern.hasMatch(_key.text.trim()) && f.deviceId != null;
     return AlertDialog(
       title: Text(_multi ? 'Dodaj listwę Sonoff' : 'Dodaj Sonoff'),
       content: SingleChildScrollView(
@@ -1125,18 +1123,18 @@ class _EwelinkDialogState extends State<_EwelinkDialog> {
             _EwelinkKeyField(controller: _key, onChanged: () => setState(() {})),
             if (_multi) ...[
               const SizedBox(height: 12),
-              Text('Kanały (każdy jako osobne wyjście)', style: Theme.of(context).textTheme.labelLarge),
-              Wrap(
-                spacing: 6,
-                children: [
-                  for (var c = 1; c <= 4; c++)
-                    FilterChip(
-                      key: Key('ewelinkChannel-$c'),
-                      label: Text('$c'),
-                      selected: _channels.contains(c),
-                      onSelected: (v) => setState(() => v ? _channels.add(c) : _channels.remove(c)),
-                    ),
-                ],
+              Text('Liczba kanałów', style: Theme.of(context).textTheme.labelLarge),
+              const SizedBox(height: 4),
+              SegmentedButton<int>(
+                key: const Key('ewelinkChannels'),
+                segments: [for (var c = 2; c <= 4; c++) ButtonSegment(value: c, label: Text('$c'))],
+                selected: {_channels},
+                onSelectionChanged: (s) => setState(() => _channels = s.first),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Jedno urządzenie z kanałami, jak przełącznik 4-kanałowy. Nazwy kanałów zmienisz w jego ustawieniach.',
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
           ],
@@ -1147,7 +1145,7 @@ class _EwelinkDialogState extends State<_EwelinkDialog> {
         FilledButton(
           key: const Key('addOk'),
           onPressed: ok ? () => Navigator.pop(context, _requests()) : null,
-          child: Text(_multi ? 'Dodaj (${_channels.length})' : 'Dodaj'),
+          child: const Text('Dodaj'),
         ),
       ],
     );

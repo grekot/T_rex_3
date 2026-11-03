@@ -27,7 +27,7 @@ enum HubAdapter {
 /// `devicekey` urządzenia eWeLink (UUID, 36 znaków) - `localKey` przy dodawaniu do huba.
 final ewelinkKeyPattern = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
 
-/// Model eWeLink z kilkoma kanałami (jedno urządzenie huba na kanał).
+/// Model eWeLink z kilkoma kanałami (cały moduł jako jedno urządzenie huba z `channels`, pkt 10.1).
 bool ewelinkMultiChannel(String? model) => model == 'strip';
 
 /// Urządzenie podrzędne (`GET /api/devices`).
@@ -40,6 +40,7 @@ class HubChild {
     this.name,
     this.model,
     this.channel,
+    this.channels,
     this.mirror = true,
     this.linked = false,
     this.online = false,
@@ -57,6 +58,9 @@ class HubChild {
   final String? name;
   final String? model;
   final int? channel;
+
+  /// eWeLink: cały moduł jako jedno urządzenie (2-4 kanały; starsze wpisy - osobny wpis na [channel]).
+  final int? channels;
 
   /// false = bez lustra w chmurze (np. termostat tylko do automatyk).
   final bool mirror;
@@ -82,6 +86,7 @@ class HubChild {
     name: asStringOrNull(j['name'], 'name'),
     model: asStringOrNull(j['model'], 'model'),
     channel: asIntOrNull(j['channel'], 'channel'),
+    channels: asIntOrNull(j['channels'], 'channels'),
     mirror: j['mirror'] != false,
     linked: asBool(j['linked'], 'linked'),
     online: asBool(j['online'], 'online'),

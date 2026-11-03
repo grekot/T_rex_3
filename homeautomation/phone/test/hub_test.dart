@@ -20,6 +20,7 @@ import 'package:homeautomation/models/device_type.dart';
 import 'package:homeautomation/models/home.dart';
 import 'package:homeautomation/models/hub.dart';
 import 'package:homeautomation/models/json_utils.dart';
+import 'package:homeautomation/models/light.dart';
 import 'package:homeautomation/models/scene.dart';
 import 'package:homeautomation/models/set_values.dart';
 
@@ -139,7 +140,7 @@ void main() {
     expect((await api.devices()).map((c) => c.id), ['tasmota-a80162']);
   });
 
-  test('eWeLink LAN: listwa jako kanały, wymagany klucz, zły klucz → error key, poprawienie klucza', () async {
+  test('eWeLink LAN: kanały i moduł, wymagany klucz, zły klucz → error key, poprawienie klucza', () async {
     const key = '0a1b2c3d-4e5f-6071-8293-a4b5c6d7e8f9';
     fake.ewelinkKeys['1000a1b2c3'] = key;
     for (final c in [0, 1]) {
@@ -161,12 +162,24 @@ void main() {
       'name': 'Gniazdko',
     });
     expect(id, 'ewelink-1000d4e5f6');
+    // Cały moduł jako jedno urządzenie z kanałami (pkt 10.1)
+    final module = await api.addDevice({
+      'adapter': 'ewelink',
+      'host': '192.168.1.55',
+      'deviceId': '1000c0ffee',
+      'localKey': key,
+      'channels': 4,
+      'name': 'Światło 1',
+    });
+    expect(module, 'ewelink-1000c0ffee');
     var list = await api.devices();
-    expect(list.map((c) => (c.id, c.adapter, c.channel, c.deviceId, c.error)).toList(), [
-      ('ewelink-1000a1b2c3-1', HubAdapter.ewelink, 0, '1000a1b2c3', null),
-      ('ewelink-1000a1b2c3-2', HubAdapter.ewelink, 1, '1000a1b2c3', null),
-      ('ewelink-1000d4e5f6', HubAdapter.ewelink, null, '1000d4e5f6', null),
+    expect(list.map((c) => (c.id, c.adapter, c.channel, c.channels, c.deviceId, c.error)).toList(), [
+      ('ewelink-1000a1b2c3-1', HubAdapter.ewelink, 0, null, '1000a1b2c3', null),
+      ('ewelink-1000a1b2c3-2', HubAdapter.ewelink, 1, null, '1000a1b2c3', null),
+      ('ewelink-1000d4e5f6', HubAdapter.ewelink, null, null, '1000d4e5f6', null),
+      ('ewelink-1000c0ffee', HubAdapter.ewelink, null, 4, '1000c0ffee', null),
     ]);
+    expect(list.last.state, {'on': false, 'channels': 4, 'on1': false, 'on2': false, 'on3': false, 'on4': false});
 
     await expectLater(
       api.addDevice({'adapter': 'ewelink', 'host': '192.168.1.54', 'deviceId': '1000ffffff', 'localKey': 'abc'}),
@@ -197,8 +210,26 @@ void main() {
       'channel': 0,
     });
     list = await api.devices();
-    expect((list.first.error, list.first.online, list.length), (null, true, 3));
+    expect((list.first.error, list.first.online, list.length), (null, true, 4));
     expect(HubChild.fromJson({'id': 'ewelink-10009abcde-3', 'adapter': 'ewelink', 'host': '1.2.3.4'}).deviceId, '10009abcde');
+  });
+
+  test('eWeLink moduł: Config z huba - kanały tylko z nazwą', () {
+    final c = LightConfig.fromJson({
+      'name': 'Światło 1',
+      'channels': 2,
+      'ch1': {'name': 'Sypialnia'},
+      'ch2': {'name': 'Kanał 2'},
+    });
+    expect(c.channels.map((x) => (x.name, x.nameOnly)), [('Sypialnia', true), ('Kanał 2', true)]);
+    expect(c.toJson()['ch1'], {'name': 'Sypialnia'});
+    expect(
+      LightConfig.fromJson({
+        'channels': 2,
+        'ch1': {'name': 'A', 'defaultOn': 'off'},
+      }).channels.first.nameOnly,
+      isFalse,
+    );
   });
 
   test('automatyki i sceny w hubie: zapis z updatedAt, błędna reguła, diagnostyka, uruchom, dziennik, czas', () async {

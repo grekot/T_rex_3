@@ -223,10 +223,14 @@ class ChannelConfig {
     this.autoOffPress = 'off',
     this.pulse = 0,
     this.minOff = 0,
+    this.nameOnly = false,
   });
 
   final String name;
   final DefaultOn defaultOn;
+
+  /// Kanał bez ustawień w urządzeniu - tylko nazwa (moduł eWeLink przez hub: `chN` bez `defaultOn`).
+  final bool nameOnly;
 
   /// s (0 = bez): kanał gaśnie sam po tym czasie od włączenia.
   final int autoOff;
@@ -249,16 +253,19 @@ class ChannelConfig {
     autoOffPress: asString(j['autoOffPress'], 'ch$n.autoOffPress', 'off'),
     pulse: asInt(j['pulse'], 'ch$n.pulse'),
     minOff: asInt(j['minOff'], 'ch$n.minOff'),
+    nameOnly: !j.containsKey('defaultOn'),
   );
 
-  Json toJson() => {
-    'name': name,
-    'defaultOn': defaultOn.wire,
-    'autoOff': autoOff,
-    'autoOffPress': autoOffPress,
-    'pulse': pulse,
-    'minOff': minOff,
-  };
+  Json toJson() => nameOnly
+      ? {'name': name}
+      : {
+          'name': name,
+          'defaultOn': defaultOn.wire,
+          'autoOff': autoOff,
+          'autoOffPress': autoOffPress,
+          'pulse': pulse,
+          'minOff': minOff,
+        };
 }
 
 /// `inputK` w Config: wejście przełącza kanały [outs] (pusta = żaden, tylko `inK` dla huba).

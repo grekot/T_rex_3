@@ -378,7 +378,9 @@ class _ChannelsSection extends StatelessWidget {
   }
 
   String _channelSubtitle(int n, ChannelConfig ch) => [
-    if (ch.isPulse)
+    if (ch.nameOnly)
+      'Kanał $n'
+    else if (ch.isPulse)
       'Impuls ${fmtMillis(ch.pulse)}'
     else ...[
       'Po zaniku zasilania: ${ch.defaultOn.label.toLowerCase()}',
@@ -498,6 +500,7 @@ class _ChannelDialogState extends State<_ChannelDialog> {
   ChannelPatch _patch() {
     final ch = widget.channel;
     T? changed<T>(T now, T was) => now != was ? now : null;
+    if (ch.nameOnly) return ChannelPatch(name: changed(_name.text.trim(), ch.name));
     return ChannelPatch(
       name: changed(_name.text.trim(), ch.name),
       defaultOn: changed(_defaultOn, ch.defaultOn),
@@ -527,99 +530,101 @@ class _ChannelDialogState extends State<_ChannelDialog> {
               decoration: const InputDecoration(labelText: 'Nazwa'),
               onChanged: (_) => setState(() {}),
             ),
-            if (widget.extended) ...[
-              SegmentedButton<bool>(
-                key: const Key('channelKind'),
-                segments: const [
-                  ButtonSegment(value: false, label: Text('Zwykły'), icon: Icon(Icons.lightbulb_outline)),
-                  ButtonSegment(value: true, label: Text('Impulsowy'), icon: Icon(Icons.touch_app_outlined)),
-                ],
-                selected: {pulse},
-                onSelectionChanged: (s) =>
-                    setState(() => _pulse = s.first ? (widget.channel.pulse > 0 ? widget.channel.pulse : 500) : 0),
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (pulse) ...[
-              _PresetDropdown(
-                key: const Key('channelPulse'),
-                label: 'Czas impulsu',
-                value: _pulse,
-                presets: const [200, 500, 1000, 2000, 3000, 5000, 10000],
-                format: fmtMillis,
-                onChanged: (v) => setState(() => _pulse = v),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Brama, furtka, elektrozaczep: każde włączenie zamyka przekaźnik na ten czas. '
-                'Kanał nigdy nie włącza się sam po starcie.',
-                style: t.bodySmall,
-              ),
-            ] else ...[
-              Text('Po zaniku zasilania', style: t.labelLarge),
-              RadioGroup<DefaultOn>(
-                groupValue: _defaultOn,
-                onChanged: (v) => setState(() => _defaultOn = v!),
-                child: Column(
-                  children: [
-                    for (final d in DefaultOn.values)
-                      RadioListTile<DefaultOn>(
-                        key: Key('defaultOn-${d.wire}'),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                        value: d,
-                        title: Text(d.label),
-                      ),
-                  ],
-                ),
-              ),
+            if (!widget.channel.nameOnly) ...[
               if (widget.extended) ...[
-                _PresetDropdown(
-                  key: const Key('channelAutoOff'),
-                  label: 'Wyłącz sam po',
-                  value: _autoOff,
-                  presets: const [0, 30, 60, 120, 180, 300, 600, 900, 1800, 3600, 7200, 14400, 28800, 86400],
-                  format: fmtSeconds,
-                  onChanged: (v) => setState(() => _autoOff = v),
+                SegmentedButton<bool>(
+                  key: const Key('channelKind'),
+                  segments: const [
+                    ButtonSegment(value: false, label: Text('Zwykły'), icon: Icon(Icons.lightbulb_outline)),
+                    ButtonSegment(value: true, label: Text('Impulsowy'), icon: Icon(Icons.touch_app_outlined)),
+                  ],
+                  selected: {pulse},
+                  onSelectionChanged: (s) =>
+                      setState(() => _pulse = s.first ? (widget.channel.pulse > 0 ? widget.channel.pulse : 500) : 0),
                 ),
-                if (_autoOff > 0)
-                  RadioGroup<String>(
-                    groupValue: _autoOffPress,
-                    onChanged: (v) => setState(() => _autoOffPress = v!),
-                    child: const Column(
-                      children: [
-                        RadioListTile<String>(
-                          key: Key('autoOffPress-off'),
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                          value: 'off',
-                          title: Text('Ponowne naciśnięcie przycisku wyłącza'),
-                        ),
-                        RadioListTile<String>(
-                          key: Key('autoOffPress-extend'),
-                          contentPadding: EdgeInsets.zero,
-                          dense: true,
-                          value: 'extend',
-                          title: Text('Ponowne naciśnięcie odlicza od nowa'),
-                          subtitle: Text('przytrzymanie przycisku wyłącza (schody, korytarz)'),
-                        ),
-                      ],
-                    ),
-                  ),
                 const SizedBox(height: 8),
+              ],
+              if (pulse) ...[
                 _PresetDropdown(
-                  key: const Key('channelMinOff'),
-                  label: 'Minimalna przerwa po wyłączeniu',
-                  value: _minOff,
-                  presets: const [0, 10, 30, 60, 120, 300, 600, 1800, 3600],
-                  format: fmtSeconds,
-                  onChanged: (v) => setState(() => _minOff = v),
+                  key: const Key('channelPulse'),
+                  label: 'Czas impulsu',
+                  value: _pulse,
+                  presets: const [200, 500, 1000, 2000, 3000, 5000, 10000],
+                  format: fmtMillis,
+                  onChanged: (v) => setState(() => _pulse = v),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'Pompa, sprężarka, wentylator: wcześniejsze włączenie czeka do końca przerwy.',
+                  'Brama, furtka, elektrozaczep: każde włączenie zamyka przekaźnik na ten czas. '
+                  'Kanał nigdy nie włącza się sam po starcie.',
                   style: t.bodySmall,
                 ),
+              ] else ...[
+                Text('Po zaniku zasilania', style: t.labelLarge),
+                RadioGroup<DefaultOn>(
+                  groupValue: _defaultOn,
+                  onChanged: (v) => setState(() => _defaultOn = v!),
+                  child: Column(
+                    children: [
+                      for (final d in DefaultOn.values)
+                        RadioListTile<DefaultOn>(
+                          key: Key('defaultOn-${d.wire}'),
+                          contentPadding: EdgeInsets.zero,
+                          dense: true,
+                          value: d,
+                          title: Text(d.label),
+                        ),
+                    ],
+                  ),
+                ),
+                if (widget.extended) ...[
+                  _PresetDropdown(
+                    key: const Key('channelAutoOff'),
+                    label: 'Wyłącz sam po',
+                    value: _autoOff,
+                    presets: const [0, 30, 60, 120, 180, 300, 600, 900, 1800, 3600, 7200, 14400, 28800, 86400],
+                    format: fmtSeconds,
+                    onChanged: (v) => setState(() => _autoOff = v),
+                  ),
+                  if (_autoOff > 0)
+                    RadioGroup<String>(
+                      groupValue: _autoOffPress,
+                      onChanged: (v) => setState(() => _autoOffPress = v!),
+                      child: const Column(
+                        children: [
+                          RadioListTile<String>(
+                            key: Key('autoOffPress-off'),
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            value: 'off',
+                            title: Text('Ponowne naciśnięcie przycisku wyłącza'),
+                          ),
+                          RadioListTile<String>(
+                            key: Key('autoOffPress-extend'),
+                            contentPadding: EdgeInsets.zero,
+                            dense: true,
+                            value: 'extend',
+                            title: Text('Ponowne naciśnięcie odlicza od nowa'),
+                            subtitle: Text('przytrzymanie przycisku wyłącza (schody, korytarz)'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const SizedBox(height: 8),
+                  _PresetDropdown(
+                    key: const Key('channelMinOff'),
+                    label: 'Minimalna przerwa po wyłączeniu',
+                    value: _minOff,
+                    presets: const [0, 10, 30, 60, 120, 300, 600, 1800, 3600],
+                    format: fmtSeconds,
+                    onChanged: (v) => setState(() => _minOff = v),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Pompa, sprężarka, wentylator: wcześniejsze włączenie czeka do końca przerwy.',
+                    style: t.bodySmall,
+                  ),
+                ],
               ],
             ],
             if (widget.counters != null) ...[
