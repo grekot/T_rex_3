@@ -96,6 +96,7 @@ String describeTrigger(DeviceHub hub, Json j) {
   if (j['input'] is String) {
     final press = switch (j['press']) {
       'double' => 'podwójne naciśnięcie',
+      'triple' => 'potrójne naciśnięcie',
       'long' => 'długie naciśnięcie',
       'down' => 'wciśnięcie / zwarcie',
       'up' => 'puszczenie / rozwarcie',
@@ -522,18 +523,23 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> with _R
       case 'input':
         final picked = await _pickPoint(inputs: true);
         if (picked == null || !mounted) return;
+        // Przycisk czujnika Bluetooth: zdarzenia BTHome (także potrójne), bez stanów wejścia.
+        final ble = picked.$2.kind == PointKind.button;
         final press = await showDialog<String>(
           context: context,
           builder: (ctx) => SimpleDialog(
             title: Text(picked.$2.name),
             children: [
-              for (final (v, l) in const [
+              for (final (v, l) in [
                 ('short', 'Krótkie naciśnięcie'),
                 ('double', 'Podwójne'),
+                if (ble) ('triple', 'Potrójne'),
                 ('long', 'Długie'),
-                ('down', 'Wciśnięcie / zwarcie (od razu)'),
-                ('up', 'Puszczenie / rozwarcie'),
-                ('change', 'Każda zmiana stanu'),
+                if (!ble) ...[
+                  ('down', 'Wciśnięcie / zwarcie (od razu)'),
+                  ('up', 'Puszczenie / rozwarcie'),
+                  ('change', 'Każda zmiana stanu'),
+                ],
               ])
                 SimpleDialogOption(key: Key('press-$v'), onPressed: () => Navigator.pop(ctx, v), child: Text(l)),
             ],
@@ -782,7 +788,7 @@ mixin _RuleEditing<W extends StatefulWidget> on State<W> {
         if (outputs
             ? p.kind.writable && RegExp(r'^on\d*$').hasMatch(p.key)
             : inputs
-            ? RegExp(r'^in\d+$').hasMatch(p.key)
+            ? RegExp(r'^in\d+$').hasMatch(p.key) || p.kind == PointKind.button
             : (!writable || p.kind.writable))
           p,
     ];

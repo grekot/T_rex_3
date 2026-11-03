@@ -24,6 +24,7 @@ import 'package:homeautomation/models/describe.dart';
 import 'package:homeautomation/models/device_type.dart';
 import 'package:homeautomation/models/json_utils.dart';
 import 'package:homeautomation/models/light.dart';
+import 'package:homeautomation/models/room.dart';
 import 'package:homeautomation/models/scene.dart';
 import 'package:homeautomation/models/set_values.dart';
 import 'package:homeautomation/models/thermostat_config.dart';
@@ -128,7 +129,13 @@ void main() {
         'in4': false,
         'in3Fault': true,
       },
-      {'name': 'Parter'},
+      {
+        'name': 'Parter',
+        'channels': 4,
+        'inputs': 4,
+        'indicator': {'on': 60, 'off': 5},
+        'tempWarn': 60,
+      },
       {
         'type': 'switch',
         'points': [
@@ -139,6 +146,9 @@ void main() {
         ],
       },
     );
+    const rooms = [
+      Room(id: 'salon', name: 'Salon', order: 0, devices: ['termostat-ab12cd', 'lampa', 'parter']),
+    ];
     final lamp = _Conn('lampa', lightCodec, {'id': 'lampa', 'on': true, 'level': 60}, {'name': 'Lampa nad stołem'});
     final scenes = LocalSceneStore(cache: MemoryTextCache());
     await scenes.save(
@@ -406,6 +416,15 @@ void main() {
           {'device': 'termostat-ab12cd', 'point': 'hum'},
         ],
       }),
+      const DashWidget(id: 'r1', view: WidgetView.room).resized(4, 1).patch({'room': 'salon'}),
+      g('k1', WidgetView.gate, 'parter', 'on2', 2, 2, {
+        'sensor': {'device': 'parter', 'point': 'in2'},
+      }).copyWith(label: 'Brama'),
+      g('k2', WidgetView.gate, 'parter', 'on4', 2, 2, {
+        'sensor': {'device': 'parter', 'point': 'in3'},
+        'labels': ['Zamknięte', 'Otwarte'],
+      }).copyWith(label: 'Garaż'),
+      g('k3', WidgetView.slider, 'parter', 'indicator.on', 4, 1).copyWith(label: 'Diody przycisków'),
       const DashWidget(id: 'x7', view: WidgetView.valueList, label: 'Piwnica').resized(2, 2).patch({
         'items': [
           {'device': 'parter', 'point': 'in2', 'label': 'Drzwi'},
@@ -451,12 +470,12 @@ void main() {
         DashGrid(
           grid: 4,
           widgets: list,
-          builder: (w) => DashTile(widget: w, hub: hub, history: hist),
+          builder: (w) => DashTile(widget: w, hub: hub, history: hist, rooms: rooms),
         ),
       ],
     );
     for (final (dark, file) in [(false, 'siatka4_jasny.png'), (true, 'siatka4_ciemny.png')]) {
-      tester.view.physicalSize = const Size(412 * 2.5, 2000 * 2.5);
+      tester.view.physicalSize = const Size(412 * 2.5, 2330 * 2.5);
       await tester.pumpWidget(
         MaterialApp(
           debugShowCheckedModeBanner: false,

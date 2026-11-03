@@ -277,6 +277,12 @@ class FakeHub extends FakeDevice {
       ..get('/api/devices/<id>/state', _auth(_childState))
       ..post('/api/devices/<id>/set', _auth(_childSet, 'control'))
       ..get('/api/discover', _auth(_discover, 'config'))
+      ..post('/api/ble/scan', _auth(_bleScan, 'control'))
+      ..get('/api/ble/seen', _auth(_bleSeen, 'config'))
+      ..post('/api/remotes', _auth(_remoteRegister, 'control'))
+      ..get('/api/remotes', _auth(_remotesGet, 'view'))
+      ..put('/api/remotes/<id>', _auth(_remotePut, 'control'))
+      ..delete('/api/remotes/<id>', _auth(_remoteDelete, 'control'))
       ..get('/api/automations', _auth(_automationsGet))
       ..get('/api/automations/log', _auth((req) => _json(logEntries.where((e) => e['kind'] != 'scene').toList())))
       ..get('/api/automations/<id>', _auth((req) => _doc(automations, req)))
@@ -296,10 +302,11 @@ class FakeHub extends FakeDevice {
     final b = await _body(req);
     if (b == null) return _json({'ok': false, 'error': 'json'}, status: 400);
     final adapter = b['adapter'];
-    if (!const ['ownNode', 'shelly', 'sonoffDiy', 'ewelink', 'tasmota', 'tuya'].contains(adapter)) {
+    if (!const ['ownNode', 'shelly', 'sonoffDiy', 'ewelink', 'tasmota', 'tuya', 'ble'].contains(adapter)) {
       return _json({'ok': false, 'error': 'adapter'}, status: 400);
     }
     if (adapter == 'tuya') return _json({'ok': false, 'error': 'unsupported'}, status: 501);
+    if (adapter == 'ble') return _addBle(b);
     final host = b['host'];
     if (host is! String || !RegExp(r'^\d+\.\d+\.\d+\.\d+$').hasMatch(host)) {
       return _json({'ok': false, 'error': 'host'}, status: 400);
@@ -356,6 +363,175 @@ class FakeHub extends FakeDevice {
     this.log('Hub: dodano $id ($adapter, $host)');
     _broadcastState();
     return _json({'ok': true, 'id': id});
+  }
+
+  // ------------------------------------------------ czujniki Bluetooth (pkt 11 „Czujniki Bluetooth”)
+
+  /// Węzły `btnode` (`GET /api/ble/seen` `nodes`); bez węzła online szukanie nic nie da (`nodes: 0`).
+  List<Map<String, dynamic>> bleNodes = [
+    {'id': 'bt-a1b2c3', 'online': true, 'bleOk': true, 'scanAll': false, 'received': 120, 'lost': 0},
+  ];
+
+  /// Słyszane czujniki (do dodania); `encrypted` wymaga klucza z [bleKeys].
+  List<Map<String, dynamic>> bleHeard = [
+    {
+      'mac': 'a4:c1:38:12:34:56',
+      'kind': 'bthome',
+      'encrypted': false,
+      'trigger': false,
+      'rssi': -62,
+      'via': 'bt-a1b2c3',
+      'age': 3,
+      'values': {'temp': 21.6, 'hum': 45.4, 'battery': 87},
+    },
+    {
+      'mac': 'f8:44:77:aa:bb:cc',
+      'kind': 'bthome',
+      'encrypted': true,
+      'trigger': true,
+      'rssi': -78,
+      'via': 'bt-a1b2c3',
+      'age': 12,
+      'values': {'battery': 100},
+      'buttons': ['btn1'],
+    },
+  ];
+
+  /// Klucze szyfrowanych czujników (MAC → 32 hex); inny klucz przy dodaniu = `error: "key"`.
+  final bleKeys = <String, String>{'f8:44:77:aa:bb:cc': '00112233445566778899aabbccddeeff'};
+
+  /// Ile odpytań `seen` trwa szukanie (aplikacja odpytuje co 1-2 s); `scanAll` w węzłach na ten czas.
+  int bleScanPolls = 2;
+  int _bleScanLeft = 0;
+  int bleScans = 0;
+
+  Future<Response> _bleScan(Request req) async {
+    final b = await _body(req) ?? const {};
+    if (b['stop'] == true) {
+      _bleScanLeft = 0;
+      return _json({'ok': true, 'scanning': false});
+    }
+    final sec = b['seconds'] ?? 120;
+    if (sec is! int || sec < 1 || sec > 600) return _json({'ok': false, 'error': 'seconds'}, status: 400);
+    final nodes = bleNodes.where((n) => n['online'] == true).length;
+    bleScans++;
+    _bleScanLeft = nodes == 0 ? 0 : bleScanPolls;
+    return _json({'ok': true, 'scanning': nodes > 0, 'nodes': nodes});
+  }
+
+  Response _bleSeen(Request req) {
+    final scanning = _bleScanLeft > 0;
+    if (scanning) _bleScanLeft--;
+    return _json({
+      'scanning': scanning,
+      'remaining': scanning ? _bleScanLeft * 2 : 0,
+      'nodes': [
+        for (final n in bleNodes) {...n, 'scanAll': scanning && n['online'] == true},
+      ],
+      'found': [
+        for (final f in bleHeard)
+          if (!children.containsKey('ble-${(f['mac'] as String).replaceAll(':', '')}')) f,
+      ],
+    });
+  }
+
+  Response _addBle(Map<String, dynamic> b) {
+    final mac = b['deviceId'];
+    if (mac is! String || !RegExp(r'^([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}$').hasMatch(mac)) {
+      return _json({'ok': false, 'error': 'deviceId'}, status: 400);
+    }
+    final m = mac.toLowerCase();
+    final key = b['localKey'];
+    if (key != null && (key is! String || !RegExp(r'^[0-9a-fA-F]{32}$').hasMatch(key))) {
+      return _json({'ok': false, 'error': 'localKey'}, status: 400);
+    }
+    final heard = bleHeard.where((f) => f['mac'] == m).firstOrNull;
+    if (heard?['encrypted'] == true && key == null) return _json({'ok': false, 'error': 'localKey'}, status: 400);
+    final good = bleKeys[m];
+    final keyError = good != null && (key as String?)?.toLowerCase() != good ? 'key' : null;
+    final id = 'ble-${m.replaceAll(':', '')}';
+    if (!children.containsKey(id) && children.length >= 30) {
+      return _json({'ok': false, 'error': 'too_many_devices'}, status: 507);
+    }
+    children[id] = {
+      'id': id,
+      'type': 'sensor',
+      'adapter': 'ble',
+      'host': '',
+      'name': b['name'] ?? id,
+      'model': 'BTHome',
+      'deviceId': m,
+      'mirror': b['mirror'] != false,
+      'linked': false,
+      // Niesłyszany czujnik też można dodać - offline do pierwszego pakietu.
+      'online': heard != null && keyError == null,
+      'error': ?(keyError ?? (heard == null ? 'offline' : null)),
+      'state': {
+        if (keyError == null) ...?(heard?['values'] as Map<String, dynamic>?),
+        'rssi': ?heard?['rssi'],
+        'via': ?heard?['via'],
+      },
+    };
+    this.log('Hub: dodano $id (ble ${keyError ?? ''})');
+    _broadcastState();
+    return _json({'ok': true, 'id': id});
+  }
+
+  // ------------------------------------------------ zegarki i piloty Bluetooth (pkt 15.1)
+
+  /// Zarejestrowane piloty: id → `{"kind","name","watchId","slot","key","cfgVer","points"}`.
+  final remotes = <String, Map<String, dynamic>>{};
+  int _nextSlot = 1;
+
+  Future<Response> _remoteRegister(Request req) async {
+    final b = await _body(req);
+    if (b == null) return _json({'ok': false, 'error': 'json'}, status: 400);
+    final kind = b['kind'], watchId = b['watchId'];
+    if (kind != 'watch' && kind != 'pilot') return _json({'ok': false, 'error': 'kind'}, status: 400);
+    if (watchId is! String || watchId.isEmpty) return _json({'ok': false, 'error': 'watchId'}, status: 400);
+    final id = '${kind == 'watch' ? 'zegarek' : 'pilot'}-$watchId';
+    final old = remotes[id];
+    final slot = old?['slot'] as int? ?? _nextSlot++;
+    // Ponowna rejestracja = nowy klucz (stary przestaje działać od razu).
+    final key = _hex(32);
+    remotes[id] = {
+      'kind': kind,
+      'name': b['name'] ?? id,
+      'watchId': watchId,
+      'slot': slot,
+      'key': key,
+      'cfgVer': old?['cfgVer'] ?? 1,
+      'points': old?['points'] ?? const [],
+    };
+    this.log('Hub: pilot $id (slot $slot)');
+    return _json({'ok': true, 'id': id, 'slot': slot, 'key': key, 'cfgVer': remotes[id]!['cfgVer']});
+  }
+
+  Response _remotesGet(Request req) => _json([
+    for (final e in remotes.entries)
+      {
+        'id': e.key,
+        for (final f in e.value.entries)
+          if (f.key != 'key') f.key: f.value,
+      },
+  ]);
+
+  Future<Response> _remotePut(Request req) async {
+    final r = remotes[req.params['id']];
+    if (r == null) return _json({'ok': false, 'error': 'not_found'}, status: 404);
+    final b = await _body(req);
+    if (b == null || b['points'] is! List || b['cfgVer'] is! int) {
+      return _json({'ok': false, 'error': 'json'}, status: 400);
+    }
+    r['points'] = b['points'];
+    r['cfgVer'] = b['cfgVer'];
+    if (b['name'] is String) r['name'] = b['name'];
+    return _json({'ok': true});
+  }
+
+  Response _remoteDelete(Request req) {
+    if (remotes.remove(req.params['id']) == null) return _json({'ok': false, 'error': 'not_found'}, status: 404);
+    return _json({'ok': true});
   }
 
   Response _deleteDevice(Request req) {

@@ -45,7 +45,8 @@ class HubApi {
     'id' => 'Zły identyfikator urządzenia.',
     'adapter' => 'Nieznany rodzaj urządzenia.',
     'deviceId' => 'Brak identyfikatora urządzenia eWeLink.',
-    'localKey' => 'Zły klucz urządzenia (devicekey - 36 znaków).',
+    'localKey' => 'Zły klucz urządzenia (eWeLink: devicekey - 36 znaków, Bluetooth: 32 znaki hex).',
+    'seconds' => 'Zły czas szukania.',
     'fields' => 'Brakuje wymaganych pól.',
     'type' => 'Nieznany typ urządzenia.',
     'not_found' => 'Hub nie zna tego wpisu.',
@@ -79,11 +80,45 @@ class HubApi {
 
   Future<HubDiscovery> discover() async => HubDiscovery.fromJson(_ok(await api.request('GET', '/api/discover')));
 
+  /// Tryb „szukaj” czujników Bluetooth na [seconds] s - zwraca liczbę węzłów `btnode` online (0 = nie ma czym szukać).
+  Future<int> bleScan({int seconds = 120}) async =>
+      asInt(_ok(await api.request('POST', '/api/ble/scan', body: {'seconds': seconds}))['nodes'], 'nodes');
+
+  /// Koniec szukania (hub i tak wyłącza je sam po czasie).
+  Future<void> bleStop() async => _ok(await api.request('POST', '/api/ble/scan', body: {'stop': true}));
+
+  /// Słyszane, niedodane czujniki Bluetooth i węzły `btnode`.
+  Future<BleSeen> bleSeen() async => BleSeen.fromJson(_ok(await api.request('GET', '/api/ble/seen')));
+
   /// Dodanie albo zmiana (to samo `id`) - zwraca `id` nadane przez hub.
   Future<String> addDevice(Json device) async =>
       asString(_ok(await api.request('POST', '/api/devices', body: device))['id'], 'id');
 
   Future<void> deleteDevice(String id) async => _ok(await api.request('DELETE', '/api/devices', query: {'id': id}));
+
+  // ---- zegarki i piloty Bluetooth (pkt 15.1)
+
+  /// Rejestracja zegarka tokenem tej osoby (co najmniej `control`): hub nadaje `id`, `slot` i nowy klucz
+  /// (ponowna rejestracja tego samego `watchId` unieważnia stary).
+  Future<({String id, int slot, String key, int cfgVer})> registerRemote({
+    required String watchId,
+    required String name,
+    String kind = 'watch',
+  }) async {
+    final j = _ok(await api.request('POST', '/api/remotes', body: {'kind': kind, 'watchId': watchId, 'name': name}));
+    return (
+      id: asString(j['id'], 'id'),
+      slot: asInt(j['slot'], 'slot'),
+      key: asString(j['key'], 'key'),
+      cfgVer: asInt(j['cfgVer'], 'cfgVer', 1),
+    );
+  }
+
+  /// Nowa lista punktów pilota (ten sam dokument co `homes/{h}/remotes/{id}`).
+  Future<void> putRemote(String id, Json doc) async => _ok(await api.request('PUT', '/api/remotes/$id', body: doc));
+
+  /// Odłączenie pilota - hub unieważnia klucz.
+  Future<void> deleteRemote(String id) async => _ok(await api.request('DELETE', '/api/remotes/$id'));
 
   Future<HubSetResult> setDevice(String id, Json values) async {
     final j = await api.request('POST', '/api/devices/$id/set', body: values, timeout: const Duration(seconds: 8));

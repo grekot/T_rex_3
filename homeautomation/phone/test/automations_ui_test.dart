@@ -490,6 +490,20 @@ void main() {
     hub.dispose();
   });
 
+  test('przycisk czujnika Bluetooth jako wyzwalacz: potrójne naciśnięcie w opisie', () {
+    final store = MemoryDeviceStore();
+    final hub = DeviceHub(
+      store: store,
+      manager: ConnectionManager(store: store, discovery: _NoDiscovery()),
+      cloud: NoCloudAccess(),
+    );
+    expect(
+      describeTrigger(hub, {'device': 'ble-f84477aabbcc', 'input': 'btn1', 'press': 'triple'}),
+      startsWith('potrójne naciśnięcie: ble-f84477aabbcc'),
+    );
+    hub.dispose();
+  });
+
   test('scena: krok „Jeśli…” i nieznana akcja zapisywane bez zmian; bez huba pomijane z komunikatem', () async {
     final j = {
       'name': 'Taras',

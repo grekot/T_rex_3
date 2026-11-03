@@ -11,7 +11,10 @@ enum HubAdapter {
   /// Sonoff z eWeLink i „Kontrolą LAN” - zostaje na koncie eWeLink, hub steruje lokalnie (pkt 11 „eWeLink LAN”).
   ewelink('ewelink', 'Sonoff (eWeLink)'),
   tasmota('tasmota', 'Tasmota'),
-  tuya('tuya', 'Tuya');
+  tuya('tuya', 'Tuya'),
+
+  /// Czujnik Bluetooth (BTHome) przez węzeł `btnode` (pkt 11 „Czujniki Bluetooth”); bez adresu IP, `deviceId` = MAC.
+  ble('ble', 'Czujnik Bluetooth');
 
   const HubAdapter(this.wire, this.label);
 
@@ -22,6 +25,102 @@ enum HubAdapter {
 
   /// Czy przy dodawaniu można podać hasło urządzenia.
   bool get hasPassword => this == shelly || this == tasmota;
+}
+
+/// Klucz szyfrowania czujnika BTHome (16 B hex, 32 znaki) - `localKey` przy dodawaniu do huba.
+final bleKeyPattern = RegExp(r'^[0-9a-fA-F]{32}$');
+
+/// Węzeł `btnode` w `GET /api/ble/seen`.
+class BleNode {
+  const BleNode({required this.id, this.online = false, this.bleOk, this.scanAll});
+
+  final String id;
+  final bool online;
+  final bool? bleOk;
+  final bool? scanAll;
+
+  factory BleNode.fromJson(Json j) => BleNode(
+    id: asString(j['id'], 'id'),
+    online: asBool(j['online'], 'online'),
+    bleOk: j['bleOk'] is bool ? j['bleOk'] as bool : null,
+    scanAll: j['scanAll'] is bool ? j['scanAll'] as bool : null,
+  );
+}
+
+/// Słyszany, niedodany czujnik Bluetooth (`GET /api/ble/seen` `found`).
+class BleFound {
+  const BleFound({
+    required this.mac,
+    this.kind = 'bthome',
+    this.encrypted = false,
+    this.trigger = false,
+    this.rssi,
+    this.via,
+    this.age,
+    this.values = const {},
+    this.buttons = const [],
+  });
+
+  final String mac;
+  final String kind;
+
+  /// Szyfrowany - potrzebny `localKey`.
+  final bool encrypted;
+
+  /// Nadaje tylko przy zdarzeniu (przycisk).
+  final bool trigger;
+  final int? rssi;
+
+  /// Węzeł `btnode`, który go słyszy najlepiej.
+  final String? via;
+
+  /// s od ostatniego pakietu.
+  final int? age;
+
+  /// Podgląd wartości (`temp`, `hum`, `battery`...).
+  final Json values;
+  final List<String> buttons;
+
+  /// Id urządzenia w hubie: `ble-<mac bez dwukropków>`.
+  String get hubId => 'ble-${mac.replaceAll(':', '').toLowerCase()}';
+
+  factory BleFound.fromJson(Json j) => BleFound(
+    mac: asString(j['mac'], 'mac'),
+    kind: asString(j['kind'], 'kind', 'bthome'),
+    encrypted: asBool(j['encrypted'], 'encrypted'),
+    trigger: asBool(j['trigger'], 'trigger'),
+    rssi: asIntOrNull(j['rssi'], 'rssi'),
+    via: asStringOrNull(j['via'], 'via'),
+    age: asIntOrNull(j['age'], 'age'),
+    values: asObjectOrNull(j['values'], 'values') ?? const {},
+    buttons: [
+      for (final b in (j['buttons'] is List ? j['buttons'] as List : const []))
+        if (b is String) b,
+    ],
+  );
+}
+
+/// Wynik `GET /api/ble/seen`: szukanie trwa (`remaining` s), węzły `btnode` i znalezione czujniki.
+class BleSeen {
+  const BleSeen({this.scanning = false, this.remaining, this.nodes = const [], this.found = const []});
+
+  final bool scanning;
+  final int? remaining;
+  final List<BleNode> nodes;
+  final List<BleFound> found;
+
+  factory BleSeen.fromJson(Json j) => BleSeen(
+    scanning: asBool(j['scanning'], 'scanning'),
+    remaining: asIntOrNull(j['remaining'], 'remaining'),
+    nodes: [
+      for (final n in (j['nodes'] is List ? j['nodes'] as List : const []))
+        if (n is Map) BleNode.fromJson(n.cast<String, dynamic>()),
+    ],
+    found: [
+      for (final f in (j['found'] is List ? j['found'] as List : const []))
+        if (f is Map) BleFound.fromJson(f.cast<String, dynamic>()),
+    ],
+  );
 }
 
 /// `devicekey` urządzenia eWeLink (UUID, 36 znaków) - `localKey` przy dodawaniu do huba.

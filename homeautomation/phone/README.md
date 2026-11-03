@@ -106,6 +106,17 @@ repozytorium trzeba najpierw uruchomić `node tools/configure.mjs`.
   połączenia pomijani. `weather` - `outdoor` termostatu: temperatura, ikona i opis (numer ikony termostatu 1-9
   albo kod OpenWeatherMap), „sprzed N min”, na kafelku 4×3 wykres z historii `out`. `hub` - urządzenia dostępne /
   wszystkie, automatyki, trwające sceny, ostatnie wykonanie, plakietka BEZ CHMURY; dotyk - ekran huba.
+- **Brama / furtka** (`gate`): `device` + `point` (kanał impulsowy `action` albo zwykły `onN`), `sensor`
+  `{"device","point"}` (np. kontaktron `inN`, także z innego urządzenia), `labels` (domyślnie „Zamknięta / Otwarta”;
+  aktywne wejście = drugi napis), `confirm` - domyślnie pyta („Otworzyć?” / „Zamknąć?”), `false` wyłącza. Ikona -
+  impuls (`onN: true`) albo przełączenie (`toggleN`), potem „W ruchu…”, aż czujnik się zmieni (do 40 s); plakietka
+  usterki czujnika (`inNFault`). Kreator: „Brama / furtka” (`GateEditorScreen`) albo gotowy kafelek „Brama: …” dla
+  kanału impulsowego; czujnik i napisy w arkuszu kafelka.
+- **Pokój** (`room` = id z `homes/{h}/rooms`): temperatura i wilgotność z urządzeń pokoju (najpierw termostat), „2 z 5
+  świateł”, plakietka GRZEJE; ikona gasi światła pokoju (`on: false`), dotyk - lista urządzeń z przełącznikami.
+- **Wykres temperatury i jasność diod** (gotowe kafelki): „Wykres temperatury (linia)” dla termostatu (zaraz pod
+  kafelkiem termostatu) i dla każdego węzła, którego `temp` / `hum` mają w `describe` pole `history`; „Jasność diod
+  przycisków” switch4 - suwak `indicator.on` (wartość z Config, zapis `{"indicator":{"on","off"}}`, poziom `config`).
 - **Kilka wartości** (`values`, pkt 13.1): do 6 pozycji `items` `{"device","point","label"?,"labels"?}` z dowolnych
   urządzeń w jednym kafelku (np. temperatura i wilgotność z dwóch modułów). Etykieta, jednostka i miejsca po
   przecinku z `describe` (nazwy kanałów z Config), stany jako „wł.” / „wył.”, wg rodzaju wejścia albo `labels`;
@@ -187,6 +198,14 @@ Ikona zegarka na pasku pulpitu (tylko z kontem). Osobny od pulpitów telefonu, d
   Układ to port 1:1 `watch/utils/layout.js` (wiersze 88/186 px, odstęp 10, nagłówek 40, start 92; na okrągłym
   szerokość wiersza = cięciwa w miejscu, gdzie wiersz da się przewinąć najbliżej środka, minus 14 px, 220-400 px).
   Test `watch_test.dart` porównuje wynik z `layout.js`.
+- **Bluetooth (bez telefonu)** (pkt 15.1): „Połącz zegarek z hubem (Bluetooth)” - tylko zegarek, który się zgłosił,
+  w sieci domowej, poziom co najmniej `control` huba: `POST hub/api/remotes {"kind":"watch","watchId","name"}` tokenem
+  tej osoby → `users/{uid}/watches/{watchId}/ble` `{"homeId","hub","id","slot","key"}` (klucz czyta tylko ta osoba)
+  i lista punktów `homes/{h}/remotes/{id}` `{"kind":"watch","ownerUid","name","hub","cfgVer","points"}`. Punkty
+  z pulpitu zegarka po kolei (`watchRemotePoints`): termostat = `temp`, `target`, `mode`, `power`, `heating`, scena =
+  `runScene` huba z `arg`, bez powtórzeń, do 128. Każdy zapis pulpitu: `cfgVer` + 1 w chmurze i `PUT hub/api/remotes/{id}`
+  (w sieci domowej; tylko `points`, `cfgVer`, `name`, do 4 kB - dłuższa lista: Set `reload` i hub bierze ją z chmury). Ostrzeżenie, gdy kafelek wskazuje urządzenie, którego hub nie zna (lista z `GET /api/devices`,
+  poza domem wg `via`). „Odłącz”: `DELETE hub/api/remotes/{id}` + usunięcie `remotes/{id}` i `ble`.
 - **Konto dla zegarka** (Domownicy, właściciel; `PRZEGLAD.md` #9): aplikacja Dom w Zepp trzyma refresh token konta,
   a główne konto otwiera też Zakupy, Wagę itd. Ekran zakłada osobne konto e-mail (podpowiedź `ja+zegarek@…`) w drugiej
   instancji Firebase - telefon zostaje zalogowany głównym kontem - i dołącza je do domu jednorazowym kodem (10 min,
@@ -239,6 +258,13 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   (`POST /api/devices/{id}/set`, `202 pending` = urządzenie odpowie za chwilę), „Do chmury” (właściciel wpisuje
   `deviceIndex/{id}` z `via`), usuwanie (z wpisami w bazie); **Szukaj w sieci**: `GET /api/discover` co 1 s, aż
   `scanning: false`, dodanie z nazwą, hasłem (Shelly, Tasmota) i kanałem; Tuya - komunikat (faza 4);
+  **Czujniki Bluetooth** (pkt 11 „Czujniki Bluetooth”, przez węzły `btnode`): ikona Bluetooth na liście urządzeń huba
+  (`HubBleScreen`) - `POST /api/ble/scan` (120 s), `GET /api/ble/seen` co 1,5 s: czujniki BTHome z podglądem wartości
+  („21,6 °C · 45 % · bateria 87 %”), sygnałem i węzłem, „szyfrowany - potrzebny klucz”; bez węzła btnode online -
+  komunikat. Dodanie: nazwa i dla szyfrowanych klucz (32 hex, wklejanie) → `POST /api/devices` `adapter: ble`,
+  `deviceId` = MAC; właściciel wpisuje `deviceIndex` z `type: sensor` (nowy `DeviceType.sensor`). Na liście: węzeł,
+  bateria, „Zły klucz urządzenia” z poprawieniem klucza. Przyciski czujnika (`kind: button` w `describe`) - wyzwalacz
+  automatyk: krótko / podwójnie / potrójnie / długo;
   **Sonoff (eWeLink)** (pkt 11 „eWeLink LAN”, urządzenie zostaje w eWeLink): klucz urządzenia `devicekey` (UUID 36
   znaków, walidacja, wklejanie ze schowka, podpowiedź o `tools/ewelink_klucze.py`) jako `localKey`; listwa (`strip`)
   - wybór kanałów 1-4, osobne `POST /api/devices` z `channel` 0-3 i nazwami „<nazwa> 1..4”; błąd `key` na liście

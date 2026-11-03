@@ -6,6 +6,7 @@
 import 'dart:math' as math;
 
 import 'json_utils.dart';
+import 'remote.dart';
 
 enum WatchShape {
   round('round', 'okrągły'),
@@ -30,6 +31,7 @@ class WatchInfo {
     this.app,
     this.lastSeen,
     this.registered = false,
+    this.ble,
   });
 
   /// `deviceSource` (zgłoszony) albo `model:<nazwa>` (z listy).
@@ -48,6 +50,12 @@ class WatchInfo {
   /// Zgłosił się sam (`users/{uid}/watches`).
   final bool registered;
 
+  /// Połączenie z hubem przez Bluetooth (`ble`, pkt 15.1).
+  final WatchBleLink? ble;
+
+  /// `watchId` do rejestracji w hubie - tylko zegarek, który się zgłosił (nie model z listy).
+  bool get canPair => registered && !id.startsWith('model:');
+
   String get resolution => '$width×$height, ${shape.label}';
 
   factory WatchInfo.fromJson(String id, Json j) => WatchInfo(
@@ -59,6 +67,7 @@ class WatchInfo {
     app: asStringOrNull(j['app'], 'app'),
     lastSeen: j['lastSeen'] is num ? (j['lastSeen'] as num).toInt() : null,
     registered: true,
+    ble: WatchBleLink.fromJson(j['ble']),
   );
 
   /// Pole `watch` pulpitu: dla jakiego ekranu układano.

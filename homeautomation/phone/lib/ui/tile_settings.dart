@@ -4,9 +4,11 @@ import '../controllers/device_hub.dart';
 import '../models/dashboard.dart';
 import '../models/describe.dart';
 import '../models/json_utils.dart';
+import '../models/room.dart';
 import 'app_icons.dart';
 import 'dashboard_tiles.dart';
 import 'tile_charts.dart';
+import 'gate_editor.dart';
 import 'values_editor.dart';
 
 /// Co zrobić z kafelkiem po zamknięciu arkusza ustawień.
@@ -60,6 +62,7 @@ Future<TileEdit?> showTileSettings(
   List<DataPoint> points = const [],
   int channels = 1,
   List<({String device, String point, String name})> groupOptions = const [],
+  List<Room> rooms = const [],
 }) => showModalBottomSheet<TileEdit>(
   context: context,
   isScrollControlled: true,
@@ -78,6 +81,7 @@ Future<TileEdit?> showTileSettings(
     points: points,
     channels: channels,
     groupOptions: groupOptions,
+    rooms: rooms,
   ),
 );
 
@@ -96,6 +100,7 @@ class _TileSettings extends StatefulWidget {
     required this.points,
     required this.channels,
     required this.groupOptions,
+    this.rooms = const [],
   });
 
   final DashWidget initial;
@@ -111,6 +116,9 @@ class _TileSettings extends StatefulWidget {
   final List<DataPoint> points;
   final int channels;
   final List<({String device, String point, String name})> groupOptions;
+
+  /// Pokoje domu do podglądu kafelka `room`.
+  final List<Room> rooms;
 
   @override
   State<_TileSettings> createState() => _TileSettingsState();
@@ -318,7 +326,7 @@ class _TileSettingsState extends State<_TileSettings> {
                   child: SizedBox.fromSize(
                     size: tile,
                     child: IgnorePointer(
-                      child: DashTile(widget: _w, hub: widget.hub, history: widget.history),
+                      child: DashTile(widget: _w, hub: widget.hub, history: widget.history, rooms: widget.rooms),
                     ),
                   ),
                 ),
@@ -499,7 +507,8 @@ class _TileSettingsState extends State<_TileSettings> {
                   title: const Text('Pytaj przed wykonaniem'),
                   subtitle: const Text('Np. brama, piec'),
                   value: _w.confirm,
-                  onChanged: (v) => _patch({'confirm': v ? true : null}),
+                  // Zapisywane tylko, gdy inne niż domyślne (brama pyta domyślnie).
+                  onChanged: (v) => _patch({'confirm': v == (_w.view == WidgetView.gate) ? null : v}),
                 ),
               ]),
               if (_isOutputs)
@@ -575,7 +584,30 @@ class _TileSettingsState extends State<_TileSettings> {
                     },
                   ),
                 ]),
-              if (_w.view == WidgetView.status)
+              if (_w.view == WidgetView.gate)
+                _group('tileMoreGateSensor', 'Czujnik stanu bramy', [
+                  ListTile(
+                    key: const Key('tileGateSensor'),
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.sensor_door_outlined),
+                    title: Text(
+                      _w.sensor == null
+                          ? 'Bez czujnika'
+                          : '${widget.hub.device(_w.sensor!.device)?.name ?? _w.sensor!.device} · ${_w.sensor!.point}',
+                    ),
+                    subtitle: const Text('Aktywne wejście = drugi napis (domyślnie „Otwarta”)'),
+                    trailing: const Icon(Icons.edit_outlined),
+                    onTap: () async {
+                      final r = await pickGateSensor(context, widget.hub);
+                      if (r == null) return;
+                      final s = r.sensor;
+                      _patch({
+                        'sensor': s == null ? null : {'device': s.device, 'point': s.point},
+                      });
+                    },
+                  ),
+                ]),
+              if (_w.view == WidgetView.status || _w.view == WidgetView.gate)
                 _group('tileMoreLabels', 'Napisy stanu', [
                   Row(
                     children: [
@@ -583,7 +615,10 @@ class _TileSettingsState extends State<_TileSettings> {
                         child: TextField(
                           key: const Key('tileLabelOff'),
                           controller: _off,
-                          decoration: const InputDecoration(labelText: 'Gdy nie / rozwarte', hintText: 'Rozwarte'),
+                          decoration: InputDecoration(
+                            labelText: 'Gdy nie / rozwarte',
+                            hintText: _w.view == WidgetView.gate ? 'Zamknięta' : 'Rozwarte',
+                          ),
                           onChanged: (_) => _setLabels(),
                         ),
                       ),
@@ -592,7 +627,10 @@ class _TileSettingsState extends State<_TileSettings> {
                         child: TextField(
                           key: const Key('tileLabelOn'),
                           controller: _on,
-                          decoration: const InputDecoration(labelText: 'Gdy tak / zwarte', hintText: 'Zwarte'),
+                          decoration: InputDecoration(
+                            labelText: 'Gdy tak / zwarte',
+                            hintText: _w.view == WidgetView.gate ? 'Otwarta' : 'Zwarte',
+                          ),
                           onChanged: (_) => _setLabels(),
                         ),
                       ),

@@ -11,11 +11,13 @@ import '../data/history.dart';
 import '../data/hub_api.dart';
 import '../models/dashboard.dart';
 import '../models/describe.dart';
+import '../models/device_type.dart';
 import '../models/home.dart';
 import '../models/hub.dart';
 import '../models/json_utils.dart';
 import '../models/light.dart';
 import '../models/scene.dart';
+import '../models/room.dart';
 import '../models/schedule.dart';
 import '../data/device_icons.dart';
 import 'app_icons.dart';
@@ -350,6 +352,38 @@ DataPoint withChannelName(DataPoint p, DeviceController<Object?, Object?>? c, De
         );
 }
 
+/// Krótki stan urządzenia do list (pokój): temperatura, wł./wył., kanały.
+String deviceSummary(DeviceController<Object?, Object?> c) {
+  final s = c.stateJson;
+  if (s == null || !c.live) return 'niedostępne';
+  final n = s['channels'];
+  if (n is int && n > 1) {
+    final on = [for (var i = 1; i <= n; i++) s['on$i'] == true].where((x) => x).length;
+    return '$on z $n włączone';
+  }
+  return [
+    if (s['temp'] is num) '${(s['temp'] as num).toStringAsFixed(1).replaceAll('.', ',')} °C',
+    if (s['heating'] == true) 'grzeje',
+    if (s['on'] is bool) s['on'] == true ? 'włączone' : 'wyłączone',
+  ].join(' · ');
+}
+
+/// Wartość punktu, którego nie ma w State, z Config urządzenia (np. `indicator.on` switch4).
+Object? configValue(DeviceController<Object?, Object?>? c, String key) {
+  final cfg = c?.config;
+  if (cfg is! LightConfig || !key.startsWith('indicator.')) return null;
+  return key == 'indicator.on' ? cfg.indicatorOn : (key == 'indicator.off' ? cfg.indicatorOff : null);
+}
+
+/// Set jasności diod przycisków: `indicator` w całości (`on` i dotychczasowe `off`).
+Json indicatorSet(DeviceController<Object?, Object?> c, Object? on) {
+  final cfg = c.config;
+  return LightSet(
+    indicatorOn: (on as num).round(),
+    indicatorOff: cfg is LightConfig ? cfg.indicatorOff ?? 5 : 5,
+  ).toJson();
+}
+
 /// Punkt, gdy urządzenie (jeszcze) nie podało `describe` - znane pola z kontraktu.
 DataPoint fallbackPoint(String key) => switch (key) {
   'temp' => const DataPoint(
@@ -399,6 +433,16 @@ DataPoint fallbackPoint(String key) => switch (key) {
     step: 5,
     access: AccessLevel.control,
   ),
+  // Z Config switch4 (pkt 10.1), nie z State - wartość czyta [configValue], zapis [indicatorSet].
+  'indicator.on' => const DataPoint(
+    key: 'indicator.on',
+    name: 'Jasność diod',
+    kind: PointKind.setpoint,
+    unit: '%',
+    min: 0,
+    max: 100,
+    step: 5,
+  ),
   _ => switch (RegExp(r'^(on|in)(\d+)$').firstMatch(key)) {
     // Kanały przełącznika wielokanałowego (pkt 10.1).
     final m? when m.group(1) == 'on' => DataPoint(
@@ -423,11 +467,14 @@ void showSendErrors(BuildContext context, Map<String, String> errors) {
 /// Ustawienia z pkt 13.1: kolor, druga linia, rozmiar ikony, działanie dotyku, potwierdzenie, szybkie sterowanie,
 /// wybrane kanały, napisy stanu, pokrętło, wskaźnik, wykres z seriami.
 class DashTile extends StatefulWidget {
-  const DashTile({super.key, required this.widget, required this.hub, this.history});
+  const DashTile({super.key, required this.widget, required this.hub, this.history, this.rooms = const []});
 
   final DashWidget widget;
   final DeviceHub hub;
   final HistorySource? history;
+
+  /// Pokoje domu (`homes/{h}/rooms`) - dla kafelka `room`.
+  final List<Room> rooms;
 
   @override
   State<DashTile> createState() => _DashTileState();
@@ -475,7 +522,8 @@ class _DashTileState extends State<DashTile> {
 
   DataPoint _pointFor(String key) => withChannelName(_desc?.point(key) ?? fallbackPoint(key), _c, _desc);
 
-  Object? _value(String key, Json? state) => _pending.containsKey(key) ? _pending[key] : _pointFor(key).valueIn(state);
+  Object? _value(String key, Json? state) =>
+      _pending.containsKey(key) ? _pending[key] : (_pointFor(key).valueIn(state) ?? configValue(_c, key));
 
   /// Set z wartościami pokazanymi od razu ([optimistic]); po odpowiedzi stan wraca do tego, co podało urządzenie.
   Future<void> _send(
@@ -553,6 +601,7 @@ class _DashTileState extends State<DashTile> {
     final level = w.device == null ? AccessLevel.none : widget.hub.accessFor(w.device!);
     if (w.view == WidgetView.group) return _group(context, icon, large);
     if (w.view == WidgetView.valueList) return _valueList(context, icon, large);
+    if (w.view == WidgetView.room) return _room(context, icon, large);
     if (c == null || level == AccessLevel.none) {
       return TileShell(
         icon: Icons.lock_outline,
@@ -570,6 +619,7 @@ class _DashTileState extends State<DashTile> {
     void details() => p == null ? open() : _showDetails(context, c, p, level);
     final can = p != null && canSet(level, p) && !offline;
     if (p != null) _track(_value(p.key, state));
+    if (w.view == WidgetView.gate && p != null) return _gate(context, c, p, level, offline, icon, large);
 
     /// Kafelek z ustawieniami z pkt 13.1. [primary] - akcja główna (przełącz); domyślnie ikona = [primary],
     /// kafelek = szczegóły ([defaultTap]).
@@ -715,7 +765,7 @@ class _DashTileState extends State<DashTile> {
                   point: p,
                   value: v.toDouble(),
                   enabled: can,
-                  onChanged: (x) => _send(c, p.setFor(x), {p.key: x}),
+                  onChanged: (x) => _send(c, p.key == 'indicator.on' ? indicatorSet(c, x) : p.setFor(x), {p.key: x}),
                 ),
         );
       case WidgetView.stepper:
@@ -779,7 +829,9 @@ class _DashTileState extends State<DashTile> {
           WidgetView.weather ||
           WidgetView.hub ||
           WidgetView.schedule ||
-          WidgetView.valueList:
+          WidgetView.valueList ||
+          WidgetView.gate ||
+          WidgetView.room:
         final v = _value(p.key, state);
         return shell(
           secondary: w.label == null ? c.device.name : null,
@@ -867,6 +919,203 @@ class _DashTileState extends State<DashTile> {
       children: [
         for (final (i, x) in items.indexed) ...[if (i > 0) const SizedBox(height: 4), x],
       ],
+    );
+  }
+
+  /// Pokój (`room`): temperatura i wilgotność z urządzeń pokoju (najpierw termostat), ile świateł świeci, plakietka
+  /// GRZEJE; ikona wyłącza światła pokoju (gdy coś świeci), dotyk - lista urządzeń pokoju.
+  Widget _room(BuildContext context, IconData icon, bool large) {
+    final hub = widget.hub;
+    final r = widget.rooms.where((x) => x.id == w.room).firstOrNull;
+    if (r == null) {
+      return TileShell(
+        icon: icon,
+        title: w.label ?? 'Pokój',
+        secondary: 'Pokój usunięty albo niedostępny',
+        dimmed: true,
+        large: large,
+      );
+    }
+    int thermostatFirst(DeviceController<Object?, Object?> c) => c.device.type == DeviceType.thermostat ? 0 : 1;
+    final cs = [
+      for (final id in r.devices)
+        if (hub.accessFor(id).canView) ?hub.controller(id),
+    ]..sort((a, b) => thermostatFirst(a) - thermostatFirst(b));
+    num? temp, hum;
+    var heating = false;
+    for (final c in cs) {
+      final s = c.stateJson;
+      if (s == null) continue;
+      if (temp == null && s['temp'] is num) temp = s['temp'] as num;
+      if (hum == null && s['hum'] is num) hum = s['hum'] as num;
+      if (s['heating'] == true) heating = true;
+    }
+    // Światła: kanały węzłów osobno; optymistycznie po wyłączeniu z kafelka (`_pending`).
+    final lights = [
+      for (final c in cs)
+        if (c.device.type.isLight) c,
+    ];
+    var on = 0, total = 0;
+    for (final c in lights) {
+      final s = c.stateJson ?? const {};
+      final n = s['channels'] is int && (s['channels'] as int) > 1 ? s['channels'] as int : 0;
+      if (n > 0) {
+        total += n;
+        for (var i = 1; i <= n; i++) {
+          if ((_pending['${c.device.id}/on$i'] ?? s['on$i']) == true) on++;
+        }
+      } else {
+        total++;
+        if ((_pending['${c.device.id}/on'] ?? s['on']) == true) on++;
+      }
+    }
+    final usable = [
+      for (final c in lights)
+        if (c.live && hub.accessFor(c.device.id).canControl) c,
+    ];
+    Future<void> allOff() async {
+      unawaited(HapticFeedback.selectionClick());
+      setState(() {
+        for (final c in usable) {
+          final n = c.stateJson?['channels'];
+          if (n is int && n > 1) {
+            for (var i = 1; i <= n; i++) {
+              _pending['${c.device.id}/on$i'] = false;
+            }
+          } else {
+            _pending['${c.device.id}/on'] = false;
+          }
+        }
+      });
+      await Future.wait([
+        for (final c in usable) c.sendJson({'on': false}),
+      ]);
+      if (mounted) setState(() => _pending.removeWhere((k, _) => k.contains('/on')));
+    }
+
+    String t(num v) => '${v.toStringAsFixed(1).replaceAll('.', ',')} °C';
+    final parts = [
+      if (temp != null) t(temp),
+      if (hum != null) '${hum.round()} %',
+      if (total > 0) on > 0 ? '$on z $total ${total == 1 ? 'światła' : 'świateł'}' : 'światła zgaszone',
+    ];
+    void list() => showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => ListenableBuilder(
+        listenable: hub,
+        builder: (ctx, _) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              ListTile(title: Text(r.name, style: Theme.of(ctx).textTheme.titleMedium)),
+              for (final c in cs)
+                ListTile(
+                  key: Key('roomDevice-${c.device.id}'),
+                  leading: Icon(dashWidgetIcon(DashWidget(id: '', view: WidgetView.value, device: c.device.id), hub)),
+                  title: Text(c.device.name),
+                  subtitle: Text(deviceSummary(c)),
+                  trailing: c.device.type.isLight && c.stateJson?['on'] is bool && hub.accessFor(c.device.id).canControl
+                      ? Switch(
+                          value: c.stateJson?['on'] == true,
+                          onChanged: c.live ? (v) => c.sendJson({'on': v}) : null,
+                        )
+                      : null,
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    openDevice(context, c, hub: hub);
+                  },
+                ),
+              if (cs.isEmpty) const ListTile(title: Text('W tym pokoju nie ma urządzeń.')),
+            ],
+          ),
+        ),
+      ),
+    );
+    return TileShell(
+      icon: icon,
+      title: w.label ?? r.name,
+      secondary: _secondary(null, parts.isEmpty ? '${cs.length} urządz.' : parts.join(' · ')),
+      active: on > 0,
+      large: large,
+      color: w.color,
+      iconSize: w.iconSize,
+      badge: heating ? const TileBadge('GRZEJE', TileBadgeKind.heat) : null,
+      iconKey: Key('dash-toggle-${w.id}'),
+      onIcon: on > 0 && usable.isNotEmpty ? _confirmed(w.label ?? r.name, allOff) : list,
+      onTap: list,
+    );
+  }
+
+  /// Brama: kiedy wysłano polecenie i jaki był wtedy stan czujnika - „W ruchu…”, aż czujnik się zmieni (do 40 s).
+  DateTime? _gateSent;
+  Object? _gateSensorAtSend;
+
+  /// Brama / furtka (`gate`): ikona po potwierdzeniu wysyła impuls (kanał `action`) albo przełącza kanał, stan
+  /// otwarta / zamknięta z wejścia `sensor` (aktywne = `labels[1]`, domyślnie „Otwarta”); dotyk - urządzenie.
+  Widget _gate(
+    BuildContext context,
+    DeviceController<Object?, Object?> c,
+    DataPoint p,
+    AccessLevel level,
+    bool offline,
+    IconData icon,
+    bool large,
+  ) {
+    final hub = widget.hub;
+    final sensor = w.sensor;
+    final sc = sensor == null ? null : hub.controller(sensor.device);
+    final sv = sensor == null ? null : sc?.stateJson?[sensor.point];
+    final fault = sensor != null && sc?.stateJson?['${sensor.point}Fault'] == true;
+    final labels = w.labels ?? const ['Zamknięta', 'Otwarta'];
+    final open = sv == true;
+    final sent = _gateSent;
+    final moving =
+        sent != null && DateTime.now().difference(sent) < const Duration(seconds: 40) && sv == _gateSensorAtSend;
+    final stateText = sensor == null ? null : (sv is bool ? labels[sv ? 1 : 0] : 'Stan nieznany');
+    final title = w.label ?? p.name;
+    final m = RegExp(r'^on(\d*)$').firstMatch(p.key);
+    final Json cmd = p.kind == PointKind.action || m == null ? p.setFor(true) : {'toggle${m.group(1)}': true};
+    Future<void> go() async {
+      if (w.confirm) {
+        final ok = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text(title),
+            content: Text(sensor == null || sv is! bool ? 'Wysłać polecenie?' : (open ? 'Zamknąć?' : 'Otworzyć?')),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Anuluj')),
+              FilledButton(
+                key: const Key('gateConfirm'),
+                onPressed: () => Navigator.pop(ctx, true),
+                child: Text(sensor == null || sv is! bool ? 'Wyślij' : (open ? 'Zamknij' : 'Otwórz')),
+              ),
+            ],
+          ),
+        );
+        if (ok != true || !mounted) return;
+      }
+      setState(() {
+        _gateSent = DateTime.now();
+        _gateSensorAtSend = sv;
+      });
+      await _send(c, cmd);
+    }
+
+    final status = moving ? 'W ruchu…' : stateText;
+    return TileShell(
+      icon: icon,
+      title: title,
+      secondary: status ?? 'Dotknij ikony, aby otworzyć lub zamknąć',
+      active: open || moving,
+      large: large,
+      offline: offline,
+      color: w.color,
+      iconSize: w.iconSize,
+      badge: fault ? const TileBadge('USTERKA CZUJNIKA', TileBadgeKind.error) : null,
+      iconKey: Key('dash-toggle-${w.id}'),
+      onIcon: canSet(level, p) && !offline ? go : null,
+      onTap: () => openDevice(context, c, hub: hub),
     );
   }
 

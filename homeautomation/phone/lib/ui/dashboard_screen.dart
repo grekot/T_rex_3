@@ -70,7 +70,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _history = (device, field, {int hours = 24}) =>
           loadHistory(cloud.store, homeId: home, deviceId: device, field: field, hours: hours);
     }
-    _roomsSub = services.rooms.watch().listen((r) => _rooms = sortRooms(r), onError: (_) {});
+    _roomsSub = services.rooms.watch().listen((r) {
+      if (mounted) setState(() => _rooms = sortRooms(r));
+    }, onError: (_) {});
     _sub = _store.watch(_homeId).listen((l) {
       if (mounted) setState(() => _list = l);
     }, onError: (_) {});
@@ -263,6 +265,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           WidgetView.hub,
           WidgetView.schedule,
           WidgetView.valueList,
+          WidgetView.gate,
+          WidgetView.room,
         ].contains(w.view)) {
       return [w.view];
     }
@@ -298,6 +302,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       points: desc?.points ?? [if (w.point != null) fallbackPoint(w.point!)],
       channels: channels is int ? channels : 1,
       groupOptions: groupOptions,
+      rooms: _rooms,
     );
     if (!mounted || r == null) return;
     final list = [...d.widgets];
@@ -601,7 +606,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 DashGrid(
                   grid: d.grid,
                   widgets: list,
-                  builder: (w) => DashTile(widget: w, hub: widget.hub, history: _history),
+                  builder: (w) => DashTile(widget: w, hub: widget.hub, history: _history, rooms: _rooms),
                 ),
                 const SizedBox(height: 4),
               ],
@@ -689,7 +694,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       _endDrag();
                     }
                   },
-                  child: DashTile(widget: w, hub: widget.hub, history: _history),
+                  child: DashTile(widget: w, hub: widget.hub, history: _history, rooms: _rooms),
                 ),
               ),
               const SizedBox(height: 4),

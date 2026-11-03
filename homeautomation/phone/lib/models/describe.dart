@@ -4,14 +4,16 @@ import 'home.dart';
 import 'json_utils.dart';
 
 /// `sensor` - liczba tylko do odczytu, `status` - bool, `setpoint` - liczba do ustawiania,
-/// `switch` - bool do ustawiania, `select` - wybór z listy, `action` - przycisk.
+/// `switch` - bool do ustawiania, `select` - wybór z listy, `action` - przycisk,
+/// `button` - przycisk czujnika (np. BLE): bez wartości w State, tylko wyzwalacz automatyk.
 enum PointKind {
   sensor('sensor'),
   status('status'),
   setpoint('setpoint'),
   switchKind('switch'),
   select('select'),
-  action('action');
+  action('action'),
+  button('button');
 
   const PointKind(this.wire);
 

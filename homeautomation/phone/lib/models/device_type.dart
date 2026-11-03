@@ -6,6 +6,9 @@ enum DeviceType {
   onOff('switch', 'Włącznik'),
   dimmer('dimmer', 'Ściemniacz'),
   hub('hub', 'Hub'),
+
+  /// Czujnik (np. Bluetooth przez hub, pkt 11): tylko odczyt, punkty z `describe`.
+  sensor('sensor', 'Czujnik'),
   unknown('', 'Urządzenie');
 
   const DeviceType(this.wire, this.label);
@@ -20,6 +23,7 @@ enum DeviceType {
     'switch' => onOff,
     'dimmer' => dimmer,
     'hub' => hub,
+    'sensor' => sensor,
     _ => unknown,
   };
 

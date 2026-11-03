@@ -1,3 +1,5 @@
+import '../models/json_utils.dart';
+import '../models/remote.dart';
 import '../models/watch.dart';
 import 'cloud_store.dart';
 
@@ -26,6 +28,16 @@ class WatchStore {
 
   Future<void> save(String homeId, WatchInfo watch, WatchDashboard dashboard) =>
       store.write(_path(homeId, watch.id), dashboard.toJson(watch, serverTimestamp));
+
+  /// Klucz i slot zegarka w hubie (pkt 15.1); null usuwa.
+  Future<void> saveBle(String watchId, WatchBleLink? link) =>
+      store.write('users/$uid/watches/$watchId/ble', link?.toJson());
+
+  /// `homes/{h}/remotes/{id}` - lista punktów (czyta hub i właściciel).
+  Future<Json?> loadRemote(String homeId, String id) async =>
+      toJsonObject(await store.read('homes/$homeId/remotes/$id'));
+
+  Future<void> saveRemote(String homeId, String id, Json? doc) => store.write('homes/$homeId/remotes/$id', doc);
 
   /// Bez pulpitu zegarek pokazuje listę urządzeń, do których osoba ma dostęp.
   Future<void> remove(String homeId, String watchId) => store.write(_path(homeId, watchId), null);

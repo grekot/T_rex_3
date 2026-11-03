@@ -34,7 +34,13 @@ enum WidgetView {
   schedule('schedule', 'Harmonogram'),
 
   /// Kilka wartości z dowolnych urządzeń w jednym kafelku (`items`, do 6, pkt 13.1).
-  valueList('values', 'Kilka wartości');
+  valueList('values', 'Kilka wartości'),
+
+  /// Brama / furtka: kanał impulsowy z potwierdzeniem, stan z wejścia (`sensor`, np. kontaktron).
+  gate('gate', 'Brama'),
+
+  /// Pokój (`room` = id z `homes/{h}/rooms`): temperatura, wilgotność, włączone światła.
+  room('room', 'Pokój');
 
   const WidgetView(this.wire, this.label);
 
@@ -155,7 +161,9 @@ class DashWidget {
   /// `toggle|scene|details|device|none`; null = domyślnie dla widoku.
   String? get iconTap => extra['iconTap'] as String?;
   String? get tap => extra['tap'] as String?;
-  bool get confirm => extra['confirm'] == true;
+
+  /// Pytanie przed akcją; brama (`gate`) pyta domyślnie (wyłącza ją `confirm: false`).
+  bool get confirm => view == WidgetView.gate ? extra['confirm'] != false : extra['confirm'] == true;
 
   List<TileFeature> get features => [
     for (final f in _list(extra['features']))
@@ -203,6 +211,17 @@ class DashWidget {
               : null,
         ),
   ];
+
+  /// Czujnik stanu bramy (`gate`): urządzenie i wejście, np. kontaktron `in3`.
+  ({String device, String point})? get sensor {
+    final s = extra['sensor'];
+    return s is Map && s['device'] is String && s['point'] is String
+        ? (device: s['device'] as String, point: s['point'] as String)
+        : null;
+  }
+
+  /// Pokój kafelka `room` (`homes/{h}/rooms/{id}`).
+  String? get room => extra['room'] is String ? extra['room'] as String : null;
 
   /// Znacznik celu wskaźnika (`point:<klucz>`).
   String? get target => extra['target'] as String?;

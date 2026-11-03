@@ -28,6 +28,9 @@ import 'package:homeautomation/models/hub.dart';
 import 'package:homeautomation/models/scene.dart';
 import 'package:homeautomation/ui/automations_screen.dart';
 import 'package:homeautomation/ui/values_editor.dart';
+import 'package:homeautomation/ui/gate_editor.dart';
+import 'package:homeautomation/ui/point_controls.dart';
+import 'package:homeautomation/models/room.dart';
 
 import 'support/memory_cloud_store.dart';
 import 'package:homeautomation/models/describe.dart';
@@ -830,6 +833,177 @@ void main() {
     expect(tester.widget<OutlinedButton>(find.byKey(const Key('valuesAdd'))).onPressed, isNull);
   });
 
+  /// Węzeł jak switch4 1.4: kanał 2 impulsowy, czujnik temperatury z historią, diody przycisków.
+  void switch4Node() {
+    node.describe = {
+      'type': 'switch',
+      'points': [
+        {'key': 'on1', 'name': 'Schody', 'kind': 'switch', 'access': 'control'},
+        {'key': 'on2', 'name': 'Brama', 'kind': 'action', 'access': 'control'},
+        {'key': 'on3', 'name': 'Taras', 'kind': 'switch', 'access': 'control'},
+        {'key': 'on4', 'name': 'Garaż', 'kind': 'switch', 'access': 'control'},
+        {'key': 'in2', 'name': 'Kontaktron bramy', 'kind': 'status'},
+        {'key': 'temp', 'name': 'Temperatura w obudowie', 'kind': 'sensor', 'unit': '°C', 'decimals': 1, 'history': 't'},
+        {'key': 'hum', 'name': 'Wilgotność', 'kind': 'sensor', 'unit': '%'},
+      ],
+    };
+    node.pushConfig({
+      'name': 'Parter',
+      'channels': 4,
+      'inputs': 4,
+      'indicator': {'on': 60, 'off': 5},
+      'tempWarn': 60,
+      'tempOff': 0,
+      'ch2': {'name': 'Brama', 'pulse': 500},
+    });
+  }
+
+  testWidgets('gotowe kafelki węzła: wykres temperatury z historii, temperatura i wilgotność, jasność diod, brama', (
+    tester,
+  ) async {
+    await setUpHub(tester);
+    switch4Node();
+    await tester.pump();
+    final c = hub.controller('parter')!;
+    final points = (await c.description())!.points;
+    final presets = tilePresets(hub.device('parter')!, points, c.stateJson, c.config);
+    final byTitle = {for (final p in presets) p.title: p.widget};
+    expect(byTitle.keys, containsAll(['Temperatura i wilgotność', 'Wykres temperatury (linia)', 'Jasność diod przycisków', 'Brama: Brama']));
+    expect(byTitle['Wykres temperatury (linia)']!.view, WidgetView.chart);
+    expect((byTitle['Jasność diod przycisków']!.view, byTitle['Jasność diod przycisków']!.point), (WidgetView.slider, 'indicator.on'));
+    expect((byTitle['Brama: Brama']!.view, byTitle['Brama: Brama']!.point), (WidgetView.gate, 'on2'));
+    expect(byTitle.containsKey('Wykres wilgotności (linia)'), isFalse, reason: 'hum bez historii');
+
+    // Termostat: wykres zaraz pod kafelkiem termostatu.
+    final t = tilePresets(hub.device('termostat-ab12cd')!, const [], null);
+    expect(t[1].title, 'Wykres temperatury (linia)');
+  });
+
+  testWidgets('suwak jasności diod przycisków: wartość z Config, zapis indicator z dotychczasowym off', (tester) async {
+    await setUpHub(tester);
+    switch4Node();
+    await tester.pump();
+    await show(
+      tester,
+      DashWidget(id: 'ind', view: WidgetView.slider, device: 'parter', point: 'indicator.on', label: 'Diody').resized(4, 1),
+    );
+    expect(find.textContaining('60 %'), findsOneWidget);
+    tester.widget<SetpointSlider>(find.byType(SetpointSlider)).onChanged(80.0);
+    await tester.pumpAndSettle();
+    expect(node.sent.last, {
+      'indicator': {'on': 80, 'off': 5},
+    });
+  });
+
+  testWidgets('brama: stan z kontaktronu, potwierdzenie, impuls, „W ruchu…”; bez czujnika i bez pytania', (tester) async {
+    await setUpHub(tester);
+    switch4Node();
+    await tester.pump();
+    final w = DashWidget(id: 'g', view: WidgetView.gate, device: 'parter', point: 'on2', label: 'Brama').resized(2, 2).patch({
+      'sensor': {'device': 'parter', 'point': 'in2'},
+    });
+    expect(w.confirm, isTrue, reason: 'brama pyta domyślnie');
+    await show(tester, w);
+    expect(find.text('Otwarta'), findsOneWidget, reason: 'in2 = true');
+    await tester.tap(find.byKey(const Key('dash-toggle-g')));
+    await tester.pumpAndSettle();
+    expect(find.text('Zamknąć?'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('gateConfirm')));
+    await tester.pumpAndSettle();
+    expect(node.sent.last, {'on2': true});
+    expect(find.text('W ruchu…'), findsOneWidget);
+    node.pushState({...node._state, 'in2': false});
+    await tester.pumpAndSettle();
+    expect(find.text('Zamknięta'), findsOneWidget, reason: 'czujnik się zmienił - koniec ruchu');
+
+    // Bez czujnika, bez pytania: od razu polecenie; zwykły kanał - przełączenie.
+    final plain = DashWidget(id: 'g2', view: WidgetView.gate, device: 'parter', point: 'on3').resized(2, 2).patch({'confirm': false});
+    await show(tester, plain);
+    expect(find.text('Dotknij ikony, aby otworzyć lub zamknąć'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('dash-toggle-g2')));
+    await tester.pumpAndSettle();
+    expect(node.sent.last, {'toggle3': true});
+  });
+
+  testWidgets('pokój: temperatura z termostatu, światła „2 z 4”, GRZEJE; ikona gasi światła, dotyk - lista', (tester) async {
+    await setUpHub(tester);
+    const room = Room(id: 'r1', name: 'Salon', order: 0, devices: ['termostat-ab12cd', 'parter']);
+    final w = const DashWidget(id: 'room', view: WidgetView.room).resized(4, 1).patch({'room': 'r1'});
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox.fromSize(
+              size: dashTileSize(w, 4, 380),
+              child: DashTile(widget: w, hub: hub, rooms: const [room]),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Salon'), findsOneWidget);
+    expect(find.textContaining('21,4 °C'), findsOneWidget);
+    expect(find.textContaining('2 z 4 świateł'), findsOneWidget);
+    expect(find.text('GRZEJE'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('dash-toggle-room')));
+    await tester.pumpAndSettle();
+    expect(node.sent.last, {'on': false});
+    expect(find.textContaining('światła zgaszone'), findsOneWidget);
+
+    await tester.tap(find.text('Salon'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('roomDevice-parter')), findsOneWidget);
+    expect(find.byKey(const Key('roomDevice-termostat-ab12cd')), findsOneWidget);
+
+    // Pokój usunięty.
+    await tester.pumpWidget(MaterialApp(home: Scaffold(body: DashTile(widget: w, hub: hub))));
+    await tester.pumpAndSettle();
+    expect(find.text('Pokój usunięty albo niedostępny'), findsOneWidget);
+  });
+
+  testWidgets('edytor bramy: wyjście, czujnik stanu, bez pytania → kafelek gate', (tester) async {
+    await setUpHub(tester);
+    switch4Node();
+    await tester.pump();
+    DashWidget? result;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async => result = await Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => GateEditorScreen(hub: hub))),
+            child: const Text('brama'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('brama'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextButton>(find.byKey(const Key('gateDone'))).onPressed, isNull, reason: 'bez wyjścia');
+    await tester.tap(find.byKey(const Key('gateOutput-parter-on2')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('gateSensor')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('gateSensor-parter-in2')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('gateConfirmSwitch')));
+    await tester.pump();
+    await tester.enterText(find.byKey(const Key('gateName')), 'Wjazd');
+    await tester.tap(find.byKey(const Key('gateDone')));
+    await tester.pumpAndSettle();
+    expect((result!.view, result!.device, result!.point, result!.label, result!.confirm), (
+      WidgetView.gate,
+      'parter',
+      'on2',
+      'Wjazd',
+      false,
+    ));
+    expect(result!.toJson()['sensor'], {'device': 'parter', 'point': 'in2'});
+  });
+
   testWidgets('13.1: grupa wyjść - „1 z 2”, ikona wyłącza wszystko, lista z przełącznikami', (tester) async {
     await setUpHub(tester);
     final g = const DashWidget(id: 'gr', view: WidgetView.group, label: 'Parter').resized(2, 2).patch({
@@ -879,10 +1053,10 @@ void main() {
     ];
     expect(titles(const PairedDevice(id: 't', name: 'Salon'), const []), [
       'Termostat',
+      'Wykres temperatury (linia)',
       'Pokrętło nastawy',
       'Temperatura i wilgotność',
       'Wilgotność - wskaźnik',
-      'Wykres 24 h',
       'Harmonogram',
       'Pogoda',
       'Pogoda z wykresem',

@@ -100,6 +100,13 @@ class PointTile extends StatelessWidget {
           subtitle: subtitle,
           trailing: Text(p.format(value), style: t.titleMedium),
         );
+      case PointKind.button:
+        return ListTile(
+          key: key,
+          title: Text(p.name),
+          subtitle: subtitle ?? const Text('Przycisk - wyzwalacz automatyk (krótko, podwójnie, potrójnie, długo)'),
+          trailing: const Icon(Icons.radio_button_checked),
+        );
     }
   }
 }

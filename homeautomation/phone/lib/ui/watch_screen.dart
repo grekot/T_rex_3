@@ -1,11 +1,18 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../controllers/device_controller.dart';
 import '../controllers/device_hub.dart';
+import '../data/errors.dart';
+import '../data/hub_api.dart';
 import '../data/watch_store.dart';
 import '../models/dashboard.dart';
 import '../models/home.dart';
+import '../models/json_utils.dart';
+import '../models/remote.dart';
 import '../models/watch.dart';
 import '../services.dart';
 import 'dashboard_tiles.dart' show fallbackPoint;
@@ -15,12 +22,15 @@ import 'widgets.dart';
 /// „Zegarek” (pkt 13a): pulpit zegarka osobny od pulpitów telefonu, osobno dla każdego domu i zegarka.
 /// Strony z tytułem, kafelki half / full / big, podgląd w kształcie i rozdzielczości zegarka.
 class WatchScreen extends StatefulWidget {
-  const WatchScreen({super.key, required this.hub, this.store});
+  const WatchScreen({super.key, required this.hub, this.store, this.hubApi});
 
   final DeviceHub hub;
 
   /// Do testów; domyślnie z konta w [Services].
   final WatchStore? store;
+
+  /// Do testów; domyślnie API huba domu w sieci domowej.
+  final HubApi? hubApi;
 
   @override
   State<WatchScreen> createState() => _WatchScreenState();
@@ -36,6 +46,11 @@ class _WatchScreenState extends State<WatchScreen> {
   bool _dirty = false;
   bool _saving = false;
   bool _exists = false;
+
+  /// Połączenie zegarka z hubem przez Bluetooth (pkt 15.1) i urządzenia, które hub zna (null = nie wiadomo).
+  WatchBleLink? _ble;
+  Set<String>? _hubDevices;
+  bool _bleBusy = false;
 
   DeviceHub get hub => widget.hub;
   String get _homeId => hub.homeId;
@@ -67,7 +82,9 @@ class _WatchScreenState extends State<WatchScreen> {
       _watch = w;
       _loading = true;
       _dirty = false;
+      _ble = w.ble?.homeId == _homeId ? w.ble : null;
     });
+    unawaited(_loadHubDevices());
     WatchDashboard? d;
     try {
       d = await _store?.load(_homeId, w.id);
@@ -100,12 +117,206 @@ class _WatchScreenState extends State<WatchScreen> {
         _dirty = false;
         _exists = true;
       });
-      messenger.showSnackBar(const SnackBar(content: Text('Zapisano. Zegarek pobierze pulpit przy otwarciu aplikacji.')));
+      final link = _ble;
+      if (link != null) await _syncRemote(link, w);
+      final missing = link == null ? const <String>[] : _notInHub(link.hub);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            missing.isEmpty
+                ? 'Zapisano. Zegarek pobierze pulpit przy otwarciu aplikacji.'
+                : 'Zapisano. Hub nie zna: ${missing.join(', ')} - przez Bluetooth zegarek nimi nie steruje.',
+          ),
+        ),
+      );
     } on Object catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Nie zapisano: $e')));
     } finally {
       if (mounted) setState(() => _saving = false);
     }
+  }
+
+  // ---- Bluetooth bez telefonu (pkt 15.1)
+
+  /// Hub domu z połączeniem w sieci domowej (rejestracja idzie wprost do huba, tokenem tej osoby).
+  DeviceController<Object?, Object?>? get _hubController => hub.hubs.firstOrNull;
+
+  HubApi? get _hubApi {
+    if (widget.hubApi != null) return widget.hubApi;
+    final local = _hubController?.localApi;
+    return local == null ? null : HubApi(local);
+  }
+
+  Future<void> _loadHubDevices() async {
+    final api = _hubApi;
+    if (api == null) return;
+    try {
+      final list = await api.devices();
+      if (mounted) setState(() => _hubDevices = {for (final c in list) c.id});
+    } on Object {
+      // Bez listy - ostrzeżenie wg `via` z bazy.
+    }
+  }
+
+  /// Urządzenia kafelków zegarka, których hub [hubId] nie zna (polecenia z Bluetooth by nie przeszły).
+  List<String> _notInHub(String hubId) {
+    final ids = <String>{
+      for (final p in _pages)
+        for (final t in p.tiles)
+          if (t.view != WatchView.scene && t.device != null && t.device != hubId) t.device!,
+    };
+    final known = _hubDevices;
+    return [
+      for (final id in ids)
+        if (known != null ? !known.contains(id) : hub.device(id)?.via != hubId) hub.device(id)?.name ?? id,
+    ];
+  }
+
+  /// Lista punktów z pulpitu do `homes/{h}/remotes/{id}` (`cfgVer` + 1, najmniej [minVer]) i - w sieci domowej -
+  /// do huba (`PUT`: tylko `points`, `cfgVer`, `name`; treść do 4 kB, dłuższa lista - hub pobiera ją z chmury po `reload`).
+  Future<void> _syncRemote(WatchBleLink link, WatchInfo w, {int minVer = 0}) async {
+    final store = _store!;
+    final cloudVer = asIntOrNull((await store.loadRemote(_homeId, link.id))?['cfgVer'], 'cfgVer') ?? 0;
+    final ver = math.max(minVer, cloudVer + 1);
+    final doc = remoteDoc(
+      ownerUid: store.uid,
+      name: w.name,
+      hub: link.hub,
+      cfgVer: ver,
+      points: watchRemotePoints(_pages, link.hub),
+    );
+    await store.saveRemote(_homeId, link.id, doc);
+    final api = _hubApi;
+    if (api == null) return;
+    final local = <String, dynamic>{'name': doc['name'], 'cfgVer': ver, 'points': doc['points']};
+    var sent = false;
+    if (utf8.encode(jsonEncode(local)).length <= maxRemotePutBytes) {
+      try {
+        await api.putRemote(link.id, local);
+        sent = true;
+      } on ThermostatException {
+        // Starszy hub albo chwilowy błąd - niżej `reload`.
+      }
+    }
+    if (!sent) {
+      final c = _hubController;
+      if (c != null && c.canConfig) await c.sendJson({'reload': true});
+    }
+  }
+
+  Future<void> _pair(WatchInfo w) async {
+    final api = _hubApi, hubId = _hubController?.device.id, store = _store;
+    if (api == null || hubId == null || store == null) return;
+    setState(() => _bleBusy = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final r = await api.registerRemote(watchId: w.id, name: w.name);
+      final link = WatchBleLink(homeId: _homeId, hub: hubId, id: r.id, slot: r.slot, key: r.key);
+      await store.saveBle(w.id, link);
+      // Ponowna rejestracja = nowy klucz i licznik; lista punktów co najmniej z wersją huba.
+      await _syncRemote(link, w, minVer: r.cfgVer);
+      if (!mounted) return;
+      setState(() => _ble = link);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Połączono. Zegarek pobierze klucz przy otwarciu aplikacji „Dom”.')),
+      );
+    } on ThermostatException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Nie połączono: ${e.message}')));
+    } finally {
+      if (mounted) setState(() => _bleBusy = false);
+    }
+  }
+
+  Future<void> _unpair(WatchInfo w) async {
+    final link = _ble, store = _store;
+    if (link == null || store == null) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Odłączyć zegarek od huba?'),
+        content: const Text('Klucz przestanie działać - zegarek będzie sterował domem tylko przez telefon i chmurę.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Anuluj')),
+          FilledButton(
+            key: const Key('watchBleUnlinkOk'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Odłącz'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _bleBusy = true);
+    try {
+      await _hubApi?.deleteRemote(link.id);
+    } on ThermostatException {
+      // Poza domem - hub unieważni klucz, gdy zobaczy, że wpisu w chmurze już nie ma.
+    }
+    await store.saveRemote(_homeId, link.id, null);
+    await store.saveBle(w.id, null);
+    if (mounted) {
+      setState(() {
+        _ble = null;
+        _bleBusy = false;
+      });
+    }
+  }
+
+  Widget _bleSection(BuildContext context, WatchInfo w) {
+    final cs = Theme.of(context).colorScheme;
+    final link = _ble;
+    final hubC = _hubController;
+    final String? why = !w.canPair
+        ? 'Najpierw otwórz aplikację „Dom” na zegarku, żeby się zgłosił.'
+        : hubC == null
+        ? 'W domu nie ma huba.'
+        : _hubApi == null
+        ? 'Połącz w sieci domowej - rejestracja idzie wprost do huba.'
+        : !hub.accessFor(hubC.device.id).canControl
+        ? 'Potrzebny poziom sterowania huba.'
+        : null;
+    final missing = link != null ? _notInHub(link.hub) : (hubC == null ? const <String>[] : _notInHub(hubC.device.id));
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SectionHeader('Bluetooth (bez telefonu)'),
+        if (link != null)
+          ListTile(
+            key: const Key('watchBleLinked'),
+            leading: const Icon(Icons.bluetooth_connected),
+            title: Text('Połączony z hubem ${hub.device(link.hub)?.name ?? link.hub}'),
+            subtitle: Text(
+              'Zegarek steruje domem przez węzeł Bluetooth, także bez telefonu. Lista kafelków trafia do huba przy '
+              'zapisie pulpitu (slot ${link.slot}).',
+            ),
+            trailing: TextButton(
+              key: const Key('watchBleUnlink'),
+              onPressed: _bleBusy ? null : () => _unpair(w),
+              child: const Text('Odłącz'),
+            ),
+          )
+        else
+          ListTile(
+            key: const Key('watchBle'),
+            leading: const Icon(Icons.bluetooth),
+            title: const Text('Połącz zegarek z hubem (Bluetooth)'),
+            subtitle: Text(why ?? 'Zegarek będzie sterował domem przez węzeł btnode, także bez telefonu i internetu.'),
+            trailing: _bleBusy ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator()) : null,
+            enabled: why == null && !_bleBusy,
+            onTap: () => _pair(w),
+          ),
+        if (missing.isNotEmpty && (link != null || why == null))
+          Padding(
+            key: const Key('watchBleMissing'),
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              'Hub nie zna: ${missing.join(', ')}. Przez Bluetooth zegarek nimi nie steruje - dodaj je do huba '
+              '(np. termostat w ustawieniach „Przypisz do huba”).',
+              style: TextStyle(color: cs.error),
+            ),
+          ),
+      ],
+    );
   }
 
   Future<void> _remove() async {
@@ -218,6 +429,7 @@ class _WatchScreenState extends State<WatchScreen> {
                 padding: const EdgeInsets.only(bottom: 32),
                 children: [
                   _watchPicker(context, w),
+                  _bleSection(context, w),
                   if (_loading)
                     const LinearProgressIndicator()
                   else ...[

@@ -232,6 +232,88 @@ void main() {
     );
   });
 
+  test('czujniki Bluetooth: szukanie przez btnode, podgląd, dodanie, szyfrowany z kluczem, zły klucz, brak węzła', () async {
+    expect(await api.bleScan(), 1, reason: 'jeden węzeł btnode online');
+    var seen = await api.bleSeen();
+    expect((seen.scanning, seen.nodes.single.id, seen.nodes.single.scanAll), (true, 'bt-a1b2c3', true));
+    while (seen.scanning) {
+      seen = await api.bleSeen();
+    }
+    expect(seen.found.map((f) => (f.mac, f.encrypted, f.trigger)).toList(), [
+      ('a4:c1:38:12:34:56', false, false),
+      ('f8:44:77:aa:bb:cc', true, true),
+    ]);
+    expect((seen.found.first.values['temp'], seen.found.first.hubId), (21.6, 'ble-a4c138123456'));
+    expect(seen.found.last.buttons, ['btn1']);
+
+    final id = await api.addDevice({'adapter': 'ble', 'deviceId': 'a4:c1:38:12:34:56', 'name': 'Salon'});
+    expect(id, 'ble-a4c138123456');
+    await expectLater(
+      api.addDevice({'adapter': 'ble', 'deviceId': 'f8:44:77:aa:bb:cc', 'name': 'Przycisk'}),
+      throwsA(isA<ThermostatException>().having((e) => e.message, 'message', contains('32 znaki'))),
+      reason: 'szyfrowany bez klucza',
+    );
+    await expectLater(
+      api.addDevice({'adapter': 'ble', 'deviceId': 'zly', 'name': 'X'}),
+      throwsA(isA<ThermostatException>()),
+    );
+    await api.addDevice({
+      'adapter': 'ble',
+      'deviceId': 'f8:44:77:aa:bb:cc',
+      'name': 'Przycisk',
+      'localKey': 'ffffffffffffffffffffffffffffffff',
+    });
+    var list = await api.devices();
+    final sensor = list.firstWhere((c) => c.id == 'ble-a4c138123456');
+    expect((sensor.adapter, sensor.type, sensor.host, sensor.deviceId, sensor.state['temp']), (
+      HubAdapter.ble,
+      'sensor',
+      '',
+      'a4:c1:38:12:34:56',
+      21.6,
+    ));
+    expect(list.firstWhere((c) => c.id == 'ble-f84477aabbcc').error, 'key');
+    await api.addDevice({
+      'adapter': 'ble',
+      'id': 'ble-f84477aabbcc',
+      'deviceId': 'f8:44:77:aa:bb:cc',
+      'name': 'Przycisk',
+      'localKey': '00112233445566778899AABBCCDDEEFF',
+    });
+    list = await api.devices();
+    expect(list.firstWhere((c) => c.id == 'ble-f84477aabbcc').error, isNull);
+    expect((await api.bleSeen()).found, isEmpty, reason: 'dodane znikają z listy');
+
+    await api.bleStop();
+    expect((await api.bleSeen()).scanning, isFalse);
+    fake.bleNodes = [
+      {'id': 'bt-a1b2c3', 'online': false},
+    ];
+    expect(await api.bleScan(seconds: 30), 0, reason: 'brak węzła btnode online');
+  });
+
+  test('zegarek przez Bluetooth (pkt 15.1): rejestracja, nowy klucz przy ponownej, lista punktów, odłączenie', () async {
+    var r = await api.registerRemote(watchId: '8716545', name: 'T-Rex 3');
+    expect((r.id, r.slot, r.cfgVer, RegExp(r'^[0-9a-f]{64}$').hasMatch(r.key)), ('zegarek-8716545', 1, 1, true));
+    final firstKey = r.key;
+    r = await api.registerRemote(watchId: '8716545', name: 'T-Rex 3');
+    expect((r.slot, r.key == firstKey), (1, false), reason: 'ten sam slot, nowy klucz');
+    await api.putRemote('zegarek-8716545', {
+      'kind': 'watch',
+      'cfgVer': 2,
+      'points': [
+        {'device': 'termostat-ab12cd', 'point': 'temp'},
+      ],
+    });
+    expect((fake.remotes['zegarek-8716545']!['cfgVer'], (fake.remotes['zegarek-8716545']!['points'] as List).length), (
+      2,
+      1,
+    ));
+    await api.deleteRemote('zegarek-8716545');
+    expect(fake.remotes, isEmpty);
+    await expectLater(api.deleteRemote('zegarek-8716545'), throwsA(isA<ThermostatException>()));
+  });
+
   test('automatyki i sceny w hubie: zapis z updatedAt, błędna reguła, diagnostyka, uruchom, dziennik, czas', () async {
     final a = Automation(
       id: 'taras-o-zmroku',

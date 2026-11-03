@@ -19,6 +19,7 @@ import '../models/thermostat_config.dart';
 import '../services.dart';
 import 'automations_screen.dart';
 import 'device_admin_section.dart';
+import 'hub_ble_screen.dart';
 import 'widget_editor.dart';
 import 'widgets.dart';
 
@@ -382,6 +383,19 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
     }
   }
 
+  /// „Dodaj czujnik Bluetooth” (pkt 11 „Czujniki Bluetooth”, przez węzły `btnode`).
+  Future<void> _ble() async {
+    final added = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => HubBleScreen(api: _api!, canLink: _canLink, hubId: _hubId),
+      ),
+    );
+    if (added == true) {
+      _reload();
+      unawaited(widget.hub.load());
+    }
+  }
+
   Future<void> _discover() async {
     final added = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -399,21 +413,23 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
     'unauthorized' => 'zły token',
     'password' => 'złe hasło',
     'not_gen2' => 'stary Shelly (Gen1) - nieobsługiwany',
-    'key' => 'Zły klucz urządzenia',
+    'key' => 'Zły klucz urządzenia (albo go brak)',
     _ => e,
   };
 
   /// eWeLink: nowy `devicekey` - ten sam wpis (`id`) z poprawionym `localKey`.
   Future<void> _fixKey(HubChild d) async {
+    final ble = d.adapter == HubAdapter.ble;
     final key = await showDialog<String>(
       context: context,
-      builder: (_) => _EwelinkKeyDialog(device: d),
+      builder: (_) => ble ? BleKeyDialog(device: d) : _EwelinkKeyDialog(device: d),
     );
     if (key == null || !mounted) return;
     try {
       await _api!.addDevice({
         'adapter': d.adapter.wire,
-        'host': d.host,
+        // Czujnik Bluetooth nie ma adresu IP.
+        if (!ble) 'host': d.host,
         'id': d.id,
         'deviceId': ?d.deviceId,
         'localKey': key,
@@ -436,7 +452,16 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Urządzenia huba'),
-        actions: [IconButton(tooltip: 'Odśwież', icon: const Icon(Icons.refresh), onPressed: _reload)],
+        actions: [
+          if (_api != null)
+            IconButton(
+              key: const Key('hubBle'),
+              tooltip: 'Dodaj czujnik Bluetooth',
+              icon: const Icon(Icons.bluetooth_searching),
+              onPressed: _ble,
+            ),
+          IconButton(tooltip: 'Odśwież', icon: const Icon(Icons.refresh), onPressed: _reload),
+        ],
       ),
       floatingActionButton: _api == null
           ? null
@@ -470,7 +495,8 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
                       padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
                       child: Text(
                         'Własne węzły przypisuje się w ich ustawieniach („Przypisz do huba”). '
-                        'Obce (Shelly, Sonoff DIY, Sonoff z eWeLink, Tasmota) - „Szukaj w sieci”. Adresy urządzeń '
+                        'Obce (Shelly, Sonoff DIY, Sonoff z eWeLink, Tasmota) - „Szukaj w sieci”, czujniki Bluetooth - '
+                        'ikona Bluetooth u góry (potrzebny węzeł btnode). Adresy urządzeń '
                         'najlepiej zarezerwować w routerze (hub śledzi zmiany adresu tylko Sonoffów z eWeLink).',
                       ),
                     ),
@@ -483,11 +509,16 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
                           color: d.online ? null : cs.outline,
                         ),
                         title: Text(_name(d)),
-                        onTap: d.adapter == HubAdapter.ewelink && d.error == 'key' ? () => _fixKey(d) : null,
+                        onTap: (d.adapter == HubAdapter.ewelink || d.adapter == HubAdapter.ble) && d.error == 'key'
+                            ? () => _fixKey(d)
+                            : null,
                         subtitle: Text(
                           [
                             d.adapter.label,
-                            d.host,
+                            if (d.host.isNotEmpty) d.host,
+                            if (d.adapter == HubAdapter.ble && d.state['via'] is String) 'przez ${d.state['via']}',
+                            if (d.adapter == HubAdapter.ble && d.state['battery'] is num)
+                              'bateria ${(d.state['battery'] as num).round()} %',
                             if (d.model != null) d.model!,
                             d.online ? 'dostępne' : 'niedostępne',
                             if (d.error != null) _error(d.error!),
@@ -512,7 +543,7 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
                               itemBuilder: (_) => [
                                 if (d.mirror && !d.linked && _canLink)
                                   const PopupMenuItem(value: 'link', child: Text('Do chmury')),
-                                if (d.adapter == HubAdapter.ewelink)
+                                if (d.adapter == HubAdapter.ewelink || d.adapter == HubAdapter.ble)
                                   const PopupMenuItem(value: 'key', child: Text('Zmień klucz urządzenia')),
                                 const PopupMenuItem(value: 'delete', child: Text('Usuń z huba')),
                               ],

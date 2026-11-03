@@ -53,6 +53,7 @@ const appIcons = <AppIcon>[
   AppIcon('door', 'Drzwi', Icons.door_front_door_outlined, 'Dom i miejsca'),
   AppIcon('window', 'Okno', Icons.window_outlined, 'Dom i miejsca'),
   AppIcon('garage', 'Garaż', Icons.garage_outlined, 'Dom i miejsca'),
+  AppIcon('gate', 'Brama', Icons.fence, 'Dom i miejsca'),
   AppIcon('garden', 'Ogród', Icons.yard_outlined, 'Dom i miejsca'),
   AppIcon('pool', 'Basen', Icons.pool, 'Dom i miejsca'),
   // Czujniki i wejścia
@@ -92,6 +93,7 @@ String deviceIconKey(DeviceType type) => switch (type) {
   DeviceType.hub => 'hub',
   DeviceType.dimmer => 'dimmer',
   DeviceType.onOff => 'light',
+  DeviceType.sensor => 'sensor',
   _ => 'node',
 };
 
@@ -105,6 +107,8 @@ String widgetIconKey({required WidgetView view, String? point, DeviceType? type}
   if (view == WidgetView.hub) return 'hub';
   if (view == WidgetView.schedule) return 'schedule';
   if (view == WidgetView.valueList) return 'sensor';
+  if (view == WidgetView.gate) return 'gate';
+  if (view == WidgetView.room) return 'home';
   final p = point ?? '';
   if (RegExp(r'^on\d*$').hasMatch(p) || p == 'toggle') return 'light';
   if (RegExp(r'^in\d+$').hasMatch(p)) return 'button';
@@ -116,7 +120,7 @@ String widgetIconKey({required WidgetView view, String? point, DeviceType? type}
     'heating' => 'heating',
     'mode' => 'settings',
     'power' => type == DeviceType.thermostat ? 'power' : 'energy',
-    'level' => 'dimmer',
+    'level' || 'indicator.on' => 'dimmer',
     'lux' => 'outdoor',
     _ => type == null ? 'sensor' : deviceIconKey(type),
   };

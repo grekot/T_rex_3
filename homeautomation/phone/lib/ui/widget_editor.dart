@@ -9,12 +9,15 @@ import '../models/describe.dart';
 import '../models/device_type.dart';
 import '../models/home.dart';
 import '../models/json_utils.dart';
+import '../models/light.dart';
+import '../models/room.dart';
 import '../models/scene.dart';
 import '../services.dart';
 import 'app_icons.dart';
 import 'automations_screen.dart' show BranchEditorScreen, describeAction;
 import 'dashboard_tiles.dart';
 import 'point_controls.dart';
+import 'gate_editor.dart';
 import 'values_editor.dart';
 import 'widgets.dart';
 
@@ -42,6 +45,8 @@ List<WidgetView> viewsFor(DataPoint p) => switch (p.kind) {
   PointKind.switchKind => [WidgetView.toggle, WidgetView.status],
   PointKind.select => [WidgetView.value],
   PointKind.action => [WidgetView.toggle],
+  // Przycisk czujnika (BLE) nie ma wartości - na pulpit się nie nadaje, ale widok musi być.
+  PointKind.button => [WidgetView.value],
 };
 
 String kindLabel(PointKind k) => switch (k) {
@@ -51,6 +56,7 @@ String kindLabel(PointKind k) => switch (k) {
   PointKind.switchKind => 'przełącznik',
   PointKind.select => 'wybór',
   PointKind.action => 'przycisk',
+  PointKind.button => 'przycisk (zdarzenie)',
 };
 
 /// Punkty, gdy urządzenie nie odpowiada na `describe` (np. jest offline) - wg typu.
@@ -74,7 +80,7 @@ Future<List<DataPoint>> pointsOf(DeviceHub hub, PairedDevice d) async {
 typedef TilePreset = ({String title, String subtitle, DashWidget widget});
 
 /// Propozycje kafelków dla urządzenia (pkt 13.1) - z punktów `describe` i stanu (kanały węzła).
-List<TilePreset> tilePresets(PairedDevice d, List<DataPoint> points, Json? state) {
+List<TilePreset> tilePresets(PairedDevice d, List<DataPoint> points, Json? state, [Object? config]) {
   DataPoint? pt(String key) => points.where((p) => p.key == key).firstOrNull;
   DashWidget w(WidgetView view, String? point, int gw, int gh, [Json extra = const {}, String? label]) => DashWidget(
     id: newLocalId('w'),
@@ -89,6 +95,18 @@ List<TilePreset> tilePresets(PairedDevice d, List<DataPoint> points, Json? state
       title: 'Termostat',
       subtitle: 'temperatura, nastawa − / +, grzanie · 4×2',
       widget: w(WidgetView.thermostat, null, 4, 2),
+    ));
+    out.add((
+      title: 'Wykres temperatury (linia)',
+      subtitle: 'temperatura, nastawa, pasy grzania; 6 h / 24 h / 7 / 30 dni · 4×3',
+      widget: w(WidgetView.chart, 'temp', 4, 3, {
+        'series': [
+          {'device': d.id, 'point': 'temp', 'line': 'smooth'},
+          {'device': d.id, 'point': 'target', 'line': 'step'},
+          {'device': d.id, 'point': 'heating', 'line': 'band'},
+        ],
+        'rangeSwitch': true,
+      }),
     ));
     out.add((
       title: 'Pokrętło nastawy',
@@ -115,18 +133,6 @@ List<TilePreset> tilePresets(PairedDevice d, List<DataPoint> points, Json? state
         }),
       ));
     }
-    out.add((
-      title: 'Wykres 24 h',
-      subtitle: 'temperatura, nastawa, pasy grzania, zakres w kafelku · 4×3',
-      widget: w(WidgetView.chart, 'temp', 4, 3, {
-        'series': [
-          {'device': d.id, 'point': 'temp', 'line': 'smooth'},
-          {'device': d.id, 'point': 'target', 'line': 'step'},
-          {'device': d.id, 'point': 'heating', 'line': 'band'},
-        ],
-        'rangeSwitch': true,
-      }),
-    ));
     out.add((
       title: 'Harmonogram',
       subtitle: 'okres teraz, następna zmiana, pasek dnia · 4×2',
@@ -157,6 +163,45 @@ List<TilePreset> tilePresets(PairedDevice d, List<DataPoint> points, Json? state
     ));
   } else if (d.type.isLight) {
     final n = state?['channels'] is int ? state!['channels'] as int : 1;
+    final temp = pt('temp'), hum = pt('hum');
+    if (temp != null) {
+      out.add((
+        title: hum == null ? 'Temperatura' : 'Temperatura i wilgotność',
+        subtitle: '${hum == null ? 'duża liczba' : 'duża liczba, wilgotność w drugiej linii'} · 2×2',
+        widget: w(WidgetView.value, 'temp', 2, 2, {'secondary': ?(hum == null ? null : 'point:hum')}),
+      ));
+      if (temp.history != null) {
+        out.add((
+          title: 'Wykres temperatury (linia)',
+          subtitle: '6 h / 24 h / 7 / 30 dni w kafelku · 4×3',
+          widget: w(WidgetView.chart, 'temp', 4, 3, {
+            'series': [
+              {'device': d.id, 'point': 'temp', 'line': 'smooth'},
+            ],
+            'rangeSwitch': true,
+          }),
+        ));
+      }
+    }
+    if (hum?.history != null) {
+      out.add((
+        title: 'Wykres wilgotności (linia)',
+        subtitle: '6 h / 24 h / 7 / 30 dni w kafelku · 4×3',
+        widget: w(WidgetView.chart, 'hum', 4, 3, {
+          'series': [
+            {'device': d.id, 'point': 'hum', 'line': 'smooth'},
+          ],
+          'rangeSwitch': true,
+        }),
+      ));
+    }
+    if (config is LightConfig && config.hasIndicator) {
+      out.add((
+        title: 'Jasność diod przycisków',
+        subtitle: 'suwak 0-100 % (ustawienia modułu) · 4×1',
+        widget: w(WidgetView.slider, 'indicator.on', 4, 1, const {}, 'Diody przycisków'),
+      ));
+    }
     if (n > 1) {
       out.add((
         title: 'Wszystkie wyjścia',
@@ -166,6 +211,13 @@ List<TilePreset> tilePresets(PairedDevice d, List<DataPoint> points, Json? state
       for (var i = 1; i <= n; i++) {
         final name = pt('on$i')?.name ?? 'Kanał $i';
         out.add((title: name, subtitle: 'jedno wyjście (kanał $i) · 2×1', widget: w(WidgetView.toggle, 'on$i', 2, 1)));
+        if (pt('on$i')?.kind == PointKind.action) {
+          out.add((
+            title: 'Brama: $name',
+            subtitle: 'impuls z potwierdzeniem; czujnik stanu w ustawieniach kafelka · 2×2',
+            widget: w(WidgetView.gate, 'on$i', 2, 2, const {}, name),
+          ));
+        }
       }
       for (final p in points.where((p) => RegExp(r'^in\d+$').hasMatch(p.key))) {
         out.add((title: p.name, subtitle: 'stan wejścia · 2×1', widget: w(WidgetView.status, p.key, 2, 1)));
@@ -456,6 +508,27 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
               );
             },
           ),
+        if (!widget.forWatch) ...[
+          ListTile(
+            key: const Key('pickGate'),
+            leading: const Icon(Icons.fence),
+            title: const Text('Brama / furtka'),
+            subtitle: const Text('Impuls z potwierdzeniem, stan z kontaktronu'),
+            onTap: () async {
+              final w = await Navigator.of(
+                context,
+              ).push<DashWidget>(MaterialPageRoute(builder: (_) => GateEditorScreen(hub: widget.hub)));
+              if (w != null && context.mounted) Navigator.of(context).pop(w);
+            },
+          ),
+          ListTile(
+            key: const Key('pickRoom'),
+            leading: const Icon(Icons.meeting_room_outlined),
+            title: const Text('Pokój'),
+            subtitle: const Text('Temperatura, wilgotność i światła w pomieszczeniu'),
+            onTap: _room,
+          ),
+        ],
         ListTile(
           key: const Key('pickScene'),
           leading: const Icon(Icons.auto_awesome),
@@ -467,6 +540,39 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
     );
   }
 
+  /// Kafelek pokoju: wybór z `homes/{h}/rooms` (albo pokoi lokalnych bez konta).
+  Future<void> _room() async {
+    final rooms = await Services.of(context).rooms
+        .watch()
+        .first
+        .timeout(const Duration(seconds: 8), onTimeout: () => const <Room>[])
+        .catchError((_) => const <Room>[]);
+    if (!mounted) return;
+    final r = await showDialog<Room>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Pokój'),
+        children: [
+          for (final r in sortRooms(rooms))
+            SimpleDialogOption(
+              key: Key('pickRoom-${r.id}'),
+              onPressed: () => Navigator.pop(ctx, r),
+              child: Text(r.name),
+            ),
+          if (rooms.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Nie ma jeszcze pokoi - utwórz je na liście urządzeń.'),
+            ),
+        ],
+      ),
+    );
+    if (r == null || !mounted) return;
+    Navigator.of(
+      context,
+    ).pop(DashWidget(id: newLocalId('w'), view: WidgetView.room).resized(4, 1).patch({'room': r.id}));
+  }
+
   Widget _pointsStep(BuildContext context) {
     final d = _device!;
     return FutureBuilder<List<DataPoint>>(
@@ -476,7 +582,7 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
         final points = snap.data!;
         final presets = widget.forWatch
             ? const <TilePreset>[]
-            : tilePresets(d, points, widget.hub.controller(d.id)?.stateJson);
+            : tilePresets(d, points, widget.hub.controller(d.id)?.stateJson, widget.hub.controller(d.id)?.config);
         return ListView(
           children: [
             if (presets.isNotEmpty) ...[
@@ -500,7 +606,7 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
                 subtitle: const Text('temperatura, nastawa − / +, grzanie'),
                 onTap: () => _pickPoint(null),
               ),
-            for (final p in points)
+            for (final p in points.where((p) => p.kind != PointKind.button))
               ListTile(
                 key: Key('pick-${p.key}'),
                 title: Text(p.name),

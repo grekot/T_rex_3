@@ -7,6 +7,12 @@ import 'package:homeautomation/controllers/device_hub.dart';
 import 'package:homeautomation/data/connection_manager.dart';
 import 'package:homeautomation/data/device_store.dart';
 import 'package:homeautomation/data/discovery.dart';
+import 'package:homeautomation/data/hub_api.dart';
+import 'package:homeautomation/data/local_api.dart';
+import 'package:homeautomation/data/local_endpoint.dart';
+import 'package:homeautomation/models/hub.dart';
+import 'package:homeautomation/models/json_utils.dart';
+import 'package:homeautomation/models/remote.dart';
 import 'package:homeautomation/data/pairing.dart';
 import 'package:homeautomation/data/room_store.dart';
 import 'package:homeautomation/data/watch_store.dart';
@@ -53,6 +59,30 @@ const _expected = {
     ['t7', 33, 760, 195, 88], ['t8', 238, 760, 195, 88], ['t9', 155, 858, 156, 88],
   ],
 };
+
+/// Hub w pamięci: rejestracja zegarka, lista punktów, odłączenie; hub nie zna żadnego urządzenia.
+class _MemHubApi extends HubApi {
+  _MemHubApi() : super(LocalApi(LocalEndpoint('127.0.0.1', 1)));
+
+  final puts = <Json>[];
+  final deleted = <String>[];
+
+  @override
+  Future<({String id, int slot, String key, int cfgVer})> registerRemote({
+    required String watchId,
+    required String name,
+    String kind = 'watch',
+  }) async => (id: 'zegarek-$watchId', slot: 3, key: 'ab' * 32, cfgVer: 1);
+
+  @override
+  Future<void> putRemote(String id, Json doc) async => puts.add(doc);
+
+  @override
+  Future<void> deleteRemote(String id) async => deleted.add(id);
+
+  @override
+  Future<List<HubChild>> devices() async => const [];
+}
 
 void main() {
   test('układ kafelków taki jak na zegarku (layout.js)', () {
@@ -141,7 +171,11 @@ void main() {
     expect(find.text('480×480, okrągły'), findsOneWidget);
     expect(find.byKey(const Key('watchPreview')), findsOneWidget);
 
-    await tester.ensureVisible(find.byKey(const Key('watchAddTile-0')));
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('watchAddTile-0')),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('watchAddTile-0')));
     await tester.pumpAndSettle();
@@ -160,6 +194,117 @@ void main() {
     expect(tile.single, containsPair('view', 'thermostat'));
     expect(tile.single, containsPair('size', 'big'));
     expect(saved['watch'], {'width': 480, 'height': 480, 'shape': 'round'});
+    hub.dispose();
+  });
+
+  test('punkty pilota z pulpitu zegarka: termostat = 5 punktów, scena = runScene huba, bez powtórzeń', () {
+    const pages = [
+      WatchPage(
+        title: 'Dom',
+        tiles: [
+          WatchTile(id: 't1', device: 'termostat-ab12cd', view: WatchView.thermostat, size: WatchTileSize.big),
+          WatchTile(id: 't2', device: 'swiatlo-79cfe4', point: 'on2', view: WatchView.toggle),
+          WatchTile(id: 't3', device: 'termostat-ab12cd', point: 'temp', view: WatchView.value),
+        ],
+      ),
+      WatchPage(
+        title: 'Sceny',
+        tiles: [WatchTile(id: 't4', sceneId: 'wyjscie', view: WatchView.scene)],
+      ),
+    ];
+    expect([for (final p in watchRemotePoints(pages, 'hub-51e96c')) remotePointJson(p)], [
+      for (final k in ['temp', 'target', 'mode', 'power', 'heating']) {'device': 'termostat-ab12cd', 'point': k},
+      {'device': 'swiatlo-79cfe4', 'point': 'on2'},
+      {'device': 'hub-51e96c', 'point': 'runScene', 'arg': 'wyjscie'},
+    ]);
+  });
+
+  testWidgets('zegarek: połączenie z hubem przez Bluetooth, punkty w remotes z cfgVer, ostrzeżenie, odłączenie', (
+    tester,
+  ) async {
+    final cloud = MemoryCloudStore();
+    cloud.set('users/u1/watches/8716545', {'name': 'T-Rex 3', 'width': 480, 'height': 480, 'shape': 'round'});
+    cloud.set('users/u1/watchDashboards/local/8716545', {
+      'pages': [
+        {
+          'title': 'Dom',
+          'tiles': [
+            {'id': 't1', 'device': 'termostat-ab12cd', 'view': 'thermostat', 'size': 'big'},
+            {'id': 't2', 'sceneId': 'wyjscie', 'view': 'scene', 'size': 'full'},
+          ],
+        },
+      ],
+    });
+    final store = MemoryDeviceStore();
+    await store.saveDevice(const PairedDevice(id: 'termostat-ab12cd', name: 'Salon'));
+    await store.saveDevice(const PairedDevice(id: 'hub-51e96c', name: 'Hub', type: DeviceType.hub));
+    final manager = ConnectionManager(store: store, discovery: _NoDiscovery());
+    final hub = DeviceHub(store: store, manager: manager, cloud: TestCloudAccess(cloud, uid: 'u1'));
+    await hub.load();
+    final api = _MemHubApi();
+    await tester.pumpWidget(
+      Services(
+        store: store,
+        discovery: _NoDiscovery(),
+        manager: manager,
+        pairing: PairingService(store: store),
+        cloud: TestCloudAccess(cloud, uid: 'u1'),
+        provisioning: _NoBle(),
+        rooms: CloudRoomStore(cloud, 'h1'),
+        child: TermostatApp(
+          home: WatchScreen(hub: hub, store: WatchStore(cloud, 'u1'), hubApi: api),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('watchBleMissing')), findsOneWidget, reason: 'termostat poza hubem');
+    expect(find.textContaining('Hub nie zna: Salon'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('watchBle')));
+    await tester.pumpAndSettle();
+    final ble = cloud.get('users/u1/watches/8716545/ble') as Map;
+    expect((ble['homeId'], ble['hub'], ble['id'], ble['slot'], ble['key']), (
+      'local',
+      'hub-51e96c',
+      'zegarek-8716545',
+      3,
+      'ab' * 32,
+    ));
+    var doc = cloud.get('homes/local/remotes/zegarek-8716545') as Map;
+    expect((doc['kind'], doc['ownerUid'], doc['hub'], doc['cfgVer'], (doc['points'] as List).length), (
+      'watch',
+      'u1',
+      'hub-51e96c',
+      1,
+      6,
+    ));
+    expect((doc['points'] as List).last, {'device': 'hub-51e96c', 'point': 'runScene', 'arg': 'wyjscie'});
+    expect(api.puts.single['cfgVer'], 1);
+    expect(api.puts.single.keys, unorderedEquals(['name', 'cfgVer', 'points']), reason: 'hub pomija resztę, limit 4 kB');
+    expect(find.byKey(const Key('watchBleLinked')), findsOneWidget);
+
+    // Zapis pulpitu: cfgVer + 1 w chmurze i w hubie.
+    // Przewijanie listy wprost (przeciąganie na środku trafiałoby w przewijany podgląd zegarka).
+    final list = tester.state<ScrollableState>(find.byType(Scrollable).first).position;
+    list.jumpTo(list.maxScrollExtent);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('watchAddPage')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('watchSave')));
+    await tester.pumpAndSettle();
+    doc = cloud.get('homes/local/remotes/zegarek-8716545') as Map;
+    expect((doc['cfgVer'], api.puts.length, api.puts.last['cfgVer']), (2, 2, 2));
+
+    list.jumpTo(0);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('watchBleUnlink')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('watchBleUnlinkOk')));
+    await tester.pumpAndSettle();
+    expect(api.deleted, ['zegarek-8716545']);
+    expect(cloud.get('homes/local/remotes/zegarek-8716545'), isNull);
+    expect(cloud.get('users/u1/watches/8716545/ble'), isNull);
+    expect(find.byKey(const Key('watchBle')), findsOneWidget);
     hub.dispose();
   });
 
