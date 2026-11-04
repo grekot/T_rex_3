@@ -1275,6 +1275,14 @@ class _DashTileState extends State<DashTile> {
 
     final title = w.label ?? 'Grupa';
     final toggle = usable.isEmpty ? null : () => set([for (final r in usable) r.m], count == 0);
+    // Nazwa przycisku: nazwa kanału z modułu, cały włącznik - nazwa urządzenia, bez nazwy kanału - „<urządzenie> N”.
+    String memberName(({String device, String point}) m) {
+      final device = hub.device(m.device)?.name ?? m.device;
+      final n = RegExp(r'^on(\d+)$').firstMatch(m.point)?.group(1);
+      if (n == null) return device;
+      final ch = channelName(hub.controller(m.device), null, m.point);
+      return ch == 'Kanał $n' ? '$device $n' : ch;
+    }
     void list() => showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -1310,6 +1318,18 @@ class _DashTileState extends State<DashTile> {
       iconKey: Key('dash-toggle-${w.id}'),
       onIcon: _tapAction(w.iconTap ?? 'toggle', toggle: _confirmed(title, toggle), details: list, device: list),
       onTap: _tapAction(w.tap ?? 'details', toggle: _confirmed(title, toggle), details: list, device: list),
+      // Przycisk na każde wyjście grupy, jak kanały węzła; niedostępne (bez połączenia / `control`) - wyszarzone.
+      body: rows.isEmpty
+          ? null
+          : _Channels(
+              widgetId: w.id,
+              names: [for (final r in rows) memberName(r.m)],
+              on: [for (final r in rows) r.on],
+              enabled: [for (final r in rows) usable.contains(r)],
+              compact: w.size == WidgetSize.s1x1 && w.w == null,
+              rows: large || rows.length > 4 ? 2 : 1,
+              onToggle: usable.isEmpty ? null : (i) => set([rows[i - 1].m], !rows[i - 1].on),
+            ),
     );
   }
 
@@ -2050,6 +2070,7 @@ class _Channels extends StatelessWidget {
     this.channels,
     required this.names,
     required this.on,
+    this.enabled,
     required this.compact,
     required this.rows,
     required this.onToggle,
@@ -2061,6 +2082,9 @@ class _Channels extends StatelessWidget {
   final List<int>? channels;
   final List<String> names;
   final List<bool> on;
+
+  /// Które przyciski działają (grupa: wyjście bez połączenia albo bez `control` - wyszarzone); null = wszystkie.
+  final List<bool>? enabled;
   final bool compact;
   final int rows;
   final void Function(int channel)? onToggle;
@@ -2078,7 +2102,7 @@ class _Channels extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           borderRadius: BorderRadius.circular(12),
-          onTap: onToggle == null ? null : () => onToggle!(nums[i - 1]),
+          onTap: onToggle == null || enabled?[i - 1] == false ? null : () => onToggle!(nums[i - 1]),
           child: SizedBox(
             height: compact ? 28 : 34,
             child: Center(
@@ -2107,7 +2131,8 @@ class _Channels extends StatelessWidget {
         for (var r = 0; r * perRow < n; r++)
           Row(
             children: [
-              for (var i = r * perRow + 1; i <= math.min(n, (r + 1) * perRow); i++) Expanded(child: button(i)),
+              for (var i = r * perRow + 1; i <= math.min(n, (r + 1) * perRow); i++)
+                Expanded(child: enabled?[i - 1] == false ? Opacity(opacity: 0.4, child: button(i)) : button(i)),
             ],
           ),
       ],

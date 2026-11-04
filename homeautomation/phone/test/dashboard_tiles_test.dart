@@ -1024,6 +1024,15 @@ void main() {
       ]),
     );
     expect(find.text('0 z 2 włączone'), findsOneWidget);
+    // Przycisk na każde wyjście grupy (jak kanały węzła), z nazwą kanału z modułu.
+    expect(find.byKey(const Key('dash-ch-gr-1')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('dash-ch-gr-2')));
+    await tester.pumpAndSettle();
+    expect(node.sent.last, {'on2': true});
+    expect(find.text('1 z 2 włączone'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('dash-ch-gr-2')));
+    await tester.pumpAndSettle();
+    expect(node.sent.last, {'on2': false});
     await tester.tap(find.text('Parter'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('groupMember-parter-on2')));
