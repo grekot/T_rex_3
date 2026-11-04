@@ -55,6 +55,7 @@ enum PanelAction {
   members,
   notifications,
   watch,
+  calendar,
   updates,
   automations,
   quickTiles,
@@ -142,6 +143,13 @@ class DashboardPanel extends StatelessWidget {
           icon: Icons.watch_outlined,
           label: 'Zegarek',
           onTap: () => pick(PanelAction.watch),
+        ),
+      if (withAccount)
+        _Shortcut(
+          key: const Key('panel-calendar'),
+          icon: Icons.event_note_outlined,
+          label: 'Kalendarz',
+          onTap: () => pick(PanelAction.calendar),
         ),
       if (updates)
         _Shortcut(

@@ -241,6 +241,55 @@ void main() {
     expect(find.textContaining('Kanał 1 wyłączy się o'), findsOneWidget);
   });
 
+  testWidgets('„Włącz na…” (domyślne dla wyłączonego): wyłączenie w hubie, potem włączenie teraz; wąski ekran', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(360, 780);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final (hub, hubConn) = await _controller(const PairedDevice(id: 'hub1', name: 'Hub', type: DeviceType.hub), {
+      'timers': [],
+    });
+    final (c, conn) = await _controller(
+      const PairedDevice(id: 'parter', name: 'Parter', type: DeviceType.onOff, access: AccessLevel.control),
+      const {'on': false},
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: OutputTimerSection(controller: c, timers: HubTimers(hub)),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('timerAdd')));
+    await tester.pumpAndSettle();
+    expect(find.text('Włącz na 30 min'), findsOneWidget);
+    expect(find.text('Włącza od razu, po czasie hub wyłączy.'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('timerIn-60')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('timerStart')));
+    await tester.pumpAndSettle();
+    expect(hubConn.sent.single, {
+      'timerAdd': {
+        'device': 'parter',
+        'set': {'on': false},
+        'in': 3600,
+      },
+    });
+    expect(conn.sent.single, {'on': true});
+    expect(find.textContaining('Parter włączone - wyłączy się o'), findsOneWidget);
+
+    // „Włącz za…”: tylko odliczanie, bez włączania teraz.
+    await tester.tap(find.byKey(const Key('timerAdd')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Włącz za…'));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('timerStart')));
+    await tester.pumpAndSettle();
+    expect((hubConn.sent.last['timerAdd'] as Map)['set'], {'on': true});
+    expect(conn.sent, hasLength(1));
+  });
+
   testWidgets('hub bez timerów - sekcji nie ma', (tester) async {
     final (hub, _) = await _controller(const PairedDevice(id: 'hub1', name: 'Hub', type: DeviceType.hub), const {
       'id': 'hub1',

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -10,15 +11,19 @@ import '../data/cloud_access.dart';
 import '../data/device_store.dart';
 import '../data/errors.dart';
 import '../data/hub_api.dart';
+import '../data/hub_weather.dart';
 import '../data/local_api.dart';
 import '../models/device_type.dart';
 import '../models/home.dart';
 import '../models/hub.dart';
+import '../models/hub_weather.dart';
 import '../models/json_utils.dart';
 import '../models/thermostat_config.dart';
 import '../services.dart';
 import 'automations_screen.dart';
+import 'dashboard_tiles.dart' show weatherLabel;
 import 'device_admin_section.dart';
+import 'format.dart';
 import 'hub_ble_screen.dart';
 import 'widget_editor.dart';
 import 'widgets.dart';
@@ -26,10 +31,13 @@ import 'widgets.dart';
 /// Hub (pkt 11): stan, urządzenia podrzędne, automatyki, sceny, położenie domu i czas, ustawienia wspólne
 /// (chmura, telefony, firmware, WiFi).
 class HubScreen extends StatefulWidget {
-  const HubScreen({super.key, required this.controller, required this.hub});
+  const HubScreen({super.key, required this.controller, required this.hub, this.locate = phoneLocation});
 
   final DeviceController<Object?, Object?> controller;
   final DeviceHub hub;
+
+  /// Położenie telefonu (do testów podmieniane).
+  final Future<({double lat, double lon})> Function() locate;
 
   @override
   State<HubScreen> createState() => _HubScreenState();
@@ -69,11 +77,46 @@ class _HubScreenState extends State<HubScreen> {
     }
     final r = await showDialog<(double, double)>(
       context: context,
-      builder: (_) => _LocationDialog(lat: lat ?? '', lon: lon ?? ''),
+      builder: (_) => _LocationDialog(lat: lat ?? '', lon: lon ?? '', locate: widget.locate),
     );
     if (r == null || !mounted) return;
     final res = await c.sendJson({
       'location': {'lat': r.$1, 'lon': r.$2},
+    });
+    if (mounted) showSaveResult(context, res.errors, describeErrors);
+  }
+
+  /// Pogoda w hubie (pkt 11): włączenie i nazwa miejsca; bez położenia domu - od razu okno położenia.
+  Future<void> _weather(Json? current, Json? location) async {
+    final r = await showDialog<(bool, String)>(
+      context: context,
+      builder: (_) => _WeatherDialog(
+        enabled: current?['enabled'] == true,
+        place: current?['place'] is String ? current!['place'] as String : '',
+        hasLocation: location != null,
+      ),
+    );
+    if (r == null || !mounted) return;
+    final (enabled, place) = r;
+    final res = await c.sendJson({
+      'weather': {'enabled': enabled, if (place.isNotEmpty) 'place': place},
+    });
+    if (!mounted) return;
+    showSaveResult(context, res.errors, describeErrors);
+    if (res.errors.isEmpty && enabled && location == null) await _location(null);
+  }
+
+  Future<void> _calendarNotifyAt(Object? current) async {
+    final m = RegExp(r'^(\d{1,2}):(\d{2})$').firstMatch(current is String ? current : '19:00');
+    final t = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(hour: int.parse(m?.group(1) ?? '19'), minute: int.parse(m?.group(2) ?? '0')),
+      builder: (ctx, child) =>
+          MediaQuery(data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true), child: child!),
+    );
+    if (t == null || !mounted) return;
+    final res = await c.sendJson({
+      'calendarNotifyAt': '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}',
     });
     if (mounted) showSaveResult(context, res.errors, describeErrors);
   }
@@ -215,6 +258,26 @@ class _HubScreenState extends State<HubScreen> {
           enabled: c.canConfig,
           onTap: () => _location(location),
         ),
+        // Pogoda z huba - tylko hub, który ją ma (pole `weather` w State albo Config).
+        if (hubHasWeather(s) || (cfg?.containsKey('weather') ?? false))
+          ListTile(
+            key: const Key('hubWeather'),
+            leading: const Icon(Icons.wb_cloudy_outlined),
+            title: const Text('Pogoda'),
+            subtitle: Text(_weatherText(s, asObjectOrNull(cfg?['weather'], 'weather'), location)),
+            enabled: c.canConfig,
+            onTap: () => _weather(asObjectOrNull(cfg?['weather'], 'weather'), location),
+          ),
+        // Kalendarz domu (pkt 11): godzina przypomnień „jutro: Plastik” - hub z polem `calendarNotifyAt` w Config.
+        if (cfg?.containsKey('calendarNotifyAt') ?? false)
+          ListTile(
+            key: const Key('hubCalendarNotifyAt'),
+            leading: const Icon(Icons.event_note_outlined),
+            title: const Text('Przypomnienia z kalendarza'),
+            subtitle: Text('Dzień wcześniej o ${cfg?['calendarNotifyAt'] ?? '19:00'} (wywóz śmieci, urodziny, daty)'),
+            enabled: c.canConfig,
+            onTap: () => _calendarNotifyAt(cfg?['calendarNotifyAt']),
+          ),
         DeviceAdminSection(
           controller: c,
           cloudLinked: s['cloud'] == true,
@@ -225,11 +288,97 @@ class _HubScreenState extends State<HubScreen> {
   }
 }
 
+/// Opis pogody na liście: bieżąca pogoda albo dlaczego jej nie ma.
+String _weatherText(Json s, Json? cfg, Json? location) {
+  final now = HubWeatherNow.fromJson(s['weather']);
+  if (now != null) {
+    return [
+      if (now.temp != null) fmtTemp(now.temp),
+      weatherLabel(now.icon),
+      ?now.place,
+      if ((now.age ?? 0) > 3600) 'sprzed ${now.age! ~/ 60} min',
+    ].join(' · ');
+  }
+  if (cfg?['enabled'] != true) return 'Wyłączona - hub może pobierać pogodę i prognozę dla domu';
+  if (location == null) return 'Ustaw położenie domu';
+  return 'Hub jeszcze nie pobrał pogody';
+}
+
+class _WeatherDialog extends StatefulWidget {
+  const _WeatherDialog({required this.enabled, required this.place, required this.hasLocation});
+
+  final bool enabled;
+  final String place;
+  final bool hasLocation;
+
+  @override
+  State<_WeatherDialog> createState() => _WeatherDialogState();
+}
+
+class _WeatherDialogState extends State<_WeatherDialog> {
+  // Pierwsze otwarcie (bez nazwy miejsca) - od razu włączona.
+  late bool _enabled = widget.enabled || widget.place.isEmpty;
+  late final _place = TextEditingController(text: widget.place);
+
+  @override
+  void dispose() {
+    _place.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // `place` 1-32 B (UTF-8) - polskie litery to 2 B.
+    final tooLong = utf8.encode(_place.text.trim()).length > 32;
+    return AlertDialog(
+      title: const Text('Pogoda'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SwitchListTile(
+            key: const Key('weatherEnabled'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Pobieraj pogodę'),
+            subtitle: const Text('Open-Meteo co 15 min, prognoza co godzinę - dla kafelków, automatyk i zegara'),
+            value: _enabled,
+            onChanged: (v) => setState(() => _enabled = v),
+          ),
+          TextField(
+            key: const Key('weatherPlace'),
+            controller: _place,
+            enabled: _enabled,
+            decoration: InputDecoration(
+              labelText: 'Nazwa miejsca (np. Kraków)',
+              errorText: tooLong ? 'Za długa (najwyżej 32 bajty)' : null,
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          if (!widget.hasLocation)
+            const Padding(
+              padding: EdgeInsets.only(top: 12),
+              child: Text('Hub potrzebuje położenia domu - po zapisaniu ustawisz je z telefonu albo ręcznie.'),
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Anuluj')),
+        FilledButton(
+          key: const Key('weatherOk'),
+          onPressed: tooLong ? null : () => Navigator.pop(context, (_enabled, _place.text.trim())),
+          child: const Text('Zapisz'),
+        ),
+      ],
+    );
+  }
+}
+
 class _LocationDialog extends StatefulWidget {
-  const _LocationDialog({required this.lat, required this.lon});
+  const _LocationDialog({required this.lat, required this.lon, required this.locate});
 
   final String lat;
   final String lon;
+  final Future<({double lat, double lon})> Function() locate;
 
   @override
   State<_LocationDialog> createState() => _LocationDialogState();
@@ -238,6 +387,24 @@ class _LocationDialog extends StatefulWidget {
 class _LocationDialogState extends State<_LocationDialog> {
   late final _lat = TextEditingController(text: widget.lat);
   late final _lon = TextEditingController(text: widget.lon);
+  bool _locating = false;
+  String? _error;
+
+  /// Z telefonu: 3 miejsca po przecinku (ok. 100 m) - dla pogody i słońca wystarczy.
+  Future<void> _fromPhone() async {
+    setState(() {
+      _locating = true;
+      _error = null;
+    });
+    try {
+      final p = await widget.locate();
+      _lat.text = p.lat.toStringAsFixed(3);
+      _lon.text = p.lon.toStringAsFixed(3);
+    } on ThermostatException catch (e) {
+      _error = e.message;
+    }
+    if (mounted) setState(() => _locating = false);
+  }
 
   @override
   void dispose() {
@@ -273,6 +440,23 @@ class _LocationDialogState extends State<_LocationDialog> {
             decoration: const InputDecoration(labelText: 'Długość (np. 20.609)'),
             onChanged: (_) => setState(() {}),
           ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              key: const Key('locationGps'),
+              icon: _locating
+                  ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.my_location),
+              label: const Text('Z telefonu'),
+              onPressed: _locating ? null : _fromPhone,
+            ),
+          ),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            ),
         ],
       ),
       actions: [

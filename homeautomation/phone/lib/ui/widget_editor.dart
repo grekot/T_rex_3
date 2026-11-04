@@ -8,6 +8,7 @@ import '../models/dashboard.dart';
 import '../models/describe.dart';
 import '../models/device_type.dart';
 import '../models/home.dart';
+import '../models/hub_weather.dart';
 import '../models/json_utils.dart';
 import '../models/light.dart';
 import '../models/room.dart';
@@ -162,6 +163,39 @@ List<TilePreset> tilePresets(PairedDevice d, List<DataPoint> points, Json? state
       subtitle: 'urządzenia, automatyki, ostatnie wykonanie, chmura · 4×2',
       widget: w(WidgetView.hub, null, 4, 2),
     ));
+    // Pogoda z huba (pkt 11) - tylko hub, który ją ma; słońce, księżyc i powietrze w tym samym kafelku.
+    if (hubHasSky(state)) {
+      out.add((
+        title: 'Pogoda',
+        subtitle: 'temperatura i ikona z huba (Open-Meteo), dni prognozy · 2×2',
+        widget: w(WidgetView.weather, null, 2, 2),
+      ));
+      out.add((
+        title: 'Pogoda z prognozą',
+        subtitle: 'teraz, słońce i księżyc, powietrze, co 3 godziny i kolejne dni · 4×3',
+        widget: w(WidgetView.weather, null, 4, 3),
+      ));
+      out.add((
+        title: 'Pogoda - pasek',
+        subtitle: 'teraz i kolejne dni · 4×2',
+        widget: w(WidgetView.weather, null, 4, 2),
+      ));
+    }
+    if (state?.containsKey('air') ?? false) {
+      out.add((
+        title: 'Jakość powietrza',
+        subtitle: 'AQI, PM2.5 w drugiej linii · 2×1',
+        widget: w(WidgetView.value, 'air.aqi', 2, 1, {'secondary': 'point:air.pm25'}, 'Powietrze'),
+      ));
+      out.add((title: 'Indeks UV', subtitle: 'bieżący UV · 2×1', widget: w(WidgetView.value, 'air.uv', 2, 1)));
+    }
+    if (state?.containsKey('astro') ?? false) {
+      out.add((
+        title: 'Księżyc',
+        subtitle: 'oświetlenie tarczy w % · 2×1',
+        widget: w(WidgetView.value, 'astro.moonIllum', 2, 1, const {}, 'Księżyc'),
+      ));
+    }
   } else if (d.type.isLight) {
     final n = state?['channels'] is int ? state!['channels'] as int : 1;
     final temp = pt('temp'), hum = pt('hum');

@@ -10,6 +10,7 @@ import '../models/automation_templates.dart';
 import '../models/dashboard.dart' show reorder;
 import '../models/describe.dart';
 import '../models/hub.dart';
+import '../models/hub_weather.dart';
 import '../models/json_utils.dart';
 import '../models/scene.dart';
 import '../services.dart';
@@ -753,6 +754,9 @@ class _BranchEditorScreenState extends State<BranchEditorScreen> with _RuleEditi
   }
 }
 
+/// Punkty huba w regułach: pogoda, słońce i księżyc, powietrze (pkt 11).
+const _skyPrefixes = ['weather.', 'astro.', 'air.'];
+
 /// Wspólne dla edytora automatyki i bloku „Jeśli…”: wybór urządzeń, warunki, akcje, sekcje listy.
 mixin _RuleEditing<W extends StatefulWidget> on State<W> {
   DeviceHub get hub;
@@ -772,7 +776,10 @@ mixin _RuleEditing<W extends StatefulWidget> on State<W> {
         title: Text(title),
         children: [
           for (final d in hub.devices)
-            if (d.type.wire != 'hub')
+            // Hub tylko z pogodą, słońcem i powietrzem (`weather.*`, `astro.*`, `air.*`, pkt 11) i tylko w warunkach /
+            // wyzwalaczach stanu.
+            if (d.type.wire != 'hub' ||
+                (!inputs && !writable && !outputs && hubHasSky(hub.controller(d.id)?.stateJson)))
               SimpleDialogOption(
                 key: Key('auto-device-${d.id}'),
                 onPressed: () => Navigator.pop(ctx, d),
@@ -783,6 +790,24 @@ mixin _RuleEditing<W extends StatefulWidget> on State<W> {
     );
     if (d == null || !mounted) return null;
     var points = await pointsOf(hub, d);
+    if (d.type.wire == 'hub') {
+      // Z opisu huba tylko odczyty pogody, słońca i powietrza; bez opisu - zapasowe wg State huba.
+      points = [
+        for (final p in points)
+          if (_skyPrefixes.any(p.key.startsWith) && (p.kind == PointKind.sensor || p.kind == PointKind.status)) p,
+      ];
+      if (points.isEmpty) {
+        final s = hub.controller(d.id)?.stateJson ?? const {};
+        points = [
+          if (s.containsKey('weather'))
+            for (final k in ['temp', 'hum', 'wind', 'gust', 'rain3h', 'tMin24h']) fallbackPoint('weather.$k'),
+          if (s.containsKey('astro'))
+            for (final k in ['moonIllum', 'fullMoonToday']) fallbackPoint('astro.$k'),
+          if (s.containsKey('air'))
+            for (final k in ['aqi', 'pm25', 'pm10', 'uv']) fallbackPoint('air.$k'),
+        ];
+      }
+    }
     points = [
       for (final p in points)
         if (outputs

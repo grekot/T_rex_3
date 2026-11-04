@@ -1,4 +1,4 @@
-// „Wyłącz za…” (pkt 11): jednorazowe odliczanie w hubie dla wyjścia - okno wyboru czasu (z ekranu urządzenia
+// „Wyłącz za…” / „Włącz na…” (pkt 11): jednorazowe odliczanie w hubie dla wyjścia - okno wyboru czasu (z ekranu urządzenia
 // i z przytrzymania kafelka) i sekcja „Odliczanie” z aktywnymi timerami urządzenia, czasem do końca i „Anuluj”.
 
 import 'dart:async';
@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 
 import '../controllers/device_controller.dart';
 import '../controllers/device_hub.dart';
+import '../controllers/field_errors.dart';
 import '../data/errors.dart';
 import '../data/hub_timers.dart';
 import '../models/hub_timer.dart';
@@ -38,6 +39,12 @@ String _left(HubTimer t, DateTime now) {
 /// Krótki dopisek na kafelek: „wył. za 25 min” / „wł. za 1 h”.
 String timerShort(HubTimer t, DateTime now) => '${t.output?.on == true ? 'wł.' : 'wył.'} ${_left(t, now)}';
 
+/// Co robi odliczanie: wyłączy po czasie, włączy po czasie, albo włącz teraz i wyłącz po czasie („Włącz na…”).
+enum TimerMode { offIn, onIn, onFor }
+
+/// Domyślnie przeciwnie do stanu: włączone - „Wyłącz za…”, wyłączone - „Włącz na…”.
+TimerMode _defaultMode(Object? state) => state == true ? TimerMode.offIn : TimerMode.onFor;
+
 /// Okno „Wyłącz za…” i zapis w hubie; [point] - wyjście ustalone (kafelek, [name] - jego nazwa), inaczej wybór kanału.
 Future<void> setOutputTimer(
   BuildContext context, {
@@ -57,18 +64,28 @@ Future<void> setOutputTimer(
       controller: controller,
       channels: point == null ? channels : 1,
       point: start,
-      // Domyślnie przeciwnie do stanu: włączone - „wyłącz za…”.
-      on: state?[start] is bool ? !(state![start] as bool) : false,
+      mode: _defaultMode(state?[start]),
       title: point == null ? null : name ?? _who(controller, point),
       stateOf: (p) => state?[p],
     ),
   );
   if (r == null || !context.mounted) return;
   final messenger = ScaffoldMessenger.of(context);
+  final who = point != null && name != null ? name : _who(controller, r.point);
   try {
-    final at = await timers.add(controller.device.id, {r.point: r.on}, r.after);
-    final who = point != null && name != null ? name : _who(controller, r.point);
-    messenger.showSnackBar(SnackBar(content: Text('$who ${r.on ? 'włączy' : 'wyłączy'} się o ${_hhmm(at)}.')));
+    // „Włącz na…”: najpierw wyłączenie w hubie (gdy hub odmówi, nic się nie włącza), potem włączenie teraz.
+    final at = await timers.add(controller.device.id, {r.point: r.mode == TimerMode.onIn}, r.after);
+    if (r.mode == TimerMode.onFor) {
+      final res = await controller.sendJson({r.point: true});
+      if (res.errors.isNotEmpty) {
+        messenger.showSnackBar(SnackBar(content: Text('Nie udało się włączyć: ${describeErrors(res.errors)}')));
+        return;
+      }
+      messenger.showSnackBar(SnackBar(content: Text('$who włączone - wyłączy się o ${_hhmm(at)}.')));
+      return;
+    }
+    final verb = r.mode == TimerMode.onIn ? 'włączy' : 'wyłączy';
+    messenger.showSnackBar(SnackBar(content: Text('$who $verb się o ${_hhmm(at)}.')));
   } on ThermostatException catch (e) {
     messenger.showSnackBar(SnackBar(content: Text(e.message)));
   }
@@ -78,14 +95,14 @@ Future<void> setOutputTimer(
 String _who(DeviceController<Object?, Object?> c, String point) =>
     point == 'on' ? c.device.name : channelName(c, null, point);
 
-typedef _TimerChoice = ({String point, bool on, Duration after});
+typedef _TimerChoice = ({String point, TimerMode mode, Duration after});
 
 class _TimerSheet extends StatefulWidget {
   const _TimerSheet({
     required this.controller,
     required this.channels,
     required this.point,
-    required this.on,
+    required this.mode,
     required this.stateOf,
     this.title,
   });
@@ -93,7 +110,7 @@ class _TimerSheet extends StatefulWidget {
   final DeviceController<Object?, Object?> controller;
   final int channels;
   final String point;
-  final bool on;
+  final TimerMode mode;
   final Object? Function(String point) stateOf;
   final String? title;
 
@@ -103,13 +120,12 @@ class _TimerSheet extends StatefulWidget {
 
 class _TimerSheetState extends State<_TimerSheet> {
   late String _point = widget.point;
-  late bool _on = widget.on;
+  late TimerMode _mode = widget.mode;
   int _minutes = 30;
 
   void _pick(String p) => setState(() {
     _point = p;
-    final v = widget.stateOf(p);
-    if (v is bool) _on = !v;
+    _mode = _defaultMode(widget.stateOf(p));
   });
 
   Future<void> _custom() async {
@@ -166,14 +182,22 @@ class _TimerSheetState extends State<_TimerSheet> {
               ),
               const SizedBox(height: 12),
             ],
-            SegmentedButton<bool>(
+            SegmentedButton<TimerMode>(
+              showSelectedIcon: false,
               segments: const [
-                ButtonSegment(value: false, label: Text('Wyłącz za…'), icon: Icon(Icons.toggle_off_outlined)),
-                ButtonSegment(value: true, label: Text('Włącz za…'), icon: Icon(Icons.toggle_on_outlined)),
+                ButtonSegment(value: TimerMode.offIn, label: Text('Wyłącz za…')),
+                ButtonSegment(value: TimerMode.onIn, label: Text('Włącz za…')),
+                ButtonSegment(value: TimerMode.onFor, label: Text('Włącz na…')),
               ],
-              selected: {_on},
-              onSelectionChanged: (v) => setState(() => _on = v.single),
+              selected: {_mode},
+              onSelectionChanged: (v) => setState(() => _mode = v.single),
             ),
+            const SizedBox(height: 6),
+            Text(switch (_mode) {
+              TimerMode.offIn => 'Zostaje, jak jest - po czasie hub wyłączy.',
+              TimerMode.onIn => 'Zostaje, jak jest - po czasie hub włączy.',
+              TimerMode.onFor => 'Włącza od razu, po czasie hub wyłączy.',
+            }, style: t.bodySmall),
             const SizedBox(height: 12),
             Wrap(
               spacing: 6,
@@ -198,8 +222,12 @@ class _TimerSheetState extends State<_TimerSheet> {
             FilledButton.icon(
               key: const Key('timerStart'),
               icon: const Icon(Icons.timer_outlined),
-              label: Text('${_on ? 'Włącz' : 'Wyłącz'} za ${_fmtMinutes(_minutes)}'),
-              onPressed: () => Navigator.pop(context, (point: _point, on: _on, after: Duration(minutes: _minutes))),
+              label: Text(switch (_mode) {
+                TimerMode.offIn => 'Wyłącz za ${_fmtMinutes(_minutes)}',
+                TimerMode.onIn => 'Włącz za ${_fmtMinutes(_minutes)}',
+                TimerMode.onFor => 'Włącz na ${_fmtMinutes(_minutes)}',
+              }),
+              onPressed: () => Navigator.pop(context, (point: _point, mode: _mode, after: Duration(minutes: _minutes))),
             ),
             const SizedBox(height: 4),
             Text(

@@ -9,13 +9,16 @@ import '../controllers/device_hub.dart';
 import '../controllers/thermostat_controller.dart';
 import '../data/history.dart';
 import '../data/hub_api.dart';
+import '../data/hub_weather.dart';
 import '../models/dashboard.dart';
 import '../models/describe.dart';
 import '../models/device_type.dart';
 import '../models/home.dart';
 import '../models/hub.dart';
+import '../models/hub_weather.dart';
 import '../models/json_utils.dart';
 import '../models/light.dart';
+import '../models/output_schedule.dart' show dayShort;
 import '../models/scene.dart';
 import '../models/room.dart';
 import '../models/schedule.dart';
@@ -418,6 +421,43 @@ DataPoint fallbackPoint(String key) => switch (key) {
     decimals: 1,
     history: 'out',
   ),
+  // Pogoda z huba (pkt 11) - punkty `describe` huba, gdy opis niedostępny (nazwy w regułach automatyk).
+  'weather.temp' => const DataPoint(
+    key: 'weather.temp',
+    name: 'Pogoda: temperatura',
+    kind: PointKind.sensor,
+    unit: '°C',
+    decimals: 1,
+  ),
+  'weather.hum' => const DataPoint(key: 'weather.hum', name: 'Pogoda: wilgotność', kind: PointKind.sensor, unit: '%'),
+  'weather.wind' => const DataPoint(key: 'weather.wind', name: 'Pogoda: wiatr', kind: PointKind.sensor, unit: 'km/h'),
+  'weather.gust' => const DataPoint(key: 'weather.gust', name: 'Pogoda: porywy', kind: PointKind.sensor, unit: 'km/h'),
+  'weather.rain3h' => const DataPoint(
+    key: 'weather.rain3h',
+    name: 'Opad w ciągu 3 h',
+    kind: PointKind.sensor,
+    unit: 'mm',
+    decimals: 1,
+  ),
+  'weather.tMin24h' => const DataPoint(
+    key: 'weather.tMin24h',
+    name: 'Najniższa temperatura w 24 h',
+    kind: PointKind.sensor,
+    unit: '°C',
+    decimals: 1,
+  ),
+  // Słońce i księżyc, powietrze z huba (pkt 11).
+  'astro.moonIllum' => const DataPoint(
+    key: 'astro.moonIllum',
+    name: 'Księżyc: oświetlenie',
+    kind: PointKind.sensor,
+    unit: '%',
+  ),
+  'astro.fullMoonToday' => const DataPoint(key: 'astro.fullMoonToday', name: 'Pełnia dziś', kind: PointKind.status),
+  'air.aqi' => const DataPoint(key: 'air.aqi', name: 'Jakość powietrza (AQI)', kind: PointKind.sensor),
+  'air.pm25' => const DataPoint(key: 'air.pm25', name: 'PM2.5', kind: PointKind.sensor, unit: 'µg/m³', decimals: 1),
+  'air.pm10' => const DataPoint(key: 'air.pm10', name: 'PM10', kind: PointKind.sensor, unit: 'µg/m³', decimals: 1),
+  'air.uv' => const DataPoint(key: 'air.uv', name: 'Indeks UV', kind: PointKind.sensor, decimals: 1),
   'target' => const DataPoint(
     key: 'target',
     name: 'Nastawa',
@@ -1397,7 +1437,69 @@ class _DashTileState extends State<DashTile> {
   }
 
   /// Pogoda z termostatu (`weather`): `outdoor` `{temp, icon, age}`; przy wysokim kafelku trend z historii (`out`).
+  /// Prognoza huba dla kafelka pogody (pkt 11) - z pamięci, odświeżana co [HubForecasts.ttl].
+  HubForecast? _forecast;
+  DateTime? _forecastAsked;
+
+  void _ensureForecast(DeviceController<Object?, Object?> c) {
+    final now = DateTime.now();
+    if (_forecastAsked != null && now.difference(_forecastAsked!) < HubForecasts.ttl) return;
+    _forecastAsked = now;
+    _forecast ??= HubForecasts.instance.cached(c.device.id);
+    HubForecasts.instance.load(c, widget.hub.cloud, widget.hub.home?.id).then((f) {
+      if (mounted && f != null) setState(() => _forecast = f);
+    });
+  }
+
+  /// Pogoda z huba (pkt 11 „Pogoda w hubie”): bieżąca ze State, na większym kafelku godziny i dni z prognozy.
+  Widget _hubWeather(BuildContext context, DeviceController<Object?, Object?> c, bool offline, bool large) {
+    final s = c.stateJson;
+    final now = HubWeatherNow.fromJson(s?['weather']);
+    final astro = HubAstro.fromJson(s?['astro']), air = HubAir.fromJson(s?['air']);
+    final t = fallbackPoint('outdoor.temp');
+    if (now != null) _ensureForecast(c);
+    final age = now?.age ?? 0;
+    void open() => openDevice(context, c, hub: widget.hub);
+    return TileShell(
+      icon: weatherIconAt(now?.icon, day: now?.day ?? true),
+      title: w.label ?? now?.place ?? 'Pogoda',
+      secondary: _secondary(
+        s,
+        now == null
+            ? (hubHasSky(s) ? 'Pogoda wyłączona - włącz w ustawieniach huba' : 'Hub bez pogody - zaktualizuj hub')
+            : age > 2700
+            ? 'sprzed ${age ~/ 60} min'
+            : [
+                weatherLabel(now.icon),
+                if (now.feels != null && (now.feels! - (now.temp ?? now.feels!)).abs() >= 1)
+                  'odczuwalna ${fmtTemp(now.feels)}',
+              ].join(' · '),
+      ),
+      large: large,
+      offline: offline,
+      color: w.color,
+      iconSize: w.iconSize,
+      onIcon: _tapAction(w.iconTap ?? 'device', details: open, device: open),
+      onTap: _tapAction(w.tap ?? 'device', details: open, device: open),
+      fillBody: (now?.temp != null || astro != null || air != null) && w.w != 1,
+      body: w.w == 1
+          ? (now?.temp == null ? null : _BigValue(text: t.format(now!.temp), large: large))
+          : now?.temp == null && astro == null && air == null
+          ? null
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (now?.temp != null) _BigValue(text: t.format(now!.temp), large: large),
+                Expanded(
+                  child: HubForecastView(key: Key('forecast-${w.id}'), forecast: _forecast, astro: astro, air: air),
+                ),
+              ],
+            ),
+    );
+  }
+
   Widget _weather(BuildContext context, DeviceController<Object?, Object?> c, bool offline, IconData icon, bool large) {
+    if (c.device.type == DeviceType.hub) return _hubWeather(context, c, offline, large);
     final o = c.stateJson?['outdoor'];
     final temp = o is Map ? o['temp'] : null;
     final code = o is Map ? o['icon'] : null;
@@ -2480,6 +2582,215 @@ String weatherLabel(Object? code) => switch (_weatherKind(code)) {
   9 => 'Wiatr',
   _ => 'Pogoda',
 };
+
+/// Ikona pogody z nocą (`day: false` - księżyc zamiast słońca przy bezchmurnym i małym zachmurzeniu).
+IconData weatherIconAt(Object? code, {bool day = true}) => switch (_weatherKind(code)) {
+  1 when !day => Icons.nightlight_outlined,
+  2 when !day => Icons.nights_stay_outlined,
+  _ => weatherIcon(code),
+};
+
+/// Kolor poziomu jakości powietrza (European AQI, poziomy z huba).
+Color aqiColor(String? level) => switch (level) {
+  'dobra' => const Color(0xFF2E9E4F),
+  'umiarkowana' => const Color(0xFF8BBF3A),
+  'średnia' => const Color(0xFFE0B400),
+  'zła' => const Color(0xFFE07A1F),
+  'bardzo zła' => const Color(0xFFD03A2F),
+  'fatalna' => const Color(0xFF7D2A8C),
+  _ => Colors.grey,
+};
+
+/// Prognoza huba w kafelku: szeroki - pasek godzin (co 3 h) i dni, wąski - dni w wierszach; tyle, ile się mieści.
+/// Nad nią wiersze słońca i księżyca ([astro]) oraz powietrza ([air]), gdy zostaje miejsce na prognozę.
+class HubForecastView extends StatelessWidget {
+  const HubForecastView({super.key, this.forecast, this.astro, this.air, this.now});
+
+  final HubForecast? forecast;
+  final HubAstro? astro;
+  final HubAir? air;
+
+  /// Do testów; null = teraz.
+  final DateTime? now;
+
+  static String _deg(double? v) => v == null ? '–' : '${v.round()}°';
+
+  static const _lineH = 20.0;
+
+  /// „06:41–16:12 · 86% · pełnia za 3 dni”.
+  Widget? _astroLine(BuildContext context, DateTime at) {
+    final a = astro;
+    if (a == null || (a.sunrise == null && a.moonIllum == null)) return null;
+    final t = Theme.of(context).textTheme.labelMedium;
+    final today = DateTime(at.year, at.month, at.day);
+    final toFull = a.fullMoon?.difference(today).inDays;
+    final full = toFull == 0
+        ? ' · pełnia'
+        : (toFull != null && toFull > 0 && toFull <= 3 ? ' · pełnia za $toFull d' : '');
+    return Row(
+      key: const Key('astroLine'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (a.sunrise != null && a.sunset != null) ...[
+          const Icon(Icons.wb_twilight, size: 16),
+          const SizedBox(width: 4),
+          Text('${a.sunrise}–${a.sunset}', style: t),
+          const SizedBox(width: 10),
+        ],
+        if (a.moonIllum != null) ...[
+          const Icon(Icons.nightlight_outlined, size: 16),
+          const SizedBox(width: 4),
+          Text('${a.moonIllum}%$full', style: t),
+        ],
+      ],
+    );
+  }
+
+  /// „● AQI 38 umiarkowana · UV 2 · pyłki niskie (trawy)”.
+  Widget? _airLine(BuildContext context) {
+    final a = air;
+    if (a == null || a.aqi == null) return null;
+    final t = Theme.of(context).textTheme.labelMedium;
+    final pollen = a.pollenLevel != null && a.pollenLevel != 'brak'
+        ? ' · pyłki ${a.pollenLevel}${a.topPollen == null ? '' : ' (${a.topPollen})'}'
+        : '';
+    return Row(
+      key: const Key('airLine'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 10,
+          height: 10,
+          decoration: BoxDecoration(color: aqiColor(a.aqiLevel), shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          'AQI ${a.aqi}${a.aqiLevel == null ? '' : ' ${a.aqiLevel}'}'
+          '${a.uv == null ? '' : ' · UV ${a.uv!.round()}'}$pollen',
+          style: t,
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final at = now ?? DateTime.now();
+    final lines = [?_astroLine(context, at), ?_airLine(context)];
+    final f = forecast;
+    final hasForecast = f != null && (f.daily.isNotEmpty || f.hourly.isNotEmpty);
+    return LayoutBuilder(
+      builder: (context, box) {
+        // Wiersze tylko, gdy zostaje miejsce na prognozę (wąsko - dwa dni, szeroko - jeden pasek).
+        final minForecast = !hasForecast ? 0.0 : (box.maxWidth < 220 ? 48.0 : 60.0);
+        var k = 0;
+        while (k < lines.length && box.maxHeight - (k + 1) * _lineH >= minForecast) {
+          k++;
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final l in lines.take(k))
+              SizedBox(
+                height: _lineH,
+                child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft, child: l),
+              ),
+            if (hasForecast) Expanded(child: LayoutBuilder(builder: (context, box) => _forecast(context, box, f, at))),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _forecast(BuildContext context, BoxConstraints box, HubForecast forecast, DateTime at) {
+    final days = forecast.daysFrom(at);
+    final hours = [
+      for (final (i, h) in forecast.hoursFrom(at).indexed)
+        if (i % 3 == 0) h,
+    ];
+    final t = Theme.of(context).textTheme;
+    final muted = DefaultTextStyle.of(context).style.color?.withValues(alpha: 0.72);
+    String dayName(DateTime d) {
+      final today = DateTime(at.year, at.month, at.day);
+      return DateTime(d.year, d.month, d.day) == today ? 'Dziś' : dayShort(d.weekday);
+    }
+
+    Widget cell(String top, int? icon, String bottom, {bool day = true, String? extra}) => FittedBox(
+      fit: BoxFit.scaleDown,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(top, style: t.labelSmall?.copyWith(color: muted)),
+          Icon(weatherIconAt(icon, day: day), size: 20),
+          Text(bottom, style: t.labelMedium?.copyWith(fontWeight: FontWeight.w600)),
+          if (extra != null) Text(extra, style: t.labelSmall?.copyWith(color: muted)),
+        ],
+      ),
+    );
+
+    if (box.maxHeight < 36 || (days.isEmpty && hours.isEmpty)) return const SizedBox.shrink();
+    if (box.maxWidth < 220) {
+      // Wąski kafelek: dni w wierszach.
+      final n = math.min(days.length, (box.maxHeight / 24).floor());
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          for (final d in days.take(n))
+            SizedBox(
+              height: 24,
+              child: Row(
+                children: [
+                  SizedBox(width: 36, child: Text(dayName(d.date), style: t.labelMedium)),
+                  Icon(weatherIconAt(d.icon), size: 18),
+                  Expanded(
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerRight,
+                      child: Text('${_deg(d.tMax)} / ${_deg(d.tMin)}', style: t.labelMedium),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      );
+    }
+    final perRow = math.max(1, (box.maxWidth / 52).floor());
+    final rowH = box.maxHeight >= 150 ? 72.0 : 60.0;
+    final both = hours.isNotEmpty && days.isNotEmpty && box.maxHeight >= rowH * 2 + 8;
+    Widget row(List<Widget> cells) => SizedBox(
+      height: rowH,
+      child: Row(children: [for (final c in cells) Expanded(child: c)]),
+    );
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        if (both || days.isEmpty)
+          row([
+            for (final h in hours.take(perRow))
+              cell(
+                '${h.ts.hour.toString().padLeft(2, '0')}:00',
+                h.icon,
+                _deg(h.t),
+                day: h.ts.hour >= 6 && h.ts.hour < 20,
+                extra: rowH > 60 && (h.pp ?? 0) >= 30 ? '${h.pp}%' : null,
+              ),
+          ]),
+        if (both) const SizedBox(height: 8),
+        if (days.isNotEmpty)
+          row([
+            for (final d in days.take(perRow))
+              cell(
+                dayName(d.date),
+                d.icon,
+                '${_deg(d.tMax)} ${_deg(d.tMin)}',
+                extra: rowH > 60 && (d.pp ?? 0) >= 30 ? '${d.pp}%' : null,
+              ),
+          ]),
+      ],
+    );
+  }
+}
 
 int _weatherKind(Object? code) {
   if (code is! num) return 0;

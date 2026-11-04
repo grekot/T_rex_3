@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../controllers/device_hub.dart';
 import '../controllers/home_session.dart';
+import '../data/calendar_store.dart';
 import '../data/dashboard_store.dart';
 import '../data/history.dart';
 import '../data/notifications.dart';
@@ -18,6 +19,7 @@ import '../models/room.dart';
 import '../models/scene.dart';
 import '../services.dart';
 import 'automations_screen.dart';
+import 'calendar_screen.dart';
 import 'dashboard_panel.dart';
 import 'dashboard_summary.dart';
 import 'dashboard_tiles.dart';
@@ -571,6 +573,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (mounted) setState(() => _seen = latest);
       case PanelAction.watch:
         await nav.push(MaterialPageRoute<void>(builder: (_) => WatchScreen(hub: widget.hub)));
+      case PanelAction.calendar:
+        final home = widget.hub.home, cloud = widget.hub.cloud;
+        if (home == null || !cloud.available) return;
+        await nav.push(
+          MaterialPageRoute<void>(builder: (_) => CalendarScreen(store: CalendarStore(cloud.store, home.id))),
+        );
       case PanelAction.updates:
         await nav.push(MaterialPageRoute<void>(builder: (_) => UpdatesScreen(backend: DeviceHubUpdates(widget.hub))));
       case PanelAction.automations:

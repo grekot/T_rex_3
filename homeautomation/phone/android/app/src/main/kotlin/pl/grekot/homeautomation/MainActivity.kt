@@ -1,7 +1,11 @@
 package pl.grekot.homeautomation
 
+import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationManager
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -18,11 +22,16 @@ import io.flutter.plugin.common.MethodChannel
 /// Kanał `pl.grekot.homeautomation/wifi`: łączenie z siecią konfiguracyjną urządzenia `HA_<id>`
 /// (kontrakt pkt 9.4) bez internetu i kierowanie ruchu aplikacji przez nią (`bindProcessToNetwork`).
 /// Kanał `pl.grekot.homeautomation/links`: otwarcie adresu w innej aplikacji (np. `ntfy://` - pkt 3d).
+/// Kanał `pl.grekot.homeautomation/location`: przybliżone położenie telefonu (położenie domu w hubie - pogoda, słońce).
 class MainActivity : FlutterActivity() {
     companion object {
         const val EXTRA_OPEN_DEVICE = "open_device"
         const val EXTRA_OPEN_WIDGET = "open_widget"
+        private const val REQUEST_LOCATION = 41
     }
+
+    /// Odpowiedź na `current`, gdy czekamy na zgodę na lokalizację.
+    private var pendingLocation: MethodChannel.Result? = null
 
     private var callback: ConnectivityManager.NetworkCallback? = null
 
@@ -104,6 +113,62 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pl.grekot.homeautomation/location")
+            .setMethodCallHandler { call, result ->
+                if (call.method != "current") {
+                    result.notImplemented()
+                    return@setMethodCallHandler
+                }
+                if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                    currentLocation(result)
+                } else {
+                    pendingLocation?.error("busy", "Już pytamy o zgodę", null)
+                    pendingLocation = result
+                    requestPermissions(arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION), REQUEST_LOCATION)
+                }
+            }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode != REQUEST_LOCATION) return
+        val result = pendingLocation ?: return
+        pendingLocation = null
+        if (grantResults.firstOrNull() == PackageManager.PERMISSION_GRANTED) {
+            currentLocation(result)
+        } else {
+            result.error("denied", "Brak zgody na lokalizację", null)
+        }
+    }
+
+    /// Ostatnie znane położenie (do 30 min), inaczej świeże z sieci / GPS (Android 11+). Wynik: `{lat, lon}`.
+    @Suppress("MissingPermission")
+    private fun currentLocation(result: MethodChannel.Result) {
+        val lm = getSystemService(LocationManager::class.java)
+        val providers = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER, LocationManager.PASSIVE_PROVIDER)
+            .filter { runCatching { lm.isProviderEnabled(it) }.getOrDefault(false) }
+        if (providers.isEmpty() || (providers.size == 1 && providers[0] == LocationManager.PASSIVE_PROVIDER)) {
+            result.error("disabled", "Lokalizacja w telefonie jest wyłączona", null)
+            return
+        }
+        fun answer(loc: Location?) {
+            if (loc == null) {
+                result.error("unavailable", "Telefon nie zna położenia", null)
+            } else {
+                result.success(mapOf("lat" to loc.latitude, "lon" to loc.longitude))
+            }
+        }
+        val last = providers.mapNotNull { runCatching { lm.getLastKnownLocation(it) }.getOrNull() }.maxByOrNull { it.time }
+        if (last != null && System.currentTimeMillis() - last.time < 30 * 60 * 1000L) {
+            answer(last)
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val provider = providers.first { it != LocationManager.PASSIVE_PROVIDER }
+            lm.getCurrentLocation(provider, null, mainExecutor) { loc -> answer(loc ?: last) }
+        } else {
+            answer(last)
+        }
     }
 
     private fun joinAp(ssid: String?, prefix: String, passphrase: String, result: MethodChannel.Result) {

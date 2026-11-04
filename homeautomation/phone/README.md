@@ -125,7 +125,12 @@ repozytorium trzeba najpierw uruchomić `node tools/configure.mjs`.
 - **Grupa, pogoda, hub (pkt 13.1)**: `group` - kilka wyjść (`members`) jednym kafelkiem: „2 z 5”, ikona wyłącza
   wszystko, gdy coś świeci (inaczej włącza), przycisk na każde wyjście (nazwa kanału z modułu, jak kanały węzła),
   dotyk - lista z przełącznikami; członkowie bez `control` albo bez połączenia pomijani (przycisk wyszarzony). `weather` - `outdoor` termostatu: temperatura, ikona i opis (numer ikony termostatu 1-9
-  albo kod OpenWeatherMap), „sprzed N min”, na kafelku 4×3 wykres z historii `out`. `hub` - urządzenia dostępne /
+  albo kod OpenWeatherMap), „sprzed N min”, na kafelku 4×3 wykres z historii `out`; z `device` = hub (pkt 11 „Pogoda
+  w hubie”) - `weather` ze State huba (miejsce w tytule, noc - księżyc, odczuwalna), na większym kafelku prognoza
+  (`HubForecastView`: godziny co 3 h i dni, wąsko - dni w wierszach) z `GET /api/weather` albo
+  `homes/{h}/devices/{hubId}/weather` (`HubForecasts`, pamięć 15 min); nad prognozą wiersze `astro` (wschód–zachód,
+  oświetlenie księżyca, „pełnia za N d”) i `air` (AQI z kolorem poziomu, UV, pyłki), gdy zostaje miejsce na prognozę.
+  Gotowe kafelki huba: „Jakość powietrza” (`value` `air.aqi`), „Indeks UV”, „Księżyc” (`astro.moonIllum`). `hub` - urządzenia dostępne /
   wszystkie, automatyki, trwające sceny, ostatnie wykonanie, plakietka BEZ CHMURY; dotyk - ekran huba.
 - **Brama / furtka** (`gate`): `device` + `point` (kanał impulsowy `action` albo zwykły `onN`), `sensor`
   `{"device","point"}` (np. kontaktron `inN`, także z innego urządzenia), `labels` (domyślnie „Zamknięta / Otwarta”;
@@ -347,7 +352,8 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   automatyki z edytora automatyk też się tu pokazują. Włączanie / wyłączanie wpisu, zmiana, usunięcie; bez huba -
   wyjaśnienie. Zapis jak automatyki: w domu w hubie, poza domem w chmurze + `reload`.
 - **Wyłącz / włącz za…** (pkt 11, `output_timer.dart`): jednorazowe odliczanie w hubie - sekcja „Odliczanie” na ekranie
-  wyjścia (aktywne timery urządzenia z czasem do końca i „Anuluj”, wybór kanału, 5 min - 2 h albo własny czas) i
+  wyjścia (aktywne timery urządzenia z czasem do końca i „Anuluj”, wybór kanału, 5 min - 2 h albo własny czas;
+  „Wyłącz za…”, „Włącz za…” i „Włącz na…” = timer wyłączenia w hubie, potem włączenie od razu) i
   przytrzymanie kafelka wyjścia; na kafelku dopisek „wył. za 25 min”. W domu `POST/DELETE /api/timers`, poza domem
   Set huba `timerAdd` / `timerCancel` (`HubTimers`). Timery z State huba (`timers`); hub bez tego pola - opcji nie ma.
 - **Automatyki**: w domu wprost w hubie (`/api/automations`: diagnostyka - pominięte reguły, wschód/zachód, czas;
@@ -361,7 +367,17 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   (`automation_templates.dart`): wejście jednego węzła steruje wyjściem drugiego - przycisk, łącznik schodowy, łącznik
   (dwie reguły), czujka na czas. `down` / `up` / `change` i `mode` wymagają firmware huba z tymi funkcjami;
 - **Sceny** (wykonuje je hub; akcja „Powiadomienie” tylko z hubem); po zapisie w chmurze `updatedAt` i `reload`;
-- **Położenie domu** (Set `location`, podpowiedź z ustawień pogody termostatu) - wschód i zachód w automatykach;
+- **Położenie domu** (Set `location`, podpowiedź z ustawień pogody termostatu albo „Z telefonu” - kanał
+  `pl.grekot.homeautomation/location`, przybliżona lokalizacja na żądanie) - wschód i zachód w automatykach, pogoda;
+- **Pogoda** (hub z polem `weather` w State / Config): włączenie i nazwa miejsca (Set `weather {enabled, place}`, place
+  do 32 B); bez położenia domu po zapisie od razu okno położenia. W edytorze automatyk hub z pogodą jest na liście
+  urządzeń warunków / wyzwalaczy stanu - tylko punkty `weather.*`, `astro.*`, `air.*` (np. „najniższa temperatura w 24 h
+  < 0”, „AQI > 60”); `calendarNotifyAt` (Config) - godzina przypomnień z kalendarza;
+- **Kalendarz domu** (☰ → Kalendarz, z kontem; `calendar_screen.dart`, `homes/{h}/calendar/{id}`, pkt 11): wywóz śmieci
+  (ikona `mixed|plastic|paper|glass|bio|bulky`, lista dat do 60, „Wiele dat naraz” - wklejony harmonogram gminy:
+  `12.11`, `12.11.2026`, `2026-11-12`, `12 listopada`; „Usuń minione”), urodziny (data z rokiem, co rok, wiek), inne
+  daty (`repeat` `none|yearly|monthly|weekly|biweekly`), „Przypomnij dzień wcześniej” (`notify`, wysyła hub). Lista po
+  najbliższym terminie („jutro”, „za 3 dni”, „kończy 11 lat”, „potem jeszcze 2”);
 - ustawienia wspólne (chmura - łączenie zapisuje też `deviceIndex/{hubId}` `{"type":"hub"}`, telefony, firmware, WiFi).
 
 **Przypisz do huba** (ustawienia węzła albo termostatu, w domu, poziom `config`): węzeł wystawia hubowi token
