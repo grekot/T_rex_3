@@ -12,12 +12,23 @@ import 'widgets.dart';
 /// i urządzenia z chmurą pobierają plik same (Set `firmwareUrl` + `firmwareSha256`); węzły huba aktualizuje hub
 /// po kolei, po zatwierdzeniu zaznaczonych.
 class UpdatesScreen extends StatefulWidget {
-  const UpdatesScreen({super.key, required this.backend, this.hubRefresh = const Duration(seconds: 15)});
+  const UpdatesScreen({
+    super.key,
+    required this.backend,
+    this.hubRefresh = const Duration(seconds: 15),
+    this.checkPoll = const Duration(seconds: 2),
+    this.checkTimeout = const Duration(seconds: 60),
+  });
 
   final UpdateBackend backend;
 
   /// Odświeżanie listy węzłów, gdy hub coś aktualizuje.
   final Duration hubRefresh;
+
+  /// „Sprawdź teraz”: co ile pytać o datę sprawdzenia i jak długo czekać (hub pobiera manifest przez HTTPS kilka
+  /// sekund, przez chmurę dochodzi Set `checkUpdates` i lustro `updates`).
+  final Duration checkPoll;
+  final Duration checkTimeout;
 
   @override
   State<UpdatesScreen> createState() => _UpdatesScreenState();
@@ -33,6 +44,9 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
   final _subs = <String, StreamSubscription<UpdateProgress>>{};
   final _selected = <String, Set<String>>{};
   Timer? _hubTimer;
+
+  /// Huby, które właśnie sprawdzają wydania („Sprawdź teraz”).
+  final _checking = <String>{};
 
   UpdateBackend get b => widget.backend;
 
@@ -170,18 +184,39 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
     );
   }
 
+  /// „Sprawdź teraz”: polecenie do huba, potem pytamy co [UpdatesScreen.checkPoll], aż `checked` będzie nowsze
+  /// niż przed kliknięciem (najwyżej [UpdatesScreen.checkTimeout]).
   Future<void> _checkHub(HubUpdatesView h) async {
     final messenger = ScaffoldMessenger.of(context);
+    final before = h.updates.checked ?? 0;
+    setState(() => _checking.add(h.hubId));
     try {
       await b.checkHub(h.hubId);
-      messenger.showSnackBar(SnackBar(content: Text('Hub ${h.hubName} sprawdza wydania…')));
-      await Future<void>.delayed(const Duration(seconds: 3));
-      final hubs = await b.hubs();
-      if (mounted) setState(() => _hubs = hubs);
+      // Liczba prób, nie zegar - czas w testach jest udawany.
+      final polls = (widget.checkTimeout.inMilliseconds / widget.checkPoll.inMilliseconds).ceil();
+      for (var i = 0; i < polls; i++) {
+        await Future<void>.delayed(widget.checkPoll);
+        if (!mounted) return;
+        final List<HubUpdatesView> hubs;
+        try {
+          hubs = await b.hubs();
+        } on Object {
+          continue; // chwilowy brak odpowiedzi - następna próba
+        }
+        if (!mounted) return;
+        setState(() => _hubs = hubs);
+        final now = hubs.where((x) => x.hubId == h.hubId).firstOrNull?.updates.checked ?? 0;
+        if (now > before) return;
+      }
+      messenger.showSnackBar(
+        SnackBar(content: Text('Hub ${h.hubName} nie zdążył sprawdzić wydań - odśwież ekran za chwilę.')),
+      );
     } on ThermostatException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     } on Object catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Nie udało się: $e')));
+    } finally {
+      if (mounted) setState(() => _checking.remove(h.hubId));
     }
   }
 
@@ -281,6 +316,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
     final sel = _selected[h.hubId] ??= <String>{};
     final cs = Theme.of(context).colorScheme;
     final checked = h.updates.checked;
+    final checking = _checking.contains(h.hubId);
     return [
       SectionHeader('Węzły huba ${h.hubName}'),
       Padding(
@@ -289,15 +325,18 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
           children: [
             Expanded(
               child: Text(
-                checked == null
+                checking
+                    ? 'Sprawdzanie…'
+                    : checked == null
                     ? 'Hub jeszcze nie sprawdzał wydań'
                     : 'Hub sprawdził wydania ${_date(DateTime.fromMillisecondsSinceEpoch(checked * 1000))}',
+                key: Key('hubChecked-${h.hubId}'),
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
             TextButton(
               key: Key('hubCheck-${h.hubId}'),
-              onPressed: () => _checkHub(h),
+              onPressed: checking ? null : () => _checkHub(h),
               child: const Text('Sprawdź teraz'),
             ),
           ],

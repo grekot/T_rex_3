@@ -192,9 +192,18 @@ Widżety systemowe, niezależne od pulpitów w aplikacji. Na ekranie telefonu: p
 - **Pozycje**: wyjście (cały włącznik, wszystkie wyjścia węzła albo jeden kanał; kanał impulsowy wysyła impuls),
   termostat (temperatura, nastawa, grzanie; dotknięcie otwiera jego ekran), scena (jak na pulpicie: przez huba,
   bez huba akcje po kolei z telefonu), czujnik (`sensor`: urządzenie typu `sensor`, np. Bluetooth przez hub, albo węzeł
-  z `temp` / `hum` w State; duża pierwsza wartość, pod nią dwie kolejne - punkty `kind: sensor` z `describe` po kolei,
-  bez `rssi`, bateria na końcu; bez opisu znane pola; `online: false` = przygaszony „Niedostępny · ostatni odczyt”;
-  dotknięcie otwiera ekran urządzenia). Pomarańczowe tło = włączone / grzeje, przygaszone = brak kontaktu.
+  z `temp` / `hum` w State; duża pierwsza wartość, pod nią dwie kolejne - domyślnie temperatura, wilgotność,
+  ciśnienie, reszta wg `describe`, bez `rssi`, bateria na końcu; bez opisu znane pola; `online: false` = przygaszony
+  „Niedostępny · ostatni odczyt”; dotknięcie otwiera ekran urządzenia). Pomarańczowe tło = włączone / grzeje,
+  przygaszone = brak kontaktu.
+- **Wygląd pozycji** (`widget_look.dart`, przycisk ⚙ przy wybranej pozycji): podpis, ikona z katalogu aplikacji
+  (usługa rysuje ją do PNG - `icon_png.dart`, `iconPng` w kratce; bez tego ikona zapasowa Androida; domyślnie
+  ikona wybrana dla urządzenia), kolor (`amber|blue|green|red|purple|grey`: tło włączonej kratki i kolor ikony),
+  czujnik - główna wartość i do 2 pod nią (albo nic), termostat - pod temperaturą nastawa / wilgotność / nic,
+  wyjście - dotknięcie przełącza albo otwiera urządzenie. Podgląd kratki na żywo. Pola w pozycji: `label`, `icon`,
+  `color`, `main`, `more`, `tap`. **Z pulpitu**: kafelek pulpitu jako gotowa pozycja (`itemFromTile`: wartość /
+  wskaźnik / poziom / wykres czujnika, kilka wartości z jednego urządzenia, wyjście, termostat, scena) z jego
+  podpisem, ikoną, kolorem i wartościami - kopia, późniejsza zmiana kafelka nie zmienia widżetu.
 - **Na żywo**: `LiveWidgetService.kt` to usługa pierwszoplanowa `specialUse` (stałe, ciche powiadomienie „Widżety na
   żywo”) z osobnym silnikiem Fluttera (`homeWidgetServiceMain`). `WidgetRuntime` używa tych samych `DeviceHub` i dróg
   co aplikacja (lokalnie → chmura), z połączeniami tylko do urządzeń z widżetów (`DeviceHub.wanted`; przy scenach także

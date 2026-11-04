@@ -12,12 +12,14 @@ import '../data/cloud_access.dart';
 import '../data/home_repository.dart';
 import '../data/home_widget_store.dart';
 import '../firebase_options.dart';
+import '../models/dashboard.dart';
 import '../models/device_type.dart';
 import '../models/home.dart';
 import '../models/home_widget.dart';
 import '../services.dart';
 import '../ui/dashboard_tiles.dart' show channelName;
 import 'widget_cells.dart';
+import 'widget_look.dart';
 
 const _channel = MethodChannel('pl.grekot.homeautomation/widget_config');
 
@@ -68,6 +70,9 @@ class _ConfigRootState extends State<_ConfigRoot> {
   List<Home> _homes = const [];
   Home? _home;
   DeviceHub? _hub;
+
+  /// Pulpity domu - pozycje „Z pulpitu”.
+  List<Dashboard> _dashboards = const [];
   bool _loading = true;
   String? _error;
 
@@ -118,6 +123,11 @@ class _ConfigRootState extends State<_ConfigRoot> {
       ..homeOwnerUid = home?.ownerUid;
     _hub?.dispose();
     _home = home;
+    _dashboards = const [];
+    final dashboards = services.dashboards.watch(home?.id ?? HomeWidgetConfig.localHome).first;
+    dashboards.timeout(const Duration(seconds: 8)).then((l) {
+      if (mounted && _home?.id == home?.id) setState(() => _dashboards = l);
+    }, onError: (_) {});
     _hub = DeviceHub(
       store: services.store,
       manager: services.manager,
@@ -165,6 +175,7 @@ class _ConfigRootState extends State<_ConfigRoot> {
       key: ValueKey(_home?.id),
       hub: hub,
       multi: widget.multi,
+      dashboards: _dashboards,
       initial: _existing?.homeId == (_home?.id ?? HomeWidgetConfig.localHome) ? _existing!.items : const [],
       onSave: _save,
       homeSwitcher: _homes.length < 2
@@ -188,10 +199,14 @@ class HomeWidgetConfigScreen extends StatefulWidget {
     required this.onSave,
     this.initial = const [],
     this.homeSwitcher,
+    this.dashboards = const [],
   });
 
   final DeviceHub hub;
   final bool multi;
+
+  /// Pulpity domu: kafelek pulpitu jako gotowa pozycja (podpis, ikona, kolor, wartości).
+  final List<Dashboard> dashboards;
   final List<HomeWidgetItem> initial;
   final Future<void> Function(List<HomeWidgetItem> items) onSave;
   final Widget? homeSwitcher;
@@ -211,14 +226,78 @@ class _HomeWidgetConfigScreenState extends State<HomeWidgetConfigScreen> {
     });
   }
 
-  Widget _tile(HomeWidgetItem item, String title, {String? subtitle, required IconData icon}) => ListTile(
-    key: Key('widget-item-${item.device ?? ''}-${item.point ?? item.sceneId ?? ''}'),
-    leading: Icon(icon),
-    title: Text(title),
-    subtitle: subtitle == null ? null : Text(subtitle),
-    trailing: Icon(_chosen.contains(item) ? Icons.check_circle : Icons.radio_button_unchecked),
-    onTap: () => _flip(item),
-  );
+  /// Pozycja z kafelka pulpitu: zastępuje tę samą (z nowym wyglądem), drugi raz ten sam kafelek - usuwa.
+  void _fromTile(HomeWidgetItem item) {
+    setState(() {
+      final i = _chosen.indexOf(item);
+      if (i >= 0) {
+        if (_chosen[i].look == item.look) {
+          _chosen.removeAt(i);
+        } else {
+          _chosen[i] = item;
+        }
+        return;
+      }
+      if (!widget.multi) _chosen.clear();
+      if (_chosen.length < HomeWidgetConfig.maxItems) _chosen.add(item);
+    });
+  }
+
+  /// „Wygląd” wybranej pozycji.
+  Future<void> _editLook(HomeWidgetItem item) async {
+    final i = _chosen.indexOf(item);
+    if (i < 0) return;
+    final r = await Navigator.of(context).push<HomeWidgetItem>(
+      MaterialPageRoute(
+        builder: (_) => WidgetLookScreen(item: _chosen[i], hub: widget.hub),
+      ),
+    );
+    if (r != null && mounted) setState(() => _chosen[i] = r);
+  }
+
+  static String _keyOf(HomeWidgetItem item) => '${item.device ?? ''}-${item.point ?? item.sceneId ?? ''}';
+
+  Widget _tile(HomeWidgetItem item, String title, {String? subtitle, required IconData icon}) {
+    final i = _chosen.indexOf(item);
+    final chosen = i >= 0 ? _chosen[i] : null;
+    return ListTile(
+      key: Key('widget-item-${_keyOf(item)}'),
+      leading: Icon(icon),
+      title: Text(chosen?.look.label ?? title),
+      subtitle: subtitle == null ? null : Text(subtitle),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (chosen != null)
+            IconButton(
+              key: Key('widget-look-${_keyOf(item)}'),
+              tooltip: 'Wygląd',
+              icon: const Icon(Icons.tune),
+              onPressed: () => _editLook(item),
+            ),
+          Icon(chosen != null ? Icons.check_circle : Icons.radio_button_unchecked),
+        ],
+      ),
+      onTap: () => _flip(item),
+    );
+  }
+
+  /// Kafelki pulpitów, które mają odpowiednik w widżecie.
+  List<Widget> _tileItems(DeviceHub hub) => [
+    for (final d in widget.dashboards)
+      for (final w in d.widgets)
+        if (itemFromTile(w, hub) case final item?)
+          ListTile(
+            key: Key('widget-tile-${w.id}'),
+            leading: const Icon(Icons.dashboard_outlined),
+            title: Text(tileTitle(w, hub)),
+            subtitle: Text('${d.name} · ${w.view.label}'),
+            trailing: Icon(
+              _chosen.any((x) => x == item && x.look == item.look) ? Icons.check_circle : Icons.radio_button_unchecked,
+            ),
+            onTap: () => _fromTile(item),
+          ),
+  ];
 
   List<Widget> _deviceTiles(DeviceHub hub) {
     final out = <Widget>[];
@@ -276,6 +355,7 @@ class _HomeWidgetConfigScreenState extends State<HomeWidgetConfigScreen> {
       builder: (context, _) {
         final hub = widget.hub;
         final devices = _deviceTiles(hub);
+        final tiles = _tileItems(hub);
         final title = widget.multi ? 'Pozycje (${_chosen.length} z ${HomeWidgetConfig.maxItems})' : 'Co pokazać';
         return Scaffold(
           appBar: AppBar(title: Text(title), actions: [?widget.homeSwitcher]),
@@ -293,6 +373,14 @@ class _HomeWidgetConfigScreenState extends State<HomeWidgetConfigScreen> {
               ...devices,
               if (hub.scenes.isNotEmpty) const ListTile(dense: true, title: Text('Sceny')),
               for (final s in hub.scenes) _tile(HomeWidgetItem.scene(s.id), s.name, icon: Icons.auto_awesome),
+              if (tiles.isNotEmpty) ...[
+                const ListTile(
+                  dense: true,
+                  title: Text('Z pulpitu'),
+                  subtitle: Text('Podpis, ikona, kolor i wartości jak na kafelku (kopia - zmienisz w „Wygląd”)'),
+                ),
+                ...tiles,
+              ],
             ],
           ),
           bottomNavigationBar: SafeArea(

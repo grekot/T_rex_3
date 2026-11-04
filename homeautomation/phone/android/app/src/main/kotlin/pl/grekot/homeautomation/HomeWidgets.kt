@@ -7,8 +7,10 @@ import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
+import android.util.Base64
 import android.view.View
 import android.widget.RemoteViews
 import org.json.JSONArray
@@ -65,8 +67,30 @@ object HomeWidgets {
         JSONObject().put("title", "HomeAutomation").put("subtitle", "Łączenie…").put("icon", "bulb").put("dimmed", true),
     )
 
+    /// Nazwany kolor pozycji (`amber|blue|…`, jak kafelki pulpitu): kolor ikony i tło włączonej kratki.
+    private fun namedColor(name: String): Int? = when (name) {
+        "amber" -> 0xFFE8A200.toInt()
+        "blue" -> 0xFF1C6FB8.toInt()
+        "green" -> 0xFF2B8A3E.toInt()
+        "red" -> 0xFFC92A2A.toInt()
+        "purple" -> 0xFF7048E8.toInt()
+        "grey" -> 0xFF868E96.toInt()
+        else -> null
+    }
+
+    private fun activeBackground(name: String) = when (name) {
+        "amber" -> R.drawable.widget_bg_active_amber
+        "blue" -> R.drawable.widget_bg_active_blue
+        "green" -> R.drawable.widget_bg_active_green
+        "red" -> R.drawable.widget_bg_active_red
+        "purple" -> R.drawable.widget_bg_active_purple
+        "grey" -> R.drawable.widget_bg_active_grey
+        else -> R.drawable.widget_bg_active
+    }
+
     private fun cell(context: Context, id: Int, index: Int, c: JSONObject): RemoteViews {
         val active = c.optBoolean("active")
+        val color = c.optString("color")
         val text = context.getColor(if (active) R.color.widget_on_active else R.color.widget_on_surface)
         val views = RemoteViews(context.packageName, R.layout.widget_cell)
         views.setTextViewText(R.id.widget_title, c.optString("title"))
@@ -77,12 +101,25 @@ object HomeWidgets {
         val value = if (c.has("value")) c.optString("value") else null
         views.setViewVisibility(R.id.widget_value, if (value == null) View.GONE else View.VISIBLE)
         views.setTextViewText(R.id.widget_value, value ?: "")
-        views.setImageViewResource(R.id.widget_icon, icon(c.optString("icon")))
-        views.setInt(R.id.widget_icon, "setColorFilter", text)
+        // Ikona z katalogu aplikacji (biały PNG od usługi) albo zapasowa z zasobów.
+        val png = c.optString("iconPng").takeIf { it.isNotEmpty() }?.let {
+            try {
+                val bytes = Base64.decode(it, Base64.DEFAULT)
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            } catch (e: IllegalArgumentException) {
+                null
+            }
+        }
+        if (png != null) {
+            views.setImageViewBitmap(R.id.widget_icon, png)
+        } else {
+            views.setImageViewResource(R.id.widget_icon, icon(c.optString("icon")))
+        }
+        views.setInt(R.id.widget_icon, "setColorFilter", if (active) text else namedColor(color) ?: text)
         views.setInt(
             R.id.widget_cell,
             "setBackgroundResource",
-            if (active) R.drawable.widget_bg_active else R.drawable.widget_bg,
+            if (active) activeBackground(color) else R.drawable.widget_bg,
         )
         views.setFloat(R.id.widget_cell, "setAlpha", if (c.optBoolean("dimmed")) 0.6f else 1f)
         val open = if (c.has("open")) c.optString("open") else null

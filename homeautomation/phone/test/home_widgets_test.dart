@@ -15,6 +15,8 @@ import 'package:homeautomation/data/dashboard_store.dart';
 import 'package:homeautomation/data/thermostat_connection.dart';
 import 'package:homeautomation/home_widgets/widget_cells.dart';
 import 'package:homeautomation/home_widgets/widget_config.dart';
+import 'package:homeautomation/home_widgets/widget_look.dart';
+import 'package:homeautomation/models/dashboard.dart';
 import 'package:homeautomation/home_widgets/widget_runtime.dart';
 import 'package:homeautomation/models/device_type.dart';
 import 'package:homeautomation/models/home_widget.dart';
@@ -408,6 +410,183 @@ void main() {
       HomeWidgetItem.scene('noc'),
       HomeWidgetItem.sensor('ble-b8f862d84911'),
     ]);
+    hub.dispose();
+  });
+
+  // ---- wygląd pozycji (podpis, ikona, kolor, główna wartość)
+
+  test('wygląd pozycji przechodzi przez JSON; równość pozycji bez wyglądu', () {
+    const look = WidgetItemLook(label: 'Salon', icon: 'temperature', color: 'blue', main: 'temp', more: ['hum']);
+    final c = HomeWidgetConfig(
+      id: 3,
+      homeId: 'local',
+      items: const [
+        HomeWidgetItem.sensor('ble-b8f862d84911', look: look),
+        HomeWidgetItem.output('parter', 'on1', look: WidgetItemLook(tap: 'open')),
+        HomeWidgetItem.thermostat('t', look: WidgetItemLook(more: [])),
+      ],
+    );
+    final back = HomeWidgetConfig.fromJson(jsonDecode(jsonEncode(c.toJson())) as Map<String, dynamic>);
+    expect([for (final i in back.items) i.look], [look, const WidgetItemLook(tap: 'open'), const WidgetItemLook(more: [])]);
+    expect(back.items.first, const HomeWidgetItem.sensor('ble-b8f862d84911'), reason: 'ten sam czujnik');
+    expect(c.toJson()['items'], isNot(contains(containsPair('look', anything))), reason: 'pola płasko w pozycji');
+  });
+
+  test('kratki z wyglądem: główna wartość i pod nią, podpis, kolor, ikona, termostat i dotknięcie wyjścia', () async {
+    runtime.update([
+      config(1, const [
+        HomeWidgetItem.sensor(
+          'ble-b8f862d84911',
+          look: WidgetItemLook(label: 'Salon', main: 'hum', more: ['pressure'], color: 'blue', icon: 'humidity'),
+        ),
+        HomeWidgetItem.sensor('ble-b8f862d84911', look: WidgetItemLook(more: [])),
+        HomeWidgetItem.thermostat('termostat-ab12cd', look: WidgetItemLook(more: ['hum'])),
+        HomeWidgetItem.output('parter', 'on1', look: WidgetItemLook(tap: 'open', label: 'Schody')),
+      ]),
+    ]);
+    await settle();
+    await settle();
+    final s = cell(1);
+    expect((s['title'], s['value'], s['subtitle'], s['color'], s['iconKey']), (
+      'Salon',
+      '58 %',
+      '997,8 hPa',
+      'blue',
+      'humidity',
+    ));
+    expect((cell(1, 1)['value'], cell(1, 1)['subtitle']), ('22,4 °C', ''), reason: 'domyślnie temperatura, pod nią nic');
+    expect(cell(1, 2)['subtitle'], startsWith('Wilgotność '));
+    expect((cell(1, 3)['title'], cell(1, 3)['open']), ('Schody', 'parter'));
+    await runtime.tap(1, 3);
+    expect(node.sent, isEmpty, reason: 'dotknięcie otwiera aplikację zamiast przełączać');
+  });
+
+  test('ikona z katalogu jako PNG: rysowana raz na klucz, potem w kratce', () async {
+    final drawn = <String>[];
+    runtime.dispose();
+    runtime = WidgetRuntime(
+      hubFactory: (config, wanted) =>
+          DeviceHub(store: store, manager: manager, cloud: NoCloudAccess(), sceneStore: scenes, wanted: wanted),
+      render: (json) => renders.add(jsonDecode(json) as Map<String, dynamic>),
+      debounce: Duration.zero,
+      iconPng: (key) async {
+        drawn.add(key);
+        return 'PNG-$key';
+      },
+    );
+    runtime.update([
+      config(1, const [
+        HomeWidgetItem.output('parter', 'on1', look: WidgetItemLook(icon: 'fan')),
+        HomeWidgetItem.output('parter', 'on2', look: WidgetItemLook(icon: 'fan')),
+        HomeWidgetItem.output('lampa', 'on'),
+      ]),
+    ]);
+    await settle();
+    await settle();
+    expect(drawn, ['fan']);
+    expect((cell(1)['iconPng'], cell(1, 1)['iconPng'], cell(1, 2)['iconPng']), ('PNG-fan', 'PNG-fan', null));
+  });
+
+  test('kafelek pulpitu jako pozycja: wartość czujnika, kilka wartości, wyjście, termostat, scena; grupa - nie', () async {
+    final hub = DeviceHub(store: store, manager: manager, cloud: NoCloudAccess(), sceneStore: scenes)..start();
+    await hub.load();
+    final value = const DashWidget(
+      id: 'w1',
+      view: WidgetView.value,
+      device: 'ble-b8f862d84911',
+      point: 'temp',
+      label: 'Salon',
+      icon: 'temperature',
+    ).patch({'color': 'green', 'secondary': 'point:hum'});
+    expect(itemFromTile(value, hub)?.look, const WidgetItemLook(
+      label: 'Salon',
+      icon: 'temperature',
+      color: 'green',
+      main: 'temp',
+      more: ['hum'],
+    ));
+    final values = const DashWidget(id: 'w2', view: WidgetView.valueList).patch({
+      'items': [
+        {'device': 'gabinet', 'point': 'temp'},
+        {'device': 'gabinet', 'point': 'hum'},
+        {'device': 'parter', 'point': 'on1'},
+      ],
+    });
+    final fromValues = itemFromTile(values, hub);
+    expect((fromValues?.kind, fromValues?.device, fromValues?.look.main), (HomeWidgetKind.sensor, 'gabinet', 'temp'));
+    expect(fromValues?.look.more, ['hum'], reason: 'tylko wartości z tego samego urządzenia');
+    expect(
+      itemFromTile(const DashWidget(id: 'w3', view: WidgetView.toggle, device: 'parter', point: 'on2'), hub),
+      const HomeWidgetItem.output('parter', 'on2'),
+    );
+    expect(
+      itemFromTile(const DashWidget(id: 'w4', view: WidgetView.thermostat, device: 'termostat-ab12cd'), hub),
+      const HomeWidgetItem.thermostat('termostat-ab12cd'),
+    );
+    expect(itemFromTile(const DashWidget(id: 'w5', view: WidgetView.scene, sceneId: 'noc'), hub), const HomeWidgetItem.scene('noc'));
+    expect(itemFromTile(const DashWidget(id: 'w6', view: WidgetView.group), hub), isNull);
+    hub.dispose();
+  });
+
+  testWidgets('ekran konfiguracji: „Wygląd” czujnika (podpis, główna wartość, kolor) i pozycja z kafelka pulpitu', (
+    tester,
+  ) async {
+    final hub = DeviceHub(store: store, manager: manager, cloud: NoCloudAccess(), sceneStore: scenes)..start();
+    List<HomeWidgetItem>? saved;
+    final dash = Dashboard(
+      id: 'd1',
+      name: 'Dom',
+      scope: DashboardScope.private,
+      grid: 4,
+      widgets: [
+        const DashWidget(id: 'k1', view: WidgetView.toggle, device: 'parter', point: 'on2', label: 'Brama')
+            .resized(2, 1)
+            .patch({'color': 'red'}),
+      ],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeWidgetConfigScreen(hub: hub, multi: true, dashboards: [dash], onSave: (items) async => saved = items),
+      ),
+    );
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await tester.pumpAndSettle();
+    const sensorKey = 'ble-b8f862d84911-';
+    await tester.ensureVisible(find.byKey(const Key('widget-item-$sensorKey')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('widget-item-$sensorKey')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('widget-look-$sensorKey')));
+    await tester.pumpAndSettle();
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('look-preview')), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('look-label')), 'Salon');
+    await tester.ensureVisible(find.byKey(const Key('look-color-blue')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('look-color-blue')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('look-main-hum')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('look-main-hum')));
+    await tester.pump();
+    await tester.drag(find.byType(ListView).last, const Offset(0, 600));
+    await tester.pump();
+    expect(find.descendant(of: find.byKey(const Key('look-preview')), matching: find.text('58 %')), findsOneWidget);
+    await tester.tap(find.byKey(const Key('look-done')));
+    await tester.pumpAndSettle();
+
+    await tester.scrollUntilVisible(find.byKey(const Key('widget-tile-k1')), 200);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('widget-tile-k1')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('widget-save')));
+    await tester.pump();
+    expect(saved!.map((i) => i.look), [
+      const WidgetItemLook(label: 'Salon', main: 'hum', color: 'blue'),
+      const WidgetItemLook(label: 'Brama', color: 'red'),
+    ]);
+    expect(saved!.last, const HomeWidgetItem.output('parter', 'on2'));
     hub.dispose();
   });
 }

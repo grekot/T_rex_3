@@ -73,11 +73,31 @@ class _Backend implements UpdateBackend {
 
   int checks = 0;
 
-  @override
-  Future<void> checkHub(String hubId) async => checks++;
+  /// Po ilu pytaniach o listę hub ma nową datę sprawdzenia (null = nigdy).
+  int? checkedAfter;
+  int _polls = 0;
 
   @override
-  Future<List<HubUpdatesView>> hubs() async => hubList;
+  Future<void> checkHub(String hubId) async {
+    checks++;
+    _polls = 0;
+  }
+
+  @override
+  Future<List<HubUpdatesView>> hubs() async {
+    if (checks > 0 && checkedAfter != null && ++_polls >= checkedAfter!) {
+      hubList = [
+        for (final h in hubList)
+          HubUpdatesView(
+            hubId: h.hubId,
+            hubName: h.hubName,
+            names: h.names,
+            updates: HubUpdates(checked: 1793990000, manifest: h.updates.manifest, devices: h.updates.devices),
+          ),
+      ];
+    }
+    return hubList;
+  }
 
   @override
   Future<void> applyHub(String hubId, List<String> ids) async {
@@ -320,5 +340,54 @@ void main() {
     expect(backend.applied.single.$1, 'hub1');
     expect(backend.applied.single.$2, ['sw1']);
     expect(find.textContaining('w kolejce'), findsOneWidget);
+  });
+
+  testWidgets('„Sprawdź teraz”: „Sprawdzanie…” i zablokowany przycisk, aż hub ma nowszą datę; bez zmiany - komunikat', (
+    tester,
+  ) async {
+    const hub = HubUpdatesView(
+      hubId: 'hub1',
+      hubName: 'Hub',
+      names: {},
+      updates: HubUpdates(checked: 1793000000, devices: []),
+    );
+    final backend = _Backend(const [], const [hub])..checkedAfter = 3;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: UpdatesScreen(
+          backend: backend,
+          hubRefresh: const Duration(hours: 1),
+          checkPoll: const Duration(seconds: 2),
+          checkTimeout: const Duration(seconds: 20),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final before = tester.widget<Text>(find.byKey(const Key('hubChecked-hub1'))).data!;
+    await tester.tap(find.byKey(const Key('hubCheck-hub1')));
+    await tester.pump();
+    expect(find.text('Sprawdzanie…'), findsOneWidget);
+    expect(tester.widget<TextButton>(find.byKey(const Key('hubCheck-hub1'))).onPressed, isNull);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(const Duration(seconds: 2));
+    expect(find.text('Sprawdzanie…'), findsOneWidget, reason: 'po 2 pytaniach hub jeszcze nie sprawdził');
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump();
+    final after = tester.widget<Text>(find.byKey(const Key('hubChecked-hub1'))).data!;
+    expect((after == before, after.startsWith('Hub sprawdził wydania')), (false, true));
+    expect(tester.widget<TextButton>(find.byKey(const Key('hubCheck-hub1'))).onPressed, isNotNull);
+    expect(backend.checks, 1);
+
+    // Hub nie odpowiada nową datą: po limicie komunikat i przycisk znowu działa.
+    backend.checkedAfter = null;
+    await tester.tap(find.byKey(const Key('hubCheck-hub1')));
+    await tester.pump();
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(const Duration(seconds: 2));
+    }
+    await tester.pump();
+    expect(find.textContaining('nie zdążył sprawdzić wydań'), findsOneWidget);
+    expect(find.text('Sprawdzanie…'), findsNothing);
+    await tester.pumpAndSettle();
   });
 }

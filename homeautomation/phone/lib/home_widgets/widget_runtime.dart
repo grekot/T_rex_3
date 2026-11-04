@@ -22,7 +22,12 @@ class WidgetRuntime {
     this.debounce = const Duration(milliseconds: 150),
     this.readyTimeout = const Duration(seconds: 8),
     this.messageTime = const Duration(seconds: 4),
+    this.iconPng,
   });
+
+  /// Ikona z katalogu aplikacji jako PNG (base64) dla kratek z `iconKey`; null = tylko ikony zapasowe Androida.
+  final Future<String?> Function(String key)? iconPng;
+  final _icons = <String, String?>{};
 
   final WidgetHubFactory hubFactory;
 
@@ -169,7 +174,7 @@ class WidgetRuntime {
           if (_message != null)
             WidgetCell(title: 'HomeAutomation', subtitle: _message!, icon: 'lock', dimmed: true).toJson()
           else if (hub != null)
-            _withOverride(config.id, i, widgetCell(config.items[i], hub)).toJson(),
+            _cellJson(_withOverride(config.id, i, widgetCell(config.items[i], hub))),
       ];
     }
     // Przy pauzie zostaje ostatni obraz; pusta lista kratek by go skasowała.
@@ -178,6 +183,25 @@ class WidgetRuntime {
     if (json == _lastRender) return;
     _lastRender = json;
     render(json);
+  }
+
+  /// JSON kratki z obrazkiem ikony, gdy już narysowany (inaczej rysujemy w tle i rysujemy widżet jeszcze raz).
+  Map<String, dynamic> _cellJson(WidgetCell cell) {
+    final j = cell.toJson();
+    final key = cell.iconKey, draw = iconPng;
+    if (key == null || draw == null) return j;
+    if (_icons.containsKey(key)) {
+      if (_icons[key] case final png?) j['iconPng'] = png;
+      return j;
+    }
+    _icons[key] = null; // w toku - jeden raz na klucz
+    unawaited(
+      draw(key).then((png) {
+        _icons[key] = png;
+        if (png != null) _scheduleRender();
+      }, onError: (_) {}),
+    );
+    return j;
   }
 
   WidgetCell _withOverride(int id, int index, WidgetCell cell) {
@@ -216,8 +240,10 @@ class WidgetRuntime {
     if (hub == null) return;
     final item = config.items[index];
     switch (item.kind) {
-      case HomeWidgetKind.output:
+      case HomeWidgetKind.output when item.look.tap != 'open':
         await _tapOutput(hub, id, index, item);
+      case HomeWidgetKind.output:
+        break; // „Otwiera urządzenie” - otwiera aplikację po stronie Androida
       case HomeWidgetKind.scene:
         await _tapScene(hub, config.homeId, id, index, item);
       case HomeWidgetKind.thermostat || HomeWidgetKind.sensor:
