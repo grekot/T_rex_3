@@ -6,23 +6,31 @@ import '../controllers/device_hub.dart';
 import '../controllers/home_session.dart';
 import '../data/dashboard_store.dart';
 import '../data/history.dart';
+import '../data/notifications.dart';
+import '../data/updates.dart';
 import '../models/dashboard.dart';
 import '../models/describe.dart';
 import '../models/device_type.dart';
+import '../models/hub.dart';
 import '../models/room.dart';
 import '../models/scene.dart';
 import '../services.dart';
-import 'account_menu.dart';
+import 'automations_screen.dart';
+import 'dashboard_panel.dart';
 import 'dashboard_summary.dart';
 import 'dashboard_tiles.dart';
+import 'devices_tab.dart';
+import 'members_screen.dart';
 import 'notifications_screen.dart';
 import 'tile_settings.dart';
+import 'updates_screen.dart';
 import 'watch_screen.dart';
 import 'widget_editor.dart';
 import 'widgets.dart';
 
-/// Zakładka „Pulpit” (pkt 13): pulpity prywatne i wspólne domu, tryb edycji (dodawanie widżetu
-/// w 3 krokach, przeciąganie, rozmiar, usuwanie, sceny). Wspólne zmienia tylko właściciel.
+/// Ekran główny domu (pkt 13): u góry tylko zakładki pulpitów (przesuwanie palcem między nimi) i przycisk ☰
+/// z panelem wysuwanym z góry (dom, urządzenia, domownicy, powiadomienia, zegarek, opcje pulpitu). Tryb edycji
+/// (dodawanie widżetu w 3 krokach, przeciąganie, rozmiar, usuwanie, sceny); wspólne zmienia tylko właściciel.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key, required this.hub, this.session});
 
@@ -45,6 +53,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// Pokoje domu - sekcje pulpitu startowego.
   List<Room> _rooms = const [];
   StreamSubscription<List<Room>>? _roomsSub;
+
+  /// Strony pulpitów (przesuwanie palcem) i pasek zakładek.
+  PageController? _pages;
+  bool _animatingPage = false;
+  final _tabsScroll = ScrollController();
+  final _tabKeys = <String, GlobalKey>{};
+  bool _tabsOverflow = false;
+
+  /// Powiadomienia z domu (kropka na ☰, liczba w panelu).
+  StreamSubscription<List<HubNotification>>? _notesSub;
+  List<HubNotification> _notes = const [];
+  int _seen = 0;
 
   /// Edytor: przewijanie przy krawędzi w trakcie przeciągania kafelka.
   final _scroll = ScrollController();
@@ -79,12 +99,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _store.prefs(_homeId).then((p) {
       if (mounted) setState(() => _prefs = p);
     }, onError: (_) {});
+    if (_notifications) {
+      notificationsSeen(_homeId).then((s) {
+        if (mounted) setState(() => _seen = s);
+      });
+      _notesSub = watchNotifications(services.cloud.store, _homeId).listen((l) {
+        if (mounted) setState(() => _notes = l);
+      }, onError: (_) {});
+    }
   }
+
+  bool get _notifications => _withAccount && Services.of(context).cloud.available && widget.session?.current != null;
+
+  int get _unseen => _notes.where((n) => n.ts > _seen).length;
 
   @override
   void dispose() {
     _sub?.cancel();
     _roomsSub?.cancel();
+    _notesSub?.cancel();
+    _pages?.dispose();
+    _tabsScroll.dispose();
     _autoScroll?.cancel();
     _scroll.dispose();
     super.dispose();
@@ -451,97 +486,326 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ];
   }
 
+  /// Wybór pulpitu z zakładki albo listy: strona przesuwa się do niego.
+  void _select(String id) {
+    final list = _list ?? const <Dashboard>[];
+    final i = list.indexWhere((x) => x.id == id);
+    setState(() {
+      _selected = id;
+      _editing = false;
+    });
+    _showTab(id);
+    final p = _pages;
+    if (i < 0 || p == null || !p.hasClients) return;
+    _animatingPage = true;
+    p
+        .animateToPage(i, duration: const Duration(milliseconds: 280), curve: Curves.easeOutCubic)
+        .whenComplete(() => _animatingPage = false);
+  }
+
+  /// Zakładka wybranego pulpitu na środku paska.
+  void _showTab(String id) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final c = _tabKeys[id]?.currentContext;
+      if (c != null && c.mounted) {
+        Scrollable.ensureVisible(c, alignment: 0.5, duration: const Duration(milliseconds: 250));
+      }
+    });
+  }
+
+  /// Po zmianie listy (nowy, usunięty pulpit) strona pokazuje [_current]; strzałka „wszystkie”, gdy zakładki się
+  /// nie mieszczą.
+  void _afterLayout(int index) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final p = _pages;
+      if (p != null && p.hasClients && !_animatingPage && p.page?.round() != index) p.jumpToPage(index);
+      final over = _tabsScroll.hasClients && _tabsScroll.position.maxScrollExtent > 0;
+      if (over != _tabsOverflow) setState(() => _tabsOverflow = over);
+    });
+  }
+
+  Future<void> _openPanel() async {
+    final d = _current;
+    final hubs = widget.hub.hubs;
+    final a = await showTopSheet<PanelAction>(
+      context,
+      builder: (_) => DashboardPanel(
+        session: widget.session,
+        dashboard: d,
+        canEdit: d != null && _canEdit(d),
+        owner: _owner,
+        isDefault: d != null && d.id == _prefs.defaultDashboard,
+        unseen: _unseen,
+        notifications: _notifications,
+        automations: hubs.isNotEmpty && hubs.first.canConfig,
+        updates: !_withAccount || _owner,
+        dashboards: _list?.length ?? 0,
+      ),
+    );
+    if (a == null || !mounted) return;
+    final nav = Navigator.of(context);
+    switch (a) {
+      case PanelAction.devices:
+        await nav.push(
+          MaterialPageRoute<void>(
+            builder: (_) => DevicesTab(hub: widget.hub, session: widget.session),
+          ),
+        );
+      case PanelAction.members:
+        await nav.push(
+          MaterialPageRoute<void>(
+            builder: (_) => MembersScreen(hub: widget.hub, session: widget.session!),
+          ),
+        );
+      case PanelAction.notifications:
+        await nav.push(MaterialPageRoute<void>(builder: (_) => NotificationsScreen(items: _notes)));
+        final latest = _notes.isEmpty ? 0 : _notes.first.ts;
+        await markNotificationsSeen(_homeId, latest);
+        if (mounted) setState(() => _seen = latest);
+      case PanelAction.watch:
+        await nav.push(MaterialPageRoute<void>(builder: (_) => WatchScreen(hub: widget.hub)));
+      case PanelAction.updates:
+        await nav.push(MaterialPageRoute<void>(builder: (_) => UpdatesScreen(backend: DeviceHubUpdates(widget.hub))));
+      case PanelAction.automations:
+        if (hubs.isEmpty) return;
+        await nav.push(
+          MaterialPageRoute<void>(
+            builder: (_) => AutomationsScreen(hub: widget.hub, controller: hubs.first),
+          ),
+        );
+      case PanelAction.edit:
+        setState(() => _editing = true);
+      case PanelAction.arrange:
+        await nav.push(
+          MaterialPageRoute<void>(
+            builder: (_) => DashboardsOrderScreen(
+              dashboards: _list ?? const [],
+              canEdit: _canEdit,
+              defaultId: _prefs.defaultDashboard,
+              onSave: _save,
+              onDefault: (id) async {
+                final p = HomePrefs(defaultDashboard: id);
+                if (mounted) setState(() => _prefs = p);
+                await _store.savePrefs(_homeId, p).catchError((_) {});
+              },
+            ),
+          ),
+        );
+      case PanelAction.newDashboard:
+        await _create();
+      case PanelAction.newShared:
+        await _create(scope: DashboardScope.shared);
+      case PanelAction.rename ||
+          PanelAction.section ||
+          PanelAction.grid4 ||
+          PanelAction.makeDefault ||
+          PanelAction.copy ||
+          PanelAction.delete:
+        if (d == null) return;
+        await _menu(switch (a) {
+          PanelAction.makeDefault => 'default',
+          _ => a.name,
+        }, d);
+    }
+  }
+
+  Future<void> _openAll() async {
+    final id = await showTopSheet<String>(
+      context,
+      label: 'Wszystkie pulpity',
+      builder: (_) =>
+          AllDashboards(dashboards: _list ?? const [], current: _current?.id, defaultId: _prefs.defaultDashboard),
+    );
+    if (id != null && mounted) _select(id);
+  }
+
   @override
   Widget build(BuildContext context) {
     final list = _list;
     final d = _current;
-    return Scaffold(
-      appBar: AppBar(
-        title: list == null || list.length < 2 || d == null
-            ? Text(d?.name ?? 'Pulpit')
-            : PopupMenuButton<String>(
-                key: const Key('dashboardPicker'),
-                tooltip: 'Wybierz pulpit',
-                onSelected: (id) => setState(() {
-                  _selected = id;
-                  _editing = false;
-                }),
-                itemBuilder: (_) => [
-                  for (final x in list)
-                    PopupMenuItem(
-                      value: x.id,
-                      child: ListTile(
-                        dense: true,
-                        contentPadding: EdgeInsets.zero,
-                        leading: Icon(x.scope == DashboardScope.shared ? Icons.group : Icons.person),
-                        title: Text(x.name),
-                        trailing: x.id == _prefs.defaultDashboard ? const Icon(Icons.star, size: 18) : null,
+    final index = list == null || d == null ? 0 : list.indexOf(d);
+    if (list != null && list.isNotEmpty) {
+      _pages ??= PageController(initialPage: index);
+      _afterLayout(index);
+    }
+    return PopScope(
+      canPop: !_editing,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _editing) setState(() => _editing = false);
+      },
+      child: Scaffold(
+        body: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              if (d != null && _editing) _editBar(context, d) else _topBar(context, list ?? const [], d),
+              Expanded(
+                child: list == null
+                    ? const Center(child: CircularProgressIndicator())
+                    : d == null
+                    ? _empty(context)
+                    : PageView.builder(
+                        key: const Key('dashboardPages'),
+                        controller: _pages,
+                        physics: _editing ? const NeverScrollableScrollPhysics() : null,
+                        itemCount: list.length,
+                        onPageChanged: (i) {
+                          if (_animatingPage || i >= list.length) return;
+                          setState(() => _selected = list[i].id);
+                          _showTab(list[i].id);
+                        },
+                        itemBuilder: (context, i) =>
+                            _editing && list[i].id == d.id ? _editor(context, list[i]) : _view(context, list[i]),
                       ),
-                    ),
-                ],
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(child: Text(d.name, overflow: TextOverflow.ellipsis)),
-                    const Icon(Icons.arrow_drop_down),
-                  ],
-                ),
               ),
-        actions: [
-          if (d != null && _canEdit(d))
-            IconButton(
-              key: const Key('editDashboard'),
-              tooltip: _editing ? 'Gotowe' : 'Edytuj pulpit',
-              icon: Icon(_editing ? Icons.check : Icons.edit_outlined),
-              onPressed: () => setState(() => _editing = !_editing),
-            ),
-          if (d != null)
-            PopupMenuButton<String>(
-              key: const Key('dashboardMenu'),
-              onSelected: (a) => _menu(a, d),
-              itemBuilder: (_) => [
-                const PopupMenuItem(value: 'new', child: Text('Nowy pulpit')),
-                if (_owner) const PopupMenuItem(value: 'newShared', child: Text('Nowy wspólny pulpit')),
-                if (_canEdit(d)) const PopupMenuItem(value: 'rename', child: Text('Zmień nazwę')),
-                if (_canEdit(d) && d.grid != 4)
-                  const PopupMenuItem(value: 'grid4', child: Text('Nowy układ (siatka 4 kolumn)')),
-                if (_canEdit(d)) const PopupMenuItem(value: 'section', child: Text('Nowa sekcja')),
-                if (d.id != _prefs.defaultDashboard)
-                  const PopupMenuItem(value: 'default', child: Text('Otwieraj na starcie')),
-                if (d.scope == DashboardScope.shared)
-                  const PopupMenuItem(value: 'copy', child: Text('Kopiuj do moich')),
-                if (_canEdit(d)) const PopupMenuItem(value: 'delete', child: Text('Usuń pulpit')),
+            ],
+          ),
+        ),
+        floatingActionButton: d != null && _editing
+            ? FloatingActionButton.extended(
+                heroTag: null,
+                key: const Key('addWidget'),
+                onPressed: () => _addWidget(d),
+                icon: const Icon(Icons.add),
+                label: const Text('Kafelek'),
+              )
+            : null,
+      ),
+    );
+  }
+
+  /// Zakładki pulpitów (przewijane), „wszystkie”, gdy się nie mieszczą, i ☰ z kropką nowych powiadomień.
+  Widget _topBar(BuildContext context, List<Dashboard> list, Dashboard? d) {
+    final cs = Theme.of(context).colorScheme;
+    final t = Theme.of(context).textTheme;
+    return Column(
+      children: [
+        SizedBox(
+          height: 56,
+          child: Row(
+            children: [
+              Expanded(
+                child: list.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.only(left: 16),
+                        child: Text('Pulpit', style: t.titleLarge),
+                      )
+                    : ShaderMask(
+                        // Przygaszone krawędzie: widać, że zakładek jest więcej.
+                        shaderCallback: (r) => LinearGradient(
+                          colors: [
+                            _tabsOverflow ? Colors.transparent : Colors.white,
+                            Colors.white,
+                            Colors.white,
+                            _tabsOverflow ? Colors.transparent : Colors.white,
+                          ],
+                          stops: const [0, 0.06, 0.94, 1],
+                        ).createShader(r),
+                        blendMode: BlendMode.dstIn,
+                        // Wszystkie zakładki zbudowane (nie ListView) - przewinięcie do wybranej działa zawsze.
+                        child: SingleChildScrollView(
+                          key: const Key('dashboardTabs'),
+                          controller: _tabsScroll,
+                          scrollDirection: Axis.horizontal,
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Row(
+                            children: [
+                              for (final x in list)
+                                Padding(
+                                  key: _tabKeys.putIfAbsent(x.id, GlobalKey.new),
+                                  padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
+                                  child: _DashTab(dashboard: x, selected: x.id == d?.id, onTap: () => _select(x.id)),
+                                ),
+                            ],
+                          ),
+                        ),
+                      ),
+              ),
+              if (_tabsOverflow)
+                IconButton(
+                  key: const Key('allDashboards'),
+                  tooltip: 'Wszystkie pulpity',
+                  icon: const Icon(Icons.expand_more),
+                  onPressed: _openAll,
+                ),
+              IconButton(
+                key: const Key('panel'),
+                tooltip: 'Panel: dom, urządzenia, opcje pulpitu',
+                icon: Badge(smallSize: 9, isLabelVisible: _unseen > 0, child: const Icon(Icons.menu)),
+                onPressed: _openPanel,
+              ),
+              const SizedBox(width: 4),
+            ],
+          ),
+        ),
+        if (list.length > 1)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                for (final x in list)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: x.id == d?.id ? 18 : 6,
+                    height: 4,
+                    margin: const EdgeInsets.symmetric(horizontal: 2.5),
+                    decoration: BoxDecoration(
+                      color: x.id == d?.id ? cs.primary : cs.outlineVariant,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
               ],
             ),
-          if (_withAccount && Services.of(context).cloud.available && widget.session?.current != null)
-            NotificationsButton(store: Services.of(context).cloud.store, homeId: widget.session!.current!.id),
-          if (_withAccount)
-            IconButton(
-              key: const Key('watchDashboard'),
-              tooltip: 'Pulpit zegarka',
-              icon: const Icon(Icons.watch_outlined),
-              onPressed: () =>
-                  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => WatchScreen(hub: widget.hub))),
+          ),
+      ],
+    );
+  }
+
+  /// Pasek trybu edycji: nazwa pulpitu, opcje i „Gotowe”.
+  Widget _editBar(BuildContext context, Dashboard d) {
+    final cs = Theme.of(context).colorScheme;
+    final t = Theme.of(context).textTheme;
+    return Material(
+      color: cs.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 6, 8, 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('EDYCJA', style: t.labelSmall?.copyWith(color: cs.primary, letterSpacing: 0.8)),
+                  Text(
+                    'Pulpit „${d.name}”',
+                    style: t.titleMedium?.copyWith(color: cs.onSecondaryContainer),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
-          if (_withAccount) AccountMenu(session: widget.session),
-        ],
+            PopupMenuButton<String>(
+              key: const Key('editMenu'),
+              tooltip: 'Opcje pulpitu',
+              onSelected: (a) => _menu(a, d),
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'rename', child: Text('Zmień nazwę')),
+                if (d.grid != 4) const PopupMenuItem(value: 'grid4', child: Text('Nowy układ (siatka 4 kolumn)')),
+                const PopupMenuItem(value: 'section', child: Text('Nowa sekcja')),
+                const PopupMenuItem(value: 'delete', child: Text('Usuń pulpit')),
+              ],
+            ),
+            FilledButton(
+              key: const Key('editDone'),
+              onPressed: () => setState(() => _editing = false),
+              child: const Text('Gotowe'),
+            ),
+          ],
+        ),
       ),
-      floatingActionButton: d != null && _editing
-          ? FloatingActionButton.extended(
-              heroTag: null,
-              key: const Key('addWidget'),
-              onPressed: () => _addWidget(d),
-              icon: const Icon(Icons.add),
-              label: const Text('Widżet'),
-            )
-          : null,
-      body: list == null
-          ? const Center(child: CircularProgressIndicator())
-          : d == null
-          ? _empty(context)
-          : _editing
-          ? _editor(context, d)
-          : _view(context, d),
     );
   }
 
@@ -658,7 +922,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ),
         if (d.widgets.isEmpty)
-          const Padding(padding: EdgeInsets.all(24), child: Text('Dodaj pierwszy kafelek przyciskiem „Widżet”.'))
+          const Padding(padding: EdgeInsets.all(24), child: Text('Dodaj pierwszy kafelek przyciskiem „Kafelek”.'))
         else
           for (final (s, list) in _grouped(d))
             if (s != null || list.isNotEmpty) ...[
@@ -717,6 +981,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (w.isScene) return widget.hub.scene(w.sceneId ?? '')?.name ?? 'Scena';
     if (w.view == WidgetView.thermostat) return widget.hub.device(w.device ?? '')?.name ?? 'Termostat';
     return fallbackPoint(w.point ?? '').name;
+  }
+}
+
+/// Zakładka pulpitu w górnym pasku.
+class _DashTab extends StatelessWidget {
+  const _DashTab({required this.dashboard, required this.selected, required this.onTap});
+
+  final Dashboard dashboard;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final style = Theme.of(context).textTheme.titleSmall?.copyWith(
+      color: selected ? cs.onSecondaryContainer : cs.onSurfaceVariant,
+      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+    );
+    return Material(
+      color: selected ? cs.secondaryContainer : Colors.transparent,
+      shape: const StadiumBorder(),
+      child: InkWell(
+        key: Key('dashTab-${dashboard.id}'),
+        customBorder: const StadiumBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (dashboard.scope == DashboardScope.shared) ...[
+                Icon(Icons.group_outlined, size: 16, color: style?.color),
+                const SizedBox(width: 6),
+              ],
+              Text(dashboard.name, style: style),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

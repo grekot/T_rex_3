@@ -8,8 +8,6 @@ import '../models/home_widget.dart';
 import '../services.dart';
 import 'dashboard_screen.dart';
 import 'device_tiles.dart';
-import 'devices_tab.dart';
-import 'members_screen.dart';
 import 'onboarding_screen.dart';
 
 /// Po zalogowaniu: domy konta. Brak domu → załóż albo dołącz kodem; jest dom → [MainScreen].
@@ -77,7 +75,7 @@ class _HomeGateState extends State<HomeGate> {
   }
 }
 
-/// Ekran główny domu: zakładki Pulpit, Urządzenia i (dla właściciela) Domownicy.
+/// Ekran główny domu: pulpity (urządzenia i domownicy - z panelu ☰ na pulpicie).
 /// Bez konta [session] jest null - jeden lokalny dom w telefonie.
 class MainScreen extends StatefulWidget {
   const MainScreen({super.key, this.session});
@@ -90,7 +88,6 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   DeviceHub? _hub;
-  int _tab = 0;
 
   @override
   void initState() {
@@ -154,28 +151,5 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   }
 
   @override
-  Widget build(BuildContext context) {
-    final hub = _hub!;
-    final s = widget.session;
-    final owner = s?.isOwner ?? false;
-    final pages = [
-      DashboardScreen(hub: hub, session: s),
-      DevicesTab(hub: hub, session: s),
-      if (owner) MembersScreen(hub: hub, session: s!),
-    ];
-    final tab = _tab.clamp(0, pages.length - 1);
-    return Scaffold(
-      body: IndexedStack(index: tab, children: pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
-        destinations: [
-          const NavigationDestination(icon: Icon(Icons.dashboard_outlined), selectedIcon: Icon(Icons.dashboard), label: 'Pulpit'),
-          const NavigationDestination(icon: Icon(Icons.devices_other_outlined), selectedIcon: Icon(Icons.devices_other), label: 'Urządzenia'),
-          if (owner)
-            const NavigationDestination(icon: Icon(Icons.group_outlined), selectedIcon: Icon(Icons.group), label: 'Domownicy'),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => DashboardScreen(hub: _hub!, session: widget.session);
 }

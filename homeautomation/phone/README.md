@@ -46,7 +46,7 @@ repozytorium trzeba najpierw uruchomić `node tools/configure.mjs`.
   albo **Dołącz do domu** kodem. Menu konta (ikona osoby w pasku): przełączanie domów, zmiana nazwy (właściciel),
   nowy dom / dołączenie, powiadomienia, wylogowanie. Wybrany dom telefon pamięta.
 - **Wyjście z domu** (domownik): menu konta → „Opuść ten dom” (usuwa swój `access` i `members`).
-- **Zakładka „Domownicy”** (tylko właściciel):
+- **„Domownicy”** (panel ☰, tylko właściciel):
   - lista z `members`; dotknięcie domownika → poziom domyślny `_all` (także dla nowych urządzeń) i wyjątki dla
     urządzeń (`view` / `control` / `config`, a przy ogólnym poziomie także „brak dostępu” = `"none"`, które odbiera
     jedno urządzenie), **Zapisz** → `homes/{h}/access/{uid}`; **Usuń z domu**;
@@ -66,10 +66,18 @@ repozytorium trzeba najpierw uruchomić `node tools/configure.mjs`.
 
 ## Pulpity (pkt 13)
 
+- **Ekran główny bez dolnego paska** (`dashboard_screen.dart`, `dashboard_panel.dart`): u góry tylko zakładki
+  pulpitów (przewijane, wybrana na środku; przesunięcie palcem po kafelkach = sąsiedni pulpit, kreski pod zakładkami),
+  strzałka **Wszystkie pulpity**, gdy zakładki się nie mieszczą, i **☰** (kropka = nowe powiadomienia). Panel ☰
+  wysuwa się z góry: dom i menu konta, skróty **Urządzenia**, **Domownicy** (właściciel), **Powiadomienia** (liczba
+  nowych), **Zegarek**, **Aktualizacje** (właściciel / bez konta), **Automatyki** (hub, `config`), opcje bieżącego
+  pulpitu (edycja, ⋮: nazwa, sekcja, siatka 4, na starcie, kopia, usunięcie), nowy pulpit, **Kolejność i nazwy
+  pulpitów** (strzałki w obrębie prywatnych / wspólnych, gwiazdka = na starcie). Edycja: pasek „EDYCJA · Pulpit …”
+  z ⋮ i **Gotowe** („wstecz” też kończy edycję), przycisk **+ Kafelek**. Podgląd: `tool/preview/glowny_*.png`
+  (`flutter test tool/preview/main_screen_preview_test.dart --update-goldens`).
 - Prywatne `users/{uid}/dashboards/{homeId}/{id}` i wspólne `homes/{homeId}/dashboards/{id}` (zmienia tylko
-  właściciel). Wybór pulpitu z tytułu paska, menu: nowy (wspólny - właściciel), zmiana nazwy, **Otwieraj na starcie**
-  (`users/{uid}/prefs/{homeId}.defaultDashboard`), **Kopiuj do moich** (wspólny → prywatny), usunięcie.
-  Ostatnia lista pulpitów jest w telefonie, więc bez internetu pulpit od razu się pokazuje.
+  właściciel). **Otwieraj na starcie** (`users/{uid}/prefs/{homeId}.defaultDashboard`), **Kopiuj do moich**
+  (wspólny → prywatny). Ostatnia lista pulpitów jest w telefonie, więc bez internetu pulpit od razu się pokazuje.
 - Pusty dom: **Utwórz z moich urządzeń** (termostaty jako widżet „termostat”, światła jako przełączniki) albo pusty pulpit.
 - **Widżety**: siatka 2 kolumn, rozmiary `1x1`, `2x1`, `2x2`. Widoki: `value`, `toggle`, `slider`, `stepper`, `status`,
   `chart` (historia z `history` w chmurze, ostatnie 24 h), `thermostat` (temperatura, nastawa − / +, grzanie), `scene`.

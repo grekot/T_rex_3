@@ -16,7 +16,7 @@ Future<int> notificationsSeen(String homeId) async {
   }
 }
 
-Future<void> _markSeen(String homeId, int ts) async {
+Future<void> markNotificationsSeen(String homeId, int ts) async {
   try {
     await SharedPreferencesAsync().setInt('notif_seen_$homeId', ts);
   } on Object {
@@ -73,7 +73,7 @@ class _NotificationsButtonState extends State<NotificationsButton> {
           MaterialPageRoute<void>(builder: (_) => NotificationsScreen(items: _all)),
         );
         final latest = _all.isEmpty ? 0 : _all.first.ts;
-        await _markSeen(widget.homeId, latest);
+        await markNotificationsSeen(widget.homeId, latest);
         if (mounted) setState(() => _seen = latest);
       },
     );

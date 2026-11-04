@@ -269,7 +269,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Urządzenia'));
+    await tester.tap(find.byKey(const Key('panel')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('panel-devices')));
     await tester.pumpAndSettle();
 
     expect(find.text('Bez pokoju'), findsOneWidget);
@@ -374,6 +376,8 @@ void main() {
     expect(thermo.sent.single.keys, ['target']);
 
     // Tryb edycji: widżet w 3 krokach (urządzenie → punkt z describe → wygląd).
+    await tester.tap(find.byKey(const Key('panel')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('editDashboard')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('addWidget')));
@@ -430,7 +434,7 @@ void main() {
     expect(saved.widgets[3].sceneId, isNotNull, reason: 'widżet wskazuje scenę domu');
 
     // Koniec edycji, uruchomienie sceny.
-    await tester.tap(find.byKey(const Key('editDashboard')));
+    await tester.tap(find.byKey(const Key('editDone')));
     await tester.pumpAndSettle();
     final sceneIcon = find.byWidgetPredicate((w) => '${w.key}'.contains('scene-'));
     await tester.ensureVisible(sceneIcon);
@@ -487,6 +491,8 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    await tester.tap(find.byKey(const Key('panel')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('editDashboard')));
     await tester.pumpAndSettle();
 
