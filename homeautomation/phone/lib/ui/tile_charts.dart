@@ -1,5 +1,6 @@
-// Wykresy i półokrągłe kontrolki kafelków pulpitu (pkt 13.1): wykres liniowy z kilkoma seriami i zakresem,
-// pokrętło (`dial`, półokrągły suwak) i wskaźnik (`gauge`, tylko odczyt). Rysowane CustomPainterem.
+// Wykresy i kontrolki kafelków pulpitu (pkt 13.1): wykres liniowy z kilkoma seriami i zakresem, wykres słupkowy
+// (`line: bars`), pokrętło (`dial`, półokrągły suwak), wskaźnik (`gauge`, tylko odczyt) i pasek poziomu (`level`,
+// pionowy suwak). Rysowane CustomPainterem.
 
 import 'dart:math' as math;
 
@@ -39,8 +40,50 @@ String rangeLabel(String r) => switch (r) {
   _ => '24 h',
 };
 
-/// Jedna seria wykresu: urządzenie, punkt (z polem `history`), linia `smooth|step|band`.
+/// Jedna seria wykresu: urządzenie, punkt (z polem `history`), linia `smooth|step|band|bars`.
 typedef TileSeries = ({String deviceId, DataPoint point, String line});
+
+/// Słupek: początek przedziału i wartość (null = brak danych w przedziale).
+typedef Bar = ({DateTime from, double? value});
+
+/// Czas w godzinach po polsku: `40 min`, `3,5 h`, `12 h`.
+String fmtHours(double h) =>
+    h < 1 ? '${(h * 60).round()} min' : '${h.toStringAsFixed(h < 10 && h % 1 != 0 ? 1 : 0).replaceAll('.', ',')} h';
+
+/// Domyślna agregacja słupków: stan (np. grzanie `heat` 0-1) - czas włączenia, liczba - średnia.
+String defaultAgg(DataPoint p) => p.kind == PointKind.status || p.kind == PointKind.switchKind ? 'on' : 'avg';
+
+/// Słupki z historii za ostatnie [hours] h: do 24 h - słupek na godzinę, dłużej - na dzień (wg zegara).
+/// [agg]: `avg|min|max|on`; `on` = czas włączenia w godzinach z ułamków próbek (np. `heat` 0,4 = 40% z 15 min).
+List<Bar> historyBars(List<HistoryPoint> data, int hours, String agg, DateTime now) {
+  final daily = hours > 24;
+  final n = daily ? hours ~/ 24 : hours;
+  DateTime from(int i) => daily
+      ? DateTime(now.year, now.month, now.day - (n - 1) + i)
+      : DateTime(now.year, now.month, now.day, now.hour - (n - 1) + i);
+  // Odstęp próbek: mediana różnic (zwykle 15 min).
+  final at = [for (final p in data) p.at]..sort();
+  final gaps = [for (var i = 1; i < at.length; i++) at[i].difference(at[i - 1]).inSeconds]..sort();
+  final sample = gaps.isEmpty ? 900 : gaps[gaps.length ~/ 2].clamp(60, 3600);
+  return [
+    for (var i = 0; i < n; i++)
+      () {
+        final a = from(i), b = from(i + 1);
+        final vs = [
+          for (final p in data)
+            if (!p.at.isBefore(a) && p.at.isBefore(b)) p.value,
+        ];
+        if (vs.isEmpty) return (from: a, value: null);
+        final double v = switch (agg) {
+          'on' => vs.fold(0.0, (s, x) => s + x.clamp(0, 1)) * sample / 3600,
+          'min' => vs.reduce(math.min),
+          'max' => vs.reduce(math.max),
+          _ => vs.reduce((x, y) => x + y) / vs.length,
+        };
+        return (from: a, value: v);
+      }(),
+  ];
+}
 
 /// Wykres liniowy: do 3 serii, linia gładka / schodkowa / pasy stanu, oś automatyczna albo stała, linia odniesienia,
 /// przełącznik zakresu w kafelku ([rangeSwitch]).
@@ -54,9 +97,17 @@ class TileChart extends StatefulWidget {
     this.yMin,
     this.yMax,
     this.ref,
+    this.agg,
+    this.clock,
   });
 
   final List<TileSeries> series;
+
+  /// Słupki: `avg|min|max|on`; null = [defaultAgg].
+  final String? agg;
+
+  /// Do testów: „teraz” dla przedziałów słupków.
+  final DateTime Function()? clock;
   final HistoryLoader? history;
   final String? range;
   final bool rangeSwitch;
@@ -140,6 +191,8 @@ class _TileChartState extends State<TileChart> {
               final data = snap.data;
               if (data == null) return const Align(alignment: Alignment.bottomCenter, child: LinearProgressIndicator());
               final series = _withHistory;
+              final barsAt = series.indexWhere((s) => s.line == 'bars');
+              if (barsAt >= 0) return _bars(context, series[barsAt], data[barsAt]);
               final lines = [
                 for (final (i, d) in data.indexed)
                   if (d.length >= 2)
@@ -191,6 +244,89 @@ class _TileChartState extends State<TileChart> {
       ],
     );
   }
+
+  /// Wykres słupkowy jednej serii: słupek na godzinę / dzień, oś od zera dla czasu włączenia.
+  Widget _bars(BuildContext context, TileSeries s, List<HistoryPoint> data) {
+    final t = Theme.of(context).textTheme;
+    final cs = Theme.of(context).colorScheme;
+    final agg = widget.agg ?? defaultAgg(s.point);
+    final bars = historyBars(data, rangeHours(_range), agg, (widget.clock ?? DateTime.now)());
+    final values = [
+      for (final b in bars)
+        if (b.value != null) b.value!,
+    ];
+    if (values.isEmpty) return Text('Brak danych w tym zakresie', style: t.bodySmall);
+    final top = values.reduce(math.max), bottom = values.reduce(math.min);
+    final span = math.max(top - bottom, 0.1);
+    final lo = widget.yMin ?? (agg == 'on' || (bottom >= 0 && bottom < span) ? 0.0 : bottom - span * 0.25);
+    var hi = widget.yMax ?? top;
+    if (hi - lo < 0.1) hi = lo + (agg == 'on' ? 1 : 0.1);
+    String fmt(double v) => agg == 'on' ? fmtHours(v) : s.point.format(v);
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: CustomPaint(
+            key: const Key('chartBars'),
+            painter: _BarsPainter(
+              bars: [for (final b in bars) b.value],
+              lo: lo,
+              hi: hi,
+              color: cs.primary,
+              grid: cs.outlineVariant,
+            ),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(fmt(hi), style: t.labelSmall),
+            Text(fmt(lo), style: t.labelSmall),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _BarsPainter extends CustomPainter {
+  _BarsPainter({required this.bars, required this.lo, required this.hi, required this.color, required this.grid});
+
+  final List<double?> bars;
+  final double lo;
+  final double hi;
+  final Color color;
+  final Color grid;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = grid
+      ..strokeWidth = 0.6;
+    canvas.drawLine(Offset(0, size.height - 0.5), Offset(size.width, size.height - 0.5), gridPaint);
+    final slot = size.width / bars.length;
+    final gap = math.min(slot * 0.25, 4.0);
+    for (final (i, v) in bars.indexed) {
+      if (v == null) continue;
+      final f = ((v - lo) / (hi - lo)).clamp(0.0, 1.0);
+      final h = math.max(f * (size.height - 2), 1.5);
+      // Ostatni przedział jeszcze trwa - jaśniejszy.
+      final c = i == bars.length - 1 ? color.withValues(alpha: 0.5) : color;
+      canvas.drawRRect(
+        RRect.fromRectAndCorners(
+          Rect.fromLTWH(i * slot + gap / 2, size.height - h, slot - gap, h),
+          topLeft: const Radius.circular(3),
+          topRight: const Radius.circular(3),
+        ),
+        Paint()..color = c,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_BarsPainter old) => true;
 }
 
 class _ChartPainter extends CustomPainter {
@@ -581,4 +717,134 @@ class _GaugePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_GaugePainter old) => true;
+}
+
+/// Strefa koloru w ułamkach zakresu (0-1).
+typedef ZoneFraction = ({double from, double to, Color color});
+
+/// Pasek poziomu (`level`) i pionowy suwak: wypełnienie od dołu ([vertical]) albo od lewej, ułamek 0-1.
+/// Z [onChangeEnd] - przeciąganie i dotyk zmieniają wartość (polecenie po puszczeniu palca).
+class LevelBar extends StatefulWidget {
+  const LevelBar({
+    super.key,
+    required this.fraction,
+    required this.vertical,
+    this.color,
+    this.zones = const [],
+    this.onChangeEnd,
+    this.snap,
+  });
+
+  final double? fraction;
+  final bool vertical;
+  final Color? color;
+  final List<ZoneFraction> zones;
+  final ValueChanged<double>? onChangeEnd;
+
+  /// Zaokrąglenie ułamka w trakcie przeciągania (krok punktu).
+  final double Function(double f)? snap;
+
+  @override
+  State<LevelBar> createState() => _LevelBarState();
+}
+
+class _LevelBarState extends State<LevelBar> {
+  double? _drag;
+
+  void _at(Offset local, Size size) {
+    final raw = widget.vertical ? 1 - local.dy / size.height : local.dx / size.width;
+    final f = raw.clamp(0.0, 1.0);
+    setState(() => _drag = widget.snap?.call(f) ?? f);
+  }
+
+  void _end() {
+    final f = _drag;
+    setState(() => _drag = null);
+    if (f != null) widget.onChangeEnd!(f);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final f = _drag ?? widget.fraction;
+    final zone = f == null ? null : widget.zones.where((z) => f >= z.from && f <= z.to).firstOrNull;
+    final interactive = widget.onChangeEnd != null;
+    return LayoutBuilder(
+      builder: (context, box) {
+        // Pionowy najwyżej 64 px szerokości, poziomy 18 px wysokości - wyśrodkowany w miejscu na treść.
+        final size = widget.vertical
+            ? Size(math.min(box.maxWidth, 64), box.maxHeight)
+            : Size(box.maxWidth, math.min(box.maxHeight, 18));
+        final paint = CustomPaint(
+          size: size,
+          painter: _LevelPainter(
+            f: f,
+            vertical: widget.vertical,
+            color: zone?.color ?? widget.color ?? cs.primary,
+            track: cs.onSurface.withValues(alpha: 0.12),
+            zones: widget.zones,
+          ),
+        );
+        if (!interactive) return Center(child: paint);
+        return Center(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTapDown: (d) => _at(d.localPosition, size),
+            onTapUp: (_) => _end(),
+            onVerticalDragStart: widget.vertical ? (d) => _at(d.localPosition, size) : null,
+            onVerticalDragUpdate: widget.vertical ? (d) => _at(d.localPosition, size) : null,
+            onVerticalDragEnd: widget.vertical ? (_) => _end() : null,
+            onHorizontalDragStart: widget.vertical ? null : (d) => _at(d.localPosition, size),
+            onHorizontalDragUpdate: widget.vertical ? null : (d) => _at(d.localPosition, size),
+            onHorizontalDragEnd: widget.vertical ? null : (_) => _end(),
+            child: paint,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _LevelPainter extends CustomPainter {
+  _LevelPainter({
+    required this.f,
+    required this.vertical,
+    required this.color,
+    required this.track,
+    required this.zones,
+  });
+
+  final double? f;
+  final bool vertical;
+  final Color color;
+  final Color track;
+  final List<ZoneFraction> zones;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = Radius.circular(math.min(14, (vertical ? size.width : size.height) / 2));
+    final box = RRect.fromRectAndRadius(Offset.zero & size, r);
+    canvas.drawRRect(box, Paint()..color = track);
+    canvas.save();
+    canvas.clipRRect(box);
+    // Strefy - blade pasy w tle, żeby było widać, gdzie zaczyna się „za mało”.
+    for (final z in zones) {
+      final a = math.min(z.from, z.to).clamp(0.0, 1.0), b = math.max(z.from, z.to).clamp(0.0, 1.0);
+      final rect = vertical
+          ? Rect.fromLTRB(0, size.height * (1 - b), size.width, size.height * (1 - a))
+          : Rect.fromLTRB(size.width * a, 0, size.width * b, size.height);
+      canvas.drawRect(rect, Paint()..color = z.color.withValues(alpha: 0.14));
+    }
+    final v = f;
+    if (v != null && v > 0) {
+      final rect = vertical
+          ? Rect.fromLTRB(0, size.height * (1 - v), size.width, size.height)
+          : Rect.fromLTRB(0, 0, size.width * v, size.height);
+      canvas.drawRect(rect, Paint()..color = color);
+    }
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(_LevelPainter old) => old.f != f || old.color != color || old.vertical != vertical;
 }

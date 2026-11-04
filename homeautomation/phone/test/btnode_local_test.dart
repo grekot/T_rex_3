@@ -5,6 +5,10 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:homeautomation/controllers/device_controller.dart';
+import 'package:homeautomation/controllers/device_hub.dart';
+import 'package:homeautomation/data/cloud_access.dart';
+import 'package:homeautomation/data/hub_api.dart';
+import 'package:homeautomation/data/local_api.dart';
 import 'package:homeautomation/data/connection_manager.dart';
 import 'package:homeautomation/data/device_store.dart';
 import 'package:homeautomation/data/discovery.dart';
@@ -74,5 +78,31 @@ void main() {
       expect(d.type, DeviceType.btnode);
       expect((await store.devices()).single.type, DeviceType.btnode);
     });
+  });
+
+  test('czujnik dodany do huba bez wpisu w chmurze: na liście domu z via = hub (z GET /api/devices)', () async {
+    final hubFake = FakeHub();
+    await hubFake.start(port: 0, address: InternetAddress.loopbackIPv4);
+    addTearDown(hubFake.stop);
+    final endpoint = LocalEndpoint('127.0.0.1', hubFake.port);
+    // Jak skryptem: prosto do huba, bez deviceIndex.
+    await HubApi(
+      LocalApi(endpoint, token: hubFake.token),
+    ).addDevice({'adapter': 'ble', 'deviceId': 'a4:c1:38:12:34:56', 'name': 'Czujnik BT'});
+    final store = MemoryDeviceStore();
+    await store.saveDevice(PairedDevice(id: hubFake.id, name: 'Hub', type: DeviceType.hub, lastEndpoint: endpoint));
+    await store.saveToken(hubFake.id, hubFake.token);
+    final hub = DeviceHub(
+      store: store,
+      manager: ConnectionManager(store: store, discovery: _NoDiscovery()),
+      cloud: NoCloudAccess(),
+    );
+    addTearDown(hub.dispose);
+    await hub.load();
+    for (var i = 0; i < 100 && hub.device('ble-a4c138123456') == null; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+    final d = hub.device('ble-a4c138123456');
+    expect((d?.via, d?.type, d?.name), (hubFake.id, DeviceType.sensor, 'Czujnik BT'));
   });
 }

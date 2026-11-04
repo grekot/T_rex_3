@@ -30,6 +30,8 @@ import 'package:homeautomation/ui/automations_screen.dart';
 import 'package:homeautomation/ui/values_editor.dart';
 import 'package:homeautomation/ui/gate_editor.dart';
 import 'package:homeautomation/ui/point_controls.dart';
+import 'package:homeautomation/ui/tile_charts.dart';
+import 'package:homeautomation/ui/tile_settings.dart' show sizesFor;
 import 'package:homeautomation/models/room.dart';
 
 import 'support/memory_cloud_store.dart';
@@ -1199,5 +1201,132 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Garaż'), findsOneWidget);
     expect(find.text('Schody'), findsNothing);
+  });
+
+  // ---- poziom, pionowy suwak, słupki, wąskie rozmiary
+
+  test('słupki z historii: na godzinę (średnia), na dzień (czas włączenia z ułamków heat)', () {
+    final now = DateTime(2026, 11, 4, 12, 30);
+    final data = [
+      for (var m = 0; m < 6 * 60; m += 15)
+        (at: DateTime(2026, 11, 4, 6).add(Duration(minutes: m)), value: m < 60 ? 20.0 : 22.0),
+    ];
+    final hourly = historyBars(data, 24, 'avg', now);
+    expect(hourly.length, 24);
+    expect(hourly.last.from, DateTime(2026, 11, 4, 12));
+    final six = hourly.firstWhere((b) => b.from.hour == 6 && b.from.day == 4);
+    expect(six.value, 20.0);
+    expect(hourly.where((b) => b.value != null).length, 6);
+    expect(historyBars(data, 24, 'max', now).firstWhere((b) => b.value != null).value, 20.0);
+
+    // heat 0,5 przez 2 h (8 próbek co 15 min) = 1 h grzania tego dnia.
+    final heat = [
+      for (var m = 0; m < 120; m += 15) (at: DateTime(2026, 11, 3, 18).add(Duration(minutes: m)), value: 0.5),
+    ];
+    final daily = historyBars(heat, 24 * 7, 'on', now);
+    expect(daily.length, 7);
+    expect(daily.last.from, DateTime(2026, 11, 4));
+    expect(daily[5].value, closeTo(1.0, 1e-9));
+    expect(daily.last.value, isNull);
+    expect((fmtHours(1), fmtHours(0.5), fmtHours(3.25), fmtHours(12)), ('1 h', '30 min', '3,3 h', '12 h'));
+    expect((defaultAgg(fallbackPoint('heating')), defaultAgg(fallbackPoint('temp'))), ('on', 'avg'));
+  });
+
+  test('zakres poziomu: z kafelka, z describe, % = 0-100, odwrócony; wąskie rozmiary tylko dla prostych widoków', () {
+    const w = DashWidget(id: 'l', view: WidgetView.level, device: 'x', point: 'water');
+    const p = DataPoint(key: 'water', name: 'Woda', kind: PointKind.sensor, unit: 'cm', min: 0, max: 200);
+    expect(levelRange(w, p), (0.0, 200.0), reason: 'z describe');
+    expect(levelRange(w.patch({'min': 150, 'max': 20}), p), (150.0, 20.0), reason: 'kafelek, odwrócony');
+    expect(levelRange(w, fallbackPoint('hum')), (0.0, 100.0));
+    expect(levelRange(w, fallbackPoint('temp')), (null, null));
+    expect(sizesFor(WidgetView.level), contains((1, 4)));
+    expect(sizesFor(WidgetView.chart), isNot(contains((1, 2))));
+    expect(sizesFor(WidgetView.chart), containsAll([(2, 3), (2, 4)]));
+    expect(
+      (w.resized(1, 4).tall, w.resized(2, 4).tall, w.resized(2, 2).tall, w.resized(4, 4).tall),
+      (true, true, false, false),
+    );
+  });
+
+  testWidgets('poziom: pionowo na 1×4, procent, zakres odwrócony, poziomo na 4×1, bez zakresu - podpowiedź', (
+    tester,
+  ) async {
+    await setUpHub(tester);
+    const lv = DashWidget(id: 'lv', view: WidgetView.level, device: 'termostat-ab12cd', point: 'hum');
+    await show4(tester, lv.resized(1, 4));
+    var bar = tester.widget<LevelBar>(find.byKey(const Key('level-lv')));
+    expect(bar.vertical, isTrue);
+    expect(bar.fraction, closeTo(0.45, 1e-9));
+    expect(find.text('45 %'), findsOneWidget);
+
+    await show4(tester, lv.resized(1, 4).patch({'show': 'percent', 'min': 100, 'max': 0}));
+    bar = tester.widget<LevelBar>(find.byKey(const Key('level-lv')));
+    expect(bar.fraction, closeTo(0.55, 1e-9));
+    expect(find.text('55 %'), findsOneWidget);
+
+    await show4(
+      tester,
+      lv.resized(4, 1).patch({
+        'zones': [
+          [0, 20, 'red'],
+          [20, 100, 'green'],
+        ],
+      }),
+    );
+    bar = tester.widget<LevelBar>(find.byKey(const Key('level-lv')));
+    expect((bar.vertical, bar.zones.length), (false, 2));
+
+    await show4(
+      tester,
+      const DashWidget(id: 'lv', view: WidgetView.level, device: 'termostat-ab12cd', point: 'temp').resized(2, 3),
+    );
+    expect(find.text('Ustaw zakres w ustawieniach kafelka'), findsOneWidget);
+  });
+
+  testWidgets('pionowy suwak (1×4): przeciągnięcie do góry ustawia maksimum po puszczeniu palca', (tester) async {
+    await setUpHub(tester);
+    await show4(
+      tester,
+      const DashWidget(id: 'sv', view: WidgetView.slider, device: 'termostat-ab12cd', point: 'target').resized(1, 4),
+    );
+    final f = find.byKey(const Key('level-sv'));
+    expect(tester.widget<LevelBar>(f).vertical, isTrue);
+    final box = tester.getRect(f);
+    await tester.dragFrom(box.bottomCenter - const Offset(0, 4), Offset(0, -box.height));
+    await tester.pumpAndSettle();
+    expect(thermo.sent.last, {'target': 30.0});
+  });
+
+  testWidgets('wykres słupkowy: kafelek 2×4, czas grzania na dzień', (tester) async {
+    await setUpHub(tester);
+    final now = DateTime.now();
+    Future<List<HistoryPoint>> recent(String id, String field, {int hours = 24}) async => [
+      for (var m = 0; m < 24 * 60 * 3; m += 15)
+        (at: now.subtract(Duration(minutes: m)), value: m % 60 < 30 ? 1.0 : 0.0),
+    ];
+    final w = const DashWidget(id: 'bc', view: WidgetView.chart, device: 'termostat-ab12cd', point: 'heating')
+        .resized(2, 4)
+        .patch({
+          'range': '7d',
+          'series': [
+            {'device': 'termostat-ab12cd', 'point': 'heating', 'line': 'bars'},
+          ],
+        });
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: SizedBox.fromSize(
+              size: dashTileSize(w, 4, 380),
+              child: DashTile(widget: w, hub: hub, history: recent),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('chartBars')), findsOneWidget);
+    expect(find.text('0 min'), findsOneWidget, reason: 'oś od zera, w godzinach');
+    expect(find.text('12 h'), findsOneWidget, reason: 'pół każdej godziny grzania = 12 h na dobę');
   });
 }

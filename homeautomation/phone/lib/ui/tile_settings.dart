@@ -43,7 +43,16 @@ class TileEditScene extends TileEdit {
 }
 
 /// Rozmiary w siatce 4 kolumn (szerokość × wysokość) do wyboru.
-const grid4Sizes = [(1, 1), (2, 1), (2, 2), (4, 1), (4, 2), (4, 3), (4, 4)];
+const grid4Sizes = [(1, 1), (1, 2), (1, 4), (2, 1), (2, 2), (2, 3), (2, 4), (4, 1), (4, 2), (4, 3), (4, 4)];
+
+/// Widoki, które mieszczą się w wąskim, wysokim kafelku (1×2, 1×4).
+const narrowViews = {WidgetView.value, WidgetView.toggle, WidgetView.status, WidgetView.slider, WidgetView.level};
+
+/// Rozmiary siatki 4 do wyboru dla widoku: wąskie 1×2 / 1×4 tylko dla [narrowViews].
+List<(int, int)> sizesFor(WidgetView v) => [
+  for (final s in grid4Sizes)
+    if (s.$1 > 1 || s.$2 == 1 || narrowViews.contains(v)) s,
+];
 
 /// Arkusz ustawień kafelka z podglądem na żywo (pkt 13 i 13.1). [points] - punkty urządzenia z `describe`
 /// (szybkie sterowanie, druga linia, serie wykresu), [channels] - liczba kanałów węzła. Null przy anulowaniu.
@@ -283,14 +292,30 @@ class _TileSettingsState extends State<_TileSettings> {
     ];
     final zonesKind = switch (_w.zones.length) {
       3 => 'lowgoodhigh',
+      2 when _w.view == WidgetView.level => 'low',
       2 => 'goodhigh',
       _ => 'none',
     };
+    final bars = _w.series.any((s) => s.line == 'bars');
+    final barsAgg = _w.barsAgg ?? (p == null ? 'avg' : defaultAgg(p));
+    // Słupki: jedna seria (punkt kafelka) z `line: bars` i opcjonalnym `agg`; linia - dawna seria bez `series`.
+    void setBars(bool on, [String? agg]) => _patch({
+      'series': on && _w.device != null && _w.point != null
+          ? [
+              {'device': _w.device, 'point': _w.point, 'line': 'bars', 'agg': ?agg},
+            ]
+          : null,
+    });
     void setZones(String kind) {
       final lo = _parse(_min.text) ?? p?.min ?? 0, hi = _parse(_max.text) ?? p?.max ?? 100;
       final d = hi - lo;
       _patch({
         'zones': switch (kind) {
+          // Poziom: dolne 20% zakresu na czerwono (np. mało wody); przy zakresie odwróconym też „od pustego”.
+          'low' => [
+            [lo, lo + 0.2 * d, 'red'],
+            [lo + 0.2 * d, hi, 'green'],
+          ],
           'lowgoodhigh' => [
             [lo, lo + d / 3, 'amber'],
             [lo + d / 3, lo + 2 * d / 3, 'green'],
@@ -356,7 +381,7 @@ class _TileSettingsState extends State<_TileSettings> {
                   spacing: 6,
                   runSpacing: 4,
                   children: [
-                    for (final (gw, gh) in grid4Sizes)
+                    for (final (gw, gh) in sizesFor(_w.view))
                       ChoiceChip(
                         key: Key('tileSize4-${gw}x$gh'),
                         label: Text('$gw×$gh'),
@@ -391,7 +416,13 @@ class _TileSettingsState extends State<_TileSettings> {
                         key: Key('tileView-${v.wire}'),
                         label: Text(v.label),
                         selected: _w.view == v,
-                        onSelected: (_) => setState(() => _w = _w.copyWith(view: v)),
+                        onSelected: (_) => setState(() {
+                          _w = _w.copyWith(view: v);
+                          // Wąski kafelek (1×2, 1×4) zostaje tylko dla widoków, które się w nim mieszczą.
+                          if (widget.grid == 4 && _w.gridW == 1 && _w.gridH > 1 && !narrowViews.contains(v)) {
+                            _w = _w.resized(2, _w.gridH);
+                          }
+                        }),
                       ),
                   ],
                 ),
@@ -704,8 +735,105 @@ class _TileSettingsState extends State<_TileSettings> {
                     onChanged: (v) => _patch({'target': v}),
                   ),
                 ]),
+              if (_w.view == WidgetView.level)
+                _group('tileMoreLevel', 'Poziom', [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          key: const Key('tileMin'),
+                          controller: _min,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                          decoration: InputDecoration(
+                            labelText: 'Pusty przy',
+                            hintText: _fmt(p?.min ?? (p?.unit == '%' ? 0 : null)),
+                          ),
+                          onChanged: (v) => _patch({'min': _parse(v)}),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextField(
+                          key: const Key('tileMax'),
+                          controller: _max,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+                          decoration: InputDecoration(
+                            labelText: 'Pełny przy',
+                            hintText: _fmt(p?.max ?? (p?.unit == '%' ? 100 : null)),
+                          ),
+                          onChanged: (v) => _patch({'max': _parse(v)}),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: Text(
+                      'Puste pola = zakres z czujnika. „Pusty” większy od „pełnego” odwraca zakres - np. czujnik '
+                      'odległości w zbiorniku: pusty przy 150 cm, pełny przy 20 cm.',
+                      style: t.bodySmall,
+                    ),
+                  ),
+                  _dropdown<String>(
+                    key: const Key('tileZones'),
+                    label: 'Kolory',
+                    value: zonesKind,
+                    items: const [
+                      ('none', 'Jeden kolor'),
+                      ('low', 'Czerwony przy niskim poziomie (dolne 20%)'),
+                      ('lowgoodhigh', 'Za mało / dobrze / za dużo'),
+                    ],
+                    onChanged: setZones,
+                  ),
+                  _dropdown<String>(
+                    key: const Key('tileShow'),
+                    label: 'Pokazuj',
+                    value: _w.show ?? 'value',
+                    items: const [('value', 'Wartość z jednostką'), ('percent', 'Procent zapełnienia')],
+                    onChanged: (v) => _patch({'show': v == 'value' ? null : v}),
+                  ),
+                ]),
               if (_w.view == WidgetView.chart)
                 _group('tileMoreChart', 'Wykres', [
+                  Wrap(
+                    spacing: 6,
+                    children: [
+                      ChoiceChip(
+                        key: const Key('tileChartLine'),
+                        label: const Text('Linia'),
+                        selected: !bars,
+                        onSelected: (_) => setBars(false),
+                      ),
+                      ChoiceChip(
+                        key: const Key('tileChartBars'),
+                        label: const Text('Słupki'),
+                        selected: bars,
+                        onSelected: (_) => setBars(true),
+                      ),
+                    ],
+                  ),
+                  if (bars) ...[
+                    const SizedBox(height: 6),
+                    Text('Do 24 h - słupek na godzinę, 7 i 30 dni - na dzień.', style: t.bodySmall),
+                    Wrap(
+                      spacing: 6,
+                      children: [
+                        for (final (a, l) in const [
+                          ('avg', 'Średnia'),
+                          ('max', 'Najwyższa'),
+                          ('min', 'Najniższa'),
+                          ('on', 'Czas włączenia'),
+                        ])
+                          ChoiceChip(
+                            key: Key('tileAgg-$a'),
+                            label: Text(l),
+                            selected: barsAgg == a,
+                            onSelected: (_) => setBars(true, p != null && a == defaultAgg(p) ? null : a),
+                          ),
+                      ],
+                    ),
+                  ],
+                  const SizedBox(height: 6),
                   Wrap(
                     spacing: 6,
                     children: [
@@ -725,7 +853,7 @@ class _TileSettingsState extends State<_TileSettings> {
                     value: _w.rangeSwitch,
                     onChanged: (v) => _patch({'rangeSwitch': v ? true : null}),
                   ),
-                  if (historyPoints.length > 1) ...[
+                  if (historyPoints.length > 1 && !bars) ...[
                     Text('Serie (do 3)', style: t.bodySmall),
                     const SizedBox(height: 4),
                     Wrap(

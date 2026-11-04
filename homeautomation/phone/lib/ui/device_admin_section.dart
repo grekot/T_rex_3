@@ -19,6 +19,7 @@ import 'widgets.dart';
 
 /// Ustawienia wspólne dla każdego typu urządzenia: chmura, aktualizacja firmware,
 /// zmiana sieci WiFi (pkt 9.3), identyfikator. Zmiany działają tylko w sieci domowej.
+/// Urządzenie za hubem (`via`): chmura = lustro huba (`deviceIndex/{id}/via`, pkt 11), „Do chmury” także spoza domu.
 class DeviceAdminSection extends StatefulWidget {
   const DeviceAdminSection({super.key, required this.controller, required this.cloudLinked, this.uptime});
 
@@ -43,6 +44,17 @@ class _DeviceAdminSectionState extends State<DeviceAdminSection> {
   /// `GET /api/info` (lokalnie): `prov` (zmiana sieci przez SoftAP) i `cloud: false` (węzeł bez chmury).
   DeviceInfo? _info;
 
+  /// Za hubem: czy `deviceIndex/{id}/via` wskazuje ten hub (hub prowadzi lustro w chmurze); null = jeszcze nie wiadomo.
+  bool? _viaLinked;
+  String? _hubName;
+  bool _viaLoading = false;
+
+  /// Hub, przez który urządzenie jest dostępne (pkt 11); null = własne połączenie.
+  String? get _via => c.device.via;
+
+  /// Urządzenie innej firmy albo czujnik Bluetooth za hubem - bez API węzła (WiFi, telefony, firmware, ntfy).
+  bool get _foreign => _via != null && RegExp(r'^(ble|shelly|tasmota|ewelink|sonoff|tuya)-').hasMatch(c.device.id);
+
   @override
   void initState() {
     super.initState();
@@ -50,6 +62,79 @@ class _DeviceAdminSectionState extends State<DeviceAdminSection> {
     c.localApi?.info(timeout: const Duration(seconds: 3)).then((i) {
       if (mounted) setState(() => _info = i);
     }, onError: (_) {});
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_via != null && _viaLinked == null && !_viaLoading) _loadVia();
+  }
+
+  Future<void> _loadVia() async {
+    final services = Services.of(context);
+    final cloud = services.cloud, via = _via!;
+    _viaLoading = true;
+    final hubName = (await services.store.devices().catchError(
+      (_) => const <PairedDevice>[],
+    )).where((d) => d.id == via).firstOrNull?.name;
+    var linked = false;
+    final h = cloud.homeId;
+    if (cloud.available && h != null) {
+      linked = await cloud.store.read('homes/$h/deviceIndex/${c.device.id}/via').catchError((_) => null) == via;
+    }
+    if (!mounted) return;
+    setState(() {
+      _hubName = hubName;
+      _viaLinked = linked;
+      _viaLoading = false;
+    });
+  }
+
+  /// Jak „Do chmury” na ekranie huba: właściciel wpisuje `deviceIndex/{id}` z `via`, hub zakłada lustro (do 5 min).
+  /// Sam zapis w bazie - działa też spoza domu.
+  Future<void> _linkViaHub(CloudAccess cloud) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final d = c.device;
+    try {
+      await writeDeviceIndex(cloud.store, cloud.homeId!, d.id, d.type, d.name, via: _via);
+      if (mounted) setState(() => _viaLinked = true);
+      messenger.showSnackBar(SnackBar(content: Text('Zapisano. Hub połączy „${d.name}” z chmurą w ciągu 5 minut.')));
+    } on Object catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('Nie zapisano: $e')));
+    }
+  }
+
+  /// Sekcja „Chmura” urządzenia za hubem: stan lustra przez hub i „Do chmury”.
+  List<Widget> _viaCloud(CloudAccess cloud) {
+    final linked = _viaLinked;
+    final hub = _hubName ?? 'hub';
+    final canLink = cloud.available && cloud.isHomeOwner && cloud.homeId != null;
+    return [
+      const SectionHeader('Chmura'),
+      ListTile(
+        key: const Key('viaCloud'),
+        leading: Icon(linked == true ? Icons.cloud_done_outlined : Icons.cloud_off_outlined),
+        title: Text(linked == true ? 'W chmurze przez $hub' : 'Tylko w domu'),
+        subtitle: Text(
+          cloud is NoCloudAccess
+              ? cloud.unavailableReason
+              : linked == null
+              ? 'Sprawdzanie…'
+              : linked
+              ? 'Hub przesyła stan do chmury - widać go spoza domu i na zegarku.'
+              : 'Hub nie przesyła stanu do chmury: spoza domu i na zegarku poza zasięgiem nie będzie widoczne.',
+        ),
+      ),
+      if (linked == false && cloud is! NoCloudAccess)
+        ListTile(
+          key: const Key('linkViaHub'),
+          leading: const Icon(Icons.cloud_upload_outlined),
+          title: const Text('Do chmury'),
+          subtitle: Text(canLink ? 'Hub połączy urządzenie z chmurą w ciągu 5 minut' : 'Łączy właściciel domu'),
+          enabled: canLink,
+          onTap: () => _linkViaHub(cloud),
+        ),
+    ];
   }
 
   void _refreshCloud() => _cloudLink = c.cloudStatus().catchError((_) => null);
@@ -145,7 +230,9 @@ class _DeviceAdminSectionState extends State<DeviceAdminSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (_info?.cloud == false) ...[
+        if (_via != null)
+          ..._viaCloud(cloud)
+        else if (_info?.cloud == false) ...[
           const SectionHeader('Chmura'),
           const ListTile(
             key: Key('noCloud'),
@@ -222,40 +309,45 @@ class _DeviceAdminSectionState extends State<DeviceAdminSection> {
                 Navigator.of(context).push(MaterialPageRoute<bool>(builder: (_) => AssignToHubScreen(controller: c))),
           ),
         const SectionHeader('Urządzenie'),
-        ListTile(
-          key: const Key('changeWifi'),
-          leading: const Icon(Icons.wifi_find),
-          title: const Text('Zmień sieć WiFi'),
-          subtitle: Text(_canAdmin ? 'Przez Bluetooth, telefon obok urządzenia' : _adminHint),
-          enabled: _canAdmin,
-          onTap: _changeWifi,
-        ),
-        ListTile(
-          key: const Key('notify'),
-          leading: const Icon(Icons.notifications_active_outlined),
-          title: const Text('Powiadomienia na telefon'),
-          subtitle: Text(_canAdmin ? 'Alarm wysyła samo urządzenie przez aplikację ntfy' : _adminHint),
-          enabled: _canAdmin,
-          onTap: () =>
-              Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => NotifyScreen.forController(c))),
-        ),
-        ListTile(
-          key: const Key('phones'),
-          leading: const Icon(Icons.phone_android),
-          title: const Text('Telefony'),
-          subtitle: Text(_canAdmin ? 'Sparowane telefony i ich poziomy dostępu' : _adminHint),
-          enabled: _canAdmin,
-          onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PhonesScreen(controller: c))),
-        ),
-        ListTile(
-          key: const Key('firmware'),
-          leading: const Icon(Icons.system_update_alt),
-          title: const Text('Aktualizacja firmware'),
-          subtitle: Text(_canAdmin ? 'Wgraj plik .bin z komputera albo telefonu' : _adminHint),
-          enabled: _canAdmin,
-          onTap: () =>
-              Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => FirmwareScreen(controller: c))),
-        ),
+        // Czujnik Bluetooth i urządzenia innych firm za hubem nie mają API węzła (WiFi, ntfy, telefony, firmware).
+        if (!_foreign) ...[
+          ListTile(
+            key: const Key('changeWifi'),
+            leading: const Icon(Icons.wifi_find),
+            title: const Text('Zmień sieć WiFi'),
+            subtitle: Text(_canAdmin ? 'Przez Bluetooth, telefon obok urządzenia' : _adminHint),
+            enabled: _canAdmin,
+            onTap: _changeWifi,
+          ),
+          ListTile(
+            key: const Key('notify'),
+            leading: const Icon(Icons.notifications_active_outlined),
+            title: const Text('Powiadomienia na telefon'),
+            subtitle: Text(_canAdmin ? 'Alarm wysyła samo urządzenie przez aplikację ntfy' : _adminHint),
+            enabled: _canAdmin,
+            onTap: () =>
+                Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => NotifyScreen.forController(c))),
+          ),
+          ListTile(
+            key: const Key('phones'),
+            leading: const Icon(Icons.phone_android),
+            title: const Text('Telefony'),
+            subtitle: Text(_canAdmin ? 'Sparowane telefony i ich poziomy dostępu' : _adminHint),
+            enabled: _canAdmin,
+            onTap: () =>
+                Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => PhonesScreen(controller: c))),
+          ),
+          ListTile(
+            key: const Key('firmware'),
+            leading: const Icon(Icons.system_update_alt),
+            title: const Text('Aktualizacja firmware'),
+            subtitle: Text(_canAdmin ? 'Wgraj plik .bin z komputera albo telefonu' : _adminHint),
+            enabled: _canAdmin,
+            onTap: () =>
+                Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => FirmwareScreen(controller: c))),
+          ),
+        ],
+        if (_via != null) ListTile(dense: true, title: const Text('Przez hub'), trailing: Text(_hubName ?? _via!)),
         ListTile(dense: true, title: const Text('Identyfikator'), trailing: Text(c.device.id)),
         ListTile(dense: true, title: const Text('Typ'), trailing: Text(c.device.type.label)),
         ListTile(dense: true, title: const Text('Mój dostęp'), trailing: Text(c.access.label)),

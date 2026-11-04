@@ -40,7 +40,11 @@ enum WidgetView {
   gate('gate', 'Brama'),
 
   /// Pokój (`room` = id z `homes/{h}/rooms`): temperatura, wilgotność, włączone światła.
-  room('room', 'Pokój');
+  room('room', 'Pokój'),
+
+  /// Poziom (zbiornik, ciśnienie, bateria): słupek wypełniany od dołu albo od lewej, tylko odczyt; `min`/`max`
+  /// z kafelka albo z `describe`, `zones`, `show: value|percent`.
+  level('level', 'Poziom');
 
   const WidgetView(this.wire, this.label);
 
@@ -231,6 +235,20 @@ class DashWidget {
       if (x is Map && x['device'] is String && x['point'] is String)
         (device: x['device'] as String, point: x['point'] as String, line: x['line'] as String? ?? 'smooth'),
   ];
+
+  /// Słupki (`line: bars`): `avg|min|max|on` z pierwszej serii słupkowej; null = wg rodzaju punktu.
+  String? get barsAgg {
+    for (final x in _list(extra['series'])) {
+      if (x is Map && x['line'] == 'bars') return x['agg'] as String?;
+    }
+    return null;
+  }
+
+  /// Poziom: `value` (wartość z jednostką) albo `percent` (zapełnienie zakresu).
+  String? get show => extra['show'] as String?;
+
+  /// Kafelek wyższy niż szerszy w siatce 4 (1×2, 1×4, 2×3, 2×4) - suwak i poziom rysują się pionowo.
+  bool get tall => w != null && (gridW == 1 ? gridH >= 2 : gridW == 2 && gridH >= 3);
 
   /// `6h|24h|7d|30d`; null = 24h.
   String? get range => extra['range'] as String?;

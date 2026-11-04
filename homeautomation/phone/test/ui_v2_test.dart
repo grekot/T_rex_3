@@ -396,6 +396,10 @@ void main() {
     await tester.tap(find.byKey(const Key('icon-ceiling')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('widgetLabel')), 'Tryb salonu');
+    // Pulpit z siatką 4: rozmiary w×h jak w ustawieniach kafelka (nie dawne 1×1 = 2×2).
+    await tester.ensureVisible(find.byKey(const Key('newSize4-1x1')));
+    await tester.tap(find.byKey(const Key('newSize4-1x1')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('addWidgetDone')));
     await tester.pumpAndSettle();
     expect(find.text('Tryb salonu'), findsOneWidget);
@@ -430,6 +434,7 @@ void main() {
       WidgetView.scene,
     ]);
     expect(saved.widgets[2].point, 'mode');
+    expect((saved.widgets[2].gridW, saved.widgets[2].gridH), (1, 1), reason: 'rozmiar z kreatora');
     expect(saved.widgets[2].icon, 'ceiling', reason: 'wybrana ikona w JSON-ie widżetu');
     expect(saved.widgets[3].sceneId, isNotNull, reason: 'widżet wskazuje scenę domu');
 
@@ -537,12 +542,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(saved().length, 2);
 
-    // Przycisk w rogu: kolejny rozmiar siatki 4 (2×2 → 4×1).
-    await tester.ensureVisible(find.byKey(Key('tileResize-$lampId')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(Key('tileResize-$lampId')));
-    await tester.pumpAndSettle();
-    expect((saved().first.gridW, saved().first.gridH), (4, 1));
+    // Przycisk w rogu: kolejny rozmiar siatki 4 (2×2 → 2×3 → 2×4 → 4×1).
+    for (final next in const [(2, 3), (2, 4), (4, 1)]) {
+      await tester.ensureVisible(find.byKey(Key('tileResize-$lampId')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key('tileResize-$lampId')));
+      await tester.pumpAndSettle();
+      expect((saved().first.gridW, saved().first.gridH), next);
+    }
 
     // Przeciąganie: termostat przesunięty w miejsce lampy (nad nim) - lampa przechodzi w zwolnione miejsce.
     await tester.ensureVisible(find.byKey(Key('editTile-$thermoId')));

@@ -316,6 +316,20 @@ List<({DashWidget widget, int row, int col})> packGrid4(List<DashWidget> widgets
   return [for (final w in widgets) (widget: w, row: at[w.id]!.$1, col: at[w.id]!.$2)];
 }
 
+/// Zakres kafelka „Poziom”: z kafelka (`min`/`max`), potem z `describe` punktu, potem `%` → 0-100;
+/// `min` > `max` = odwrócony (np. odległość do wody: 150 cm = pusty). (null, null) = nieznany.
+(double?, double?) levelRange(DashWidget w, DataPoint p) {
+  final lo = w.min ?? p.min ?? (p.unit == '%' ? 0.0 : null);
+  final hi = w.max ?? p.max ?? (p.unit == '%' ? 100.0 : null);
+  return (lo, hi);
+}
+
+/// Wartość zaokrąglona do kroku punktu (`step`, domyślnie 1) i w jego zakresie.
+double _stepped(DataPoint p, double v) {
+  final step = p.step ?? 1;
+  return ((v / step).round() * step).clamp(p.min ?? v, p.max ?? v).toDouble();
+}
+
 /// Nazwa kanału `onN` / wejścia `inN` węzła: z Config (`chN.name`, `inputK.name` - to, co ustawiono w module),
 /// potem z `describe`, na końcu „Kanał N” / „Wejście N”.
 String channelName(DeviceController<Object?, Object?>? c, DeviceDescription? desc, String key) {
@@ -699,6 +713,7 @@ class _DashTileState extends State<DashTile> {
           yMin: w.yMin,
           yMax: w.yMax,
           ref: w.ref,
+          agg: w.barsAgg,
         ),
       );
     }
@@ -752,6 +767,10 @@ class _DashTileState extends State<DashTile> {
         final v = _value(p.key, state);
         final devOn = p.key == 'level' && state?['on'] is bool;
         final on = devOn ? _value('on', state) == true : v is num && v > 0;
+        void setTo(Object? x) => _send(c, p.key == 'indicator.on' ? indicatorSet(c, x) : p.setFor(x), {p.key: x});
+        final ranged = p.min != null && p.max != null && v is num;
+        // Kafelek wyższy niż szerszy: pionowy pasek (jak jasność w telefonie), wartość po puszczeniu palca.
+        final vertical = ranged && w.tall;
         return shell(
           secondary: p.format(v),
           active: on,
@@ -759,14 +778,46 @@ class _DashTileState extends State<DashTile> {
           primary: devOn && canSet(level, _pointFor('on')) && !offline
               ? () => _send(c, {'on': !on}, {'on': !on})
               : null,
-          body: p.min == null || p.max == null || v is! num
+          fillBody: vertical,
+          body: !ranged
               ? null
-              : SetpointSlider(
-                  point: p,
-                  value: v.toDouble(),
-                  enabled: can,
-                  onChanged: (x) => _send(c, p.key == 'indicator.on' ? indicatorSet(c, x) : p.setFor(x), {p.key: x}),
-                ),
+              : vertical
+              ? LevelBar(
+                  key: Key('level-${w.id}'),
+                  vertical: true,
+                  fraction: ((v.toDouble() - p.min!) / (p.max! - p.min!)).clamp(0.0, 1.0),
+                  color: w.color == null ? null : namedColor(w.color, Theme.of(context).colorScheme),
+                  snap: (f) => (_stepped(p, p.min! + f * (p.max! - p.min!)) - p.min!) / (p.max! - p.min!),
+                  onChangeEnd: can
+                      ? (f) {
+                          final x = _stepped(p, p.min! + f * (p.max! - p.min!));
+                          setTo((p.step ?? 1) % 1 == 0 ? x.round() : x);
+                        }
+                      : null,
+                )
+              : SetpointSlider(point: p, value: v.toDouble(), enabled: can, onChanged: setTo),
+        );
+      case WidgetView.level:
+        final v = _value(p.key, state);
+        final (lo, hi) = levelRange(w, p);
+        final f = v is num && lo != null && hi != null && hi != lo ? ((v - lo) / (hi - lo)).clamp(0.0, 1.0) : null;
+        final cs = Theme.of(context).colorScheme;
+        final text = f != null && w.show == 'percent' ? '${(f * 100).round()} %' : p.format(v);
+        return shell(
+          secondary: lo == null || hi == null ? 'Ustaw zakres w ustawieniach kafelka' : text,
+          fillBody: true,
+          body: LevelBar(
+            key: Key('level-${w.id}'),
+            vertical: w.tall,
+            fraction: f,
+            color: w.color == null ? null : namedColor(w.color, cs),
+            zones: lo == null || hi == null || hi == lo
+                ? const []
+                : [
+                    for (final z in w.zones)
+                      (from: (z.from - lo) / (hi - lo), to: (z.to - lo) / (hi - lo), color: namedColor(z.color, cs)),
+                  ],
+          ),
         );
       case WidgetView.stepper:
         return shell(
@@ -1283,6 +1334,7 @@ class _DashTileState extends State<DashTile> {
       final ch = channelName(hub.controller(m.device), null, m.point);
       return ch == 'Kanał $n' ? '$device $n' : ch;
     }
+
     void list() => showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -1955,7 +2007,50 @@ class TileShell extends StatelessWidget {
         ),
     ];
     final Widget content;
-    if (tiny && box.maxWidth < 130) {
+    final narrow = !tiny && box.maxWidth < 120;
+    if (narrow) {
+      // Wąski, wysoki kafelek (1×2, 1×4): ikona u góry, nazwa i stan wyśrodkowane, treść (pasek) wypełnia środek.
+      content = Column(
+        children: [
+          iconButton,
+          const SizedBox(height: 4),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: t.labelMedium?.copyWith(color: fg, fontWeight: FontWeight.w600),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (body != null) ...[
+            const SizedBox(height: 6),
+            Expanded(
+              child: fillBody
+                  ? Center(child: FractionallySizedBox(widthFactor: 0.6, child: body!))
+                  : Align(
+                      alignment: Alignment.bottomCenter,
+                      child: DefaultTextStyle.merge(
+                        style: TextStyle(color: fg),
+                        child: body!,
+                      ),
+                    ),
+            ),
+          ] else
+            const Spacer(),
+          if (secondary != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                secondary!,
+                textAlign: TextAlign.center,
+                style: t.labelSmall?.copyWith(color: muted),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          if (extras.isNotEmpty) Row(mainAxisAlignment: MainAxisAlignment.center, children: extras),
+        ],
+      );
+    } else if (tiny && box.maxWidth < 130) {
       // Kafelek 1×1: sama ikona na środku (nazwa w podpowiedzi i w ustawieniach).
       content = Tooltip(
         message: secondary == null ? title : '$title · $secondary',

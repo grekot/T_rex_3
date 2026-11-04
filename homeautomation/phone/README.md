@@ -95,7 +95,11 @@ repozytorium trzeba najpierw uruchomić `node tools/configure.mjs`.
   wykres (pole pod linią), termostat, scena.
 - **Rozszerzony układ (pkt 13.1)**: siatka 4 kolumn × 64 px (`"grid": 4`; nowe pulpity od razu, stare - menu
   „Nowy układ” albo karta w edycji: `toGrid4()` przelicza dawne rozmiary), rozmiary 1×1…4×4 (`w`, `h`), kafelki
-  w pierwszym wolnym miejscu (`packGrid4`). Pasek 4×1: wszystko w jednej linii, suwak obok nazwy. **Sekcje** z
+  w pierwszym wolnym miejscu (`packGrid4`). Pasek 4×1: wszystko w jednej linii, suwak obok nazwy. Rozmiary do
+  wyboru (`sizesFor`, ustawienia kafelka, kreator i przycisk w rogu): 1×1, 1×2, 1×4, 2×1, 2×2, 2×3, 2×4, 4×1…4×4;
+  wąskie 1×2 / 1×4 tylko dla `value`, `toggle`, `status`, `slider`, `level` (ikona u góry, nazwa i stan pod nią,
+  pasek na środku). Kreator „+ Kafelek” na pulpicie z siatką 4 daje od razu `w`/`h` (wcześniej dawne `1x1` = 2×2).
+  **Sekcje** z
   nagłówkami (pulpit startowy - sekcja na pokój; w edycji: nowa sekcja, zmiana nazwy, kolejność, usunięcie;
   przeciągnięty kafelek przechodzi do sekcji, nad którą go upuszczono). **Podsumowanie** nad pulpitem
   (`lib/ui/dashboard_summary.dart`): pigułki świateł („Wyłącz wszystkie”), grzania i alarmów (awaria czujnika,
@@ -108,10 +112,19 @@ repozytorium trzeba najpierw uruchomić `node tools/configure.mjs`.
 - **Pokrętło** (`dial`, `lib/ui/tile_charts.dart`): półokrągły suwak do `setpoint`, przeciąganie po łuku z krokiem
   z `describe`, polecenie po puszczeniu palca, kropka z wartością bieżącą (dla `target` - temperatura).
   **Wskaźnik** (`gauge`): łuk tylko do odczytu ze strefami. **Wykres**: `TileChart` - kilka serii, zakres 6 h -
-  30 dni (historia z `hours`).
+  30 dni (historia z `hours`). **Słupki** (`series` `"line":"bars"`, `"agg":"avg|min|max|on"`): do 24 h słupek na
+  godzinę, 7 / 30 dni - na dzień (`historyBars`, wg zegara, ostatni przedział jaśniejszy); `on` = czas włączenia
+  z ułamków próbek (np. `heat` 0-1 co 15 min → „3,5 h” grzania dziennie), oś od zera; domyślnie stan → `on`,
+  liczba → średnia. Ustawienia wykresu: Linia / Słupki i rodzaj słupka.
+- **Poziom** (`level`, `LevelBar`): zbiornik, ciśnienie, bateria - słupek wypełniany od dołu (kafelek wyższy niż
+  szerszy: 1×2, 1×4, 2×3, 2×4) albo od lewej. Zakres (`levelRange`): `min`/`max` kafelka („Pusty przy” / „Pełny
+  przy”), potem `min`/`max` punktu z `describe`, potem `%` → 0-100; `min` > `max` = odwrócony (czujnik odległości
+  w zbiorniku). Strefy (czerwony przy niskim poziomie, za mało / dobrze / za dużo), `show: percent` - procent
+  zapełnienia. **Pionowy suwak**: `slider` na wysokim kafelku rysuje się jak jasność w telefonie (przeciąganie
+  i dotyk, krok z `describe`, polecenie po puszczeniu palca).
 - **Grupa, pogoda, hub (pkt 13.1)**: `group` - kilka wyjść (`members`) jednym kafelkiem: „2 z 5”, ikona wyłącza
-  wszystko, gdy coś świeci (inaczej włącza), dotyk - lista z przełącznikami; członkowie bez `control` albo bez
-  połączenia pomijani. `weather` - `outdoor` termostatu: temperatura, ikona i opis (numer ikony termostatu 1-9
+  wszystko, gdy coś świeci (inaczej włącza), przycisk na każde wyjście (nazwa kanału z modułu, jak kanały węzła),
+  dotyk - lista z przełącznikami; członkowie bez `control` albo bez połączenia pomijani (przycisk wyszarzony). `weather` - `outdoor` termostatu: temperatura, ikona i opis (numer ikony termostatu 1-9
   albo kod OpenWeatherMap), „sprzed N min”, na kafelku 4×3 wykres z historii `out`. `hub` - urządzenia dostępne /
   wszystkie, automatyki, trwające sceny, ostatnie wykonanie, plakietka BEZ CHMURY; dotyk - ekran huba.
 - **Brama / furtka** (`gate`): `device` + `point` (kanał impulsowy `action` albo zwykły `onN`), `sensor`
@@ -267,7 +280,9 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   „Z telefonu” (`POST /api/time`);
 - **Urządzenia huba** (w domu): `GET /api/devices` (dostępność, błąd, „w chmurze” / „tylko w domu”), przełącznik
   (`POST /api/devices/{id}/set`, `202 pending` = urządzenie odpowie za chwilę), „Do chmury” (właściciel wpisuje
-  `deviceIndex/{id}` z `via`), usuwanie (z wpisami w bazie); **Szukaj w sieci**: `GET /api/discover` co 1 s, aż
+  `deviceIndex/{id}` z `via`; to samo na ekranie urządzenia za hubem - sekcja „Chmura”: „W chmurze przez <hub>” /
+  „Tylko w domu” + „Do chmury”, także spoza domu; czujnik Bluetooth i urządzenia innych firm bez opcji węzła:
+  WiFi, ntfy, telefony, firmware), usuwanie (z wpisami w bazie); **Szukaj w sieci**: `GET /api/discover` co 1 s, aż
   `scanning: false`, dodanie z nazwą, hasłem (Shelly, Tasmota) i kanałem; Tuya - komunikat (faza 4);
   **Czujniki Bluetooth** (pkt 11 „Czujniki Bluetooth”, przez węzły `btnode`): ikona Bluetooth na liście urządzeń huba
   (`HubBleScreen`) - `POST /api/ble/scan` (120 s), `GET /api/ble/seen` co 1,5 s: czujniki BTHome z podglądem wartości

@@ -285,9 +285,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _addWidget(Dashboard d) async {
-    final w = await Navigator.of(
-      context,
-    ).push<DashWidget>(MaterialPageRoute(builder: (_) => AddWidgetScreen(hub: widget.hub)));
+    final w = await Navigator.of(context).push<DashWidget>(
+      MaterialPageRoute(
+        builder: (_) => AddWidgetScreen(hub: widget.hub, grid: d.grid),
+      ),
+    );
     if (w != null) await _save(d.copyWith(widgets: [...d.widgets, w]));
   }
 
@@ -409,12 +411,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _stopAutoScroll();
   }
 
-  /// Przycisk w rogu: kolejny rozmiar (siatka 2: 1×1 → 2×1 → 2×2; siatka 4: kolejny z [grid4Sizes]).
+  /// Przycisk w rogu: kolejny rozmiar (siatka 2: 1×1 → 2×1 → 2×2; siatka 4: kolejny z [sizesFor] widoku).
   Future<void> _resize(Dashboard d, DashWidget w) {
     final DashWidget next;
     if (d.grid == 4) {
-      final i = grid4Sizes.indexWhere((s) => s.$1 == w.gridW && s.$2 == w.gridH);
-      final (gw, gh) = grid4Sizes[(i + 1) % grid4Sizes.length];
+      final sizes = sizesFor(w.view);
+      final i = sizes.indexWhere((s) => s.$1 == w.gridW && s.$2 == w.gridH);
+      final (gw, gh) = sizes[(i + 1) % sizes.length];
       next = w.resized(gw, gh);
     } else {
       next = w.copyWith(size: WidgetSize.values[(w.size.index + 1) % WidgetSize.values.length]);

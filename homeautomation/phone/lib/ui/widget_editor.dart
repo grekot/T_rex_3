@@ -17,6 +17,7 @@ import 'app_icons.dart';
 import 'automations_screen.dart' show BranchEditorScreen, describeAction;
 import 'dashboard_tiles.dart';
 import 'point_controls.dart';
+import 'tile_settings.dart' show sizesFor;
 import 'gate_editor.dart';
 import 'values_editor.dart';
 import 'widgets.dart';
@@ -33,7 +34,7 @@ const watchWidgetViews = {
 
 /// Widoki pasujące do rodzaju punktu (pierwszy = domyślny).
 List<WidgetView> viewsFor(DataPoint p) => switch (p.kind) {
-  PointKind.sensor => [WidgetView.value, WidgetView.gauge, if (p.history != null) WidgetView.chart],
+  PointKind.sensor => [WidgetView.value, WidgetView.gauge, WidgetView.level, if (p.history != null) WidgetView.chart],
   PointKind.status => [WidgetView.status, WidgetView.value],
   PointKind.setpoint => [
     WidgetView.stepper,
@@ -355,9 +356,12 @@ class _GroupPickerScreenState extends State<GroupPickerScreen> {
 
 /// Dodawanie widżetu w 3 krokach (pkt 13): urządzenie → punkt danych → wygląd i rozmiar.
 class AddWidgetScreen extends StatefulWidget {
-  const AddWidgetScreen({super.key, required this.hub, this.forWatch = false});
+  const AddWidgetScreen({super.key, required this.hub, this.forWatch = false, this.grid = 2});
 
   final DeviceHub hub;
+
+  /// Siatka pulpitu: 4 - rozmiary `w`×`h` jak w ustawieniach kafelka ([grid4Sizes]), 2 - dawne `1x1`/`2x1`/`2x2`.
+  final int grid;
 
   /// Kafelek pulpitu zegarka (pkt 13a): tylko widoki zegarka, rozmiar wybiera się w edytorze zegarka.
   final bool forWatch;
@@ -376,6 +380,9 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
   bool _wholeThermostat = false;
   WidgetView _view = WidgetView.value;
   WidgetSize _size = WidgetSize.s1x1;
+
+  /// Rozmiar w siatce 4 (szerokość, wysokość).
+  (int, int) _size4 = (2, 1);
 
   /// Wybrana ikona; null = domyślna.
   String? _icon;
@@ -411,6 +418,7 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
     _wholeThermostat = p == null;
     _view = _views.firstOrNull ?? WidgetView.value;
     _size = p == null || _view == WidgetView.chart ? WidgetSize.s2x1 : WidgetSize.s1x1;
+    _size4 = p == null || _view == WidgetView.chart ? (4, 2) : (2, 1);
     _step = 2;
   });
 
@@ -419,25 +427,25 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
       context,
     ).push<Scene>(MaterialPageRoute(builder: (_) => ScenePickerScreen(hub: widget.hub)));
     if (scene != null && mounted) {
-      Navigator.of(
-        context,
-      ).pop(DashWidget(id: newLocalId('w'), view: WidgetView.scene, size: WidgetSize.s2x1, sceneId: scene.id));
+      final w = DashWidget(id: newLocalId('w'), view: WidgetView.scene, size: WidgetSize.s2x1, sceneId: scene.id);
+      Navigator.of(context).pop(widget.grid == 4 ? w.resized(2, 1) : w);
     }
   }
 
   void _done() {
     final label = _label.text.trim();
-    Navigator.of(context).pop(
-      DashWidget(
-        id: newLocalId('w'),
-        view: _view,
-        size: _size,
-        device: _device!.id,
-        point: _wholeThermostat ? null : _point!.key,
-        label: label.isEmpty ? null : label,
-        icon: _icon,
-      ),
+    final w = DashWidget(
+      id: newLocalId('w'),
+      view: _view,
+      size: _size,
+      device: _device!.id,
+      point: _wholeThermostat ? null : _point!.key,
+      label: label.isEmpty ? null : label,
+      icon: _icon,
     );
+    // Siatka 4: bez `w`/`h` kafelek brałby rozmiar z dawnego `size` (1x1 → 2×2, 2x1 → 4×2).
+    final (gw, gh) = sizesFor(_view).contains(_size4) ? _size4 : (2, 1);
+    Navigator.of(context).pop(widget.grid == 4 ? w.resized(gw, gh) : w);
   }
 
   @override
@@ -647,7 +655,22 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
           const SizedBox(height: 16),
           Text('Rozmiar', style: Theme.of(context).textTheme.titleSmall),
           const SizedBox(height: 8),
-          SizeChooser(value: _size, onChanged: (s) => setState(() => _size = s)),
+          if (widget.grid == 4)
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                for (final (gw, gh) in sizesFor(_view))
+                  ChoiceChip(
+                    key: Key('newSize4-${gw}x$gh'),
+                    label: Text('$gw×$gh'),
+                    selected: _size4 == (gw, gh),
+                    onSelected: (_) => setState(() => _size4 = (gw, gh)),
+                  ),
+              ],
+            )
+          else
+            SizeChooser(value: _size, onChanged: (s) => setState(() => _size = s)),
         ],
         const SizedBox(height: 8),
         ListTile(
