@@ -108,11 +108,19 @@ void main() {
           'at': at,
         },
         {'id': 'zły'},
+        {
+          'id': 't0',
+          'device': 'parter',
+          'set': {'on': false},
+          'at': null,
+        },
       ],
     })!;
-    expect([for (final t in list) t.id], ['t1', 't2']);
+    expect([for (final t in list) t.id], ['t1', 't2', 't0'], reason: 'bez znanego czasu na końcu');
+    expect(list.last.leftAt(now), isNull);
+    expect(timerShort(list.last, now), 'wył. po odliczeniu');
     expect(list.first.output, (point: 'on2', on: false));
-    expect(list.last.output, isNull);
+    expect(list[1].output, isNull);
     expect(list.first.leftAt(DateTime.fromMillisecondsSinceEpoch(at * 1000 - 60000)), 60);
     expect(list.first.leftAt(DateTime.fromMillisecondsSinceEpoch(at * 1000 + 5000)), 0);
     expect(timerShort(list.first, DateTime.fromMillisecondsSinceEpoch(at * 1000 - 25 * 60000)), 'wył. za 25 min');
@@ -152,6 +160,7 @@ void main() {
           if (r.method == 'DELETE') return http.Response('{"ok":false,"error":"not_found"}', 404);
           final body = jsonDecode(r.body) as Map;
           if ((body['set'] as Map).containsKey('target')) return http.Response('{"ok":false,"error":"set"}', 400);
+          if (body['in'] == 60) return http.Response('{"ok":true,"id":"t4","at":null}', 200);
           return http.Response('{"ok":true,"id":"t3","at":1793990000}', 200);
         }),
       ),
@@ -165,6 +174,7 @@ void main() {
       'set': {'on2': false},
       'in': 900,
     });
+    expect((await api.addTimer('parter', {'on': true}, 60)).at, isNull, reason: 'hub bez znanego czasu');
     await expectLater(
       api.addTimer('parter', {'target': 21}, 900),
       throwsA(isA<HubTimerException>().having((e) => e.code, 'code', 'set')),

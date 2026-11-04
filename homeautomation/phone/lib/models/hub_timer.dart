@@ -10,8 +10,8 @@ class HubTimer {
   final String device;
   final Json set;
 
-  /// Chwila wykonania (z `at`, unix s).
-  final DateTime at;
+  /// Chwila wykonania (z `at`, unix s); null - hub nie zna jeszcze czasu (odlicza `in` od dodania).
+  final DateTime? at;
 
   /// Autor (uid albo nazwa klienta tokenu) - tylko z `GET /api/timers`.
   final String? by;
@@ -19,18 +19,20 @@ class HubTimer {
   static HubTimer? fromJson(Object? j) {
     if (j is! Map) return null;
     final id = j['id'], device = j['device'], set = j['set'], at = j['at'];
-    if (id is! String || device is! String || set is! Map || at is! num) return null;
+    if (id is! String || device is! String || set is! Map || (at != null && at is! num)) return null;
     return HubTimer(
       id: id,
       device: device,
       set: set.cast<String, dynamic>(),
-      at: DateTime.fromMillisecondsSinceEpoch(at.toInt() * 1000),
+      at: at is num ? DateTime.fromMillisecondsSinceEpoch(at.toInt() * 1000) : null,
       by: j['by'] is String ? j['by'] as String : null,
     );
   }
 
-  /// Sekundy do wykonania (0, gdy już minęło).
-  int leftAt(DateTime now) {
+  /// Sekundy do wykonania (0, gdy już minęło); null bez znanego czasu huba.
+  int? leftAt(DateTime now) {
+    final at = this.at;
+    if (at == null) return null;
     final s = (at.difference(now).inMilliseconds / 1000).ceil();
     return s < 0 ? 0 : s;
   }
@@ -48,7 +50,9 @@ class HubTimer {
 List<HubTimer>? hubTimers(Json? hubState) {
   final v = hubState?['timers'];
   if (v is! List) return null;
-  return [for (final e in v) ?HubTimer.fromJson(e)]..sort((a, b) => a.at.compareTo(b.at));
+  // Bez znanego czasu na końcu.
+  final far = DateTime(9999);
+  return [for (final e in v) ?HubTimer.fromJson(e)]..sort((a, b) => (a.at ?? far).compareTo(b.at ?? far));
 }
 
 /// Kody błędów timera (`400 device|set|in|at`, `403 forbidden`, `507 limit`; przez chmurę w polu `timerAdd`).

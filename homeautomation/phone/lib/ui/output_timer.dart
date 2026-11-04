@@ -29,9 +29,14 @@ String timerWhat(HubTimer t, DeviceController<Object?, Object?> c, {int channels
   return o.point == 'on' || channels < 2 ? verb : '${channelName(c, null, o.point)} $verb';
 }
 
+/// „za 25 min” albo „po odliczeniu”, gdy hub nie zna jeszcze czasu.
+String _left(HubTimer t, DateTime now) {
+  final s = t.leftAt(now);
+  return s == null ? 'po odliczeniu' : 'za ${fmtLeftShort(s)}';
+}
+
 /// Krótki dopisek na kafelek: „wył. za 25 min” / „wł. za 1 h”.
-String timerShort(HubTimer t, DateTime now) =>
-    '${t.output?.on == true ? 'wł.' : 'wył.'} za ${fmtLeftShort(t.leftAt(now))}';
+String timerShort(HubTimer t, DateTime now) => '${t.output?.on == true ? 'wł.' : 'wył.'} ${_left(t, now)}';
 
 /// Okno „Wyłącz za…” i zapis w hubie; [point] - wyjście ustalone (kafelek, [name] - jego nazwa), inaczej wybór kanału.
 Future<void> setOutputTimer(
@@ -275,8 +280,8 @@ class _OutputTimerSectionState extends State<OutputTimerSection> {
           ListTile(
             key: Key('timer-${t.id}'),
             leading: const Icon(Icons.timer_outlined),
-            title: Text('${_capital(timerWhat(t, c, channels: widget.channels))} za ${fmtLeftShort(t.leftAt(now))}'),
-            subtitle: Text('o ${_hhmm(t.at)}'),
+            title: Text('${_capital(timerWhat(t, c, channels: widget.channels))} ${_left(t, now)}'),
+            subtitle: Text(t.at == null ? 'hub nie zna jeszcze godziny' : 'o ${_hhmm(t.at!)}'),
             trailing: TextButton(
               key: Key('timerCancel-${t.id}'),
               onPressed: () => _cancel(timers, t),

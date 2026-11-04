@@ -190,13 +190,18 @@ class HubApi {
 
   // ---- odliczanie (timery, pkt 11)
 
-  /// `POST /api/timers` - Set [values] urządzenia [device] za [inSeconds] s; zwraca `id` i chwilę wykonania.
+  /// `POST /api/timers` - Set [values] urządzenia [device] za [inSeconds] s; zwraca `id` i chwilę wykonania
+  /// (null, gdy hub nie zna czasu).
   /// Błąd pola (`device|set|in|at|limit`) - [HubTimerException].
-  Future<({String id, DateTime at})> addTimer(String device, Json values, int inSeconds) async {
+  Future<({String id, DateTime? at})> addTimer(String device, Json values, int inSeconds) async {
     final j = await api.request('POST', '/api/timers', body: {'device': device, 'set': values, 'in': inSeconds});
     if (j is Map && j['ok'] == false && j['error'] is String) throw HubTimerException(j['error'] as String);
     final r = _ok(j);
-    return (id: asString(r['id'], 'id'), at: DateTime.fromMillisecondsSinceEpoch(asInt(r['at'], 'at') * 1000));
+    final at = r['at'];
+    return (
+      id: asString(r['id'], 'id'),
+      at: at is num ? DateTime.fromMillisecondsSinceEpoch(at.toInt() * 1000) : null,
+    );
   }
 
   Future<void> cancelTimer(String id) async {

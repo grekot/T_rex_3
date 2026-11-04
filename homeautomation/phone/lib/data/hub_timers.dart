@@ -28,7 +28,7 @@ class HubTimers {
   /// Rzuca [ThermostatException] (także [HubTimerException] z kodem błędu huba).
   Future<DateTime> add(String device, Json values, Duration after) async {
     final local = hub.localApi;
-    if (local != null) return (await HubApi(local).addTimer(device, values, after.inSeconds)).at;
+    if (local != null) return (await HubApi(local).addTimer(device, values, after.inSeconds)).at ?? _clock().add(after);
     final r = await hub.sendJson({
       'timerAdd': {'device': device, 'set': values, 'in': after.inSeconds},
     });
