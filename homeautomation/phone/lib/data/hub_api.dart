@@ -1,5 +1,6 @@
 import '../models/firmware.dart';
 import '../models/hub.dart';
+import '../models/hub_timer.dart';
 import '../models/json_utils.dart';
 import '../models/remote.dart';
 import '../models/scene.dart';
@@ -19,6 +20,13 @@ class HubApplyException extends ThermostatException {
     : super(errors.entries.map((e) => '${e.key}: ${describeApplyError(e.value)}').join('\n'));
 
   final Map<String, String> errors;
+}
+
+/// Hub nie przyjął albo nie anulował odliczania (`device|set|in|at|forbidden|limit|not_found`).
+class HubTimerException extends ThermostatException {
+  HubTimerException(this.code) : super(describeTimerError(code));
+
+  final String code;
 }
 
 String describeApplyError(String code) => switch (code) {
@@ -179,6 +187,23 @@ class HubApi {
   Future<void> deleteScene(String id) async => _ok(await api.request('DELETE', '/api/scenes/$id'));
 
   Future<void> runScene(String id) async => _ok(await api.request('POST', '/api/scenes/$id/run'));
+
+  // ---- odliczanie (timery, pkt 11)
+
+  /// `POST /api/timers` - Set [values] urządzenia [device] za [inSeconds] s; zwraca `id` i chwilę wykonania.
+  /// Błąd pola (`device|set|in|at|limit`) - [HubTimerException].
+  Future<({String id, DateTime at})> addTimer(String device, Json values, int inSeconds) async {
+    final j = await api.request('POST', '/api/timers', body: {'device': device, 'set': values, 'in': inSeconds});
+    if (j is Map && j['ok'] == false && j['error'] is String) throw HubTimerException(j['error'] as String);
+    final r = _ok(j);
+    return (id: asString(r['id'], 'id'), at: DateTime.fromMillisecondsSinceEpoch(asInt(r['at'], 'at') * 1000));
+  }
+
+  Future<void> cancelTimer(String id) async {
+    final j = await api.request('DELETE', '/api/timers/$id');
+    if (j is Map && j['ok'] == false && j['error'] is String) throw HubTimerException(j['error'] as String);
+    _ok(j);
+  }
 
   // ---- aktualizacje węzłów (pkt 3e)
 

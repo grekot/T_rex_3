@@ -24,6 +24,7 @@ import 'app_icons.dart';
 import 'device_tiles.dart';
 import 'format.dart';
 import 'generic_device_screen.dart' show canSet;
+import 'output_timer.dart';
 import 'point_controls.dart';
 import 'thermostat_sheet.dart';
 import 'widgets.dart' show DayTimeline;
@@ -647,6 +648,7 @@ class _DashTileState extends State<DashTile> {
       Widget? body,
       bool fillBody = false,
       String? titleOverride,
+      VoidCallback? onLongPress,
     }) {
       final act = _confirmed(titleOverride ?? title, primary);
       final features = _features(c, state, level, offline);
@@ -663,6 +665,7 @@ class _DashTileState extends State<DashTile> {
           device: open,
         ),
         onTap: _tapAction(w.tap ?? defaultTap, toggle: act, details: details, device: open),
+        onLongPress: onLongPress,
         badge: badge,
         // Szybkie sterowanie pod treścią; na małym kafelku widać tyle, ile się zmieści (dół), bez przepełnienia.
         body: features == null
@@ -739,16 +742,24 @@ class _DashTileState extends State<DashTile> {
         final level0 = p.key == 'on' && state?['level'] is num ? ' · ${state!['level']}%' : '';
         final offIn = on ? _channelLeft(state, p.key, 'OffIn') : null;
         final wait = on ? null : _channelLeft(state, p.key, 'Wait');
+        // Odliczanie w hubie dla tego wyjścia (pkt 11) - najbliższe; przytrzymanie kafelka ustawia nowe.
+        final timers = p.kind == PointKind.switchKind ? widget.hub.timersFor(c.device.id) : null;
+        final timer = timers?.forDevice(c.device.id).where((t) => t.output?.point == p.key).firstOrNull;
         final what = wait != null
             ? 'Włączy się za ${fmtLeftShort(wait)}'
             : on
             ? 'Włączone$level0${offIn == null ? '' : ' · wył. za ${fmtLeftShort(offIn)}'}'
             : 'Wyłączone';
         return shell(
-          secondary: '$what${w.label == null ? ' · ${c.device.name}' : ''}',
+          secondary:
+              '$what${timer == null ? '' : ' · ${timerShort(timer, DateTime.now())}'}'
+              '${w.label == null ? ' · ${c.device.name}' : ''}',
           active: on,
           iconKey: Key('dash-toggle-${w.id}'),
           primary: can && p.kind == PointKind.switchKind ? () => _send(c, p.setFor(!on), {p.key: !on}) : null,
+          onLongPress: timers != null && can
+              ? () => setOutputTimer(context, controller: c, timers: timers, point: p.key, name: title)
+              : null,
         );
       case WidgetView.status:
         final v = _value(p.key, state);
@@ -1665,10 +1676,19 @@ class _DashTileState extends State<DashTile> {
             for (final i in chosen) 'on$i': count == 0,
           })
         : null;
+    // Odliczanie w hubie (pkt 11): najbliższe na kafelku, przytrzymanie - nowe z wyborem kanału.
+    final timers = widget.hub.timersFor(c.device.id);
+    final timer = timers?.forDevice(c.device.id).firstOrNull;
     return TileShell(
       icon: icon,
       title: w.label ?? c.device.name,
-      secondary: _secondary(s, '$count z ${chosen.length} włączone'),
+      secondary: _secondary(
+        s,
+        '$count z ${chosen.length} włączone${timer == null ? '' : ' · ${timerShort(timer, DateTime.now())}'}',
+      ),
+      onLongPress: timers != null && can
+          ? () => setOutputTimer(context, controller: c, timers: timers, channels: n)
+          : null,
       active: count > 0,
       large: large,
       offline: offline,
@@ -1866,6 +1886,7 @@ class TileShell extends StatelessWidget {
     this.onIcon,
     this.iconKey,
     this.onTap,
+    this.onLongPress,
     this.badge,
     this.body,
     this.fillBody = false,
@@ -1886,6 +1907,9 @@ class TileShell extends StatelessWidget {
   final VoidCallback? onIcon;
   final Key? iconKey;
   final VoidCallback? onTap;
+
+  /// Przytrzymanie kafelka lub ikony (np. „wyłącz za…”).
+  final VoidCallback? onLongPress;
   final TileBadge? badge;
   final Widget? body;
 
@@ -1945,6 +1969,7 @@ class TileShell extends StatelessWidget {
       child: InkWell(
         customBorder: const CircleBorder(),
         onTap: onIcon ?? onTap,
+        onLongPress: onLongPress,
         child: SizedBox.square(
           dimension: iconBox,
           child: busy
@@ -2122,6 +2147,7 @@ class TileShell extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
+          onLongPress: onLongPress,
           child: Padding(
             padding: tiny
                 ? const EdgeInsets.symmetric(horizontal: 10, vertical: 8)

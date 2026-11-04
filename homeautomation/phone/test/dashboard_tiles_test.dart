@@ -1329,4 +1329,49 @@ void main() {
     expect(find.text('0 min'), findsOneWidget, reason: 'oś od zera, w godzinach');
     expect(find.text('12 h'), findsOneWidget, reason: 'pół każdej godziny grzania = 12 h na dobę');
   });
+
+  testWidgets('„wyłącz za…”: odliczanie huba na kafelku, przytrzymanie ustawia nowe; hub bez timerów - nic', (
+    tester,
+  ) async {
+    await setUpHub(tester);
+    const w = DashWidget(id: 'w1', view: WidgetView.toggle, device: 'parter', point: 'on1');
+    await show(tester, w);
+    await tester.longPress(find.text('Schody'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('timerStart')), findsNothing, reason: 'hub bez pola timers');
+    expect(find.byKey(const Key('tileOpenDevice')), findsOneWidget, reason: 'przytrzymanie jak dotyk - szczegóły');
+    Navigator.of(tester.element(find.byKey(const Key('tileOpenDevice')))).pop();
+    await tester.pumpAndSettle();
+
+    final at = DateTime.now().millisecondsSinceEpoch ~/ 1000 + 25 * 60;
+    hubConn.pushState({
+      'id': 'hub1',
+      'timers': [
+        {
+          'id': 't1',
+          'device': 'parter',
+          'set': {'on1': false},
+          'at': at,
+        },
+      ],
+    });
+    await tester.pumpAndSettle();
+    expect(find.textContaining('wył. za 25 min'), findsOneWidget);
+
+    await tester.longPress(find.text('Schody'));
+    await tester.pumpAndSettle();
+    expect(find.text('Odliczanie · Schody'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('timerIn-60')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('timerStart')));
+    await tester.pumpAndSettle();
+    expect(hubConn.sent.last, {
+      'timerAdd': {
+        'device': 'parter',
+        'set': {'on1': false},
+        'in': 3600,
+      },
+    });
+    expect(find.textContaining('Schody wyłączy się o'), findsOneWidget);
+  });
 }

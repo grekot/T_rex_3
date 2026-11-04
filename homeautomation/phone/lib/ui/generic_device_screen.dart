@@ -11,6 +11,8 @@ import '../models/json_utils.dart';
 import '../models/light.dart';
 import 'btnode_section.dart';
 import 'device_admin_section.dart';
+import 'output_schedule_section.dart';
+import 'output_timer.dart';
 import 'format.dart';
 import 'pairing_screen.dart';
 import 'point_controls.dart';
@@ -283,6 +285,20 @@ class _GenericDeviceScreenState extends State<GenericDeviceScreen> {
             _DefaultOnSection(controller: c),
         if (c.device.type.isLight && c.canConfig && _extended)
           if (c.config case final LightConfig cfg) _ExtrasSection(controller: c, config: cfg, state: ls),
+        // „Wyłącz za…” - odliczanie w hubie (tylko hub z timerami).
+        if (c.device.type.isLight)
+          OutputTimerSection(
+            controller: c,
+            hub: widget.hub,
+            channels: state['channels'] is int ? state['channels'] as int : 1,
+          ),
+        // Stałe godziny włączenia / wyłączenia - automatyki huba.
+        if (c.device.type.isLight)
+          OutputScheduleSection(
+            controller: c,
+            hub: widget.hub,
+            channels: state['channels'] is int ? state['channels'] as int : 1,
+          ),
         DeviceAdminSection(
           controller: c,
           cloudLinked: state['cloud'] == true,

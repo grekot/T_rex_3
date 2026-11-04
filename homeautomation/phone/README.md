@@ -341,6 +341,15 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   znaków, walidacja, wklejanie ze schowka, podpowiedź o `tools/ewelink_klucze.py`) jako `localKey`; listwa (`strip`)
   - wybór kanałów 1-4, osobne `POST /api/devices` z `channel` 0-3 i nazwami „<nazwa> 1..4”; błąd `key` na liście
   („Zły klucz urządzenia”) - dotknięcie albo menu „Zmień klucz urządzenia” (POST z tym samym `id`);
+- **Harmonogram wyjścia** (ekran światła / przełącznika, `output_schedule_section.dart`): stałe godziny „Pn–Pt 6:30
+  włącz” na całe urządzenie (`on`) albo kanał (`onN`); wpis = automatyka huba z jednym wyzwalaczem `time` + `days`,
+  bez warunków, z jedną akcją `set` (`OutputSchedule`), nazwa „Harmonogram: <urządzenie> - włącz … 06:30”. Takie
+  automatyki z edytora automatyk też się tu pokazują. Włączanie / wyłączanie wpisu, zmiana, usunięcie; bez huba -
+  wyjaśnienie. Zapis jak automatyki: w domu w hubie, poza domem w chmurze + `reload`.
+- **Wyłącz / włącz za…** (pkt 11, `output_timer.dart`): jednorazowe odliczanie w hubie - sekcja „Odliczanie” na ekranie
+  wyjścia (aktywne timery urządzenia z czasem do końca i „Anuluj”, wybór kanału, 5 min - 2 h albo własny czas) i
+  przytrzymanie kafelka wyjścia; na kafelku dopisek „wył. za 25 min”. W domu `POST/DELETE /api/timers`, poza domem
+  Set huba `timerAdd` / `timerCancel` (`HubTimers`). Timery z State huba (`timers`); hub bez tego pola - opcji nie ma.
 - **Automatyki**: w domu wprost w hubie (`/api/automations`: diagnostyka - pominięte reguły, wschód/zachód, czas;
   „Uruchom teraz”; dziennik), poza domem `homes/{h}/automations/{id}` z `updatedAt` i Set `{"reload":true}`.
   Edytor: kiedy (godzina z dniami, wschód/zachód z przesunięciem, stan urządzenia z „przez N s”, przycisk / wejście

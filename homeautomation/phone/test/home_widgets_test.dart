@@ -204,7 +204,13 @@ void main() {
 
   tearDown(() => runtime.dispose());
 
-  Future<void> settle() => Future<void>.delayed(const Duration(milliseconds: 30));
+  /// Chwila na połączenia i rysowanie; na wolnym komputerze dłużej - aż zniknie „Łączenie…” (najwyżej ok. 1 s).
+  Future<void> settle() async {
+    await Future<void>.delayed(const Duration(milliseconds: 30));
+    for (var i = 0; i < 50 && (renders.isEmpty || jsonEncode(renders.last).contains('Łączenie')); i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+    }
+  }
 
   Map<String, dynamic> cell(int id, [int index = 0]) => (renders.last['$id'] as List)[index] as Map<String, dynamic>;
 

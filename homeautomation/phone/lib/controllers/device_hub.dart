@@ -7,9 +7,11 @@ import '../data/connection_manager.dart';
 import '../data/device_icons.dart';
 import '../data/device_store.dart';
 import '../data/home_repository.dart';
+import '../data/hub_timers.dart';
 import '../data/scene_store.dart';
 import '../models/device_type.dart';
 import '../models/home.dart';
+import '../models/hub_timer.dart';
 import '../models/json_utils.dart';
 import '../models/scene.dart';
 import 'light_controller.dart';
@@ -133,6 +135,15 @@ class DeviceHub extends ChangeNotifier {
     for (final d in devices)
       if (d.type == DeviceType.hub && _controllers[d.id] != null) _controllers[d.id]!,
   ];
+
+  /// Odliczanie dla urządzenia [id]: hub, przez który jest dostępne (albo pierwszy), o ile ma timery
+  /// (pole `timers` w State, pkt 11); null = opcji „wyłącz za…” nie pokazujemy.
+  HubTimers? timersFor(String id) {
+    final ready = hubs.where((h) => hubTimers(h.stateJson) != null).toList();
+    final via = device(id)?.via;
+    final h = ready.where((h) => h.device.id == via).firstOrNull ?? ready.firstOrNull;
+    return h == null ? null : HubTimers(h);
+  }
 
   /// Po zapisie scen / automatyk w chmurze: Set `{"reload":true}` - hub pobiera je od razu (pkt 11).
   Future<void> reloadHubs() async {
