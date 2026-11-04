@@ -2,6 +2,7 @@
 // co pod temperaturą termostatu, co robi dotknięcie wyjścia. Pozycja może też powstać z kafelka pulpitu.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 
@@ -9,8 +10,9 @@ import '../controllers/device_hub.dart';
 import '../models/dashboard.dart';
 import '../models/home_widget.dart';
 import '../ui/app_icons.dart';
-import '../ui/tile_charts.dart' show namedColor;
+import '../ui/tile_charts.dart' show chartRanges, namedColor, rangeLabel;
 import 'widget_cells.dart';
+import 'widget_chart.dart';
 
 /// Nazwane kolory pozycji (jak kafelki pulpitu, pkt 13.1); null = akcent (pomarańczowy).
 const widgetColors = [
@@ -26,8 +28,19 @@ const widgetColors = [
 /// Pozycja widżetu z kafelka pulpitu: rodzaj z widoku i punktu, podpis, ikona, kolor (i wartości czujnika) jak na
 /// kafelku. Kopia w chwili wyboru - późniejsza zmiana kafelka nie zmienia widżetu. null = kafelek bez odpowiednika.
 HomeWidgetItem? itemFromTile(DashWidget w, DeviceHub hub) {
-  WidgetItemLook look({String? main, List<String>? more}) =>
-      WidgetItemLook(label: w.label, icon: w.icon, color: w.color, main: main, more: more);
+  WidgetItemLook look({String? main, List<String>? more, String? range, bool? bars}) =>
+      WidgetItemLook(label: w.label, icon: w.icon, color: w.color, main: main, more: more, range: range, bars: bars);
+  // Wykres: pierwsza seria (może być z innego urządzenia niż `device` kafelka), zakres i słupki jak na kafelku.
+  if (w.view == WidgetView.chart) {
+    final s = w.series.firstOrNull;
+    final dev = s?.device ?? w.device, pt = s?.point ?? w.point;
+    if (dev == null || pt == null || hub.device(dev) == null) return null;
+    return HomeWidgetItem.chart(
+      dev,
+      pt,
+      look: look(range: w.range, bars: s?.line == 'bars' ? true : null),
+    );
+  }
   final device = w.device, point = w.point;
   if (w.isScene) return w.sceneId == null ? null : HomeWidgetItem.scene(w.sceneId!, look: look());
   if (w.view == WidgetView.valueList) {
@@ -48,14 +61,7 @@ HomeWidgetItem? itemFromTile(DashWidget w, DeviceHub hub) {
       (w.view == WidgetView.toggle || w.view == WidgetView.status)) {
     return HomeWidgetItem.output(device, point, look: look());
   }
-  if (point != null &&
-      const [
-        WidgetView.value,
-        WidgetView.gauge,
-        WidgetView.level,
-        WidgetView.chart,
-        WidgetView.dial,
-      ].contains(w.view)) {
+  if (point != null && const [WidgetView.value, WidgetView.gauge, WidgetView.level, WidgetView.dial].contains(w.view)) {
     final second = w.secondary != null && w.secondary!.startsWith('point:') ? w.secondary!.substring(6) : null;
     return HomeWidgetItem.sensor(
       device,
@@ -89,6 +95,20 @@ class _WidgetLookScreenState extends State<WidgetLookScreen> {
 
   HomeWidgetItem get _item => widget.item.withLook(_look);
 
+  /// Wykres: podgląd z historii w chmurze, od nowa po zmianie zakresu, stylu albo koloru.
+  Future<WidgetChart?>? _chart;
+  String? _chartFor;
+
+  Future<WidgetChart?>? _chartPreview() {
+    if (widget.item.kind != HomeWidgetKind.chart) return null;
+    final key = '${_look.range}|${_look.bars}|${_look.color}';
+    if (_chartFor != key) {
+      _chartFor = key;
+      _chart = loadWidgetChart(widget.hub, _item).catchError((_) => null);
+    }
+    return _chart;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -114,6 +134,8 @@ class _WidgetLookScreenState extends State<WidgetLookScreen> {
     Object? main = _keep,
     Object? more = _keep,
     Object? tap = _keep,
+    Object? range = _keep,
+    Object? bars = _keep,
   }) => WidgetItemLook(
     label: label == _keep ? _look.label : label as String?,
     icon: icon == _keep ? _look.icon : icon as String?,
@@ -121,6 +143,8 @@ class _WidgetLookScreenState extends State<WidgetLookScreen> {
     main: main == _keep ? _look.main : main as String?,
     more: more == _keep ? _look.more : more as List<String>?,
     tap: tap == _keep ? _look.tap : tap as String?,
+    range: range == _keep ? _look.range : range as String?,
+    bars: bars == _keep ? _look.bars : bars as bool?,
   );
 
   /// Domyślna ikona (bez wyboru) - ta, którą pokaże podgląd.
@@ -128,6 +152,7 @@ class _WidgetLookScreenState extends State<WidgetLookScreen> {
     HomeWidgetKind.output => 'light',
     HomeWidgetKind.thermostat => 'thermostat',
     HomeWidgetKind.scene => 'scene',
+    HomeWidgetKind.chart => 'chart',
     HomeWidgetKind.sensor => switch (_look.main ?? _readings.firstOrNull?.key) {
       'temp' => 'temperature',
       'hum' => 'humidity',
@@ -170,10 +195,15 @@ class _WidgetLookScreenState extends State<WidgetLookScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          ListenableBuilder(
-            listenable: widget.hub,
-            builder: (context, _) =>
-                WidgetCellPreview(cell: widgetCell(_item, widget.hub), iconKey: _look.icon ?? _defaultIcon),
+          FutureBuilder<WidgetChart?>(
+            future: _chartPreview(),
+            builder: (context, chart) => ListenableBuilder(
+              listenable: widget.hub,
+              builder: (context, _) => WidgetCellPreview(
+                cell: widgetCell(_item, widget.hub, chart: chart.data),
+                iconKey: _look.icon ?? _defaultIcon,
+              ),
+            ),
           ),
           const SizedBox(height: 16),
           TextField(
@@ -274,6 +304,34 @@ class _WidgetLookScreenState extends State<WidgetLookScreen> {
               (k) => _set(_copy(more: k == 'target' ? null : (k == 'none' ? const <String>[] : [k]))),
             ),
           ],
+          if (kind == HomeWidgetKind.chart) ...[
+            const SizedBox(height: 16),
+            Text('Zakres', style: t.titleSmall),
+            const SizedBox(height: 6),
+            _chips<String>(
+              'look-range',
+              [for (final r in chartRanges) (r, rangeLabel(r))],
+              _look.range ?? '24h',
+              (r) => _set(_copy(range: r == '24h' ? null : r)),
+            ),
+            const SizedBox(height: 12),
+            Text('Styl', style: t.titleSmall),
+            const SizedBox(height: 6),
+            _chips<bool>(
+              'look-bars',
+              const [(false, 'Linia'), (true, 'Słupki')],
+              _look.bars ?? false,
+              (b) => _set(_copy(bars: b ? true : null)),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: Text(
+                'Historia z chmury, wykres na widżecie odświeża się co 15 minut. Słupki: do 24 h na godzinę, '
+                '7 i 30 dni - na dzień (stan, np. grzanie - czas włączenia).',
+                style: t.bodySmall,
+              ),
+            ),
+          ],
           if (kind == HomeWidgetKind.output) ...[
             const SizedBox(height: 16),
             Text('Dotknięcie', style: t.titleSmall),
@@ -337,6 +395,18 @@ class WidgetCellPreview extends StatelessWidget {
                   ),
                   if (cell.value != null) Text(cell.value!, style: t.headlineSmall?.copyWith(color: fg)),
                   if (cell.subtitle.isNotEmpty) Text(cell.subtitle, style: t.bodySmall?.copyWith(color: fg)),
+                  if (cell.chartPng case final png?)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Image.memory(
+                        base64Decode(png),
+                        key: const Key('look-chart'),
+                        height: 64,
+                        width: double.infinity,
+                        fit: BoxFit.fill,
+                        gaplessPlayback: true,
+                      ),
+                    ),
                 ],
               ),
             ),

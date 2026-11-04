@@ -18,6 +18,7 @@ import '../firebase_options.dart';
 import '../models/home.dart';
 import '../models/home_widget.dart';
 import 'icon_png.dart';
+import 'widget_chart.dart';
 import 'widget_runtime.dart';
 
 const _channel = MethodChannel('pl.grekot.homeautomation/widgets');
@@ -56,6 +57,7 @@ Future<void> runHomeWidgetService() async {
     hubFactory: widgetHub,
     render: (json) => unawaited(_channel.invokeMethod<void>('render', json).catchError((_) {})),
     iconPng: renderIconPng,
+    chartLoader: loadWidgetChart,
   );
 
   Future<void> reload() async {

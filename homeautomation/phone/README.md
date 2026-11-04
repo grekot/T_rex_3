@@ -204,6 +204,14 @@ Widżety systemowe, niezależne od pulpitów w aplikacji. Na ekranie telefonu: p
   `color`, `main`, `more`, `tap`. **Z pulpitu**: kafelek pulpitu jako gotowa pozycja (`itemFromTile`: wartość /
   wskaźnik / poziom / wykres czujnika, kilka wartości z jednego urządzenia, wyjście, termostat, scena) z jego
   podpisem, ikoną, kolorem i wartościami - kopia, późniejsza zmiana kafelka nie zmienia widżetu.
+- **Wykres** (`chart`, `widget_chart.dart`): pozycja „Wykres: <punkt>” dla punktów z `history` w `describe` (bez
+  opisu - temperatura termostatu) i kafelek wykresu z pulpitu (pierwsza seria, zakres, słupki). Usługa czyta historię
+  z chmury (`loadHistory`) i rysuje obrazek tym samym kodem co kafelek (`renderChartPng`: linia z wypełnieniem albo
+  słupki, `historyBars`); w kratce nazwa, ostatnia wartość i „min – max · 24 h” (słupki: bieżący przedział
+  i „najwięcej …”), obrazek pod tekstem (`widget_chart` w `widget_cell.xml`). Odświeżanie co 15 min
+  (`chartRefresh`, jak zapis historii), po `describe` urządzenia; wygląd: zakres 6 h - 30 dni, linia / słupki
+  (stan, np. grzanie - od razu słupki z czasem włączenia), kolor. Bez konta w chmurze - „Wykres wymaga konta
+  w chmurze”. Dotknięcie otwiera urządzenie. Podgląd obrazków: `tool/preview/widget_chart_preview_test.dart`.
 - **Na żywo**: `LiveWidgetService.kt` to usługa pierwszoplanowa `specialUse` (stałe, ciche powiadomienie „Widżety na
   żywo”) z osobnym silnikiem Fluttera (`homeWidgetServiceMain`). `WidgetRuntime` używa tych samych `DeviceHub` i dróg
   co aplikacja (lokalnie → chmura), z połączeniami tylko do urządzeń z widżetów (`DeviceHub.wanted`; przy scenach także

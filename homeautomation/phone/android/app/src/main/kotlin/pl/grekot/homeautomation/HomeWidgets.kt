@@ -67,6 +67,16 @@ object HomeWidgets {
         JSONObject().put("title", "HomeAutomation").put("subtitle", "Łączenie…").put("icon", "bulb").put("dimmed", true),
     )
 
+    /// Obrazek PNG w base64 od usługi widżetów; null = brak albo uszkodzony.
+    private fun bitmap(base64: String) = base64.takeIf { it.isNotEmpty() }?.let {
+        try {
+            val bytes = Base64.decode(it, Base64.DEFAULT)
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+        } catch (e: IllegalArgumentException) {
+            null
+        }
+    }
+
     /// Nazwany kolor pozycji (`amber|blue|…`, jak kafelki pulpitu): kolor ikony i tło włączonej kratki.
     private fun namedColor(name: String): Int? = when (name) {
         "amber" -> 0xFFE8A200.toInt()
@@ -102,20 +112,17 @@ object HomeWidgets {
         views.setViewVisibility(R.id.widget_value, if (value == null) View.GONE else View.VISIBLE)
         views.setTextViewText(R.id.widget_value, value ?: "")
         // Ikona z katalogu aplikacji (biały PNG od usługi) albo zapasowa z zasobów.
-        val png = c.optString("iconPng").takeIf { it.isNotEmpty() }?.let {
-            try {
-                val bytes = Base64.decode(it, Base64.DEFAULT)
-                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-            } catch (e: IllegalArgumentException) {
-                null
-            }
-        }
+        val png = bitmap(c.optString("iconPng"))
         if (png != null) {
             views.setImageViewBitmap(R.id.widget_icon, png)
         } else {
             views.setImageViewResource(R.id.widget_icon, icon(c.optString("icon")))
         }
         views.setInt(R.id.widget_icon, "setColorFilter", if (active) text else namedColor(color) ?: text)
+        // Wykres (obrazek od usługi, rysowany jak kafelek pulpitu) pod tekstem.
+        val chart = bitmap(c.optString("chartPng"))
+        views.setViewVisibility(R.id.widget_chart, if (chart == null) View.GONE else View.VISIBLE)
+        if (chart != null) views.setImageViewBitmap(R.id.widget_chart, chart)
         views.setInt(
             R.id.widget_cell,
             "setBackgroundResource",

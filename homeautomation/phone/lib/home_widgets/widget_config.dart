@@ -13,11 +13,12 @@ import '../data/home_repository.dart';
 import '../data/home_widget_store.dart';
 import '../firebase_options.dart';
 import '../models/dashboard.dart';
+import '../models/describe.dart';
 import '../models/device_type.dart';
 import '../models/home.dart';
 import '../models/home_widget.dart';
 import '../services.dart';
-import '../ui/dashboard_tiles.dart' show channelName;
+import '../ui/dashboard_tiles.dart' show channelName, fallbackPoint;
 import 'widget_cells.dart';
 import 'widget_look.dart';
 
@@ -255,7 +256,32 @@ class _HomeWidgetConfigScreenState extends State<HomeWidgetConfigScreen> {
     if (r != null && mounted) setState(() => _chosen[i] = r);
   }
 
-  static String _keyOf(HomeWidgetItem item) => '${item.device ?? ''}-${item.point ?? item.sceneId ?? ''}';
+  static String _keyOf(HomeWidgetItem item) => item.kind == HomeWidgetKind.chart
+      ? '${item.device}-chart:${item.point}'
+      : '${item.device ?? ''}-${item.point ?? item.sceneId ?? ''}';
+
+  /// Urządzenia, o których `describe` już pytaliśmy (wykresy - punkty z polem `history`).
+  final _asked = <String>{};
+
+  void _describeAll(DeviceHub hub) {
+    for (final d in hub.devices) {
+      final c = hub.controller(d.id);
+      if (c == null || c.connection == null || c.cachedDescription != null || !_asked.add(d.id)) continue;
+      unawaited(c.description().then((_) => mounted ? setState(() {}) : null, onError: (_) => null));
+    }
+  }
+
+  /// Punkty z historią (pkt 8.1) do wykresu; bez opisu - temperatura termostatu.
+  static List<DataPoint> _historyPoints(DeviceType type, DeviceController<Object?, Object?>? c) {
+    final desc = c?.cachedDescription;
+    if (desc != null) {
+      return [
+        for (final p in desc.points)
+          if (p.history != null) p,
+      ];
+    }
+    return type == DeviceType.thermostat ? [fallbackPoint('temp')] : const [];
+  }
 
   Widget _tile(HomeWidgetItem item, String title, {String? subtitle, required IconData icon}) {
     final i = _chosen.indexOf(item);
@@ -333,6 +359,21 @@ class _HomeWidgetConfigScreenState extends State<HomeWidgetConfigScreen> {
         // Węzeł z czujnikiem temperatury / wilgotności (np. switch4 z DHT).
         if (canShowAsSensor(d.type, c?.stateJson)) out.add(_sensorTile(d.id, name, c));
       }
+      // Wykresy punktów z historią (stan, np. grzanie - od razu słupki z czasem włączenia).
+      for (final p in _historyPoints(d.type, c)) {
+        out.add(
+          _tile(
+            HomeWidgetItem.chart(
+              d.id,
+              p.key,
+              look: p.kind == PointKind.status ? const WidgetItemLook(bars: true) : const WidgetItemLook(),
+            ),
+            'Wykres: ${p.name}',
+            subtitle: c?.device.name ?? d.name,
+            icon: Icons.show_chart,
+          ),
+        );
+      }
     }
     return out;
   }
@@ -354,6 +395,7 @@ class _HomeWidgetConfigScreenState extends State<HomeWidgetConfigScreen> {
       listenable: widget.hub,
       builder: (context, _) {
         final hub = widget.hub;
+        _describeAll(hub);
         final devices = _deviceTiles(hub);
         final tiles = _tileItems(hub);
         final title = widget.multi ? 'Pozycje (${_chosen.length} z ${HomeWidgetConfig.maxItems})' : 'Co pokazać';

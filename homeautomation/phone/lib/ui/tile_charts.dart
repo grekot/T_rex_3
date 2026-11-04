@@ -2,7 +2,9 @@
 // (`line: bars`), pokrętło (`dial`, półokrągły suwak), wskaźnik (`gauge`, tylko odczyt) i pasek poziomu (`level`,
 // pionowy suwak). Rysowane CustomPainterem.
 
+import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
@@ -289,6 +291,51 @@ class _TileChartState extends State<TileChart> {
       ],
     );
   }
+}
+
+/// Wykres do obrazka PNG (base64) - dla widżetu na ekranie telefonu, tym samym rysowaniem co kafelek pulpitu:
+/// linia z wypełnieniem albo słupki ([bars], [agg]), bez opisów osi (zakres pisze widżet tekstem). Oś: [lo]-[hi].
+/// null = za mało danych.
+Future<String?> renderChartPng(
+  List<HistoryPoint> data, {
+  required int hours,
+  required double lo,
+  required double hi,
+  required Color color,
+  bool bars = false,
+  String agg = 'avg',
+  DateTime? now,
+  int width = 600,
+  int height = 220,
+}) async {
+  if (data.length < 2 && !bars) return null;
+  final size = Size(width.toDouble(), height.toDouble());
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  const grid = Color(0x55888888);
+  if (bars) {
+    _BarsPainter(
+      bars: [for (final b in historyBars(data, hours, agg, now ?? DateTime.now())) b.value],
+      lo: lo,
+      hi: hi,
+      color: color,
+      grid: grid,
+    ).paint(canvas, size);
+  } else {
+    _ChartPainter(
+      lines: [(data: data, line: 'smooth', color: color)],
+      lo: lo,
+      hi: hi,
+      ref: null,
+      hours: hours,
+      grid: grid,
+      band: color,
+    ).paint(canvas, size);
+  }
+  final image = await recorder.endRecording().toImage(width, height);
+  final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+  image.dispose();
+  return bytes == null ? null : base64Encode(bytes.buffer.asUint8List());
 }
 
 class _BarsPainter extends CustomPainter {

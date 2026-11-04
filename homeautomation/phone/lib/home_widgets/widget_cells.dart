@@ -8,6 +8,7 @@ import '../models/home_widget.dart';
 import '../models/json_utils.dart';
 import '../ui/dashboard_tiles.dart' show channelName;
 import '../ui/hub_ble_screen.dart' show bleValueText;
+import 'widget_chart.dart';
 
 /// Kanały `on1..N` węzła wielokanałowego; 1 = zwykły włącznik.
 int channelCount(Json? state) => state?['channels'] is int ? state!['channels'] as int : 1;
@@ -247,10 +248,49 @@ WidgetCell _sensor(HomeWidgetItem item, DeviceHub hub) {
   );
 }
 
-/// Stan pozycji widżetu z danych na żywo.
-WidgetCell widgetCell(HomeWidgetItem item, DeviceHub hub) => switch (item.kind) {
+/// Wykres: nazwa punktu, ostatnia wartość i zakres, obrazek z [chart]; bez chmury albo historii - wyjaśnienie.
+WidgetCell _chart(HomeWidgetItem item, DeviceHub hub, WidgetChart? chart) {
+  final id = item.device!;
+  final look = item.look;
+  final c = hub.controller(id);
+  final p = chartPoint(c, item.point!);
+  final device = c?.device.name ?? hub.device(id)?.name ?? 'Urządzenie';
+  final title = look.label ?? p.name;
+  if (hub.accessFor(id) == AccessLevel.none) return _unavailable(title, 'Brak dostępu', 'lock', look);
+  final iconKey = look.icon ?? 'chart';
+  if (chart == null) {
+    final why = hub.home == null || !hub.cloud.available
+        ? 'Wykres wymaga konta w chmurze'
+        : p.history == null
+        ? 'Ten punkt nie ma historii'
+        : 'Wczytywanie wykresu…';
+    return WidgetCell(
+      title: title,
+      subtitle: '$device · $why',
+      icon: 'sensor',
+      dimmed: true,
+      open: id,
+      iconKey: iconKey,
+      color: look.color,
+    );
+  }
+  return WidgetCell(
+    title: title,
+    value: chart.value,
+    subtitle: chart.subtitle,
+    icon: 'sensor',
+    open: id,
+    iconKey: iconKey,
+    color: look.color,
+    chartPng: chart.png,
+  );
+}
+
+/// Stan pozycji widżetu z danych na żywo; [chart] - narysowany wykres pozycji `chart` (z usługi widżetów).
+WidgetCell widgetCell(HomeWidgetItem item, DeviceHub hub, {WidgetChart? chart}) => switch (item.kind) {
   HomeWidgetKind.output => _output(item, hub),
   HomeWidgetKind.thermostat => _thermostat(item, hub),
   HomeWidgetKind.scene => _scene(item, hub),
   HomeWidgetKind.sensor => _sensor(item, hub),
+  HomeWidgetKind.chart => _chart(item, hub, chart),
 };

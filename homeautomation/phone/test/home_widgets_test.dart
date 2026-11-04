@@ -15,7 +15,10 @@ import 'package:homeautomation/data/dashboard_store.dart';
 import 'package:homeautomation/data/thermostat_connection.dart';
 import 'package:homeautomation/home_widgets/widget_cells.dart';
 import 'package:homeautomation/home_widgets/widget_config.dart';
+import 'package:homeautomation/home_widgets/widget_chart.dart';
 import 'package:homeautomation/home_widgets/widget_look.dart';
+import 'package:homeautomation/ui/dashboard_tiles.dart' show fallbackPoint;
+import 'package:homeautomation/data/history.dart';
 import 'package:homeautomation/models/dashboard.dart';
 import 'package:homeautomation/home_widgets/widget_runtime.dart';
 import 'package:homeautomation/models/device_type.dart';
@@ -393,13 +396,13 @@ void main() {
     await tester.ensureVisible(find.byKey(const Key('widget-item-parter-on1')));
     await tester.tap(find.byKey(const Key('widget-item-parter-on1')));
     await tester.pump();
-    await tester.ensureVisible(find.byKey(const Key('widget-item--noc')));
+    await tester.scrollUntilVisible(find.byKey(const Key('widget-item--noc')), 200);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('widget-item--noc')));
     await tester.pump();
-    await tester.ensureVisible(find.byKey(const Key('widget-item-ble-b8f862d84911-')));
+    await tester.scrollUntilVisible(find.byKey(const Key('widget-item-ble-b8f862d84911-')), -200);
     await tester.pumpAndSettle();
-    expect(find.text('Czujnik · 22,4 °C · 58 % · 998 hPa'), findsOneWidget);
+    expect(find.text('Czujnik · 22,4 °C · 58 % · 997,8 hPa'), findsOneWidget);
     await tester.tap(find.byKey(const Key('widget-item-ble-b8f862d84911-')));
     await tester.pump();
     expect(find.text('Pozycje (3 z 6)'), findsOneWidget);
@@ -587,6 +590,118 @@ void main() {
       const WidgetItemLook(label: 'Brama', color: 'red'),
     ]);
     expect(saved!.last, const HomeWidgetItem.output('parter', 'on2'));
+    hub.dispose();
+  });
+
+  // ---- wykres na widżecie
+
+  test('wykres do obrazka: linia (ostatnia wartość, zakres), słupki czasu grzania, za mało danych - null', () async {
+    final now = DateTime(2026, 11, 4, 12, 30);
+    final temp = [
+      for (var m = 0; m <= 24 * 60; m += 15)
+        (at: now.subtract(Duration(minutes: 24 * 60 - m)), value: 21 + (m % 120) / 100),
+    ];
+    final line = await buildWidgetChart(temp, fallbackPoint('temp'), now: now);
+    expect(line!.png, isNotEmpty);
+    expect((line.value, line.subtitle), ('${temp.last.value.toStringAsFixed(1).replaceAll('.', ',')} °C', '21,0 °C – 22,1 °C · 24 h'));
+
+    final heat = [
+      for (var m = 0; m < 24 * 60 * 7; m += 15)
+        (at: now.subtract(Duration(minutes: 24 * 60 * 7 - m)), value: m % 60 < 30 ? 1.0 : 0.0),
+    ];
+    final bars = await buildWidgetChart(heat, fallbackPoint('heating'), range: '7d', bars: true, now: now);
+    expect(bars!.subtitle, '7 dni · najwięcej 12 h');
+    expect(await buildWidgetChart(const <HistoryPoint>[], fallbackPoint('temp'), now: now), isNull);
+  });
+
+  test('pozycja „Wykres”: obrazek i wartość z usługi, wczytany raz w okresie odświeżania; bez danych - wyjaśnienie', () async {
+    var loads = 0;
+    runtime.dispose();
+    runtime = WidgetRuntime(
+      hubFactory: (config, wanted) =>
+          DeviceHub(store: store, manager: manager, cloud: NoCloudAccess(), sceneStore: scenes, wanted: wanted),
+      render: (json) => renders.add(jsonDecode(json) as Map<String, dynamic>),
+      debounce: Duration.zero,
+      chartLoader: (hub, item) async {
+        loads++;
+        return item.point == 'temp' ? (png: 'PNG', value: '21,4 °C', subtitle: '20,1 °C – 22,9 °C · 24 h') : null;
+      },
+    );
+    runtime.update([
+      config(1, const [
+        HomeWidgetItem.chart('termostat-ab12cd', 'temp', look: WidgetItemLook(label: 'Salon 24 h')),
+        HomeWidgetItem.chart('termostat-ab12cd', 'target'),
+      ]),
+    ]);
+    for (var i = 0; i < 4; i++) {
+      await settle();
+    }
+    final c = cell(1);
+    expect((c['title'], c['value'], c['subtitle'], c['chartPng'], c['open']), (
+      'Salon 24 h',
+      '21,4 °C',
+      '20,1 °C – 22,9 °C · 24 h',
+      'PNG',
+      'termostat-ab12cd',
+    ));
+    expect(cell(1, 1)['chartPng'], isNull);
+    expect(cell(1, 1)['subtitle'], contains('Wykres wymaga konta w chmurze'));
+    final before = loads;
+    thermo.push({'temp': 21.6});
+    await settle();
+    expect(loads, before, reason: 'nowy stan nie wczytuje historii od nowa przed upływem 15 min');
+    await runtime.tap(1, 0);
+    expect(thermo.sent, isEmpty, reason: 'dotknięcie otwiera aplikację');
+  });
+
+  test('kafelek wykresu z pulpitu: pozycja „Wykres” z zakresem i słupkami', () async {
+    final hub = DeviceHub(store: store, manager: manager, cloud: NoCloudAccess(), sceneStore: scenes)..start();
+    await hub.load();
+    final tile = const DashWidget(id: 'c1', view: WidgetView.chart, device: 'termostat-ab12cd', point: 'temp', label: 'Temp')
+        .patch({
+          'range': '7d',
+          'series': [
+            {'device': 'termostat-ab12cd', 'point': 'heating', 'line': 'bars'},
+          ],
+        });
+    final item = itemFromTile(tile, hub);
+    expect(item, const HomeWidgetItem.chart('termostat-ab12cd', 'heating'));
+    expect((item!.look.range, item.look.bars, item.look.label), ('7d', true, 'Temp'));
+    hub.dispose();
+  });
+
+  testWidgets('ekran konfiguracji: „Wykres: Temperatura” termostatu i wygląd wykresu (zakres, słupki)', (tester) async {
+    final hub = DeviceHub(store: store, manager: manager, cloud: NoCloudAccess(), sceneStore: scenes)..start();
+    List<HomeWidgetItem>? saved;
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeWidgetConfigScreen(hub: hub, multi: false, onSave: (items) async => saved = items),
+      ),
+    );
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 50)));
+    await tester.pumpAndSettle();
+    const key = 'termostat-ab12cd-chart:temp';
+    await tester.scrollUntilVisible(find.byKey(const Key('widget-item-$key')), 200);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('widget-item-$key')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('widget-look-$key')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Wykres wymaga konta w chmurze'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('look-range-7d')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('look-range-7d')));
+    await tester.pump();
+    await tester.ensureVisible(find.byKey(const Key('look-bars-true')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('look-bars-true')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('look-done')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('widget-save')));
+    await tester.pump();
+    expect(saved, const [HomeWidgetItem.chart('termostat-ab12cd', 'temp')]);
+    expect((saved!.single.look.range, saved!.single.look.bars), ('7d', true));
     hub.dispose();
   });
 }

@@ -9,6 +9,7 @@ import '../models/device_type.dart';
 import '../models/home_widget.dart';
 import '../models/scene.dart';
 import 'widget_cells.dart';
+import 'widget_chart.dart';
 
 /// Tworzy [DeviceHub] domu widżetu; [wanted] - urządzenia, z którymi ma się łączyć.
 typedef WidgetHubFactory = DeviceHub Function(HomeWidgetConfig config, Set<String> Function() wanted);
@@ -23,7 +24,18 @@ class WidgetRuntime {
     this.readyTimeout = const Duration(seconds: 8),
     this.messageTime = const Duration(seconds: 4),
     this.iconPng,
+    this.chartLoader,
+    this.chartRefresh = const Duration(minutes: 15),
   });
+
+  /// Wykres pozycji `chart` (historia z chmury → obrazek); null = bez wykresów (testy bez nich).
+  final Future<WidgetChart?> Function(DeviceHub hub, HomeWidgetItem item)? chartLoader;
+
+  /// Co ile odświeżać wykresy (historia zapisuje się co 15 min).
+  final Duration chartRefresh;
+  final _charts = <String, ({WidgetChart? chart, DateTime at})>{};
+  final _chartsLoading = <String>{};
+  Timer? _chartTimer;
 
   /// Ikona z katalogu aplikacji jako PNG (base64) dla kratek z `iconKey`; null = tylko ikony zapasowe Androida.
   final Future<String?> Function(String key)? iconPng;
@@ -50,8 +62,10 @@ class WidgetRuntime {
   String? _message;
   bool _paused = false;
 
-  /// Połączenia, na których już pytaliśmy o `describe` dla czujnika (raz na połączenie).
+  /// Połączenia, na których już pytaliśmy o `describe` dla czujnika / wykresu (raz na połączenie) i na których
+  /// odpowiedź już przyszła.
   final _described = Expando<bool>();
+  final _describeDone = Expando<bool>();
 
   /// Hub domu (testy).
   DeviceHub? hub(String homeId) => _hubs[homeId];
@@ -74,6 +88,7 @@ class WidgetRuntime {
     for (final hub in _hubs.values) {
       hub.resync();
     }
+    _syncChartTimer();
     _scheduleRender();
   }
 
@@ -133,11 +148,13 @@ class WidgetRuntime {
   void pause() {
     _paused = true;
     _closeHubs();
+    _syncChartTimer();
   }
 
   void resume() {
     _paused = false;
     if (_message == null) _openHubs();
+    _syncChartTimer();
     _scheduleRender();
   }
 
@@ -155,12 +172,58 @@ class WidgetRuntime {
 
   /// Czujnik pokazuje punkty z `describe` - pobieramy go raz na połączenie i rysujemy jeszcze raz.
   void _describeSensors(HomeWidgetConfig config, DeviceHub hub) {
-    for (final item in config.items.where((i) => i.kind == HomeWidgetKind.sensor)) {
+    for (final item in config.items.where((i) => i.kind == HomeWidgetKind.sensor || i.kind == HomeWidgetKind.chart)) {
       final c = hub.controller(item.device!);
       final conn = c?.connection;
       if (c == null || conn == null || c.cachedDescription != null || _described[conn] == true) continue;
       _described[conn] = true;
-      unawaited(c.description().then((d) => d == null ? null : _scheduleRender()));
+      unawaited(
+        c.description().then((d) {
+          _describeDone[conn] = true;
+          _scheduleRender();
+        }, onError: (_) => _describeDone[conn] = true),
+      );
+    }
+  }
+
+  static String _chartKey(String homeId, HomeWidgetItem i) =>
+      '$homeId|${i.device}|${i.point}|${i.look.range}|${i.look.bars}|${i.look.color}';
+
+  /// Wykres pozycji: z pamięci, a gdy go nie ma albo jest starszy niż [chartRefresh] - wczytanie w tle (po
+  /// `describe` urządzenia, żeby wiedzieć, które pole historii czytać) i ponowne rysowanie.
+  WidgetChart? _chartFor(String homeId, DeviceHub hub, HomeWidgetItem item) {
+    final load = chartLoader;
+    if (load == null) return null;
+    final key = _chartKey(homeId, item);
+    final have = _charts[key];
+    final fresh = have != null && DateTime.now().difference(have.at) < chartRefresh;
+    if (!fresh && !_chartsLoading.contains(key)) {
+      final conn = hub.controller(item.device!)?.connection;
+      final described =
+          conn != null && (hub.controller(item.device!)!.cachedDescription != null || _describeDone[conn] == true);
+      if (described) {
+        _chartsLoading.add(key);
+        unawaited(
+          load(hub, item)
+              .then((c) => _charts[key] = (chart: c ?? have?.chart, at: DateTime.now()), onError: (_) => null)
+              .whenComplete(() {
+                _chartsLoading.remove(key);
+                _scheduleRender();
+              }),
+        );
+      }
+    }
+    return have?.chart;
+  }
+
+  /// Wykresy odświeżają się same co [chartRefresh], gdy są na widżetach (i ekran nie jest zgaszony).
+  void _syncChartTimer() {
+    final need = !_paused && _configs.any((c) => c.items.any((i) => i.kind == HomeWidgetKind.chart));
+    if (!need) {
+      _chartTimer?.cancel();
+      _chartTimer = null;
+    } else {
+      _chartTimer ??= Timer.periodic(chartRefresh, (_) => _scheduleRender());
     }
   }
 
@@ -174,7 +237,19 @@ class WidgetRuntime {
           if (_message != null)
             WidgetCell(title: 'HomeAutomation', subtitle: _message!, icon: 'lock', dimmed: true).toJson()
           else if (hub != null)
-            _cellJson(_withOverride(config.id, i, widgetCell(config.items[i], hub))),
+            _cellJson(
+              _withOverride(
+                config.id,
+                i,
+                widgetCell(
+                  config.items[i],
+                  hub,
+                  chart: config.items[i].kind == HomeWidgetKind.chart
+                      ? _chartFor(config.homeId, hub, config.items[i])
+                      : null,
+                ),
+              ),
+            ),
       ];
     }
     // Przy pauzie zostaje ostatni obraz; pusta lista kratek by go skasowała.
@@ -246,7 +321,7 @@ class WidgetRuntime {
         break; // „Otwiera urządzenie” - otwiera aplikację po stronie Androida
       case HomeWidgetKind.scene:
         await _tapScene(hub, config.homeId, id, index, item);
-      case HomeWidgetKind.thermostat || HomeWidgetKind.sensor:
+      case HomeWidgetKind.thermostat || HomeWidgetKind.sensor || HomeWidgetKind.chart:
         break; // otwiera aplikację po stronie Androida
     }
   }
@@ -291,6 +366,7 @@ class WidgetRuntime {
 
   void dispose() {
     _renderTimer?.cancel();
+    _chartTimer?.cancel();
     for (final t in _overrideTimers.values) {
       t.cancel();
     }

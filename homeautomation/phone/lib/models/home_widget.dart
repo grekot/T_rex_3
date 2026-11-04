@@ -9,7 +9,10 @@ enum HomeWidgetKind {
   scene('scene'),
 
   /// Czujnik: nazwa i do 3 wartości (punkty `sensor` z `describe`).
-  sensor('sensor');
+  sensor('sensor'),
+
+  /// Wykres punktu z historią (`history` w `describe`, pkt 8.1) - obrazek odświeżany co 15 min, wymaga chmury.
+  chart('chart');
 
   const HomeWidgetKind(this.wire);
 
@@ -20,7 +23,7 @@ enum HomeWidgetKind {
 
 /// Wygląd pozycji widżetu (wszystko opcjonalne, brak = jak dotąd).
 class WidgetItemLook {
-  const WidgetItemLook({this.label, this.icon, this.color, this.main, this.more, this.tap});
+  const WidgetItemLook({this.label, this.icon, this.color, this.main, this.more, this.tap, this.range, this.bars});
 
   /// Własny podpis zamiast nazwy urządzenia / kanału / sceny.
   final String? label;
@@ -41,7 +44,19 @@ class WidgetItemLook {
   /// Wyjście: `open` = dotknięcie otwiera urządzenie zamiast przełączać; null = przełącza.
   final String? tap;
 
-  bool get isEmpty => label == null && icon == null && color == null && main == null && more == null && tap == null;
+  /// Wykres: `6h|24h|7d|30d` (null = 24 h) i słupki zamiast linii.
+  final String? range;
+  final bool? bars;
+
+  bool get isEmpty =>
+      label == null &&
+      icon == null &&
+      color == null &&
+      main == null &&
+      more == null &&
+      tap == null &&
+      range == null &&
+      bars == null;
 
   static WidgetItemLook fromJson(Json j) => WidgetItemLook(
     label: j['label'] is String && (j['label'] as String).isNotEmpty ? j['label'] as String : null,
@@ -55,9 +70,20 @@ class WidgetItemLook {
           ]
         : null,
     tap: j['tap'] is String ? j['tap'] as String : null,
+    range: j['range'] is String ? j['range'] as String : null,
+    bars: j['bars'] == true ? true : null,
   );
 
-  Json toJson() => {'label': ?label, 'icon': ?icon, 'color': ?color, 'main': ?main, 'more': ?more, 'tap': ?tap};
+  Json toJson() => {
+    'label': ?label,
+    'icon': ?icon,
+    'color': ?color,
+    'main': ?main,
+    'more': ?more,
+    'tap': ?tap,
+    'range': ?range,
+    'bars': ?bars,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -67,11 +93,13 @@ class WidgetItemLook {
       other.color == color &&
       other.main == main &&
       other.tap == tap &&
+      other.range == range &&
+      other.bars == bars &&
       (other.more == null) == (more == null) &&
       (more == null || other.more!.join('|') == more!.join('|'));
 
   @override
-  int get hashCode => Object.hash(label, icon, color, main, more?.join('|'), tap);
+  int get hashCode => Object.hash(label, icon, color, main, more?.join('|'), tap, range, bars);
 }
 
 /// Pozycja widżetu: wyjście (`point`: `on` albo `onN`), termostat, scena albo czujnik, z wyglądem [look].
@@ -91,6 +119,10 @@ class HomeWidgetItem {
   const HomeWidgetItem.sensor(String this.device, {this.look = const WidgetItemLook()})
     : kind = HomeWidgetKind.sensor,
       point = null,
+      sceneId = null;
+
+  const HomeWidgetItem.chart(String this.device, String this.point, {this.look = const WidgetItemLook()})
+    : kind = HomeWidgetKind.chart,
       sceneId = null;
 
   const HomeWidgetItem._(this.kind, this.device, this.point, this.sceneId, this.look);
@@ -115,6 +147,7 @@ class HomeWidgetItem {
       HomeWidgetKind.thermostat when device is String => HomeWidgetItem.thermostat(device, look: look),
       HomeWidgetKind.scene when scene is String => HomeWidgetItem.scene(scene, look: look),
       HomeWidgetKind.sensor when device is String => HomeWidgetItem.sensor(device, look: look),
+      HomeWidgetKind.chart when device is String && point is String => HomeWidgetItem.chart(device, point, look: look),
       _ => null,
     };
   }
@@ -189,6 +222,7 @@ class WidgetCell {
     this.open,
     this.iconKey,
     this.color,
+    this.chartPng,
   });
 
   final String title;
@@ -201,6 +235,9 @@ class WidgetCell {
   final String? iconKey;
   final String? color;
 
+  /// Wykres jako obrazek PNG (base64) pod tekstem.
+  final String? chartPng;
+
   WidgetCell copyWith({String? subtitle, bool? active}) => WidgetCell(
     title: title,
     subtitle: subtitle ?? this.subtitle,
@@ -211,6 +248,7 @@ class WidgetCell {
     open: open,
     iconKey: iconKey,
     color: color,
+    chartPng: chartPng,
   );
 
   Json toJson() => {
@@ -223,5 +261,6 @@ class WidgetCell {
     'open': ?open,
     'iconKey': ?iconKey,
     'color': ?color,
+    'chartPng': ?chartPng,
   };
 }
