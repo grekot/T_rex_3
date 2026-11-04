@@ -88,7 +88,8 @@ class LiveWidgetService : Service() {
                     HomeWidgets.save(this, call.arguments as String)
                     result.success(null)
                 }
-                "widgetIds" -> result.success(HomeWidgets.ids(this).toList())
+                // Ustawień kafelków szybkich ustawień nie kasujemy, choć jeszcze nie są dodane do paska.
+                "widgetIds" -> result.success((HomeWidgets.ids(this).toList() + QuickTiles.allIds()).distinct())
                 "ready" -> {
                     ready = true
                     if (!getSystemService(PowerManager::class.java).isInteractive) send("pause")

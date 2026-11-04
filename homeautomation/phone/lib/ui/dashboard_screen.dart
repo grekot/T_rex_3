@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../controllers/device_hub.dart';
@@ -8,6 +9,7 @@ import '../data/dashboard_store.dart';
 import '../data/history.dart';
 import '../data/notifications.dart';
 import '../data/updates.dart';
+import '../home_widgets/quick_tiles_screen.dart';
 import '../models/dashboard.dart';
 import '../models/describe.dart';
 import '../models/device_type.dart';
@@ -543,6 +545,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         notifications: _notifications,
         automations: hubs.isNotEmpty && hubs.first.canConfig,
         updates: !_withAccount || _owner,
+        quickTiles: defaultTargetPlatform == TargetPlatform.android,
         dashboards: _list?.length ?? 0,
       ),
     );
@@ -575,6 +578,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         await nav.push(
           MaterialPageRoute<void>(
             builder: (_) => AutomationsScreen(hub: widget.hub, controller: hubs.first),
+          ),
+        );
+      case PanelAction.quickTiles:
+        await nav.push(
+          MaterialPageRoute<void>(
+            builder: (_) => QuickTilesScreen(hub: widget.hub, session: widget.session, dashboards: _list ?? const []),
           ),
         );
       case PanelAction.edit:

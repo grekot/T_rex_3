@@ -22,10 +22,18 @@ object HomeWidgets {
     private const val PREFS = "home_widget_render"
     private const val KEY = "cells"
 
+    /// Widżety na ekranie i dodane kafelki szybkich ustawień (-1…-4) - dla nich działa usługa.
     fun ids(context: Context): IntArray {
         val manager = AppWidgetManager.getInstance(context)
         return manager.getAppWidgetIds(ComponentName(context, TileWidgetProvider::class.java)) +
-            manager.getAppWidgetIds(ComponentName(context, ListWidgetProvider::class.java))
+            manager.getAppWidgetIds(ComponentName(context, ListWidgetProvider::class.java)) +
+            QuickTiles.addedIds(context)
+    }
+
+    /// Ostatnie kratki widżetu (albo kafelka szybkich ustawień) [id]; null = jeszcze nic.
+    fun cells(context: Context, id: Int): JSONArray? {
+        val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        return JSONObject(prefs.getString(KEY, null) ?: "{}").optJSONArray(id.toString())
     }
 
     /// Nowy stan z Darta: `{"<id widżetu>": [kratki]}`. Widżety spoza mapy zostają jak były.
@@ -35,7 +43,13 @@ object HomeWidgets {
         val fresh = JSONObject(json)
         fresh.keys().forEach { all.put(it, fresh.get(it)) }
         prefs.edit().putString(KEY, all.toString()).apply()
-        fresh.keys().forEach { key -> key.toIntOrNull()?.let { draw(context, it) } }
+        var tiles = false
+        fresh.keys().forEach { key ->
+            key.toIntOrNull()?.let {
+                if (it < 0) tiles = true else draw(context, it)
+            }
+        }
+        if (tiles) QuickTiles.refresh(context)
     }
 
     fun forget(context: Context, id: Int) {
@@ -68,7 +82,7 @@ object HomeWidgets {
     )
 
     /// Obrazek PNG w base64 od usługi widżetów; null = brak albo uszkodzony.
-    private fun bitmap(base64: String) = base64.takeIf { it.isNotEmpty() }?.let {
+    fun bitmap(base64: String) = base64.takeIf { it.isNotEmpty() }?.let {
         try {
             val bytes = Base64.decode(it, Base64.DEFAULT)
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
@@ -137,7 +151,7 @@ object HomeWidgets {
         return views
     }
 
-    private fun icon(name: String) = when (name) {
+    fun icon(name: String) = when (name) {
         "thermostat" -> R.drawable.ic_widget_thermostat
         "flame" -> R.drawable.ic_widget_flame
         "scene" -> R.drawable.ic_widget_scene

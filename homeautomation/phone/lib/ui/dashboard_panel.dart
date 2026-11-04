@@ -57,6 +57,7 @@ enum PanelAction {
   watch,
   updates,
   automations,
+  quickTiles,
   edit,
   newDashboard,
   newShared,
@@ -82,8 +83,12 @@ class DashboardPanel extends StatelessWidget {
     this.notifications = false,
     this.automations = false,
     this.updates = false,
+    this.quickTiles = false,
     this.dashboards = 0,
   });
+
+  /// Kafelki szybkich ustawień Androida.
+  final bool quickTiles;
 
   final HomeSession? session;
   final Dashboard? dashboard;
@@ -151,6 +156,13 @@ class DashboardPanel extends StatelessWidget {
           icon: Icons.auto_mode,
           label: 'Automatyki',
           onTap: () => pick(PanelAction.automations),
+        ),
+      if (quickTiles)
+        _Shortcut(
+          key: const Key('panel-quickTiles'),
+          icon: Icons.toggle_on_outlined,
+          label: 'Szybkie ustawienia',
+          onTap: () => pick(PanelAction.quickTiles),
         ),
     ];
     return SingleChildScrollView(

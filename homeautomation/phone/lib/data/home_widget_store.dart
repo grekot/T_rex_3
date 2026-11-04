@@ -7,11 +7,14 @@ import '../models/home_widget.dart';
 
 /// Ustawienia widżetów na ekranie telefonu; zapisuje ekran konfiguracji, czyta usługa w tle.
 class HomeWidgetStore {
-  HomeWidgetStore({SharedPreferencesAsync? prefs}) : _prefs = prefs ?? SharedPreferencesAsync();
+  HomeWidgetStore({SharedPreferencesAsync? prefs}) : _given = prefs;
 
   static const _key = 'home_widgets';
 
-  final SharedPreferencesAsync _prefs;
+  final SharedPreferencesAsync? _given;
+
+  /// Tworzone przy pierwszym użyciu (testy podmieniają magazyn bez platformy).
+  late final SharedPreferencesAsync _prefs = _given ?? SharedPreferencesAsync();
 
   Future<List<HomeWidgetConfig>> load() async {
     final raw = await _prefs.getString(_key);
@@ -32,6 +35,12 @@ class HomeWidgetStore {
       config,
     ];
     await _prefs.setString(_key, jsonEncode([for (final c in all) c.toJson()]));
+  }
+
+  /// Usuwa wpis [id] (np. wyczyszczony kafelek szybkich ustawień).
+  Future<void> remove(int id) async {
+    final kept = (await load()).where((c) => c.id != id).toList();
+    await _prefs.setString(_key, jsonEncode([for (final c in kept) c.toJson()]));
   }
 
   /// Usuwa wpisy widżetów, których nie ma już na ekranie.

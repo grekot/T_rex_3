@@ -221,6 +221,25 @@ Widżety systemowe, niezależne od pulpitów w aplikacji. Na ekranie telefonu: p
   zmieniać, trzeba wyłączyć optymalizację baterii dla aplikacji.
 - **Uprawnienia** jak wszędzie: poziom z domu albo tokenu, odmowę urządzenia widać na kratce przez kilka sekund.
 - Usługa to drugie połączenie telefonu z urządzeniem obok otwartej aplikacji.
+- **Kafelki szybkich ustawień** „Dom 1-4” (pasek rozwijany z góry; `QuickTiles.kt`, `QsTile1-4`, w manifeście
+  `BIND_QUICK_SETTINGS_TILE`): pozycję ustawia panel ☰ → „Szybkie ustawienia” (`quick_tiles_screen.dart`, ten sam
+  wybór i wygląd co widżet, jedna pozycja), zapis jako widżet o id -1…-4 (`HomeWidgetStore`). Stan liczy i dotknięcia
+  wykonuje `WidgetRuntime` jak dla widżetów (`render` z kluczem ujemnym → `TileService.requestListeningState`);
+  kafelek pokazuje podpis, wartość / stan, ikonę (`iconPng`) i włączony / wyłączony / niedostępny. Wyjście i scena
+  działają od razu (także przy zablokowanym telefonie), termostat, czujnik i wykres otwierają urządzenie; bez
+  ustawienia - otwiera aplikację. Usługa działa także dla samych kafelków (`QuickTiles.addedIds`), ustawień
+  niedodanych kafelków nie kasuje (`widgetIds` + `allIds`).
+
+## Diagnostyka urządzenia (pkt 3c)
+
+Ekran urządzenia → **Diagnostyka** (`diag_screen.dart`, poziom `config`; hub, węzły, termostat - wszystko z lib/HomeNode;
+bez czujników BT i urządzeń innych firm). Zakładka **Stan**: wersja, czas pracy, ostatni restart (powód po polsku,
+awaryjny na czerwono), liczniki od pierwszego uruchomienia (uruchomienia, watchdog, awarie, spadki napięcia, restarty
+strażnika łącza huba z ostatnim powodem), pamięć (wolna, najmniej od startu, największy blok, PSRAM), aktualizacje
+(partycja, okres próbny, powroty), ostatnie błędy („12 min temu · 12× pod rząd”), awarie ze zrzutem (start, powód,
+zadanie, adres) z **Usuń zrzut i listę awarii** (`DELETE /api/coredump`). W domu z `GET /api/diag`, poza domem kopia
+z chmury `homes/{h}/devices/{id}/diag` (co 15 min). Zakładka **Dziennik** (tylko w domu): `GET /api/log` (ostatnie
+~16 kB od restartu), wyszukiwanie, kopiowanie, błędy na czerwono, przewinięte do najnowszych.
 
 Konfiguracja jest w `SharedPreferencesAsync` (`home_widgets`) razem z domem, więc usługa rusza bez internetu.
 

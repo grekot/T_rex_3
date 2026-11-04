@@ -201,7 +201,13 @@ class HomeWidgetConfigScreen extends StatefulWidget {
     this.initial = const [],
     this.homeSwitcher,
     this.dashboards = const [],
+    this.title,
+    this.saveLabel = 'Dodaj widżet',
   });
+
+  /// Tytuł zamiast „Co pokazać” / „Pozycje (n z 6)” (np. kafelek szybkich ustawień).
+  final String? title;
+  final String saveLabel;
 
   final DeviceHub hub;
   final bool multi;
@@ -398,7 +404,9 @@ class _HomeWidgetConfigScreenState extends State<HomeWidgetConfigScreen> {
         _describeAll(hub);
         final devices = _deviceTiles(hub);
         final tiles = _tileItems(hub);
-        final title = widget.multi ? 'Pozycje (${_chosen.length} z ${HomeWidgetConfig.maxItems})' : 'Co pokazać';
+        final title =
+            widget.title ??
+            (widget.multi ? 'Pozycje (${_chosen.length} z ${HomeWidgetConfig.maxItems})' : 'Co pokazać');
         return Scaffold(
           appBar: AppBar(title: Text(title), actions: [?widget.homeSwitcher]),
           body: ListView(
@@ -431,7 +439,7 @@ class _HomeWidgetConfigScreenState extends State<HomeWidgetConfigScreen> {
               child: FilledButton(
                 key: const Key('widget-save'),
                 onPressed: _chosen.isEmpty ? null : () => widget.onSave(_chosen),
-                child: const Text('Dodaj widżet'),
+                child: Text(widget.saveLabel),
               ),
             ),
           ),

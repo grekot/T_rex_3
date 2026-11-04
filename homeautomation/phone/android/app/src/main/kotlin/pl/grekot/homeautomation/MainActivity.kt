@@ -87,13 +87,22 @@ class MainActivity : FlutterActivity() {
             }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "pl.grekot.homeautomation/widget_link")
             .setMethodCallHandler { call, result ->
-                if (call.method != "take") {
-                    result.notImplemented()
-                    return@setMethodCallHandler
+                when (call.method) {
+                    "take" -> {
+                        val device = openDevice
+                        openDevice = null
+                        result.success(device?.let { mapOf("device" to it, "widget" to openWidget) })
+                    }
+                    // Nowe ustawienia kafelków szybkich ustawień: usługa wczytuje listę, kafelki się przerysują.
+                    "quickTilesChanged" -> {
+                        LiveWidgetService.ensure(this, LiveWidgetService.ACTION_RELOAD)
+                        LiveWidgetService.instance?.reload()
+                        QuickTiles.refresh(this)
+                        result.success(QuickTiles.added(this).toList())
+                    }
+                    "quickTilesAdded" -> result.success(QuickTiles.added(this).toList())
+                    else -> result.notImplemented()
                 }
-                val device = openDevice
-                openDevice = null
-                result.success(device?.let { mapOf("device" to it, "widget" to openWidget) })
             }
     }
 

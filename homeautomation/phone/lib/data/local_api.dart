@@ -233,6 +233,36 @@ class LocalApi {
   Future<Object?> request(String method, String path, {Object? body, Map<String, String>? query, Duration? timeout}) =>
       _sendAny(method, path, body: body, query: query, timeout: timeout);
 
+  /// `GET /api/diag` (pkt 3c, `config`).
+  Future<Json> diag() => _send('GET', '/api/diag');
+
+  /// `GET /api/log` (pkt 3c, `config`): ostatnie ~16 kB dziennika, tekst, najstarsze wiersze pierwsze.
+  Future<String> log({Duration? timeout}) async {
+    final req = http.Request('GET', endpoint.http('/api/log'));
+    if (token != null) req.headers['Authorization'] = 'Bearer $token';
+    final http.Response res;
+    try {
+      res = await http.Response.fromStream(
+        await _client.send(req).timeout(timeout ?? this.timeout),
+      ).timeout(timeout ?? this.timeout);
+    } on TimeoutException {
+      throw UnreachableException('Urządzenie ${endpoint.display} nie odpowiada.');
+    } on http.ClientException catch (e) {
+      throw UnreachableException('Brak połączenia z ${endpoint.display} (${e.message}).');
+    }
+    if (res.statusCode == 401) throw const UnauthorizedException();
+    if (res.statusCode == 403) throw const ForbiddenException();
+    if (res.statusCode == 404) throw const ThermostatException('Urządzenie nie ma dziennika - starsze oprogramowanie.');
+    if (res.statusCode >= 300) throw ThermostatException('Urządzenie zwróciło błąd HTTP ${res.statusCode}.');
+    return utf8.decode(res.bodyBytes, allowMalformed: true);
+  }
+
+  /// `DELETE /api/coredump` (pkt 3c): kasuje zrzut awarii i listę `crashes`.
+  Future<void> deleteCoreDump() async {
+    final v = await _sendAny('DELETE', '/api/coredump');
+    if (v is Map && v['ok'] == false) throw ThermostatException(describeApiError(v['error'] as String?));
+  }
+
   Future<Json> stateJson() async => _data(await _send('GET', '/api/state'));
 
   Future<Json> configJson() async => _data(await _send('GET', '/api/config'));

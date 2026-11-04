@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../controllers/device_controller.dart';
 import '../data/cloud_access.dart';
+import '../data/cloud_connection.dart' show cloudDevicePath;
+import '../data/cloud_store.dart' show toJsonObject;
 import '../data/device_store.dart';
 import '../data/errors.dart';
 import '../data/local_api.dart';
@@ -10,6 +12,7 @@ import '../models/device_type.dart';
 import '../services.dart';
 import 'ble_setup_screen.dart';
 import 'cloud_link_screen.dart';
+import 'diag_screen.dart';
 import 'firmware_screen.dart';
 import 'hub_screen.dart' show AssignToHubScreen;
 import 'notify_screen.dart';
@@ -102,6 +105,39 @@ class _DeviceAdminSectionState extends State<DeviceAdminSection> {
     } on Object catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Nie zapisano: $e')));
     }
+  }
+
+  /// „Diagnostyka” (pkt 3c): w domu z urządzenia (także dziennik), poza domem kopia z chmury; poziom `config`.
+  Widget _diagTile(CloudAccess cloud) {
+    final h = cloud.homeId;
+    final viaCloud = !c.isLocal && cloud.available && h != null && _via == null;
+    final can = c.canConfig && (c.isLocal || viaCloud);
+    return ListTile(
+      key: const Key('diag'),
+      leading: const Icon(Icons.monitor_heart_outlined),
+      title: const Text('Diagnostyka'),
+      subtitle: Text(
+        !c.canConfig
+            ? 'Wymaga pełnego dostępu do urządzenia'
+            : c.isLocal
+            ? 'Restarty, pamięć, błędy, awarie i dziennik'
+            : viaCloud
+            ? 'Kopia z chmury (dziennik - w sieci domowej)'
+            : 'Tylko w sieci domowej',
+      ),
+      enabled: can,
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => DiagScreen(
+            name: c.device.name,
+            api: c.localApi,
+            cloudDiag: viaCloud
+                ? () async => toJsonObject(await cloud.store.read('${cloudDevicePath(h, c.device.id)}/diag'))
+                : null,
+          ),
+        ),
+      ),
+    );
   }
 
   /// Sekcja „Chmura” urządzenia za hubem: stan lustra przez hub i „Do chmury”.
@@ -348,6 +384,7 @@ class _DeviceAdminSectionState extends State<DeviceAdminSection> {
           ),
         ],
         if (_via != null) ListTile(dense: true, title: const Text('Przez hub'), trailing: Text(_hubName ?? _via!)),
+        if (!_foreign) _diagTile(Services.of(context).cloud),
         ListTile(dense: true, title: const Text('Identyfikator'), trailing: Text(c.device.id)),
         ListTile(dense: true, title: const Text('Typ'), trailing: Text(c.device.type.label)),
         ListTile(dense: true, title: const Text('Mój dostęp'), trailing: Text(c.access.label)),
