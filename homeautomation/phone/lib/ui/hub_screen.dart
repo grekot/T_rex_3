@@ -1178,6 +1178,9 @@ class _AssignToHubScreenState extends State<AssignToHubScreen> {
                   DeviceType.btnode =>
                     'Hub dostanie od bramki token „konfiguracja”: odbiera przez nią czujniki Bluetooth i zegarki, '
                         'włącza szukanie czujników i aktualizuje jej oprogramowanie.',
+                  DeviceType.clock =>
+                    'Hub dostanie od zegara token „konfiguracja”: przekaże mu pogodę, kalendarz i odczyty do stron '
+                        'z widżetami, zbierze jego temperaturę (wykres, automatyki, termostat) i zaktualizuje oprogramowanie.',
                   _ =>
                     'Hub dostanie od ${c.device.name} własny token, będzie zbierał jego stan (także dla '
                         'automatyk) i przekaże go do chmury - spoza domu sterujesz nim przez hub.',

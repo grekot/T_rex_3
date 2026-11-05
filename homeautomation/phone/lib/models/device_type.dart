@@ -12,6 +12,9 @@ enum DeviceType {
 
   /// Bramka Bluetooth (`nodes/btnode`): przekazuje hubowi czujniki Bluetooth i zegarki (pkt 11, 15).
   btnode('btnode', 'Bramka Bluetooth'),
+
+  /// Zegar-termometr biurkowy z ekranem (`nodes/deskclock`, pkt 10.2): pokój, pogoda, strony z widżetami.
+  clock('clock', 'Zegar'),
   unknown('', 'Urządzenie');
 
   const DeviceType(this.wire, this.label);
@@ -29,6 +32,7 @@ enum DeviceType {
     'hub' => hub,
     'sensor' => sensor,
     'btnode' => btnode,
+    'clock' => clock,
     _ => unknown,
   };
 

@@ -19,6 +19,7 @@ part 'fake_device.dart';
 part 'fake_light.dart';
 part 'fake_hub.dart';
 part 'fake_btnode.dart';
+part 'fake_clock.dart';
 
 typedef Clock = DateTime Function();
 

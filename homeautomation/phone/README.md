@@ -373,6 +373,19 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   do 32 B); bez położenia domu po zapisie od razu okno położenia. W edytorze automatyk hub z pogodą jest na liście
   urządzeń warunków / wyzwalaczy stanu - tylko punkty `weather.*`, `astro.*`, `air.*` (np. „najniższa temperatura w 24 h
   < 0”, „AQI > 60”); `calendarNotifyAt` (Config) - godzina przypomnień z kalendarza;
+- **Zegar-termometr `clock`** (pkt 10.2, `clock_section.dart`, `clock_settings.dart`, `clock_pages.dart`,
+  `clock_buttons.dart`, model `models/clock.dart`): ekran urządzenia - pokój (temp., wilg., ciśn., komfort, „rozgrzewanie”,
+  „awaria czujnika”), pogoda teraz, „Pokaż ekran” (`showScreen`), „Pokaż, który to”; ustawienia: **Ekrany** (włączanie,
+  kolejność przeciąganiem, czas, ×1-×4 na głównym, przejście `cards|slide|cover|fade|none` z podglądem), **Jasność i noc**
+  (`lux|both` tylko z czujnikiem światła), **Pogoda i jednostki** (z huba; lokalizacja awaryjna „jak hub” / „z telefonu”),
+  **Czujnik** (surowa i po korekcie, `tempOffset`, `humOffset`, `comp`), **Zegar** (sekundy, `dateFormat` `long|short`),
+  **Strony z widżetami** (do 4, siatka 4×3, podgląd 320×240 w stylu C, tylko urządzenia znane hubowi zegara - `via` i
+  `GET /api/devices` huba; „Z pulpitu telefonu…” - pulpit albo sekcja, sterowanie jako stan, sceny pominięte; przy
+  zapisie `label`, `unit`, `decimals`, `labels`, `min`/`max` z `describe`, `room` → `items` + `members`, `thermostat` /
+  `hub` → `points`; limity 10 widżetów, 24 pary, 6 kB; nowa strona trafia do `screens.list`), **Przyciski zdalne**
+  (automatyki huba z `owner` = zegar: wejście / przycisk → krótko / podwójnie / długo → ekran albo polecenie).
+  Kafelki: „Zegar - pokój” (ikona pogody z zegara), wykres temperatury, ciśnienie, na zewnątrz. Atrapa:
+  `dart run tool/fake_device.dart --type clock`.
 - **Kalendarz domu** (☰ → Kalendarz, z kontem; `calendar_screen.dart`, `homes/{h}/calendar/{id}`, pkt 11): wywóz śmieci
   (ikona `mixed|plastic|paper|glass|bio|bulky`, lista dat do 60, „Wiele dat naraz” - wklejony harmonogram gminy:
   `12.11`, `12.11.2026`, `2026-11-12`, `12 listopada`; „Usuń minione”), urodziny (data z rokiem, co rok, wiek), inne

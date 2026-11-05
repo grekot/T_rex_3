@@ -10,6 +10,7 @@ import '../models/home.dart';
 import '../models/json_utils.dart';
 import '../models/light.dart';
 import 'btnode_section.dart';
+import 'clock_section.dart';
 import 'device_admin_section.dart';
 import 'output_schedule_section.dart';
 import 'output_timer.dart';
@@ -228,6 +229,8 @@ class _GenericDeviceScreenState extends State<GenericDeviceScreen> {
         // Bramka Bluetooth: własne sekcje zamiast listy punktów (`scanAll` przełącza hub przy szukaniu czujników).
         if (c.device.type == DeviceType.btnode)
           BtNodeSection(controller: c, hub: widget.hub)
+        else if (c.device.type == DeviceType.clock)
+          ClockSection(controller: c, hub: widget.hub)
         else
           FutureBuilder<DeviceDescription?>(
             future: _describe,

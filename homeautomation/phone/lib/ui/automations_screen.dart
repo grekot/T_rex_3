@@ -490,6 +490,8 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> with _R
       conditions: _if,
       then: _then,
       mode: _mode,
+      // Automatyka z ekranu urządzenia (np. przycisk zegara) zostaje przy nim.
+      owner: widget.initial?.owner,
     );
     setState(() {
       _saving = true;

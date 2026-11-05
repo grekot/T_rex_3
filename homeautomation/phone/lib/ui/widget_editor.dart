@@ -157,6 +157,33 @@ List<TilePreset> tilePresets(PairedDevice d, List<DataPoint> points, Json? state
         widget: w(WidgetView.value, 'outdoor.temp', 2, 1),
       ));
     }
+  } else if (d.type == DeviceType.clock) {
+    // Zegar (pkt 10.2, PLAN pkt 9): pokój z ikoną pogody, wykres, ciśnienie.
+    out.add((
+      title: 'Zegar - pokój',
+      subtitle: 'temperatura, wilgotność, ikona pogody z zegara · 2×2',
+      widget: w(WidgetView.value, 'temp', 2, 2, {'secondary': 'point:hum'}, d.name),
+    ));
+    out.add((
+      title: 'Wykres temperatury (linia)',
+      subtitle: '6 h / 24 h / 7 / 30 dni w kafelku · 4×3',
+      widget: w(WidgetView.chart, 'temp', 4, 3, {
+        'series': [
+          {'device': d.id, 'point': 'temp', 'line': 'smooth'},
+        ],
+        'rangeSwitch': true,
+      }),
+    ));
+    if (pt('press') != null) {
+      out.add((title: 'Ciśnienie', subtitle: 'hPa · 2×1', widget: w(WidgetView.value, 'press', 2, 1)));
+    }
+    if (pt('outTemp') != null) {
+      out.add((
+        title: 'Na zewnątrz',
+        subtitle: 'temperatura z pogody zegara · 2×1',
+        widget: w(WidgetView.value, 'outTemp', 2, 1),
+      ));
+    }
   } else if (d.type == DeviceType.hub) {
     out.add((
       title: 'Stan huba',

@@ -1922,6 +1922,12 @@ String _statusLabel(DataPoint p, Object? v, [Object? config]) {
 IconData dashWidgetIcon(DashWidget w, DeviceHub hub) {
   final chosen = appIcon(w.icon);
   if (chosen != null) return chosen.icon;
+  // Zegar: temperatura pokoju z ikoną pogody z zegara (pkt 10.2).
+  final dev = w.device == null ? null : hub.device(w.device!);
+  if (dev?.type == DeviceType.clock && w.point == 'temp') {
+    final o = hub.controller(dev!.id)?.stateJson?['outdoor'];
+    if (o is Map && o['icon'] is num) return weatherIconAt(o['icon'], day: o['day'] != false);
+  }
   if (w.device != null && (w.view == WidgetView.thermostat || w.point == 'on')) {
     final own = appIcon(DeviceIcons.instance.of(w.device!));
     if (own != null) return own.icon;

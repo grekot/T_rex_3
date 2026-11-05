@@ -10,6 +10,7 @@ import '../controllers/device_hub.dart';
 import '../data/device_icons.dart';
 import 'app_icons.dart';
 import 'btnode_section.dart';
+import 'clock_section.dart' show clockSummary;
 import 'generic_device_screen.dart';
 import 'hub_screen.dart';
 import 'thermostat_screen.dart';
@@ -274,6 +275,7 @@ class _GenericTile extends StatelessWidget {
           final s? when c.device.type == DeviceType.hub =>
             'Hub · ${s['online'] ?? 0}/${s['devices'] ?? 0} urządzeń${s['cloud'] == true ? '' : ' · bez chmury'}',
           final s? when c.device.type == DeviceType.btnode => btnodeSummary(s),
+          final s? when c.device.type == DeviceType.clock => clockSummary(s),
           _ => c.device.type.label,
         },
         key: Key('tileText-${c.device.id}'),

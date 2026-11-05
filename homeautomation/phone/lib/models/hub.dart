@@ -260,6 +260,7 @@ class Automation {
     this.then = const [],
     this.mode = 'single',
     this.updatedAt,
+    this.owner,
   });
 
   final String id;
@@ -277,6 +278,9 @@ class Automation {
   /// ms; przy uzgadnianiu z chmurą wygrywa nowszy.
   final int? updatedAt;
 
+  /// Urządzenie, z którego ekranu automatykę utworzono (np. „Przyciski zdalne” zegara, ARCHITEKTURA 4.5).
+  final String? owner;
+
   Automation copyWith({
     String? name,
     bool? enabled,
@@ -293,6 +297,7 @@ class Automation {
     then: then ?? this.then,
     mode: mode ?? this.mode,
     updatedAt: updatedAt,
+    owner: owner,
   );
 
   static List<Json> _list(Object? v) => [
@@ -309,6 +314,7 @@ class Automation {
     then: _list(j['then']),
     mode: asString(j['mode'], 'mode', 'single'),
     updatedAt: j['updatedAt'] is num ? (j['updatedAt'] as num).toInt() : null,
+    owner: j['owner'] is String ? j['owner'] as String : null,
   );
 
   Json toJson({int? updatedAt}) => {
@@ -319,6 +325,7 @@ class Automation {
     'then': then,
     if (mode != 'single') 'mode': mode,
     'updatedAt': ?(updatedAt ?? this.updatedAt),
+    'owner': ?owner,
   };
 }
 

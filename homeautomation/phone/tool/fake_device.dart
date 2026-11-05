@@ -25,7 +25,7 @@ import 'fake/mdns_responder.dart';
 
 Future<void> main(List<String> argv) async {
   final parser = ArgParser()
-    ..addOption('type', defaultsTo: 'thermostat', allowed: ['thermostat', 'switch', 'dimmer', 'hub', 'btnode'], help: 'Typ urządzenia')
+    ..addOption('type', defaultsTo: 'thermostat', allowed: ['thermostat', 'switch', 'dimmer', 'hub', 'btnode', 'clock'], help: 'Typ urządzenia')
     ..addOption('port', defaultsTo: '8080', help: 'Port HTTP/WebSocket')
     ..addOption('id', help: 'Identyfikator (domyślnie termostat-ab12cd / swiatlo-0c4f21)')
     ..addOption('name', help: 'Nazwa urządzenia')
@@ -45,7 +45,15 @@ Future<void> main(List<String> argv) async {
 
   final type = args.option('type')!;
   final period = Duration(seconds: args.flag('fast') ? 5 : 30);
-  final FakeDevice fake = type == 'btnode'
+  final FakeDevice fake = type == 'clock'
+      ? FakeClock(
+          id: args.option('id') ?? 'zegar-ab12cd',
+          name: args.option('name') ?? 'Biurko',
+          token: args.option('token'),
+          statePeriod: period,
+          log: stdout.writeln,
+        )
+      : type == 'btnode'
       ? FakeBtNode(
           id: args.option('id') ?? 'bt-a1b2c3',
           name: args.option('name') ?? 'Bramka Bluetooth',
@@ -81,7 +89,7 @@ Future<void> main(List<String> argv) async {
   fake
     ..softAp = args.option('prov') == 'softap'
     ..pop = args.option('pop')
-    ..cloudCapable = args.flag('cloud');
+    ..cloudCapable = type != 'clock' && args.flag('cloud');
   await fake.start(port: int.parse(args.option('port')!));
 
   final ips = [

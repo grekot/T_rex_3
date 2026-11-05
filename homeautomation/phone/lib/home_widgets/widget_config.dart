@@ -337,7 +337,7 @@ class _HomeWidgetConfigScreenState extends State<HomeWidgetConfigScreen> {
       final c = hub.controller(d.id);
       if (d.type == DeviceType.thermostat) {
         out.add(_tile(HomeWidgetItem.thermostat(d.id), c?.device.name ?? d.name, icon: Icons.thermostat));
-      } else if (d.type == DeviceType.sensor) {
+      } else if (d.type == DeviceType.sensor || d.type == DeviceType.clock) {
         out.add(_sensorTile(d.id, c?.device.name ?? d.name, c));
       } else if (d.type.isLight) {
         final n = channelCount(c?.stateJson);
