@@ -373,6 +373,9 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   do 32 B); bez położenia domu po zapisie od razu okno położenia. W edytorze automatyk hub z pogodą jest na liście
   urządzeń warunków / wyzwalaczy stanu - tylko punkty `weather.*`, `astro.*`, `air.*` (np. „najniższa temperatura w 24 h
   < 0”, „AQI > 60”); `calendarNotifyAt` (Config) - godzina przypomnień z kalendarza;
+- **Ostatni odczyt** (pod paskiem połączenia na ekranie urządzenia, `RouteChip`, `DeviceController.lastInfoAt`):
+  `seenAt` od huba (pkt 11, urządzenia huba), `lastSeen` z chmury (urządzenia bez huba), lokalnie - ostatni stan
+  z WebSocketu; „12:31 · 3 min temu”, „wczoraj 23:05”. Nie służy do oceny offline (to `online` / `lastSeen`).
 - **Zegar-termometr `clock`** (pkt 10.2, `clock_section.dart`, `clock_settings.dart`, `clock_pages.dart`,
   `clock_buttons.dart`, model `models/clock.dart`): ekran urządzenia - pokój (temp., wilg., ciśn., komfort, „rozgrzewanie”,
   „awaria czujnika”), pogoda teraz, „Pokaż ekran” (`showScreen`), „Pokaż, który to”; ustawienia: **Ekrany** (włączanie,

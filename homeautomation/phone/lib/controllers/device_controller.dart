@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../data/cloud_connection.dart';
 import '../data/connection_manager.dart';
 import '../data/device_store.dart';
 import '../data/errors.dart';
@@ -61,6 +62,21 @@ class DeviceController<S, C> extends ChangeNotifier {
   Json? get stateJson {
     final s = state;
     return s == null ? null : codec.stateToJson(s);
+  }
+
+  /// Kiedy telefon dostał ostatni stan (połączenie lokalne bezpośrednio z urządzeniem).
+  DateTime? _stateAt;
+
+  /// Ostatnia informacja od urządzenia: `seenAt` od huba (pkt 11), `lastSeen` z chmury, a przy połączeniu lokalnym
+  /// prosto z urządzeniem - ostatni stan z WebSocketu. Null, gdy nie wiadomo (np. przez hub bez `seenAt`).
+  DateTime? get lastInfoAt {
+    final seen = stateJson?['seenAt'];
+    if (seen is num && seen > 0) return DateTime.fromMillisecondsSinceEpoch(seen.toInt() * 1000);
+    final conn = _connection;
+    // Przez chmurę `lastSeen` pisze samo urządzenie (termostat); dla urządzeń huba - tylko `seenAt`.
+    if (conn case CloudConnection(:final lastSeen) when _device.via == null) return lastSeen;
+    if (conn is LocalConnection) return _stateAt;
+    return null;
   }
 
   /// Poziom z `homes/{h}/access` (ustawia ekran domu); null = bez konta.
@@ -205,9 +221,11 @@ class DeviceController<S, C> extends ChangeNotifier {
 
   void _attach(DeviceConnection<S, C> conn) {
     _connection = conn;
+    _stateAt = DateTime.now();
     _subs
       ..add(
         conn.states.listen((s) {
+          _stateAt = DateTime.now();
           onState(s);
           notifyChanged();
         }),

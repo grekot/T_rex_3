@@ -248,18 +248,52 @@ class RouteChip extends StatelessWidget {
       LinkStatus.unauthorized => ('brak dostępu', cs.error),
       LinkStatus.closed => ('rozłączono', cs.error),
     };
+    final seen = controller.lastInfoAt;
     return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
         padding: const EdgeInsets.only(bottom: 8),
-        child: Chip(
-          avatar: Icon(conn.kind == ConnectionKind.local ? Icons.wifi : Icons.cloud, size: 18, color: color),
-          label: Text('${conn.kind.label} · ${conn.routeDescription} · $statusText'),
-          visualDensity: VisualDensity.compact,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Chip(
+              avatar: Icon(conn.kind == ConnectionKind.local ? Icons.wifi : Icons.cloud, size: 18, color: color),
+              label: Text('${conn.kind.label} · ${conn.routeDescription} · $statusText'),
+              visualDensity: VisualDensity.compact,
+            ),
+            if (seen != null)
+              Padding(
+                padding: const EdgeInsets.only(left: 4, top: 2),
+                child: Text(
+                  'Ostatni odczyt: ${lastInfoText(seen, DateTime.now())}',
+                  key: const Key('lastInfo'),
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ),
+          ],
         ),
       ),
     );
   }
+}
+
+/// „12:31 · 3 min temu”, „wczoraj 23:05”, „04.11 08:15” - ostatnia informacja od urządzenia.
+String lastInfoText(DateTime at, DateTime now) {
+  String two(int x) => x.toString().padLeft(2, '0');
+  final hm = '${two(at.hour)}:${two(at.minute)}';
+  final day = DateTime(at.year, at.month, at.day), today = DateTime(now.year, now.month, now.day);
+  final days = today.difference(day).inDays;
+  final ago = now.difference(at);
+  if (days == 0) {
+    final rel = ago.inSeconds < 60
+        ? 'przed chwilą'
+        : ago.inMinutes < 60
+        ? '${ago.inMinutes} min temu'
+        : '${ago.inHours} h temu';
+    return ago.isNegative ? hm : '$hm · $rel';
+  }
+  if (days == 1) return 'wczoraj $hm';
+  return '${two(at.day)}.${two(at.month)} $hm';
 }
 
 /// Okno z jednym polem tekstowym; zwraca przycięty tekst albo null (Anuluj / pusty).
