@@ -35,13 +35,27 @@ mixin _ClockConfig<T extends StatefulWidget> on State<T> {
     if (mounted) showSaveResult(context, r.errors, describeErrors);
   }
 
+  // Zmiana stanu / konfiguracji przebudowuje całe build() strony. ListenableBuilder w page() nie wystarczał: dostawał
+  // gotowe children z wartościami sprzed zapisu, więc przełącznik zmieniał się dopiero po ponownym wejściu.
+  @override
+  void initState() {
+    super.initState();
+    c.addListener(_changed);
+  }
+
+  @override
+  void dispose() {
+    c.removeListener(_changed);
+    super.dispose();
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
   Widget page(String title, List<Widget> children) => Scaffold(
     appBar: AppBar(title: Text(title)),
-    body: ListenableBuilder(
-      listenable: c,
-      builder: (context, _) =>
-          ListView(padding: listPadding(context, const EdgeInsets.fromLTRB(16, 8, 16, 32)), children: children),
-    ),
+    body: ListView(padding: listPadding(context, const EdgeInsets.fromLTRB(16, 8, 16, 32)), children: children),
   );
 }
 

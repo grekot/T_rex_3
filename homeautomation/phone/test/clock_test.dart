@@ -309,6 +309,16 @@ void main() {
     await tester.tap(find.byKey(const Key('clockComp')));
     await tester.pumpAndSettle();
     expect((conn.sent.last['sensor'] as Map)['comp'], false);
+    // Przełącznik pokazuje nową wartość od razu, bez ponownego wejścia na stronę.
+    expect(tester.widget<SwitchListTile>(find.byKey(const Key('clockComp'))).value, false);
+
+    await tester.pumpWidget(_app(ClockTimePage(controller: c)));
+    await tester.pumpAndSettle();
+    final was = tester.widget<SwitchListTile>(find.byKey(const Key('clockSeconds'))).value;
+    await tester.tap(find.byKey(const Key('clockSeconds')));
+    await tester.pumpAndSettle();
+    expect((conn.sent.last['clock'] as Map)['seconds'], !was);
+    expect(tester.widget<SwitchListTile>(find.byKey(const Key('clockSeconds'))).value, !was);
     hub.dispose();
   });
 
