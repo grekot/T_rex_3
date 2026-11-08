@@ -218,7 +218,7 @@ class _ScheduleScreenState extends State<ScheduleScreen> {
         _localError(d) ??
         (_errors[d.errorKey()] == null ? null : 'Termostat: ${describeErrorCode(_errors[d.errorKey()]!)}');
     return ListView(
-      padding: listPadding(context, const EdgeInsets.all(16)),
+      padding: const EdgeInsets.all(16),
       children: [
         DayTimeline(periods: periods),
         const SizedBox(height: 16),

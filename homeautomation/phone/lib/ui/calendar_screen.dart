@@ -7,7 +7,6 @@ import '../data/calendar_store.dart';
 import '../models/calendar.dart';
 import '../models/dashboard.dart' show newLocalId;
 import '../models/output_schedule.dart' show dayShort;
-import 'widgets.dart' show listPadding;
 
 String _dm(DateTime d) => '${d.day.toString().padLeft(2, '0')}.${d.month.toString().padLeft(2, '0')}';
 
@@ -103,7 +102,7 @@ class CalendarScreen extends StatelessWidget {
             );
           }
           return ListView(
-            padding: listPadding(context, const EdgeInsets.only(bottom: 88)),
+            padding: const EdgeInsets.only(bottom: 88),
             children: [
               for (final (:e, :next) in items)
                 ListTile(
@@ -228,7 +227,7 @@ class _CalendarEditScreenState extends State<CalendarEditScreen> {
         ],
       ),
       body: ListView(
-        padding: listPadding(context, const EdgeInsets.all(16)),
+        padding: const EdgeInsets.all(16),
         children: [
           if (_isNew) ...[
             SegmentedButton<CalendarKind>(

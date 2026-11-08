@@ -183,7 +183,7 @@ class _PhonesScreenState extends State<PhonesScreen> {
               _load = _fetch();
             }),
             child: ListView(
-              padding: listPadding(context, const EdgeInsets.only(bottom: 96)),
+              padding: const EdgeInsets.only(bottom: 96),
               children: [
                 const Padding(
                   padding: EdgeInsets.fromLTRB(16, 16, 16, 8),

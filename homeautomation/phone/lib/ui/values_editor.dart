@@ -134,7 +134,7 @@ class _ValuesEditorScreenState extends State<ValuesEditorScreen> {
         ],
       ),
       body: ListView(
-        padding: listPadding(context, const EdgeInsets.only(bottom: 32)),
+        padding: const EdgeInsets.only(bottom: 32),
         children: [
           if (widget.askLabel)
             Padding(

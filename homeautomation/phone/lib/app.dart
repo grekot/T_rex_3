@@ -7,6 +7,7 @@ import 'package:wspolne/wspolne.dart';
 
 import 'background/alert_worker.dart';
 import 'ui/main_screen.dart';
+import 'ui/widgets.dart' show aboveSystemBars;
 
 class TermostatApp extends StatelessWidget {
   const TermostatApp({super.key, this.home, this.useLogin = false});
@@ -32,8 +33,10 @@ class TermostatApp extends StatelessWidget {
       supportedLocales: const [Locale('pl', 'PL')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
       // Zegar 24-godzinny w wybieraniu godzin harmonogramu niezależnie od ustawień telefonu.
-      builder: (context, child) =>
-          MediaQuery(data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true), child: child!),
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+        child: aboveSystemBars(context, child!),
+      ),
       home: home ?? (useLogin ? const AuthGate() : const MainScreen()),
     );
   }

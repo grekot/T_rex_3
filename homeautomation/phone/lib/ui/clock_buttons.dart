@@ -14,7 +14,6 @@ import '../models/hub.dart';
 import '../services.dart';
 import 'clock_section.dart' show clockScreenList;
 import 'widget_editor.dart' show pointsOf;
-import 'widgets.dart' show listPadding;
 
 const _presses = {'short': 'krótko', 'double': 'podwójnie', 'triple': 'potrójnie', 'long': 'długo'};
 
@@ -256,7 +255,7 @@ class _AddButtonScreenState extends State<_AddButtonScreen> {
         ],
       ),
       body: ListView(
-        padding: listPadding(context, const EdgeInsets.all(16)),
+        padding: const EdgeInsets.all(16),
         children: [
           Text('Przycisk', style: t.titleSmall),
           Wrap(

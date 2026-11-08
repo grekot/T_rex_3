@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -171,12 +172,29 @@ class SectionHeader extends StatelessWidget {
   );
 }
 
-/// [padding] listy przewijanej do dołu ekranu powiększony o dolny pasek systemu. Aplikacja rysuje pod paskami
-/// (edge-to-edge, Android 15), a ListView z jawnym padding - inaczej niż bez niego - nie dodaje sam marginesu
-/// bezpiecznego obszaru, więc ostatni wiersz chował się pod przyciskami nawigacji. Pod SafeArea i nad
-/// bottomNavigationBar MediaQuery ma już 0, więc helper niczego nie dokłada.
-EdgeInsets listPadding(BuildContext context, EdgeInsets padding) =>
-    padding.copyWith(bottom: padding.bottom + MediaQuery.paddingOf(context).bottom);
+/// Treść aplikacji nad paskami systemu (MaterialApp.builder). Aplikacja rysuje do krawędzi ekranu (edge-to-edge,
+/// Android 15), a pasek nawigacji z przyciskami zasłaniał końce list, arkusze i przyciski na dole ekranów. Zamiast
+/// pilnować tego na każdym ekranie, całość jest odsunięta od dołu i boków (w poziomie pasek bywa z boku); pod paskiem
+/// tło motywu. Klawiatura: viewInsets pomniejszone o odsunięcie, żeby nad nią nie zostawała pusta szczelina.
+Widget aboveSystemBars(BuildContext context, Widget child) {
+  final mq = MediaQuery.of(context);
+  final bars = mq.viewPadding.copyWith(top: 0);
+  if (bars == EdgeInsets.zero) return child;
+  return ColoredBox(
+    color: Theme.of(context).scaffoldBackgroundColor,
+    child: Padding(
+      padding: bars,
+      child: MediaQuery(
+        data: mq.copyWith(
+          padding: mq.padding.copyWith(left: 0, right: 0, bottom: 0),
+          viewPadding: mq.viewPadding.copyWith(left: 0, right: 0, bottom: 0),
+          viewInsets: mq.viewInsets.copyWith(bottom: math.max(0, mq.viewInsets.bottom - bars.bottom)),
+        ),
+        child: child,
+      ),
+    ),
+  );
+}
 
 /// Pokazuje wynik zapisu: błędy pól albo „Zapisano”.
 void showSaveResult(BuildContext context, Map<String, String> errors, String Function(Map<String, String>) describe) {

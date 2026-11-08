@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../data/errors.dart';
 import '../data/home_repository.dart';
 import '../data/watch_account.dart';
-import 'widgets.dart' show listPadding;
 
 /// „Konto dla zegarka” (Domownicy, tylko właściciel): osobne konto e-mail domownika z poziomem „sterowanie”,
 /// którym loguje się aplikacja Dom w Zepp - zegarek nie trzyma wtedy dostępu do głównego konta.
@@ -72,7 +71,7 @@ class _WatchAccountScreenState extends State<WatchAccountScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Konto dla zegarka')),
       body: ListView(
-        padding: listPadding(context, const EdgeInsets.all(16)),
+        padding: const EdgeInsets.all(16),
         children: [
           const Text(
             'Aplikacja Dom w Zepp trzyma dostęp do konta, którym się w niej zalogujesz. Twoje główne konto otwiera '

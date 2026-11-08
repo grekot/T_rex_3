@@ -214,7 +214,7 @@ class _DevicesTabState extends State<DevicesTab> {
               : RefreshIndicator(
                   onRefresh: hub.load,
                   child: ListView(
-                    padding: listPadding(context, const EdgeInsets.fromLTRB(12, 0, 12, 96)),
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
                     children: [
                       if (hub.cloudLoading) const LinearProgressIndicator(),
                       if (devices.isEmpty && !hub.cloudLoading) _Empty(onAdd: _add),

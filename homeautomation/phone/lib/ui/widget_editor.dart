@@ -363,7 +363,7 @@ class _GroupPickerScreenState extends State<GroupPickerScreen> {
           final all = snap.data;
           if (all == null) return const Center(child: CircularProgressIndicator());
           return ListView(
-            padding: listPadding(context, const EdgeInsets.only(bottom: 24)),
+            padding: const EdgeInsets.only(bottom: 24),
             children: [
               Padding(
                 padding: const EdgeInsets.all(16),
@@ -696,7 +696,7 @@ class _AddWidgetScreenState extends State<AddWidgetScreen> {
   Widget _lookStep(BuildContext context) {
     final views = _views;
     return ListView(
-      padding: listPadding(context, const EdgeInsets.all(16)),
+      padding: const EdgeInsets.all(16),
       children: [
         Text('Wygląd', style: Theme.of(context).textTheme.titleSmall),
         const SizedBox(height: 8),
@@ -820,7 +820,7 @@ class ScenePickerScreen extends StatelessWidget {
               )
             : null,
         body: ListView(
-          padding: listPadding(context, const EdgeInsets.only(bottom: 96)),
+          padding: const EdgeInsets.only(bottom: 96),
           children: [
             if (hub.scenes.isEmpty)
               Padding(
@@ -977,7 +977,7 @@ class _SceneEditorScreenState extends State<SceneEditorScreen> {
         label: const Text('Krok'),
       ),
       body: ListView(
-        padding: listPadding(context, const EdgeInsets.fromLTRB(16, 16, 16, 96)),
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
           TextField(
             key: const Key('sceneLabel'),
@@ -1152,7 +1152,7 @@ class _SceneStepScreenState extends State<SceneStepScreen> {
             },
           ),
           _ => ListView(
-            padding: listPadding(context, const EdgeInsets.all(16)),
+            padding: const EdgeInsets.all(16),
             children: [
               Text(_point!.name, style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 16),

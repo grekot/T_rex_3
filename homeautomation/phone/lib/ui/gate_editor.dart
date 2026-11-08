@@ -122,7 +122,7 @@ class _GateEditorScreenState extends State<GateEditorScreen> {
           final outputs = snap.data;
           if (outputs == null) return const Center(child: CircularProgressIndicator());
           return ListView(
-            padding: listPadding(context, const EdgeInsets.only(bottom: 32)),
+            padding: const EdgeInsets.only(bottom: 32),
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),

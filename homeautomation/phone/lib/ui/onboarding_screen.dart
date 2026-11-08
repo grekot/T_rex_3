@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../controllers/home_session.dart';
 import '../data/errors.dart';
-import 'widgets.dart' show listPadding;
 
 /// Pierwsze uruchomienie z kontem (pkt 12): załóż dom albo dołącz do domu kodem zaproszenia.
 class OnboardingScreen extends StatefulWidget {
@@ -57,7 +56,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Dom')),
       body: ListView(
-        padding: listPadding(context, const EdgeInsets.all(24)),
+        padding: const EdgeInsets.all(24),
         children: [
           Icon(Icons.home_outlined, size: 64, color: cs.primary),
           const SizedBox(height: 16),

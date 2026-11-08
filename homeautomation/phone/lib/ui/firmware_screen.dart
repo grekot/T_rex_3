@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import '../controllers/device_controller.dart';
 import '../data/errors.dart';
 import '../data/local_api.dart';
-import 'widgets.dart' show listPadding;
 
 /// Etapy aktualizacji widoczne na ekranie.
 enum _Phase { idle, uploading, restarting, done, failed }
@@ -191,7 +190,7 @@ class _FirmwareScreenState extends State<FirmwareScreen> {
       child: Scaffold(
         appBar: AppBar(title: const Text('Aktualizacja firmware')),
         body: ListView(
-          padding: listPadding(context, const EdgeInsets.all(24)),
+          padding: const EdgeInsets.all(24),
           children: [
             ListTile(
               contentPadding: EdgeInsets.zero,

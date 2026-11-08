@@ -19,6 +19,7 @@ import '../models/home.dart';
 import '../models/home_widget.dart';
 import '../services.dart';
 import '../ui/dashboard_tiles.dart' show channelName, fallbackPoint;
+import '../ui/widgets.dart' show aboveSystemBars;
 import 'widget_cells.dart';
 import 'widget_look.dart';
 
@@ -48,6 +49,7 @@ Future<void> runHomeWidgetConfig() async {
         locale: const Locale('pl', 'PL'),
         supportedLocales: const [Locale('pl', 'PL')],
         localizationsDelegates: GlobalMaterialLocalizations.delegates,
+        builder: (context, child) => aboveSystemBars(context, child!),
         home: _ConfigRoot(widgetId: id, multi: multi),
       ),
     ),

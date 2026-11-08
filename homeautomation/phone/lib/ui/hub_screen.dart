@@ -174,7 +174,7 @@ class _HubScreenState extends State<HubScreen> {
     };
     final local = c.isLocal;
     return ListView(
-      padding: listPadding(context, const EdgeInsets.fromLTRB(16, 8, 16, 32)),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
       children: [
         RouteChip(controller: c),
         Card(
@@ -673,7 +673,7 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
                 final list = snap.data;
                 if (list == null) return const Center(child: CircularProgressIndicator());
                 return ListView(
-                  padding: listPadding(context, const EdgeInsets.only(bottom: 96)),
+                  padding: const EdgeInsets.only(bottom: 96),
                   children: [
                     const Padding(
                       padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
@@ -1142,7 +1142,7 @@ class _AssignToHubScreenState extends State<AssignToHubScreen> {
           final selected = hubs.where((e) => e.hub.id == _hub?.id).firstOrNull;
           final child = assigned?.child;
           return ListView(
-            padding: listPadding(context, const EdgeInsets.all(16)),
+            padding: const EdgeInsets.all(16),
             children: [
               if (assigned != null && child != null)
                 Card(

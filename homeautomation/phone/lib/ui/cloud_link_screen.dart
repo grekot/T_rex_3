@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../controllers/device_controller.dart';
 import '../data/cloud_access.dart';
 import '../data/errors.dart';
-import 'widgets.dart' show listPadding;
 
 /// „Połącz z chmurą” (pkt 8.2): urządzenie zakłada sobie anonimowe konto Firebase, a aplikacja
 /// właściciela przypisuje je do domu (`homes/{h}/deviceAccounts`). Hasło konta nie opuszcza telefonu.
@@ -85,7 +84,7 @@ class _CloudLinkScreenState extends State<CloudLinkScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Połącz z chmurą')),
       body: ListView(
-        padding: listPadding(context, const EdgeInsets.all(24)),
+        padding: const EdgeInsets.all(24),
         children: [
           Icon(Icons.cloud_sync_outlined, size: 56, color: cs.primary),
           const SizedBox(height: 16),

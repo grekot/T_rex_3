@@ -14,7 +14,6 @@ import '../provisioning/messages.dart';
 import '../provisioning/prov_qr.dart';
 import '../provisioning/provisioner.dart';
 import '../services.dart';
-import 'widgets.dart' show listPadding;
 
 enum _Step { scan, pop, connecting, wifi, joining, finding, done }
 
@@ -271,7 +270,7 @@ class _BleSetupScreenState extends State<BleSetupScreen> {
         appBar: AppBar(
           title: Text(_changingWifi ? 'Zmiana sieci WiFi' : (widget.softAp ? 'Urządzenie bez Bluetootha' : 'Nowe urządzenie')),
         ),
-        body: ListView(padding: listPadding(context, const EdgeInsets.all(16)), children: _content(context)),
+        body: ListView(padding: const EdgeInsets.all(16), children: _content(context)),
       ),
     );
   }

@@ -861,7 +861,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return RefreshIndicator(
       onRefresh: widget.hub.load,
       child: ListView(
-        padding: listPadding(context, const EdgeInsets.fromLTRB(12, 8, 12, 24)),
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
         children: [
           DashSummary(hub: widget.hub),
           if (d.scope == DashboardScope.shared && !_owner)
@@ -916,7 +916,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return ListView(
       key: _editorKey,
       controller: _scroll,
-      padding: listPadding(context, const EdgeInsets.fromLTRB(12, 8, 12, 96)),
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 96),
       children: [
         Padding(
           padding: const EdgeInsets.only(bottom: 8),

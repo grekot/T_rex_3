@@ -371,7 +371,7 @@ class _ClockPagesScreenState extends State<ClockPagesScreen> {
           ],
         ),
         body: ListView(
-          padding: listPadding(context, const EdgeInsets.fromLTRB(16, 8, 16, 32)),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
             Text(
               'Stan urządzeń domu na ekranie zegara (bez sterowania). Odczyty przysyła hub, więc tylko urządzenia '
@@ -556,7 +556,7 @@ class _ClockPageEditorState extends State<ClockPageEditor> {
         ],
       ),
       body: ListView(
-        padding: listPadding(context, const EdgeInsets.all(16)),
+        padding: const EdgeInsets.all(16),
         children: [
           TextField(
             key: const Key('clockPageTitle'),
@@ -786,7 +786,7 @@ class _AddClockWidgetState extends State<_AddClockWidget> {
         ],
       ),
       body: ListView(
-        padding: listPadding(context, const EdgeInsets.all(16)),
+        padding: const EdgeInsets.all(16),
         children: [
           Text('Urządzenie', style: t.titleSmall),
           for (final x in widget.hub.devices)
