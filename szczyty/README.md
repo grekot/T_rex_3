@@ -55,13 +55,14 @@ spojrzeć na „kierunek” i sąsiadów po bokach.
 
 Dokumentacja Zepp OS mówi tylko, że `getDirectionAngle()` to kąt „względem północy” – nie
 mówi, czy geograficznej, czy magnetycznej. Czujnik magnetyczny mierzy północ magnetyczną,
-a w Polsce różnica wynosi **+5 do +8°** (wschodnia), więc aplikacja domyślnie **dodaje
-deklinację** z modelu WMM2025 (siatka z kalkulatora NOAA dla 48–55,5° N i 12–24,5° E, ze zmianą
-roczną; dokładność ~0,4°). Na stronie „i” korektę można wyłączyć.
+a w Polsce różnica wynosi **+5 do +8°** (wschodnia). Aplikacja umie dodać deklinację z modelu
+WMM2025 (siatka z kalkulatora NOAA dla 48–55,5° N i 12–24,5° E, ze zmianą roczną; dokładność
+~0,4°), ale **domyślnie korekta jest wyłączona**: na T-Rex 3 (po kalibracji kompasu na otwartej
+przestrzeni) bez korekty wskazanie na widoczny szczyt się zgadzało. Na stronie „i” można ją włączyć.
 
-**Do sprawdzenia na zegarku:** skieruj 12:00 na znany szczyt albo wzdłuż prostego odcinka
-drogi z mapy. Jeśli z korektą wynik jest stale ~6° obok, a bez niej trafia – system już
-uwzględnia deklinację i korektę trzeba wyłączyć (wtedy zmienię domyślne ustawienie).
+Systemowej kalibracji kompasu aplikacja nie może wywołać (API daje tylko `getStatus()` –
+skalibrowany tak/nie). Duże odchyłki to zwykle metal w pobliżu (auto, ogrodzenie, budynek) albo
+słaba kalibracja: ósemki nadgarstkiem z dala od zabudowy.
 
 Odczyt jest wygładzany (25% nowej wartości co 200 ms, przy szybkim obrocie 60%), a krótkie
 zaniki kompasu (do 3 s) nie gaszą wyniku.

@@ -5,8 +5,8 @@ import { push } from "@zos/router";
 import { onKey, offKey, KEY_UP, KEY_DOWN, KEY_EVENT_CLICK } from "@zos/interaction";
 import { distance, smoothAngle, angleDiff } from "../../../utils/geo";
 import { declination, yearOf, trueHeading } from "../../../utils/declination";
-import { loadPeaksNear } from "../../../utils/peakdb";
-import { buildCandidates, PICK } from "../../../utils/pick";
+import { loadPeaksNear, MAGIC } from "../../../utils/peakdb";
+import { buildCandidates, farFilter, pickOptions } from "../../../utils/pick";
 import { screenModel } from "../../../utils/view";
 import { startGps, startCompass, startAltimeter } from "../../../utils/sensors";
 import { setupScreen, openAsset, PEAKS_FILE, loadLastPos, saveLastPos, loadCfg, cfgStamp } from "../../../utils/device";
@@ -27,6 +27,8 @@ import {
   BEHIND_STYLE,
   INFO_BG,
   INFO_STYLE,
+  TARGET_BG,
+  TARGET_STYLE,
   FREEZE_AREA,
   COLOR_ORANGE,
   COLOR_FROZEN,
@@ -34,12 +36,14 @@ import {
 import { px } from "@zos/utils";
 
 const INFO_PAGE = "page/gt/info/index.page";
+const TARGET_PAGE = "page/gt/cel/index.page";
 const TICK_MS = 200; // odczyt kompasu i odświeżenie ekranu
 const SMOOTH = 0.25; // wygładzanie kompasu (0..1, mniej = spokojniej, ale wolniej)
 const SMOOTH_FAST = 0.6; // przy szybkim obrocie (> 20°) dochodzimy szybciej
 const FAST_DEG = 20;
 const COMPASS_GRACE_MS = 3000; // krótkie zaniki kompasu nie gaszą wyniku
 const RELOAD_M = 5000; // po takim przejściu wczytujemy kafle od nowa
+const RELOAD_ELE_M = 300; // ...albo zmianie wysokości (dalekie szczyty są wybierane wg niej)
 const LOAD_MARGIN_KM = 6;
 const RECOMPUTE_M = 300; // przeliczenie kandydatów po przejściu / zmianie wysokości
 const RECOMPUTE_ELE_M = 40;
@@ -58,6 +62,7 @@ Page({
     const s = this.state;
     setupScreen();
     s.cfg = loadCfg();
+    s.pick = pickOptions(s.cfg.rangeKm);
     s.stamp = cfgStamp();
     s.pos = loadLastPos();
     if (s.pos) s.pos.live = false;
@@ -68,6 +73,8 @@ Page({
     s.peaks = null;
     s.cands = null;
     s.noDb = false;
+    s.dbError = "";
+    s.db = null;
     s.ticks = 0;
     s.savedAt = 0;
     s.cache = {};
@@ -82,7 +89,7 @@ Page({
 
     hmUI.createWidget(hmUI.widget.FILL_RECT, STRIP_LINE);
     s.icons = [];
-    for (let i = 0; i < PICK.stripMax; i++) {
+    for (let i = 0; i < s.pick.stripMax; i++) {
       const icon = hmUI.createWidget(hmUI.widget.IMG, { x: 0, y: 0, w: px(PEAK_ICON.w), h: px(PEAK_ICON.h), src: "peak.png" });
       icon.setProperty(hmUI.prop.VISIBLE, false);
       s.icons.push({ w: icon, key: "" });
@@ -98,13 +105,22 @@ Page({
     s.infoBg = hmUI.createWidget(hmUI.widget.FILL_RECT, INFO_BG);
     s.infoText = hmUI.createWidget(hmUI.widget.TEXT, INFO_STYLE);
     onTap([s.infoBg, s.infoText], () => push({ url: INFO_PAGE }));
+    s.targetBg = hmUI.createWidget(hmUI.widget.FILL_RECT, TARGET_BG);
+    s.targetText = hmUI.createWidget(hmUI.widget.TEXT, TARGET_STYLE);
+    onTap([s.targetBg, s.targetText], () => push({ url: TARGET_PAGE }));
 
     s.compass = startCompass();
     s.alt = startAltimeter();
     s.gps = startGps((fix) => this.onFix(fix));
-    this.refreshPeaks();
+    // Najpierw ekran, potem baza: wczytanie kafli i liczenie kandydatów trwa na zegarku
+    // zauważalnie, a bez tego przez ten czas widać tylko czarny ekran
     this.render();
-    s.timer = setInterval(() => this.tick(), TICK_MS);
+    s.loadTimer = setTimeout(() => {
+      s.loadTimer = null;
+      this.refreshPeaks();
+      this.render();
+      s.timer = setInterval(() => this.tick(), TICK_MS);
+    }, 50);
 
     try {
       onKey({
@@ -120,11 +136,13 @@ Page({
 
   onDestroy() {
     const s = this.state;
+    if (s.loadTimer) clearTimeout(s.loadTimer);
     if (s.timer) clearInterval(s.timer);
     s.gps.stop();
     s.compass.stop();
     s.alt.stop();
     if (s.pos && s.pos.live) this.savePos();
+    if (s.db) s.db.close();
     if (s.keyHooked) {
       try {
         offKey();
@@ -153,30 +171,45 @@ Page({
     const s = this.state;
     if (!s.pos || s.noDb) return;
     const { lat, lon } = s.pos;
-    if (!s.peaks || distance(lat, lon, s.peaksAt.lat, s.peaksAt.lon) > RELOAD_M) {
-      const file = openAsset(PEAKS_FILE);
+    const ele = s.ele === null ? 0 : s.ele;
+    if (
+      !s.peaks ||
+      distance(lat, lon, s.peaksAt.lat, s.peaksAt.lon) > RELOAD_M ||
+      Math.abs(ele - s.peaksAt.ele) > RELOAD_ELE_M
+    ) {
+      if (!s.db) {
+        const f = openAsset(PEAKS_FILE, MAGIC);
+        if (f.error) {
+          console.log("peaks.bin: " + f.error);
+          s.noDb = true;
+          s.dbError = f.error;
+          return;
+        }
+        s.db = f;
+      }
       let res = null;
       try {
-        res = file ? loadPeaksNear(file.read, lat, lon, PICK.rangeM / 1000 + LOAD_MARGIN_KM) : null;
+        const o = s.pick;
+        res = loadPeaksNear(s.db.read, lat, lon, o.rangeM / 1000 + LOAD_MARGIN_KM, farFilter({ lat, lon, ele }, o));
       } catch (e) {
-        console.log("peaks.bin: " + e);
+        s.dbError = s.db.how + ": " + e;
       }
-      if (file) file.close();
       if (!res) {
+        if (!s.dbError) s.dbError = s.db.how + ": zły nagłówek";
+        console.log("peaks.bin: " + s.dbError);
         s.noDb = true;
         return;
       }
       s.peaks = res.peaks;
-      s.peaksAt = { lat, lon };
+      s.peaksAt = { lat, lon, ele };
       s.cands = null;
     }
-    const ele = s.ele === null ? 0 : s.ele;
     if (
       !s.cands ||
       distance(lat, lon, s.candsAt.lat, s.candsAt.lon) > RECOMPUTE_M ||
       Math.abs(ele - s.candsAt.ele) > RECOMPUTE_ELE_M
     ) {
-      s.cands = buildCandidates(s.peaks, { lat, lon, ele });
+      s.cands = buildCandidates(s.peaks, { lat, lon, ele }, s.pick);
       s.candsAt = { lat, lon, ele };
     }
   },
@@ -195,7 +228,15 @@ Page({
     if (s.ticks % CFG_POLL_TICKS === 0) {
       if (cfgStamp() !== s.stamp) {
         s.stamp = cfgStamp();
+        const old = s.cfg.rangeKm;
         s.cfg = loadCfg();
+        if (s.cfg.rangeKm !== old) {
+          // inny zasięg - kafle i kandydaci od nowa
+          s.pick = pickOptions(s.cfg.rangeKm);
+          s.peaks = null;
+          s.cands = null;
+          this.refreshPeaks();
+        }
       }
       const a = s.alt.read();
       if (a !== null) {
@@ -240,7 +281,10 @@ Page({
       frozen: s.frozen,
       now: Date.now(),
       noDb: s.noDb,
-    });
+      loading: !s.cands,
+      dbError: s.dbError,
+      target: s.cfg.target,
+    }, s.pick);
     this.setText("top", s.top, TOP_STYLE, m.top, s.frozen ? COLOR_FROZEN : COLOR_ORANGE);
     this.setText("status", s.status, STATUS_STYLE, m.status);
     this.setText("name", s.name, NAME_STYLE, m.name);

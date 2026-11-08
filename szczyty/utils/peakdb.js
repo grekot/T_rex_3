@@ -78,7 +78,21 @@ export function parseIndex(h, b) {
   return off;
 }
 
-// Numery kafli, które mogą zawierać szczyty w promieniu rangeKm od punktu
+// Czy punkt jest w promieniu rangeKm - przybliżenie płaskie (bez trygonometrii na każdy szczyt;
+// na 100 km błąd < 0,5 %, a dokładną odległość i tak liczy buildCandidates)
+export function nearTest(lat, lon, rangeKm) {
+  const kLon = Math.cos((lat * Math.PI) / 180);
+  const r = rangeKm / 111.2;
+  const r2 = r * r;
+  return (pLat, pLon) => {
+    const dy = pLat - lat;
+    const dx = (pLon - lon) * kLon;
+    return dx * dx + dy * dy <= r2;
+  };
+}
+
+// Numery kafli, które mogą zawierać szczyty w promieniu rangeKm od punktu (bez narożnych
+// kafli, które do koła nie sięgają)
 export function tilesInRange(h, lat, lon, rangeKm) {
   const dLat = rangeKm / 111.2;
   const cosLat = Math.max(0.2, Math.cos((Math.max(Math.abs(lat - dLat), Math.abs(lat + dLat)) * Math.PI) / 180));
@@ -88,7 +102,16 @@ export function tilesInRange(h, lat, lon, rangeKm) {
   const c0 = Math.max(0, Math.floor((lon - dLon - h.lon0) / h.size));
   const c1 = Math.min(h.cols - 1, Math.floor((lon + dLon - h.lon0) / h.size));
   const out = [];
-  for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) out.push(r * h.cols + c);
+  const near = nearTest(lat, lon, rangeKm);
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  for (let r = r0; r <= r1; r++) {
+    const la = h.lat0 + r * h.size;
+    for (let c = c0; c <= c1; c++) {
+      const lo = h.lon0 + c * h.size;
+      // najbliższy punkt kafla
+      if (near(clamp(lat, la, la + h.size), clamp(lon, lo, lo + h.size))) out.push(r * h.cols + c);
+    }
+  }
   return out;
 }
 
@@ -98,36 +121,58 @@ export function tileOrigin(h, tile) {
   return { lat: h.lat0 + r * h.size, lon: h.lon0 + c * h.size };
 }
 
-// Bajty jednego kafla -> szczyty { name, lat, lon, ele, rank }; push do `out`
-export function decodeTile(h, tile, b, out) {
+// Szczyt z bazy; nazwa dekodowana dopiero przy pierwszym użyciu (na zegarku dekodowanie
+// tysięcy nazw przy starcie było wyraźnie odczuwalne, a pokazujemy kilka)
+class Peak {
+  constructor(b, at, len, lat, lon, ele, rank) {
+    this.b = b;
+    this.at = at;
+    this.len = len;
+    this.lat = lat;
+    this.lon = lon;
+    this.ele = ele;
+    this.rank = rank;
+    this.n = null;
+  }
+  get name() {
+    if (this.n === null) {
+      this.n = utf8Decode(this.b, this.at, this.len);
+      this.b = null;
+    }
+    return this.n;
+  }
+}
+
+// Bajty jednego kafla -> szczyty { name, lat, lon, ele, rank }; push do `out`.
+// keep(lat, lon, ele, rank) - opcjonalny filtr (odrzucone szczyty nie są nawet tworzone)
+export function decodeTile(h, tile, b, out, keep) {
   const o = tileOrigin(h, tile);
   const k = h.size / COORD_MAX;
   let i = 0;
   while (i + RECORD_FIXED <= b.length) {
     const len = b[i + 7];
-    out.push({
-      name: utf8Decode(b, i + RECORD_FIXED, len),
-      lat: o.lat + u16(b, i) * k,
-      lon: o.lon + u16(b, i + 2) * k,
-      ele: u16(b, i + 4),
-      rank: b[i + 6],
-    });
+    const lat = o.lat + u16(b, i) * k;
+    const lon = o.lon + u16(b, i + 2) * k;
+    const ele = u16(b, i + 4);
+    if (!keep || keep(lat, lon, ele, b[i + 6])) out.push(new Peak(b, i + RECORD_FIXED, len, lat, lon, ele, b[i + 6]));
     i += RECORD_FIXED + len;
   }
   return out;
 }
 
-// Szczyty w zasięgu z pliku dostępnego przez read(pozycja, długość) -> Uint8Array;
-// każdy kafel to jeden odczyt.
-export function loadPeaksNear(read, lat, lon, rangeKm) {
+// Szczyty w promieniu rangeKm z pliku dostępnego przez read(pozycja, długość) -> Uint8Array;
+// każdy kafel to jeden odczyt. extra(lat, lon, ele, rank) - dodatkowy filtr (pick.farFilter).
+export function loadPeaksNear(read, lat, lon, rangeKm, extra) {
   const h = parseHeader(read(0, HEADER_SIZE));
   if (!h) return null;
   const off = parseIndex(h, read(h.indexAt, indexLength(h)));
   const peaks = [];
   const tiles = tilesInRange(h, lat, lon, rangeKm);
+  const near = nearTest(lat, lon, rangeKm);
+  const keep = extra ? (la, lo, e, r) => near(la, lo) && extra(la, lo, e, r) : near;
   for (const t of tiles) {
     const len = off[t + 1] - off[t];
-    if (len > 0) decodeTile(h, t, read(off[t], len), peaks);
+    if (len > 0) decodeTile(h, t, read(off[t], len), peaks, keep);
   }
   return { header: h, peaks, tiles: tiles.length };
 }

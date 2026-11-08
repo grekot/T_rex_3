@@ -158,3 +158,19 @@ test("prawdziwa baza: znane szczyty na miejscu", { skip: !fs.existsSync(REAL) },
   const tatry = loadPeaksNear(reader(bin), 49.23, 19.98, 106);
   assert.ok(tatry.peaks.length < 6000, "w zasięgu z Kasprowego: " + tatry.peaks.length);
 });
+
+test("wczytywanie: tylko koło 100 km, dalekie tylko wybitne", async () => {
+  const { farFilter, buildCandidates } = await import("../utils/pick.js");
+  const real = new Uint8Array(fs.readFileSync(fileURLToPath(new URL("../assets/gt.r/peaks.bin", import.meta.url))));
+  const obs = { lat: 50.06, lon: 19.94, ele: 220 }; // Kraków
+  const all = loadPeaksNear(reader(real), obs.lat, obs.lon, 106).peaks;
+  assert.ok(all.every((p) => distance(obs.lat, obs.lon, p.lat, p.lon) < 107000), "nic spoza koła");
+  const some = loadPeaksNear(reader(real), obs.lat, obs.lon, 106, farFilter(obs)).peaks;
+  assert.ok(some.length < all.length / 2, some.length + " z " + all.length);
+  const names = buildCandidates(some, obs).map((c) => c.name);
+  for (const n of ["Babia Góra", "Turbacz", "Pilsko", "Świnica", "Krywań", "Bystra"]) assert.ok(names.includes(n), n);
+  // dobrze widoczni kandydaci zostają wszyscy
+  const kept = new Set(names);
+  const lost = buildCandidates(all, obs).filter((c) => c.w >= 3.5 && !kept.has(c.name));
+  assert.deepEqual(lost.map((c) => c.name), []);
+});

@@ -154,3 +154,59 @@ test("krótkie nazwy na boki ekranu", async () => {
   assert.equal(shortName("Východná Vysoká veža"), "Východná Vyso.");
   assert.equal(shortName("(tylko nawias)"), "(tylko nawias)");
 });
+
+test("zasłonięcie przez północ (359° / 1°) i wiele szczytów pomiędzy", () => {
+  const obs = { lat: 50, lon: 20, ele: 300 };
+  const filler = [];
+  for (let i = 1; i < 60; i++) filler.push(P("F" + i, 50 + 0.3 * Math.cos(i), 20 + 0.45 * Math.sin(i), 600));
+  // bliski wysoki trochę na zachód od północy, daleki niższy trochę na wschód
+  const list = buildCandidates([P("Bliski", 50.05, 19.9995, 900), P("Daleki", 50.4, 20.002, 1000), ...filler], obs);
+  const get = (n) => list.find((c) => c.name === n);
+  assert.ok(get("Bliski").b > 359 && get("Daleki").b < 1);
+  assert.equal(get("Bliski").hidden, false);
+  assert.equal(get("Daleki").hidden, true);
+});
+
+test("zasięg z ustawień: 10-100 km co 10", async () => {
+  const { pickOptions } = await import("../utils/pick.js");
+  assert.equal(pickOptions(60).rangeM, 60000);
+  assert.equal(pickOptions(60).nearAllM, 20000);
+  assert.equal(pickOptions(10).nearAllM, 5000);
+  assert.equal(pickOptions(5).rangeM, 10000);
+  assert.equal(pickOptions(250).rangeM, 100000);
+  assert.equal(pickOptions(undefined).rangeM, 100000);
+  const near = buildCandidates(PEAKS, OBS, pickOptions(30)).map((c) => c.name).sort();
+  assert.deepEqual(near, ["Lubań", "Mogielica", "Pagórek"]);
+});
+
+test("lista celów: najbliższe i najwybitniejsze", async () => {
+  const { targetList } = await import("../utils/pick.js");
+  const near = targetList(PEAKS, OBS, "near", 3);
+  assert.deepEqual(near.map((p) => p.name), ["Pagórek", "Mogielica", "Lubań"]);
+  assert.ok(near[0].d < near[1].d && near[1].d < near[2].d);
+  const top = targetList(PEAKS, OBS, "top", 9);
+  assert.ok(!top.some((p) => p.name === "Turbacz" || p.name === "Śnieżka"), "bez miejsca obserwacji i spoza zasięgu");
+  assert.ok(top[0].w >= top[1].w);
+  assert.ok(top.findIndex((p) => p.name === "Pagórek") > top.findIndex((p) => p.name === "Gerlach"));
+});
+
+test("naprowadzanie na cel", () => {
+  const now = Date.UTC(2026, 9, 20, 13, 0);
+  const pos = { ...OBS, t: now, live: true };
+  const target = { name: "Babia Góra", lat: 49.5731, lon: 19.5292, ele: 1725 };
+  const b = buildCandidates(PEAKS, OBS).find((c) => c.name === "Babia Góra").b;
+  let m = screenModel({ pos, ele: 1310, heading: b, cands: null, now, target });
+  assert.equal(m.name, "Babia Góra");
+  assert.equal(m.details, "1725 m · 42 km");
+  assert.match(m.hint, /na wprost$/);
+  assert.match(m.top, /^CEL · /);
+  assert.equal(m.strip.length, 1);
+  assert.equal(m.left + m.right, "");
+  m = screenModel({ pos, ele: 1310, heading: b - 90, cands: null, now, target });
+  assert.equal(m.right, "obróć 90°");
+  assert.equal(m.strip.length, 0);
+  m = screenModel({ pos, ele: 1310, heading: b + 40, cands: null, now, target });
+  assert.equal(m.left, "obróć 40°");
+  m = screenModel({ pos: { ...pos, lat: target.lat, lon: target.lon }, ele: 1725, heading: 0, cands: null, now, target });
+  assert.equal(m.hint, "jesteś na szczycie");
+});

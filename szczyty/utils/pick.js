@@ -14,6 +14,8 @@ export const PICK = {
   perSector: 6, //   ...najwyżej 6 najbardziej widocznych (żeby wysokie Tatry nie wypchnęły
   //                   z listy niższych, ale bliskich szczytów w innych kierunkach)
   maxCandidates: 432, // 72 wycinki x 6 - tyle liczymy przy każdym odczycie kompasu
+  nearAllM: 20000, // do tej odległości wczytujemy wszystkie szczyty, dalej tylko wybitne:
+  farWeight: 3.5, //   waga (weight) musi rosnąć liniowo od 0 do farWeight przy rangeM
   cone: 15, // +- stopnie wokół kierunku 12:00 (kompas zegarka drga o kilka stopni)
   elevWeight: 1.5, // 1° wzniesienia nad oko = 1,5° odchylenia (wyższe/bliższe wygrywają)
   elevMin: -3, // kąty wzniesienia przycinamy do tego zakresu, żeby jeden bliski
@@ -35,6 +37,59 @@ export function weight(c, o = PICK) {
   return o.elevWeight * clamp(c.elev, o.elevMin, o.elevMax) + c.rank / o.rankDiv;
 }
 
+// Ustawienia z wybranym zasięgiem (km, 10-100); bliska strefa "wszystkie" nie większa od zasięgu
+export const RANGE_MIN_KM = 10;
+export const RANGE_MAX_KM = 100;
+export function pickOptions(rangeKm, o = PICK) {
+  const km = Math.max(RANGE_MIN_KM, Math.min(RANGE_MAX_KM, Math.round(rangeKm / 10) * 10 || RANGE_MAX_KM));
+  const rangeM = km * 1000;
+  return { ...o, rangeM, nearAllM: Math.min(o.nearAllM, rangeM / 2) };
+}
+
+// Lista do wyboru celu: szczyty w zasięgu z odległością i wagą, posortowane wg odległości
+// ("near") albo od najbardziej widocznych/znanych ("top"); najwyżej limit pozycji.
+// -> [{ name, lat, lon, ele, d, w }]
+export function targetList(peaks, obs, mode, limit, o = PICK) {
+  const hObs = isFinite(obs.ele) ? obs.ele : 0;
+  const list = [];
+  for (let i = 0; i < peaks.length; i++) {
+    const p = peaks[i];
+    const d = distance(obs.lat, obs.lon, p.lat, p.lon);
+    if (d < o.minDistM || d > o.rangeM) continue;
+    list.push({ p, ele: p.ele, d, w: weight({ elev: elevationAngle(hObs, p.ele, d), rank: p.rank }, o) });
+  }
+  list.sort(mode === "top" ? (a, b) => b.w - a.w : (a, b) => a.d - b.d);
+  return list.slice(0, limit).map((c) => ({ name: c.p.name, lat: c.p.lat, lon: c.p.lon, ele: c.ele, d: c.d, w: c.w }));
+}
+
+// Naprowadzanie: kierunek, odległość i odchylenie od godziny 12 do wybranego szczytu
+// target: { name, lat, lon, ele }, obs: { lat, lon, ele } -> { d, b, elev, offset }
+export function targetInfo(target, obs, heading) {
+  const d = distance(obs.lat, obs.lon, target.lat, target.lon);
+  const b = bearing(obs.lat, obs.lon, target.lat, target.lon);
+  const hObs = isFinite(obs.ele) ? obs.ele : 0;
+  return { d, b, elev: elevationAngle(hObs, target.ele, d), offset: angleDiff(b, heading) };
+}
+
+// Filtr dla loadPeaksNear: blisko wszystko, daleko tylko szczyty wysokie w oczach albo znane
+// (w Tatrach ~1540 zamiast ~2860 szczytów, w Krakowie ~840 zamiast ~1700 - liczenie kandydatów
+// na zegarku trwało za długo; z listy kandydatów nie znika żaden szczyt o wadze >= 3,5).
+// Odległość płaska, bez trygonometrii - to tylko wstępne sito.
+export function farFilter(obs, o = PICK) {
+  const hObs = isFinite(obs.ele) ? obs.ele : 0;
+  const kLon = Math.cos((obs.lat * Math.PI) / 180);
+  const near2 = (o.nearAllM / 111200) ** 2;
+  return (lat, lon, ele, rank) => {
+    const dy = lat - obs.lat;
+    const dx = (lon - obs.lon) * kLon;
+    const dd = dx * dx + dy * dy;
+    if (dd <= near2) return true;
+    const d = Math.sqrt(dd) * 111200;
+    const need = (o.farWeight * (d - o.nearAllM)) / (o.rangeM - o.nearAllM);
+    return weight({ elev: elevationAngle(hObs, ele, d), rank }, o) >= need;
+  };
+}
+
 // peaks: [{ name, lat, lon, ele, rank }], obs: { lat, lon, ele } -> kandydaci posortowani wg kierunku
 export function buildCandidates(peaks, obs, o = PICK) {
   const hObs = isFinite(obs.ele) ? obs.ele : 0;
@@ -46,7 +101,7 @@ export function buildCandidates(peaks, obs, o = PICK) {
     if (d < o.minDistM || d > o.rangeM) continue;
     if (d > horizonObs + horizonDistance(p.ele)) continue; // za krzywizną Ziemi
     const c = {
-      name: p.name,
+      p,
       ele: p.ele,
       rank: p.rank,
       lat: p.lat,
@@ -70,19 +125,26 @@ export function buildCandidates(peaks, obs, o = PICK) {
     }
     list = kept;
   }
-  // Zasłonięcie: bliższy szczyt w prawie tym samym kierunku, widziany wyżej
-  list.sort((a, b) => a.d - b.d);
-  for (let i = 1; i < list.length; i++) {
+  list.sort((a, b) => a.b - b.b);
+  // Zasłonięcie: bliższy szczyt w prawie tym samym kierunku, widziany wyżej. Lista jest
+  // posortowana wg kierunku, więc wystarczy przejrzeć sąsiadów w oknie ±hideDeg (dookoła 360°)
+  // - porównywanie każdego z każdym zajmowało na zegarku większość czasu startu.
+  const n = list.length;
+  for (let i = 0; i < n; i++) {
     const c = list[i];
-    for (let j = 0; j < i; j++) {
-      const n = list[j];
-      if (n.elev > c.elev && Math.abs(angleDiff(n.b, c.b)) < o.hideDeg) {
-        c.hidden = true;
-        break;
+    c.name = c.p.name;
+    c.p = null;
+    for (let dir = -1; dir <= 1 && !c.hidden; dir += 2) {
+      for (let k = 1; k < n; k++) {
+        const m = list[(i + dir * k + n) % n];
+        if (Math.abs(angleDiff(m.b, c.b)) >= o.hideDeg) break;
+        if (m.d < c.d && m.elev > c.elev) {
+          c.hidden = true;
+          break;
+        }
       }
     }
   }
-  list.sort((a, b) => a.b - b.b);
   return list;
 }
 

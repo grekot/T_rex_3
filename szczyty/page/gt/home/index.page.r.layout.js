@@ -68,10 +68,13 @@ export const RIGHT_STYLE = text(356, 30, 21, COLOR_TEXT, {
 // "za nim: Rysy 2499 m"
 export const BEHIND_STYLE = text(388, 28, 19, COLOR_GREY, { x: px(80), w: W - px(160) });
 
-// Przycisk informacji na dole
-const INFO_RECT = { x: W / 2 - px(24), y: px(420), w: px(48), h: px(40) };
+// Przyciski na dole: informacje/ustawienia i wybór celu naprowadzania
+const INFO_RECT = { x: W / 2 - px(66), y: px(420), w: px(48), h: px(40) };
 export const INFO_BG = { ...INFO_RECT, radius: px(20), color: COLOR_PILL };
 export const INFO_STYLE = { ...text(0, 0, 26, COLOR_GREY), ...INFO_RECT, text: "i" };
+const TARGET_RECT = { x: W / 2 - px(6), y: px(420), w: px(72), h: px(40) };
+export const TARGET_BG = { ...TARGET_RECT, radius: px(20), color: COLOR_PILL };
+export const TARGET_STYLE = { ...text(0, 0, 24, COLOR_GREY), ...TARGET_RECT, text: "cel" };
 
 // Duży czarny (niewidoczny na czarnym tle) obszar na środku: stuknięcie = zatrzymaj / wznów.
 // Rysowany pierwszy, teksty na nim mają ten sam odbiornik.

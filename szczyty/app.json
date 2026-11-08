@@ -5,8 +5,8 @@
     "appName": "Szczyty",
     "appType": "app",
     "version": {
-      "code": 1,
-      "name": "1.0.0"
+      "code": 7,
+      "name": "1.1.1"
     },
     "icon": "icon.png",
     "vender": "grekot",
@@ -31,7 +31,7 @@
     "gt": {
       "module": {
         "page": {
-          "pages": ["page/gt/home/index.page", "page/gt/info/index.page"]
+          "pages": ["page/gt/home/index.page", "page/gt/info/index.page", "page/gt/cel/index.page"]
         }
       },
       "platforms": [

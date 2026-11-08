@@ -1,6 +1,6 @@
 // Co pokazać na ekranie - czysta funkcja stanu, testy w test/pick.test.mjs.
 import { cardinal, formatDeg, formatDistance, formatWhen } from "./geo.js";
-import { pickPeak, stripPeaks, PICK } from "./pick.js";
+import { pickPeak, stripPeaks, targetInfo, PICK } from "./pick.js";
 
 // Krótka nazwa na boki ekranu: bez dopisków w nawiasach, najwyżej SIDE_CHARS znaków
 export const SIDE_CHARS = 14;
@@ -18,7 +18,7 @@ function turnHint(offset) {
 }
 
 // st: { pos: {lat,lon,t,live} | null, ele: m | null, heading: stopnie | null, cands: [] | null,
-//       frozen, now, noDb }
+//       frozen, now, noDb, dbError, loading, target: {name, lat, lon, ele} | null }
 // -> { top, status, name, details, hint, left, right, behind, strip: [{off, elev, best}] }
 export function screenModel(st, o = PICK) {
   const m = { top: "", status: "", name: "", details: "", hint: "", left: "", right: "", behind: "", strip: [] };
@@ -33,7 +33,8 @@ export function screenModel(st, o = PICK) {
 
   if (st.noDb) {
     m.name = "Brak bazy szczytów";
-    m.details = "zainstaluj aplikację ponownie";
+    m.details = "błąd odczytu";
+    m.hint = st.dbError ? "szczegóły: przycisk i" : "zainstaluj aplikację ponownie";
     return m;
   }
   if (!pos) {
@@ -46,6 +47,11 @@ export function screenModel(st, o = PICK) {
     m.name = "Kalibracja kompasu";
     m.details = "zatocz nadgarstkiem ósemkę";
     m.hint = "kilka razy, w różnych kierunkach";
+    return m;
+  }
+  if (st.target) return targetModel(m, st);
+  if (st.loading) {
+    m.name = "Wczytuję szczyty...";
     return m;
   }
   const cands = st.cands || [];
@@ -71,5 +77,25 @@ export function screenModel(st, o = PICK) {
   m.right = sideText(r.right);
   if (r.behind) m.behind = "za nim: " + shortName(r.behind.name, 20) + " " + r.behind.ele + " m";
   m.strip = stripPeaks(cands, st.heading, o).map((s) => ({ off: s.off, elev: s.c.elev, best: s.c === r.best }));
+  return m;
+}
+
+// Ekran naprowadzania na wybrany szczyt: nazwa, odległość, w którą stronę się obrócić,
+// strzałka po stronie celu i znacznik na pasku horyzontu, gdy cel jest w zasięgu ±30°
+const AHEAD_DEG = 3;
+function targetModel(m, st) {
+  const t = st.target;
+  const obs = { lat: st.pos.lat, lon: st.pos.lon, ele: st.ele };
+  const r = targetInfo(t, obs, st.heading);
+  m.top = "CEL · " + m.top;
+  m.name = t.name;
+  m.details = t.ele + " m · " + formatDistance(r.d);
+  m.hint = "kierunek " + formatDeg(r.b) + " · " + turnHint(r.offset);
+  if (r.d < 150) m.hint = "jesteś na szczycie";
+  const a = Math.round(Math.abs(r.offset));
+  if (r.offset <= -AHEAD_DEG) m.left = "obróć " + a + "°";
+  else if (r.offset >= AHEAD_DEG) m.right = "obróć " + a + "°";
+  m.behind = "zmiana celu: przycisk cel";
+  if (Math.abs(r.offset) <= PICK.stripHalf) m.strip = [{ off: r.offset, elev: r.elev, best: true }];
   return m;
 }
