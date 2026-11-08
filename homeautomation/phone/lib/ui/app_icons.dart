@@ -83,6 +83,14 @@ const appIcons = <AppIcon>[
   AppIcon('router', 'Sieć', Icons.router_outlined, 'Urządzenia'),
   AppIcon('chart', 'Wykres', Icons.show_chart, 'Urządzenia'),
   AppIcon('settings', 'Ustawienia', Icons.tune, 'Urządzenia'),
+  // Stany (druga ikona widżetu stanu: otwarte, wyłączone)
+  AppIcon('unlock', 'Otwarty zamek', Icons.lock_open_outlined, 'Stany'),
+  AppIcon('door-open', 'Drzwi otwarte', Icons.meeting_room_outlined, 'Stany'),
+  AppIcon('window-open', 'Okno otwarte', Icons.sensor_window_outlined, 'Stany'),
+  AppIcon('power-off', 'Wyłączone', Icons.power_off_outlined, 'Stany'),
+  AppIcon('fan-off', 'Wentylator wył.', Icons.mode_fan_off_outlined, 'Stany'),
+  AppIcon('check', 'W porządku', Icons.check_circle_outline, 'Stany'),
+  AppIcon('cross', 'Błąd', Icons.highlight_off, 'Stany'),
 ];
 
 final _byKey = {for (final i in appIcons) i.key: i};

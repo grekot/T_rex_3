@@ -344,6 +344,71 @@ void main() {
     hub.dispose();
   });
 
+  testWidgets('edytor strony: przeniesienie widżetu w siatce, ikony stanu wł. / wył.', (tester) async {
+    final (hub, _, _) = await _home();
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    ClockPage? result;
+    final page = ClockPage(
+      id: 'p1',
+      title: 'Dom',
+      widgets: [
+        const DashWidget(id: 'a', view: WidgetView.status, device: 'parter', point: 'on', label: 'Pompa')
+            .patch({'x': 0, 'y': 0}),
+        const DashWidget(id: 'b', view: WidgetView.value, device: 'parter', point: 'temp', label: 'Warsztat')
+            .patch({'x': 1, 'y': 0}),
+      ],
+    );
+    await tester.pumpWidget(
+      _app(
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () async => result = await Navigator.of(context).push<ClockPage>(
+              MaterialPageRoute(
+                builder: (_) => ClockPageEditor(page: page, hub: hub, known: const {'parter'}, clock: c),
+              ),
+            ),
+            child: const Text('otwórz'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('otwórz'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pompa'));
+    await tester.pumpAndSettle();
+    // Pole zajęte przez drugi widżet jest nieaktywne, wolne przenosi
+    await tester.tap(find.byKey(const Key('clockWidgetPos-1-0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockWidgetPos-3-2')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('clockWidget-iconOn')));
+    await tester.tap(find.byKey(const Key('clockWidget-iconOn')));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('icon-door-open')),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.ensureVisible(find.byKey(const Key('icon-door-open')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('icon-door-open')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('icon-door-open')), findsNothing, reason: 'wybór ikony zamknięty');
+    expect(find.text('Drzwi otwarte'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('clockWidgetOk')));
+    await tester.tap(find.byKey(const Key('clockWidgetOk')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clockWidgetOk')), findsNothing, reason: 'arkusz widżetu zamknięty');
+    await tester.tap(find.byKey(const Key('clockPageDone')));
+    await tester.pumpAndSettle();
+    final a = result!.widgets.firstWhere((w) => w.id == 'a');
+    expect((a.x, a.y), (3, 2));
+    expect(a.extra['iconOn'], 'door-open');
+    expect(a.extra.containsKey('iconOff'), isFalse);
+    hub.dispose();
+  });
+
   testWidgets('strony: z pulpitu, opisy z describe przy zapisie, rozwinięty pokój, strona w pokazie; obcy wyszarzony', (
     tester,
   ) async {

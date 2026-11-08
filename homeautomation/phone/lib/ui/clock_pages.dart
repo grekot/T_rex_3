@@ -17,6 +17,7 @@ import '../models/device_type.dart';
 import '../models/json_utils.dart';
 import '../models/room.dart';
 import '../services.dart';
+import 'app_icons.dart';
 import 'clock_section.dart' show clockScreenList;
 import 'dashboard_tiles.dart' show fallbackPoint;
 import 'format.dart';
@@ -497,6 +498,13 @@ class _ClockPageEditorState extends State<ClockPageEditor> {
     return spot == null ? null : w.patch({'w': gw, 'h': gh, 'x': spot.$1, 'y': spot.$2});
   }
 
+  /// Widżet [w] (z bieżącym rozmiarem) w lewym górnym rogu (x, y); null = nie mieści się albo nachodzi na inny.
+  DashWidget? _moved(DashWidget w, int x, int y) {
+    final gw = clockW(w), gh = clockH(w);
+    if (x + gw > clockCols || y + gh > clockRows) return null;
+    return _fits(_p.widgets.where((o) => o.id != w.id), x, y, gw, gh) ? w.patch({'x': x, 'y': y}) : null;
+  }
+
   static bool _fits(Iterable<DashWidget> others, int x, int y, int w, int h) {
     for (final o in others) {
       final ox = o.x ?? 0, oy = o.y ?? 0;
@@ -531,7 +539,7 @@ class _ClockPageEditorState extends State<ClockPageEditor> {
       context: context,
       showDragHandle: true,
       isScrollControlled: true,
-      builder: (ctx) => _WidgetSheet(widget: w, resize: (gw, gh) => _resized(w, gw, gh)),
+      builder: (ctx) => _WidgetSheet(widget: w, resize: (gw, gh) => _resized(w, gw, gh), move: _moved),
     );
     if (r == null || !mounted) return;
     if (r.id == '') {
@@ -568,7 +576,7 @@ class _ClockPageEditorState extends State<ClockPageEditor> {
           ClockPagePreview(page: _p, hub: widget.hub, known: widget.known, onTap: _editWidget),
           const SizedBox(height: 8),
           Text(
-            'Dotknij widżetu, żeby zmienić rozmiar, kolor albo go usunąć.',
+            'Dotknij widżetu, żeby zmienić położenie, rozmiar, kolor albo go usunąć.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           const SizedBox(height: 8),
@@ -587,12 +595,13 @@ class _ClockPageEditorState extends State<ClockPageEditor> {
   }
 }
 
-/// Zmiana widżetu: etykieta, rozmiar, kolor, usunięcie (wynik z `id` = '' = usuń).
+/// Zmiana widżetu: etykieta, położenie, rozmiar, kolor, ikony stanu, usunięcie (wynik z `id` = '' = usuń).
 class _WidgetSheet extends StatefulWidget {
-  const _WidgetSheet({required this.widget, required this.resize});
+  const _WidgetSheet({required this.widget, required this.resize, required this.move});
 
   final DashWidget widget;
   final DashWidget? Function(int w, int h) resize;
+  final DashWidget? Function(DashWidget w, int x, int y) move;
 
   @override
   State<_WidgetSheet> createState() => _WidgetSheetState();
@@ -606,6 +615,66 @@ class _WidgetSheetState extends State<_WidgetSheet> {
   void dispose() {
     _label.dispose();
     super.dispose();
+  }
+
+  /// Siatka 4 x 3 strony: dotknięcie pola przenosi tam lewy górny róg; pola, w których widżet się nie zmieści, wyszarzone.
+  Widget _position(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final x0 = _w.x ?? 0, y0 = _w.y ?? 0, gw = clockW(_w), gh = clockH(_w);
+    return SizedBox(
+      width: 4 * 44,
+      child: GridView.count(
+        crossAxisCount: clockCols,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 4,
+        crossAxisSpacing: 4,
+        childAspectRatio: 1.2,
+        children: [
+          for (var y = 0; y < clockRows; y++)
+            for (var x = 0; x < clockCols; x++)
+              Builder(
+                builder: (context) {
+                  final covered = x >= x0 && x < x0 + gw && y >= y0 && y < y0 + gh;
+                  final target = widget.move(_w, x, y);
+                  return InkWell(
+                    key: Key('clockWidgetPos-$x-$y'),
+                    borderRadius: BorderRadius.circular(6),
+                    onTap: target == null ? null : () => setState(() => _w = target),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: covered
+                            ? cs.primary
+                            : target == null
+                            ? cs.surfaceContainerHighest
+                            : cs.secondaryContainer,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                    ),
+                  );
+                },
+              ),
+        ],
+      ),
+    );
+  }
+
+  /// Ikona stanu na zegarze (`iconOn` / `iconOff`, klucz z katalogu aplikacji); bez ikon - kropka jak dotąd.
+  Widget _iconTile(String field, String title) {
+    final key = _w.extra[field] as String?;
+    final icon = appIcon(key);
+    return ListTile(
+      key: Key('clockWidget-$field'),
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon?.icon ?? Icons.circle, size: icon == null ? 12 : 24),
+      title: Text(title),
+      subtitle: Text(icon?.label ?? 'bez ikony (kropka)'),
+      onTap: () async {
+        final k = await pickAppIcon(context, current: key);
+        if (k == null || !mounted) return;
+        setState(() => _w = _w.patch({field: k.isEmpty ? null : k}));
+      },
+    );
   }
 
   @override
@@ -645,6 +714,10 @@ class _WidgetSheetState extends State<_WidgetSheet> {
               ],
             ),
             const SizedBox(height: 8),
+            const Text('Położenie (lewy górny róg widżetu)'),
+            const SizedBox(height: 4),
+            _position(context),
+            const SizedBox(height: 8),
             const Text('Kolor kafla'),
             Wrap(
               spacing: 6,
@@ -661,6 +734,11 @@ class _WidgetSheetState extends State<_WidgetSheet> {
                   ),
               ],
             ),
+            if (_w.view == WidgetView.status || _w.view == WidgetView.toggle) ...[
+              const SizedBox(height: 8),
+              _iconTile('iconOn', 'Ikona - włączone / otwarte'),
+              _iconTile('iconOff', 'Ikona - wyłączone / zamknięte'),
+            ],
             const SizedBox(height: 12),
             Row(
               children: [
@@ -970,6 +1048,15 @@ class _ClockTile extends StatelessWidget {
     return d == null ? w.view.label : (hub.device(d)?.name ?? d);
   }
 
+  /// Ikona stanu (iconOn / iconOff) dla bieżącej wartości; jedna ustawiona służy obu stanom.
+  IconData? get _stateIcon {
+    final w = widget;
+    if (w.view != WidgetView.status && w.view != WidgetView.toggle) return null;
+    final on = appIcon(w.extra['iconOn'] as String?), off = appIcon(w.extra['iconOff'] as String?);
+    final v = w.device == null || w.point == null ? null : _value(w.device!, w.point!);
+    return (v == true ? on ?? off : off ?? on)?.icon;
+  }
+
   String get _text {
     final w = widget;
     final d = w.device;
@@ -1014,11 +1101,18 @@ class _ClockTile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              _label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(label)),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.w700, color: Color(label)),
+                  ),
+                ),
+                if (_stateIcon case final i?) Icon(i, size: big ? 22 : 14, color: Color(label)),
+              ],
             ),
             FittedBox(
               fit: BoxFit.scaleDown,
