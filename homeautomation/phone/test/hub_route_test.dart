@@ -162,4 +162,14 @@ void main() {
     expect((d.via, d.access, d.name), ('hub-1', AccessLevel.control, 'Lampa'));
     hub.dispose();
   });
+
+  test('urządzenie sparowane w telefonie, a potem dodane do huba, dostaje via z listy huba', () async {
+    await store.saveDevice(const PairedDevice(id: 'shelly-1', name: 'Lampa', type: DeviceType.onOff));
+    final hub = DeviceHub(store: store, manager: manager, cloud: NoCloudAccess());
+    await hub.load();
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    expect(hub.device('shelly-1')!.via, 'hub-1');
+    expect(hub.controller('shelly-1')!.device.via, 'hub-1');
+    hub.dispose();
+  });
 }

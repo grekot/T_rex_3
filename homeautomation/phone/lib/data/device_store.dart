@@ -32,14 +32,14 @@ class PairedDevice {
   /// Hub, przez który urządzenie jest dostępne (pkt 11); nie zapisujemy - przychodzi z huba albo z `deviceIndex`.
   final String? via;
 
-  PairedDevice copyWith({String? name, LocalEndpoint? lastEndpoint, DeviceType? type, AccessLevel? access}) =>
+  PairedDevice copyWith({String? name, LocalEndpoint? lastEndpoint, DeviceType? type, AccessLevel? access, String? via}) =>
       PairedDevice(
         id: id,
         name: name ?? this.name,
         lastEndpoint: lastEndpoint ?? this.lastEndpoint,
         type: type ?? this.type,
         access: access ?? this.access,
-        via: via,
+        via: via ?? this.via,
       );
 
   factory PairedDevice.fromJson(Json j) {

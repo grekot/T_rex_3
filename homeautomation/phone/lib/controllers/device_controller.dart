@@ -243,6 +243,13 @@ class DeviceController<S, C> extends ChangeNotifier {
     if (c != null) _takeName(c);
   }
 
+  /// Hub, przez który urządzenie jest dostępne, poznany po utworzeniu kontrolera (lista huba wczytuje się w tle).
+  void takeVia(String? via) {
+    if (via == null || via == _device.via) return;
+    _device = _device.copyWith(via: via);
+    notifyChanged();
+  }
+
   void _takeName(C config) {
     final name = codec.nameOf(config);
     if (name.isNotEmpty && name != _device.name) {

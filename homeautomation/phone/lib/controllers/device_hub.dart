@@ -87,8 +87,15 @@ class DeviceHub extends ChangeNotifier {
   /// (np. cudze) i tak są pokazane - dostęp sprawdza urządzenie.
   List<PairedDevice> get devices {
     final seen = {for (final d in _local) d.id};
+    // Sparowane w telefonie, a potem dodane do huba (np. zegar): `via` z listy huba albo z chmury
+    final viaOf = {
+      for (final c in _cloud)
+        if (c.via != null) c.id: c.via!,
+      for (final d in _hubChildren)
+        if (d.via != null) d.id: d.via!,
+    };
     return [
-      ..._local,
+      for (final d in _local) d.via == null && viaOf[d.id] != null ? d.copyWith(via: viaOf[d.id]) : d,
       for (final d in _hubChildren)
         if (seen.add(d.id)) d,
       for (final c in _cloud)
@@ -268,7 +275,11 @@ class DeviceHub extends ChangeNotifier {
       _controllers.remove(id)?.dispose();
     }
     for (final d in byId.values) {
-      if (_controllers.containsKey(d.id)) continue;
+      final old = _controllers[d.id];
+      if (old != null) {
+        old.takeVia(d.via);
+        continue;
+      }
       final DeviceController<Object?, Object?> c = switch (d.type) {
         DeviceType.thermostat => ThermostatController(device: d, manager: manager),
         DeviceType.onOff || DeviceType.dimmer => LightController(device: d, manager: manager),
