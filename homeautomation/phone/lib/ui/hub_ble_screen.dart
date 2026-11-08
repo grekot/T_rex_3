@@ -13,6 +13,7 @@ import '../models/hub.dart';
 import '../models/json_utils.dart';
 import '../services.dart';
 import '../data/cloud_access.dart' show writeDeviceIndex;
+import 'widgets.dart' show listPadding;
 
 /// Wartość z czujnika po polsku: `21,6 °C`, `45 %`, `bateria 87 %`, `okno otwarte`…
 String bleValueText(String key, Object? v) {
@@ -241,7 +242,7 @@ class _HubBleScreenState extends State<HubBleScreen> {
       child: Scaffold(
         appBar: AppBar(title: const Text('Czujniki Bluetooth')),
         body: ListView(
-          padding: const EdgeInsets.only(bottom: 32),
+          padding: listPadding(context, const EdgeInsets.only(bottom: 32)),
           children: [
             if (scanning && _error == null && _nodes != 0) const LinearProgressIndicator(),
             ListTile(

@@ -6,6 +6,7 @@ import '../provisioning/prov_qr.dart';
 import 'ble_setup_screen.dart';
 import 'pairing_screen.dart';
 import 'qr_scan_screen.dart';
+import 'widgets.dart' show listPadding;
 
 /// „Dodaj urządzenie”: nowe przez Bluetooth (konfiguracja WiFi + parowanie, pkt 9), nowe bez Bluetooth
 /// przez jego sieć WiFi `HA_*` (pkt 9.4) albo już działające w sieci domowej kodem (kolejne telefony, pkt 2).
@@ -36,7 +37,7 @@ class AddDeviceScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Dodaj urządzenie')),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: listPadding(context, const EdgeInsets.all(16)),
         children: [
           _Option(
             key: const Key('addQr'),

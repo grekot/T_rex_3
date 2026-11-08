@@ -171,6 +171,13 @@ class SectionHeader extends StatelessWidget {
   );
 }
 
+/// [padding] listy przewijanej do dołu ekranu powiększony o dolny pasek systemu. Aplikacja rysuje pod paskami
+/// (edge-to-edge, Android 15), a ListView z jawnym padding - inaczej niż bez niego - nie dodaje sam marginesu
+/// bezpiecznego obszaru, więc ostatni wiersz chował się pod przyciskami nawigacji. Pod SafeArea i nad
+/// bottomNavigationBar MediaQuery ma już 0, więc helper niczego nie dokłada.
+EdgeInsets listPadding(BuildContext context, EdgeInsets padding) =>
+    padding.copyWith(bottom: padding.bottom + MediaQuery.paddingOf(context).bottom);
+
 /// Pokazuje wynik zapisu: błędy pól albo „Zapisano”.
 void showSaveResult(BuildContext context, Map<String, String> errors, String Function(Map<String, String>) describe) {
   final messenger = ScaffoldMessenger.of(context);

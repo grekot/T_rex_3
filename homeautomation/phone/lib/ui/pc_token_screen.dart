@@ -6,6 +6,7 @@ import '../data/pc_token.dart';
 import '../models/home.dart';
 import '../services.dart';
 import 'qr_scan_screen.dart';
+import 'widgets.dart' show listPadding;
 
 /// „Wyślij token do komputera” (pkt 2a): skan kodu z `tools/pair_pc.py`, potem wybór urządzeń.
 Future<void> sendTokenToComputer(BuildContext context, {bool camera = true}) async {
@@ -78,7 +79,7 @@ class _PcTokenScreenState extends State<PcTokenScreen> {
           if (all == null) return const Center(child: CircularProgressIndicator());
           if (r != null) {
             return ListView(
-              padding: const EdgeInsets.all(16),
+              padding: listPadding(context, const EdgeInsets.all(16)),
               children: [
                 Icon(Icons.check_circle, size: 56, color: cs.primary),
                 const SizedBox(height: 8),

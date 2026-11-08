@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/dashboard.dart';
 import '../models/device_type.dart';
+import 'widgets.dart' show listPadding;
 
 /// Ikona do wyboru dla widżetu pulpitu albo urządzenia. [key] trafia do JSON-u (`"icon"`), więc się nie zmienia.
 class AppIcon {
@@ -182,7 +183,7 @@ class _IconGrid extends StatelessWidget {
     );
     return ListView(
       controller: scroll,
-      padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+      padding: listPadding(context, const EdgeInsets.fromLTRB(12, 0, 12, 24)),
       children: [
         Text('Ikona', style: t.titleMedium),
         const SizedBox(height: 8),

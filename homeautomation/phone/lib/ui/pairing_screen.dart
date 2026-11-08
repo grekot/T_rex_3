@@ -11,6 +11,7 @@ import '../models/device_info.dart';
 import '../models/device_type.dart';
 import '../services.dart';
 import 'format.dart';
+import 'widgets.dart' show listPadding;
 
 /// Parowanie: wybór termostatu (mDNS albo adres ręcznie) → kod z ekranu termostatu → token.
 /// Zwraca sparowane urządzenie przez `Navigator.pop`.
@@ -200,7 +201,7 @@ class _PairingScreenState extends State<PairingScreen> {
   Widget _chooseStep(BuildContext context) {
     final t = Theme.of(context).textTheme;
     return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: listPadding(context, const EdgeInsets.symmetric(vertical: 8)),
       children: [
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
@@ -256,7 +257,7 @@ class _PairingScreenState extends State<PairingScreen> {
     final left = _expires!.difference(DateTime.now());
     final expired = left.isNegative || left == Duration.zero;
     return ListView(
-      padding: const EdgeInsets.all(24),
+      padding: listPadding(context, const EdgeInsets.all(24)),
       children: [
         Icon(Icons.pin, size: 56, color: Theme.of(context).colorScheme.primary),
         const SizedBox(height: 16),

@@ -14,6 +14,7 @@ import '../models/dashboard.dart';
 import '../models/home_widget.dart';
 import 'widget_cells.dart';
 import 'widget_config.dart';
+import '../ui/widgets.dart' show listPadding;
 
 /// Liczba kafelków (jak `QuickTiles.SLOTS` po stronie Androida).
 const quickTileSlots = 4;
@@ -149,7 +150,7 @@ class _QuickTilesScreenState extends State<QuickTilesScreen> {
           : ListenableBuilder(
               listenable: widget.hub,
               builder: (context, _) => ListView(
-                padding: const EdgeInsets.only(bottom: 24),
+                padding: listPadding(context, const EdgeInsets.only(bottom: 24)),
                 children: [
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),

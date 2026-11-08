@@ -65,7 +65,7 @@ class _MembersScreenState extends State<MembersScreen> {
         builder: (context, snap) {
           final members = snap.data ?? const <Member>[];
           return ListView(
-            padding: const EdgeInsets.only(bottom: 96),
+            padding: listPadding(context, const EdgeInsets.only(bottom: 96)),
             children: [
               if (!snap.hasData) const LinearProgressIndicator(),
               for (final m in members)
@@ -280,7 +280,7 @@ class _InviteScreenState extends State<InviteScreen> {
         appBar: AppBar(title: const Text('Zaproszenie')),
         body: created != null
             ? ListView(
-                padding: const EdgeInsets.all(24),
+                padding: listPadding(context, const EdgeInsets.all(24)),
                 children: [
                   Text('Kod zaproszenia', style: t.titleMedium, textAlign: TextAlign.center),
                   const SizedBox(height: 12),

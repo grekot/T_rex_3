@@ -219,7 +219,7 @@ class _DiagScreenState extends State<DiagScreen> {
             child: ListView.builder(
               key: const Key('diagLog'),
               controller: _logScroll,
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+              padding: listPadding(context, const EdgeInsets.fromLTRB(12, 0, 12, 24)),
               itemCount: lines.length,
               itemBuilder: (context, i) {
                 final l = lines[i];
@@ -264,7 +264,7 @@ class _DiagView extends StatelessWidget {
     );
     final guard = d.guard;
     return ListView(
-      padding: const EdgeInsets.only(bottom: 24),
+      padding: listPadding(context, const EdgeInsets.only(bottom: 24)),
       children: [
         if (!local)
           const Padding(

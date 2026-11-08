@@ -39,7 +39,8 @@ mixin _ClockConfig<T extends StatefulWidget> on State<T> {
     appBar: AppBar(title: Text(title)),
     body: ListenableBuilder(
       listenable: c,
-      builder: (context, _) => ListView(padding: const EdgeInsets.fromLTRB(16, 8, 16, 32), children: children),
+      builder: (context, _) =>
+          ListView(padding: listPadding(context, const EdgeInsets.fromLTRB(16, 8, 16, 32)), children: children),
     ),
   );
 }
@@ -107,7 +108,7 @@ class _ClockScreensPageState extends State<ClockScreensPage> with _ClockConfig {
           final factor = (s['mainFactor'] as num?)?.toInt() ?? 1;
           final transition = s['transition'] as String? ?? 'cards';
           return ListView(
-            padding: const EdgeInsets.fromLTRB(0, 8, 0, 32),
+            padding: listPadding(context, const EdgeInsets.fromLTRB(0, 8, 0, 32)),
             children: [
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),

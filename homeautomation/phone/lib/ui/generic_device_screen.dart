@@ -169,7 +169,7 @@ class _GenericDeviceScreenState extends State<GenericDeviceScreen> {
     final cs = Theme.of(context).colorScheme;
     final ls = c.state is LightState ? c.state! as LightState : null;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: listPadding(context, const EdgeInsets.fromLTRB(16, 8, 16, 32)),
       children: [
         RouteChip(controller: c),
         if (!c.canControl) const AccessBanner(text: 'Masz tylko podgląd tego urządzenia.'),

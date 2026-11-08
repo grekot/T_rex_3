@@ -426,7 +426,7 @@ class _WatchScreenState extends State<WatchScreen> {
             : w == null
             ? const Center(child: CircularProgressIndicator())
             : ListView(
-                padding: const EdgeInsets.only(bottom: 32),
+                padding: listPadding(context, const EdgeInsets.only(bottom: 32)),
                 children: [
                   _watchPicker(context, w),
                   _bleSection(context, w),

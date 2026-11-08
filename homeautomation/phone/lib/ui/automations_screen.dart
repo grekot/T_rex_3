@@ -331,7 +331,7 @@ class _AutomationsScreenState extends State<AutomationsScreen> with _RuleEditing
           final info = snap.data;
           if (info == null) return const Center(child: CircularProgressIndicator());
           return ListView(
-            padding: const EdgeInsets.only(bottom: 96),
+            padding: listPadding(context, const EdgeInsets.only(bottom: 96)),
             children: [
               ListTile(
                 leading: Icon(_service.isLocal ? Icons.home_outlined : Icons.cloud_outlined),
@@ -579,7 +579,7 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> with _R
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 32),
+        padding: listPadding(context, const EdgeInsets.only(bottom: 32)),
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -705,7 +705,7 @@ class _BranchEditorScreenState extends State<BranchEditorScreen> with _RuleEditi
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.only(bottom: 32),
+        padding: listPadding(context, const EdgeInsets.only(bottom: 32)),
         children: [
           _section(
             title: 'Jeśli',

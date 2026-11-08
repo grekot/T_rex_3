@@ -146,7 +146,7 @@ class _Body extends StatelessWidget {
     final c = controller;
     final s = c.state!;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      padding: listPadding(context, const EdgeInsets.fromLTRB(16, 8, 16, 32)),
       children: [
         RouteChip(controller: c),
         if (!c.canControl) const AccessBanner(text: 'Masz tylko podgląd tego termostatu.'),

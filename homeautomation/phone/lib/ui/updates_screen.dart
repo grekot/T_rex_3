@@ -416,7 +416,7 @@ class _UpdatesScreenState extends State<UpdatesScreen> {
           : RefreshIndicator(
               onRefresh: _load,
               child: ListView(
-                padding: const EdgeInsets.only(bottom: 24),
+                padding: listPadding(context, const EdgeInsets.only(bottom: 24)),
                 children: [
                   if (_loading) const LinearProgressIndicator(),
                   Padding(
