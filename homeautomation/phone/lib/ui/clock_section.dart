@@ -230,6 +230,13 @@ class ClockSection extends StatelessWidget {
             onTap: () => _open(context, ClockSensorPage(controller: c)),
           ),
           ListTile(
+            key: const Key('clockTheme'),
+            leading: const Icon(Icons.palette_outlined),
+            title: const Text('Motyw'),
+            subtitle: Text(_themeText(cfg)),
+            onTap: () => _open(context, ClockThemePage(controller: c)),
+          ),
+          ListTile(
             key: const Key('clockTime'),
             leading: const Icon(Icons.schedule_outlined),
             title: const Text('Zegar'),
@@ -254,6 +261,12 @@ class ClockSection extends StatelessWidget {
   }
 
   static Json _screens(Json? cfg) => cfg?['screens'] is Map ? (cfg!['screens'] as Map).cast<String, dynamic>() : {};
+
+  static String _themeText(Json? cfg) {
+    final t = cfg?['theme'] is Map ? cfg!['theme'] as Map : const {};
+    final name = clockThemes[t['name']]?.label ?? clockThemes['pastel']!.label;
+    return t['seasonal'] == true ? 'Według pory roku' : name;
+  }
 
   static String _displayText(Json? cfg) {
     final d = cfg?['display'] is Map ? cfg!['display'] as Map : const {};

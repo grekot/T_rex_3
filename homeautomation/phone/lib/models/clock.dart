@@ -43,6 +43,90 @@ const clockNightModes = {
 
 const clockNightScreens = {'clock': 'sama godzina', 'clockTemp': 'godzina i temperatura', 'off': 'wygaszony'};
 
+/// Motyw zegara (`theme.name`, nodes/deskclock/src/GuiTheme.cpp): nazwa i kolory do podglądu w aplikacji -
+/// tło, karta, tekst na karcie, kafle pokój / wilgotność / ciśnienie / pogoda.
+typedef ClockTheme = ({String label, int bg, int card, int ink, List<int> tiles});
+
+const clockThemes = <String, ClockTheme>{
+  'pastel': (
+    label: 'Pastel',
+    bg: 0xFFEEF1F6,
+    card: 0xFFFFFFFF,
+    ink: 0xFF1B1F2A,
+    tiles: [0xFFFFD8C7, 0xFFD2E6FF, 0xFFE4DCFF, 0xFFFFE9A8],
+  ),
+  'contrast': (
+    label: 'Kontrastowy',
+    bg: 0xFFE4E6EA,
+    card: 0xFFFFFFFF,
+    ink: 0xFF000000,
+    tiles: [0xFFFFB08A, 0xFF86BDFF, 0xFFC2B0FF, 0xFFFFD43B],
+  ),
+  'dark': (
+    label: 'Ciemny',
+    bg: 0xFF0B0D12,
+    card: 0xFF171B24,
+    ink: 0xFFF2F4F8,
+    tiles: [0xFF3A2219, 0xFF172A45, 0xFF2A2145, 0xFF3A3015],
+  ),
+  'winter': (
+    label: 'Zima',
+    bg: 0xFFDCEBF7,
+    card: 0xFFFFFFFF,
+    ink: 0xFF163150,
+    tiles: [0xFFE8F3FB, 0xFFD6EEF3, 0xFFE3E4F6, 0xFFFFFFFF],
+  ),
+  'winterNight': (
+    label: 'Zima (noc)',
+    bg: 0xFF0E1B2E,
+    card: 0xFF16263D,
+    ink: 0xFFEAF4FF,
+    tiles: [0xFF1C3150, 0xFF183A44, 0xFF252B52, 0xFF1C3150],
+  ),
+  'xmas': (
+    label: 'Boże Narodzenie',
+    bg: 0xFF7E1622,
+    card: 0xFFFFF8EC,
+    ink: 0xFF3A0D12,
+    tiles: [0xFFF7DFD2, 0xFFDDEBD7, 0xFFF6E8C4, 0xFFE6F0DA],
+  ),
+  'xmasNight': (
+    label: 'Boże Narodzenie (wieczór)',
+    bg: 0xFF0F2A1E,
+    card: 0xFF173A2A,
+    ink: 0xFFFFF6E2,
+    tiles: [0xFF4A1A1F, 0xFF1F4A33, 0xFF4A3B14, 0xFF5E1A22],
+  ),
+  'spring': (
+    label: 'Wiosna',
+    bg: 0xFFEAF5E4,
+    card: 0xFFFFFFFF,
+    ink: 0xFF1F3320,
+    tiles: [0xFFFCDDE6, 0xFFD5ECF7, 0xFFE9E0FA, 0xFFFFF2B3],
+  ),
+  'easter': (
+    label: 'Wielkanoc',
+    bg: 0xFFFFF8E1,
+    card: 0xFFFFFFFF,
+    ink: 0xFF3A3020,
+    tiles: [0xFFFFE0CC, 0xFFDCEFD0, 0xFFEADFF7, 0xFFFFEFA8],
+  ),
+  'summer': (
+    label: 'Lato',
+    bg: 0xFFE3F6F7,
+    card: 0xFFFFFFFF,
+    ink: 0xFF0E3340,
+    tiles: [0xFFFFE1C4, 0xFFC9F0F2, 0xFFE2E4FA, 0xFFFFE680],
+  ),
+  'autumn': (
+    label: 'Jesień',
+    bg: 0xFFF4E7D7,
+    card: 0xFFFFFAF2,
+    ink: 0xFF3B2414,
+    tiles: [0xFFF8D3B5, 0xFFDCE3D0, 0xFFEAD9CF, 0xFFF7DC9C],
+  ),
+};
+
 /// Format daty na ekranie (`clock.dateFormat`).
 const clockDateFormats = {'long': 'środa, 4 listopada', 'short': 'śr 04.11'};
 

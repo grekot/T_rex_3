@@ -671,6 +671,146 @@ class _ClockSensorPageState extends State<ClockSensorPage> with _ClockConfig {
   }
 }
 
+// ---------------------------------------------------------------- Motyw
+
+class ClockThemePage extends StatefulWidget {
+  const ClockThemePage({super.key, required this.controller});
+
+  final DeviceController<Object?, Object?> controller;
+
+  @override
+  State<ClockThemePage> createState() => _ClockThemePageState();
+}
+
+class _ClockThemePageState extends State<ClockThemePage> with _ClockConfig {
+  @override
+  DeviceController<Object?, Object?> get c => widget.controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = obj('theme');
+    final chosen = t['name'] as String? ?? 'pastel';
+    final seasonal = t['seasonal'] == true;
+    return page('Motyw', [
+      SwitchListTile(
+        key: const Key('clockSeasonal'),
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Według pory roku'),
+        subtitle: const Text(
+          'Boże Narodzenie 1.12-6.01, zima, wiosna, Wielkanoc, lato i jesień według kalendarza; '
+          'zimą i w święta po zachodzie słońca wersja wieczorna',
+        ),
+        value: seasonal,
+        onChanged: (v) => setIn('theme', {'seasonal': v}),
+      ),
+      SwitchListTile(
+        key: const Key('clockAnimations'),
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Animacje ozdób'),
+        subtitle: const Text('Padający śnieg, płatki kwiatów, liście (ekran trochę bardziej grzeje czujnik)'),
+        value: t['animations'] != false,
+        onChanged: (v) => setIn('theme', {'animations': v}),
+      ),
+      SectionHeader(seasonal ? 'Motyw (gdy wyłączysz porę roku)' : 'Motyw'),
+      GridView.count(
+        crossAxisCount: 2,
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        mainAxisSpacing: 12,
+        crossAxisSpacing: 12,
+        childAspectRatio: 1.1,
+        children: [
+          for (final MapEntry(key: k, value: th) in clockThemes.entries)
+            _ThemeTile(
+              key: Key('clockTheme-$k'),
+              theme: th,
+              selected: k == chosen,
+              onTap: () => setIn('theme', {'name': k}),
+            ),
+        ],
+      ),
+    ]);
+  }
+}
+
+/// Miniatura ekranu głównego zegara w kolorach motywu (karta godziny, pogoda, trzy kafle).
+class _ThemeTile extends StatelessWidget {
+  const _ThemeTile({super.key, required this.theme, required this.selected, required this.onTap});
+
+  final ClockTheme theme;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    Widget tile(int color) => Expanded(
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: Color(color), borderRadius: BorderRadius.circular(6)),
+        child: const SizedBox.expand(),
+      ),
+    );
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: onTap,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: Color(theme.bg),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: selected ? scheme.primary : scheme.outlineVariant, width: selected ? 3 : 1),
+              ),
+              child: Column(
+                children: [
+                  Expanded(
+                    flex: 4,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: Container(
+                            decoration: BoxDecoration(color: Color(theme.card), borderRadius: BorderRadius.circular(6)),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '15:52',
+                              style: TextStyle(color: Color(theme.ink), fontWeight: FontWeight.w800, fontSize: 18),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        tile(theme.tiles[3]),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Expanded(
+                    flex: 3,
+                    child: Row(
+                      children: [
+                        tile(theme.tiles[0]),
+                        const SizedBox(width: 4),
+                        tile(theme.tiles[1]),
+                        const SizedBox(width: 4),
+                        tile(theme.tiles[2]),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(theme.label, textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis),
+        ],
+      ),
+    );
+  }
+}
+
 // ---------------------------------------------------------------- Zegar
 
 class ClockTimePage extends StatefulWidget {

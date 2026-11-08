@@ -312,6 +312,28 @@ void main() {
     hub.dispose();
   });
 
+  testWidgets('motyw: wybór z miniatur, pora roku, animacje', (tester) async {
+    final (hub, conns, _) = await _home();
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    final conn = conns['zegar-ab12cd']!;
+    await tester.pumpWidget(_app(ClockThemePage(controller: c)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockSeasonal')));
+    await tester.pumpAndSettle();
+    expect((conn.sent.last['theme'] as Map)['seasonal'], true);
+    await tester.tap(find.byKey(const Key('clockAnimations')));
+    await tester.pumpAndSettle();
+    expect((conn.sent.last['theme'] as Map)['animations'], false);
+    expect(find.text('Boże Narodzenie (wieczór)'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('clockTheme-dark')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockTheme-dark')));
+    await tester.pumpAndSettle();
+    expect((conn.sent.last['theme'] as Map)['name'], 'dark');
+    hub.dispose();
+  });
+
   testWidgets('strony: z pulpitu, opisy z describe przy zapisie, rozwinięty pokój, strona w pokazie; obcy wyszarzony', (
     tester,
   ) async {
