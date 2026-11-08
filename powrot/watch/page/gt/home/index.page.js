@@ -7,6 +7,7 @@ import { isOwn } from "../../../utils/places";
 import { startGps } from "../../../utils/sensors";
 import { distance, formatDistance, formatSavedAt } from "../../../utils/geo";
 import { stayInApp } from "../../../utils/screen";
+import { setCovered, isCovered } from "../../../utils/cover";
 import { button, wideRect } from "../../../utils/ui";
 import {
   DEVICE_WIDTH,
@@ -39,15 +40,17 @@ Page(
       timer: null,
       account: "", // "", "brak konta", "offline"
       lastSyncAt: 0,
+      dirty: false, // lista zmieniła się, gdy była przykryta innym ekranem
     },
 
     build() {
       const s = this.state;
       stayInApp();
+      setCovered(false);
       hmUI.createWidget(hmUI.widget.TEXT, TITLE_STYLE);
       s.status = hmUI.createWidget(hmUI.widget.TEXT, STATUS_STYLE);
       button(wideRect(SAVE_Y, DEVICE_WIDTH, 66), "+ Zapisz to miejsce", "primary", () =>
-        push({ url: "page/gt/save/index.page" })
+        this.open({ url: "page/gt/save/index.page" })
       );
       this.render();
       s.gps = startGps((fix) => {
@@ -56,7 +59,7 @@ Page(
       });
       this.syncNow();
       s.timer = setInterval(() => {
-        if (JSON.stringify(viewPlaces()) !== s.shown) this.render();
+        if (s.dirty || JSON.stringify(viewPlaces()) !== s.shown) this.render();
         if (loadPending().length && Date.now() - s.lastSyncAt > RETRY_MS) this.syncNow();
       }, WATCH_MS);
     },
@@ -76,6 +79,11 @@ Page(
       }
     },
 
+    open(route) {
+      setCovered(true);
+      push(route);
+    },
+
     syncNow() {
       const s = this.state;
       s.lastSyncAt = Date.now();
@@ -87,6 +95,8 @@ Page(
 
     render() {
       const s = this.state;
+      s.dirty = isCovered();
+      if (s.dirty) return;
       s.widgets.forEach((w) => hmUI.deleteWidget(w));
       s.widgets = [];
       s.distances = [];
@@ -100,7 +110,7 @@ Page(
       }
       const now = Date.now();
       places.forEach((p, i) => {
-        const open = () => push({ url: "page/gt/navigate/index.page", params: JSON.stringify({ id: p.id }) });
+        const open = () => this.open({ url: "page/gt/navigate/index.page", params: JSON.stringify({ id: p.id }) });
         const when = formatSavedAt(p.at, now);
         const infoText = isOwn(p) ? when : (p.by ? "od: " + p.by.split("@")[0] : "udostępnione") + " · " + when;
         const bg = hmUI.createWidget(hmUI.widget.FILL_RECT, rowBgProps(i));
@@ -118,6 +128,7 @@ Page(
     // Odległości odświeżamy bez przebudowy listy (GPS daje nową pozycję co sekundę)
     updateDistances() {
       const s = this.state;
+      if (isCovered()) return;
       const fix = s.fix;
       const gps = fix ? "GPS: pozycja ustalona" : "GPS: szukam sygnału...";
       s.status.setProperty(hmUI.prop.MORE, { ...STATUS_STYLE, text: s.account ? gps + " · " + s.account : gps });

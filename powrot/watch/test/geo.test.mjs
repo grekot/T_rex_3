@@ -12,6 +12,8 @@ import {
   validCoords,
   formatSavedAt,
   ARRIVED_M,
+  ARRIVED_RESET_M,
+  averageFix,
 } from "../utils/geo.js";
 
 const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg}: ${a} != ${b} ±${tol}`);
@@ -79,5 +81,10 @@ assert.equal(formatSavedAt(new Date(2026, 9, 16, 18, 30).getTime(), now), "wczor
 assert.equal(formatSavedAt(new Date(2026, 9, 3, 7, 0).getTime(), now), "03.10 07:00");
 
 assert.ok(ARRIVED_M >= 5 && ARRIVED_M <= 30);
+assert.ok(ARRIVED_RESET_M > ARRIVED_M);
+
+assert.equal(averageFix([]), null);
+const avg = averageFix([{ lat: 50, lon: 20 }, { lat: 50.002, lon: 20.004 }]);
+assert.ok(Math.abs(avg.lat - 50.001) < 1e-9 && Math.abs(avg.lon - 20.002) < 1e-9);
 
 console.log("geo: WSZYSTKIE TESTY OK");

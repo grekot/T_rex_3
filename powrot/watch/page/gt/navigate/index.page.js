@@ -17,8 +17,10 @@ import {
   formatSavedAt,
   cardinal,
   ARRIVED_M,
+  ARRIVED_RESET_M,
 } from "../../../utils/geo";
 import { stayInApp, keepBright } from "../../../utils/screen";
+import { setCovered } from "../../../utils/cover";
 import { button, COLOR_WHITE, COLOR_GREY, COLOR_ORANGE, COLOR_GREEN } from "../../../utils/ui";
 import {
   NAME_STYLE,
@@ -97,6 +99,7 @@ Page(
 
   onDestroy() {
     const s = this.state;
+    setCovered(false);
     if (s.gps) s.gps.stop();
     if (s.compass) s.compass.stop();
   },
@@ -119,16 +122,19 @@ Page(
     if (d <= ARRIVED_M && !s.arrived) {
       s.arrived = true;
       this.vibrate();
-    } else if (d > ARRIVED_M * 2) {
+    } else if (d > ARRIVED_RESET_M) {
       s.arrived = false;
     }
 
+    // Na miejscu dalej widać strzałkę i metry, żeby dojść do samego punktu
+    const dir = cardinal(b) + " · " + Math.round(b) + "°";
     if (s.arrived) {
-      this.setText(s.distance, DISTANCE_STYLE, "Na miejscu!", COLOR_GREEN);
+      this.setText(s.distance, DISTANCE_STYLE, formatDistance(d), COLOR_GREEN);
+      this.setText(s.direction, DIRECTION_STYLE, "Na miejscu! · " + dir, COLOR_GREEN);
     } else {
       this.setText(s.distance, DISTANCE_STYLE, formatDistance(d), COLOR_WHITE);
+      this.setText(s.direction, DIRECTION_STYLE, dir, COLOR_GREY);
     }
-    this.setText(s.direction, DIRECTION_STYLE, cardinal(b) + " · " + Math.round(b) + "°", COLOR_GREY);
     this.updateArrow();
   },
 
@@ -136,9 +142,9 @@ Page(
   updateArrow() {
     const s = this.state;
     if (!s.arrow) return;
-    const ready = s.fix && s.heading !== null && !s.arrived;
+    const ready = s.fix && s.heading !== null;
     s.arrow.setProperty(hmUI.prop.VISIBLE, !!ready);
-    if (s.fix && s.heading === null && !s.arrived) {
+    if (s.fix && s.heading === null) {
       this.setText(s.hint, HINT_STYLE, "Skalibruj kompas: zatocz nadgarstkiem ósemkę", COLOR_ORANGE);
     } else if (s.fix) {
       this.setText(s.hint, HINT_STYLE, "", COLOR_GREY);

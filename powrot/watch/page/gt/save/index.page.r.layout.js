@@ -1,7 +1,7 @@
 import * as hmUI from "@zos/ui";
 import { getDeviceInfo } from "@zos/device";
 import { px } from "@zos/utils";
-import { COLOR_GREY, COLOR_ORANGE } from "../../../utils/ui";
+import { COLOR_WHITE, COLOR_ORANGE } from "../../../utils/ui";
 
 export const { width: DEVICE_WIDTH, height: DEVICE_HEIGHT } = getDeviceInfo();
 
@@ -23,10 +23,10 @@ export const STATUS_STYLE = {
   x: px(70),
   y: px(64),
   w: DEVICE_WIDTH - px(140),
-  h: px(56),
+  h: px(60),
   text: "",
-  text_size: px(22),
-  color: COLOR_GREY,
+  text_size: px(24),
+  color: COLOR_WHITE,
   align_h: hmUI.align.CENTER_H,
   align_v: hmUI.align.CENTER_V,
   text_style: hmUI.text_style.WRAP,

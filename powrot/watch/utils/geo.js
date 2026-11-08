@@ -2,8 +2,21 @@
 
 const R = 6371000; // promień Ziemi w metrach
 
-// Odległość, przy której uznajemy, że jesteś na miejscu (dokładność GPS w zegarku to kilka-kilkanaście m)
-export const ARRIVED_M = 15;
+// Odległość, przy której uznajemy, że jesteś na miejscu (dokładność GPS w zegarku to kilka-kilkanaście m,
+// a błąd jest dwa razy: przy zapisie i przy powrocie - mniej niż ~8 m potrafi nigdy nie zadziałać)
+export const ARRIVED_M = 8;
+// Ponowna wibracja "na miejscu" dopiero po oddaleniu się na tyle
+export const ARRIVED_RESET_M = 20;
+
+// Zapisujemy miejsce dopiero po tylu odczytach GPS (~1/s) - pierwszy bywa przesunięty o dziesiątki m
+export const STABLE_FIXES = 5;
+
+// Średnia z ostatnich odczytów [{ lat, lon }] - zapisane miejsce mniej "skacze"
+export function averageFix(fixes) {
+  if (!fixes.length) return null;
+  const sum = fixes.reduce((a, f) => ({ lat: a.lat + f.lat, lon: a.lon + f.lon }), { lat: 0, lon: 0 });
+  return { lat: sum.lat / fixes.length, lon: sum.lon / fixes.length };
+}
 
 const toRad = (d) => (d * Math.PI) / 180;
 const toDeg = (r) => (r * 180) / Math.PI;
