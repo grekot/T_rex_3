@@ -55,6 +55,7 @@ class HubApi {
     'adapter' => 'Nieznany rodzaj urządzenia.',
     'deviceId' => 'Brak identyfikatora urządzenia eWeLink.',
     'localKey' => 'Zły klucz urządzenia (eWeLink: devicekey - 36 znaków, Bluetooth: 32 znaki hex).',
+    'paired' => 'Parowanie wygasło - podłącz czujnik ponownie.',
     'seconds' => 'Zły czas szukania.',
     'fields' => 'Brakuje wymaganych pól.',
     'type' => 'Nieznany typ urządzenia.',

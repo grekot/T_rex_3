@@ -1,5 +1,6 @@
 // Czujniki Bluetooth (BTHome) przez węzły btnode (kontrakt pkt 11 „Czujniki Bluetooth”): szukanie, podgląd wartości,
-// dodanie do huba (z kluczem dla szyfrowanych) i poprawienie klucza.
+// dodanie do huba (z kluczem dla szyfrowanych) i poprawienie klucza. Czujnik `btsensor` (hub 0.3.33+) paruje się sam
+// po podłączeniu zasilania w czasie szukania (pkt 15.6) - wtedy tylko nazwa i zatwierdzenie (`paired: true`).
 
 import 'dart:async';
 
@@ -93,7 +94,8 @@ class BleKeyField extends StatelessWidget {
 }
 
 /// „Dodaj czujnik Bluetooth”: szukanie przez węzły `btnode` (`POST /api/ble/scan`, `GET /api/ble/seen` co [interval]),
-/// lista z podglądem wartości i siłą sygnału, dodanie (`POST /api/devices` `adapter: ble`).
+/// lista z podglądem wartości i siłą sygnału, dodanie (`POST /api/devices` `adapter: ble`). Sparowane `btsensor`
+/// (`paired`) na górze: nowy - nazwa i dodanie, już dodany - zatwierdzenie nowego klucza.
 class HubBleScreen extends StatefulWidget {
   const HubBleScreen({
     super.key,
@@ -175,10 +177,11 @@ class _HubBleScreenState extends State<HubBleScreen> {
     await _poll();
   }
 
-  Future<void> _add(BleFound f) async {
+  /// Dodanie znalezionego ([found]) albo sparowanego ([paired]) czujnika o adresie [mac].
+  Future<void> _add(String mac, {BleFound? found, bool paired = false}) async {
     final req = await showDialog<Json>(
       context: context,
-      builder: (_) => _BleAddDialog(found: f),
+      builder: (_) => _BleAddDialog(mac: mac, found: found, paired: paired),
     );
     if (req == null || !mounted) return;
     final messenger = ScaffoldMessenger.of(context);
@@ -197,7 +200,22 @@ class _HubBleScreenState extends State<HubBleScreen> {
         );
       }
       messenger.showSnackBar(SnackBar(content: Text('Dodano ${req['name']}.')));
-      setState(() => _addedMacs.add(f.mac));
+      setState(() => _addedMacs.add(mac));
+    } on ThermostatException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  /// Już dodany czujnik sparował się ponownie: ten sam wpis (`id`) i nazwa, klucz z parowania.
+  Future<void> _confirmKey(BlePaired p) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final old = (await widget.api.devices()).where((d) => d.id == p.id).firstOrNull;
+      final name = old?.name ?? p.id!;
+      await widget.api.addDevice({'adapter': HubAdapter.ble.wire, 'deviceId': p.mac, 'paired': true, 'name': name});
+      _added = true;
+      messenger.showSnackBar(SnackBar(content: Text('Zatwierdzono nowy klucz: $name.')));
+      if (mounted) setState(() => _addedMacs.add(p.mac));
     } on ThermostatException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     }
@@ -215,9 +233,15 @@ class _HubBleScreenState extends State<HubBleScreen> {
   Widget build(BuildContext context) {
     final r = _seen;
     final scanning = _nodes == null || (r?.scanning ?? (_nodes ?? 0) > 0);
+    final paired = [
+      for (final p in r?.paired ?? const <BlePaired>[])
+        if (!_addedMacs.contains(p.mac)) p,
+    ];
+    final pairedMacs = {for (final p in r?.paired ?? const <BlePaired>[]) p.mac};
+    BleFound? heard(String mac) => r?.found.where((f) => f.mac == mac).firstOrNull;
     final found = [
       for (final f in r?.found ?? const <BleFound>[])
-        if (!_addedMacs.contains(f.mac)) f,
+        if (!_addedMacs.contains(f.mac) && !pairedMacs.contains(f.mac)) f,
     ];
     final onlineNodes = r?.nodes.where((n) => n.online).length ?? _nodes ?? 0;
     final String status;
@@ -231,7 +255,7 @@ class _HubBleScreenState extends State<HubBleScreen> {
           '${r?.remaining == null ? '' : ' - jeszcze ${r!.remaining} s'}. Czujnik nadaje co kilka-kilkanaście sekund; '
           'przycisk naciśnij, żeby się pokazał.';
     } else {
-      status = 'Znalezione, jeszcze niedodane: ${found.length}';
+      status = 'Znalezione, jeszcze niedodane: ${paired.length + found.length}';
     }
     return PopScope(
       canPop: false,
@@ -252,6 +276,32 @@ class _HubBleScreenState extends State<HubBleScreen> {
                   ? TextButton(key: const Key('bleStop'), onPressed: _stop, child: const Text('Zakończ'))
                   : TextButton(key: const Key('bleAgain'), onPressed: _start, child: const Text('Szukaj')),
             ),
+            if (scanning && _error == null && _nodes != 0)
+              const ListTile(
+                key: Key('blePairHint'),
+                leading: Icon(Icons.power_outlined),
+                title: Text('Czujnik btsensor: podłącz teraz jego zasilanie - sparuje się sam.'),
+              ),
+            for (final p in paired)
+              ListTile(
+                key: Key('blePaired-${p.mac}'),
+                leading: const Icon(Icons.link),
+                title: Text('Sparowany czujnik · ${p.mac}'),
+                subtitle: Text(
+                  [
+                    if (heard(p.mac) case final f?) bleFoundSummary(f),
+                    p.id == null ? 'stuknij, żeby dodać' : 'już dodany (${p.id}) - nowy klucz do zatwierdzenia',
+                  ].where((s) => s.isNotEmpty).join(' · '),
+                ),
+                trailing: p.id == null
+                    ? null
+                    : FilledButton(
+                        key: Key('bleConfirmKey-${p.mac}'),
+                        onPressed: () => _confirmKey(p),
+                        child: const Text('Zatwierdź nowy klucz'),
+                      ),
+                onTap: p.id == null ? () => _add(p.mac, found: heard(p.mac), paired: true) : null,
+              ),
             for (final f in found)
               ListTile(
                 key: Key('bleFound-${f.mac}'),
@@ -272,13 +322,14 @@ class _HubBleScreenState extends State<HubBleScreen> {
                     if (f.rssi != null) Text('${f.rssi} dBm', style: Theme.of(context).textTheme.labelSmall),
                   ],
                 ),
-                onTap: () => _add(f),
+                onTap: () => _add(f.mac, found: f),
               ),
             const Padding(
               padding: EdgeInsets.all(16),
               child: Text(
                 'Obsługiwane są czujniki BTHome v2 (np. Shelly BLU, Xiaomi z oprogramowaniem pvvx/ATC w trybie BTHome). '
-                'Szyfrowane wymagają klucza (bindkey) - z aplikacji producenta albo z ustawień oprogramowania czujnika.',
+                'Szyfrowane wymagają klucza (bindkey) - z aplikacji producenta albo z ustawień oprogramowania czujnika. '
+                'Własny czujnik btsensor nie potrzebuje klucza: paruje się z hubem po podłączeniu zasilania w czasie szukania.',
               ),
             ),
           ],
@@ -288,11 +339,13 @@ class _HubBleScreenState extends State<HubBleScreen> {
   }
 }
 
-/// Dodanie czujnika: nazwa i (dla szyfrowanych) klucz.
+/// Dodanie czujnika: nazwa i (dla szyfrowanych) klucz; sparowany ([paired]) - sama nazwa, klucz zna hub.
 class _BleAddDialog extends StatefulWidget {
-  const _BleAddDialog({required this.found});
+  const _BleAddDialog({required this.mac, this.found, this.paired = false});
 
-  final BleFound found;
+  final String mac;
+  final BleFound? found;
+  final bool paired;
 
   @override
   State<_BleAddDialog> createState() => _BleAddDialogState();
@@ -312,16 +365,17 @@ class _BleAddDialogState extends State<_BleAddDialog> {
   @override
   Widget build(BuildContext context) {
     final f = widget.found;
-    final key = _key.text.trim();
-    final ok = _name.text.trim().isNotEmpty && (key.isEmpty ? !f.encrypted : bleKeyPattern.hasMatch(key));
+    final needsKey = !widget.paired && (f?.encrypted ?? false);
+    final key = widget.paired ? '' : _key.text.trim();
+    final ok = _name.text.trim().isNotEmpty && (key.isEmpty ? !needsKey : bleKeyPattern.hasMatch(key));
     return AlertDialog(
-      title: const Text('Dodaj czujnik'),
+      title: Text(widget.paired ? 'Dodaj sparowany czujnik' : 'Dodaj czujnik'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text('${f.mac}${f.values.isEmpty ? '' : '\n${bleFoundSummary(f)}'}'),
+            Text('${widget.mac}${f == null || f.values.isEmpty ? '' : '\n${bleFoundSummary(f)}'}'),
             TextField(
               key: const Key('bleName'),
               controller: _name,
@@ -329,7 +383,7 @@ class _BleAddDialogState extends State<_BleAddDialog> {
               decoration: const InputDecoration(labelText: 'Nazwa', hintText: 'np. Salon, Okno kuchnia'),
               onChanged: (_) => setState(() {}),
             ),
-            if (f.encrypted) BleKeyField(controller: _key, onChanged: () => setState(() {})),
+            if (needsKey) BleKeyField(controller: _key, onChanged: () => setState(() {})),
           ],
         ),
       ),
@@ -340,8 +394,9 @@ class _BleAddDialogState extends State<_BleAddDialog> {
           onPressed: ok
               ? () => Navigator.pop(context, <String, dynamic>{
                   'adapter': HubAdapter.ble.wire,
-                  'deviceId': f.mac,
+                  'deviceId': widget.mac,
                   'name': _name.text.trim(),
+                  if (widget.paired) 'paired': true,
                   if (key.isNotEmpty) 'localKey': key.toLowerCase(),
                 })
               : null,

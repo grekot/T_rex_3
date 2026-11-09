@@ -400,6 +400,10 @@ class FakeHub extends FakeDevice {
   /// Klucze szyfrowanych czujników (MAC → 32 hex); inny klucz przy dodaniu = `error: "key"`.
   final bleKeys = <String, String>{'f8:44:77:aa:bb:cc': '00112233445566778899aabbccddeeff'};
 
+  /// Czujniki `btsensor` sparowane w szukaniu (pkt 15.6, klucz potwierdzony) - `paired` w `seen`, `POST /api/devices`
+  /// z `"paired":true` bierze klucz i zdejmuje wpis.
+  final blePaired = <String>{};
+
   /// Ile odpytań `seen` trwa szukanie (aplikacja odpytuje co 1-2 s); `scanAll` w węzłach na ten czas.
   int bleScanPolls = 2;
   int _bleScanLeft = 0;
@@ -428,6 +432,10 @@ class FakeHub extends FakeDevice {
       'nodes': [
         for (final n in bleNodes) {...n, 'scanAll': scanning && n['online'] == true},
       ],
+      'paired': [
+        for (final m in blePaired)
+          {'mac': m, if (children.containsKey('ble-${m.replaceAll(':', '')}')) 'id': 'ble-${m.replaceAll(':', '')}'},
+      ],
       'found': [
         for (final f in bleHeard)
           if (!children.containsKey('ble-${(f['mac'] as String).replaceAll(':', '')}')) f,
@@ -445,10 +453,14 @@ class FakeHub extends FakeDevice {
     if (key != null && (key is! String || !RegExp(r'^[0-9a-fA-F]{32}$').hasMatch(key))) {
       return _json({'ok': false, 'error': 'localKey'}, status: 400);
     }
+    final paired = b['paired'] == true;
+    if (paired && !blePaired.remove(m)) return _json({'ok': false, 'error': 'paired'}, status: 400);
     final heard = bleHeard.where((f) => f['mac'] == m).firstOrNull;
-    if (heard?['encrypted'] == true && key == null) return _json({'ok': false, 'error': 'localKey'}, status: 400);
+    if (heard?['encrypted'] == true && key == null && !paired) {
+      return _json({'ok': false, 'error': 'localKey'}, status: 400);
+    }
     final good = bleKeys[m];
-    final keyError = good != null && (key as String?)?.toLowerCase() != good ? 'key' : null;
+    final keyError = !paired && good != null && (key as String?)?.toLowerCase() != good ? 'key' : null;
     final id = 'ble-${m.replaceAll(':', '')}';
     if (!children.containsKey(id) && children.length >= 30) {
       return _json({'ok': false, 'error': 'too_many_devices'}, status: 507);

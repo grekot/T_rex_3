@@ -8,6 +8,7 @@ import 'package:homeautomation/data/cloud_access.dart';
 import 'package:homeautomation/data/connection_manager.dart';
 import 'package:homeautomation/data/device_store.dart';
 import 'package:homeautomation/data/discovery.dart';
+import 'package:homeautomation/data/errors.dart';
 import 'package:homeautomation/data/hub_api.dart';
 import 'package:homeautomation/data/local_api.dart';
 import 'package:homeautomation/data/local_endpoint.dart';
@@ -46,9 +47,13 @@ class _MemRooms extends RoomStore {
 
 /// Hub w pamięci: szukanie trwa jedno odpytanie, potem lista znalezionych.
 class _MemHubApi extends HubApi {
-  _MemHubApi({this.nodes = 1}) : super(LocalApi(LocalEndpoint('127.0.0.1', 1)));
+  _MemHubApi({this.nodes = 1, this.paired = const []}) : super(LocalApi(LocalEndpoint('127.0.0.1', 1)));
 
   final int nodes;
+  final List<BlePaired> paired;
+
+  /// Kod błędu kolejnego `addDevice` (np. `paired` = parowanie wygasło).
+  String? addError;
   final added = <Json>[];
   var scans = 0, stops = 0, polls = 0;
 
@@ -80,12 +85,22 @@ class _MemHubApi extends HubApi {
       scanning: polls < 2,
       remaining: polls < 2 ? 100 : 0,
       nodes: const [BleNode(id: 'bt-a1b2c3', online: true)],
+      paired: polls < 2 ? const [] : paired,
       found: polls < 2 ? const [] : found,
     );
   }
 
   @override
+  Future<List<HubChild>> devices() async => [
+    HubChild.fromJson({'id': 'ble-a4c138123456', 'type': 'sensor', 'adapter': 'ble', 'host': '', 'name': 'Salon'}),
+  ];
+
+  @override
   Future<String> addDevice(Json device) async {
+    if (addError case final e?) {
+      addError = null;
+      throw ThermostatException(e == 'paired' ? 'Parowanie wygasło - podłącz czujnik ponownie.' : e);
+    }
     added.add(device);
     return 'ble-${(device['deviceId'] as String).replaceAll(':', '')}';
   }
@@ -163,6 +178,54 @@ void main() {
     await tester.pumpAndSettle();
     expect(api.scans, 2);
   });
+
+  testWidgets(
+    'czujnik btsensor sparowany: na górze, dodanie bez klucza, wygasłe parowanie, zatwierdzenie nowego klucza',
+    (tester) async {
+      final api = _MemHubApi(
+        paired: const [
+          BlePaired(mac: 'f8:44:77:aa:bb:cc'),
+          BlePaired(mac: 'a4:c1:38:12:34:56', id: 'ble-a4c138123456'),
+        ],
+      );
+      await _pump(tester, api);
+      await tester.pump();
+      expect(find.byKey(const Key('blePairHint')), findsOneWidget);
+      await tester.pump(const Duration(milliseconds: 20));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('blePairHint')), findsNothing, reason: 'tylko w czasie szukania');
+      expect(find.text('Sparowany czujnik · f8:44:77:aa:bb:cc'), findsOneWidget);
+      expect(find.byKey(const Key('bleFound-f8:44:77:aa:bb:cc')), findsNothing, reason: 'nie dubluje sparowanego');
+      expect(find.textContaining('bateria 100 %'), findsOneWidget, reason: 'podgląd wartości z found');
+
+      await tester.tap(find.byKey(const Key('blePaired-f8:44:77:aa:bb:cc')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('bleKey')), findsNothing, reason: 'klucz zna hub');
+      await tester.enterText(find.byKey(const Key('bleName')), 'Okno');
+      await tester.pump();
+      api.addError = 'paired';
+      await tester.tap(find.byKey(const Key('bleAddOk')));
+      await tester.pumpAndSettle();
+      expect(find.text('Parowanie wygasło - podłącz czujnik ponownie.'), findsOneWidget);
+      expect(api.added, isEmpty);
+
+      await tester.tap(find.byKey(const Key('blePaired-f8:44:77:aa:bb:cc')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byKey(const Key('bleName')), 'Okno');
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('bleAddOk')));
+      await tester.pumpAndSettle();
+      expect(api.added.single, {'adapter': 'ble', 'deviceId': 'f8:44:77:aa:bb:cc', 'name': 'Okno', 'paired': true});
+      expect(find.byKey(const Key('blePaired-f8:44:77:aa:bb:cc')), findsNothing);
+
+      tester.state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger)).clearSnackBars();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('bleConfirmKey-a4:c1:38:12:34:56')));
+      await tester.pumpAndSettle();
+      expect(api.added.last, {'adapter': 'ble', 'deviceId': 'a4:c1:38:12:34:56', 'paired': true, 'name': 'Salon'});
+      expect(find.text('Zatwierdzono nowy klucz: Salon.'), findsOneWidget);
+    },
+  );
 
   testWidgets('czujniki Bluetooth: bez węzła btnode online - komunikat, bez odpytywania', (tester) async {
     final api = _MemHubApi(nodes: 0);

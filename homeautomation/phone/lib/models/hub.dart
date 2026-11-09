@@ -110,18 +110,41 @@ class BleFound {
   );
 }
 
-/// Wynik `GET /api/ble/seen`: szukanie trwa (`remaining` s), węzły `btnode` i znalezione czujniki.
+/// Czujnik `btsensor` sparowany w tym szukaniu (`GET /api/ble/seen` `paired`, pkt 15.6): klucz ustalony z hubem,
+/// czeka na zatwierdzenie w aplikacji. `id` = czujnik już dodany (nowy klucz do zatwierdzenia).
+class BlePaired {
+  const BlePaired({required this.mac, this.id});
+
+  final String mac;
+  final String? id;
+
+  factory BlePaired.fromJson(Json j) => BlePaired(mac: asString(j['mac'], 'mac'), id: asStringOrNull(j['id'], 'id'));
+}
+
+/// Wynik `GET /api/ble/seen`: szukanie trwa (`remaining` s), węzły `btnode`, sparowane i znalezione czujniki.
+/// Hub sprzed 0.3.33 nie zwraca `paired` (pusta lista).
 class BleSeen {
-  const BleSeen({this.scanning = false, this.remaining, this.nodes = const [], this.found = const []});
+  const BleSeen({
+    this.scanning = false,
+    this.remaining,
+    this.nodes = const [],
+    this.paired = const [],
+    this.found = const [],
+  });
 
   final bool scanning;
   final int? remaining;
   final List<BleNode> nodes;
+  final List<BlePaired> paired;
   final List<BleFound> found;
 
   factory BleSeen.fromJson(Json j) => BleSeen(
     scanning: asBool(j['scanning'], 'scanning'),
     remaining: asIntOrNull(j['remaining'], 'remaining'),
+    paired: [
+      for (final p in (j['paired'] is List ? j['paired'] as List : const []))
+        if (p is Map) BlePaired.fromJson(p.cast<String, dynamic>()),
+    ],
     nodes: [
       for (final n in (j['nodes'] is List ? j['nodes'] as List : const []))
         if (n is Map) BleNode.fromJson(n.cast<String, dynamic>()),

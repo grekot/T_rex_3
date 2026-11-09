@@ -112,7 +112,12 @@ void main() {
     ]);
     expect((d.found[2].deviceId, d.found[2].model), ('1000a1b2c3', 'strip'));
 
-    final id = await api.addDevice({'adapter': 'shelly', 'host': '192.168.1.50', 'id': 'shelly-b12345', 'name': 'Taras'});
+    final id = await api.addDevice({
+      'adapter': 'shelly',
+      'host': '192.168.1.50',
+      'id': 'shelly-b12345',
+      'name': 'Taras',
+    });
     expect(id, 'shelly-b12345');
     await api.addDevice({'adapter': 'tasmota', 'host': '192.168.1.98', 'name': 'Wolny'});
     final list = await api.devices();
@@ -211,7 +216,10 @@ void main() {
     });
     list = await api.devices();
     expect((list.first.error, list.first.online, list.length), (null, true, 4));
-    expect(HubChild.fromJson({'id': 'ewelink-10009abcde-3', 'adapter': 'ewelink', 'host': '1.2.3.4'}).deviceId, '10009abcde');
+    expect(
+      HubChild.fromJson({'id': 'ewelink-10009abcde-3', 'adapter': 'ewelink', 'host': '1.2.3.4'}).deviceId,
+      '10009abcde',
+    );
   });
 
   test('eWeLink moduł: Config z huba - kanały tylko z nazwą', () {
@@ -232,87 +240,111 @@ void main() {
     );
   });
 
-  test('czujniki Bluetooth: szukanie przez btnode, podgląd, dodanie, szyfrowany z kluczem, zły klucz, brak węzła', () async {
-    expect(await api.bleScan(), 1, reason: 'jeden węzeł btnode online');
-    var seen = await api.bleSeen();
-    expect((seen.scanning, seen.nodes.single.id, seen.nodes.single.scanAll), (true, 'bt-a1b2c3', true));
-    while (seen.scanning) {
+  test(
+    'czujniki Bluetooth: szukanie przez btnode, podgląd, dodanie, szyfrowany z kluczem, zły klucz, brak węzła',
+    () async {
+      expect(await api.bleScan(), 1, reason: 'jeden węzeł btnode online');
+      var seen = await api.bleSeen();
+      expect((seen.scanning, seen.nodes.single.id, seen.nodes.single.scanAll), (true, 'bt-a1b2c3', true));
+      while (seen.scanning) {
+        seen = await api.bleSeen();
+      }
+      expect(seen.found.map((f) => (f.mac, f.encrypted, f.trigger)).toList(), [
+        ('a4:c1:38:12:34:56', false, false),
+        ('f8:44:77:aa:bb:cc', true, true),
+      ]);
+      expect((seen.found.first.values['temp'], seen.found.first.hubId), (21.6, 'ble-a4c138123456'));
+      expect(seen.found.last.buttons, ['btn1']);
+
+      final id = await api.addDevice({'adapter': 'ble', 'deviceId': 'a4:c1:38:12:34:56', 'name': 'Salon'});
+      expect(id, 'ble-a4c138123456');
+      await expectLater(
+        api.addDevice({'adapter': 'ble', 'deviceId': 'f8:44:77:aa:bb:cc', 'name': 'Przycisk'}),
+        throwsA(isA<ThermostatException>().having((e) => e.message, 'message', contains('32 znaki'))),
+        reason: 'szyfrowany bez klucza',
+      );
+      await expectLater(
+        api.addDevice({'adapter': 'ble', 'deviceId': 'zly', 'name': 'X'}),
+        throwsA(isA<ThermostatException>()),
+      );
+      await api.addDevice({
+        'adapter': 'ble',
+        'deviceId': 'f8:44:77:aa:bb:cc',
+        'name': 'Przycisk',
+        'localKey': 'ffffffffffffffffffffffffffffffff',
+      });
+      var list = await api.devices();
+      final sensor = list.firstWhere((c) => c.id == 'ble-a4c138123456');
+      expect(
+        (sensor.adapter, sensor.type, sensor.host, sensor.deviceId, sensor.state['temp']),
+        (HubAdapter.ble, 'sensor', '', 'a4:c1:38:12:34:56', 21.6),
+      );
+      expect(list.firstWhere((c) => c.id == 'ble-f84477aabbcc').error, 'key');
+      await api.addDevice({
+        'adapter': 'ble',
+        'id': 'ble-f84477aabbcc',
+        'deviceId': 'f8:44:77:aa:bb:cc',
+        'name': 'Przycisk',
+        'localKey': '00112233445566778899AABBCCDDEEFF',
+      });
+      list = await api.devices();
+      expect(list.firstWhere((c) => c.id == 'ble-f84477aabbcc').error, isNull);
+      expect((await api.bleSeen()).found, isEmpty, reason: 'dodane znikają z listy');
+
+      await api.bleStop();
+      expect((await api.bleSeen()).scanning, isFalse);
+      fake.bleNodes = [
+        {'id': 'bt-a1b2c3', 'online': false},
+      ];
+      expect(await api.bleScan(seconds: 30), 0, reason: 'brak węzła btnode online');
+    },
+  );
+
+  test(
+    'czujnik btsensor sparowany (pkt 15.6): paired w seen, dodanie bez klucza, nowy klucz, wygasłe parowanie',
+    () async {
+      // Starszy hub: brak `paired` = pusta lista.
+      expect(BleSeen.fromJson({'scanning': false}).paired, isEmpty);
+      fake.blePaired.add('f8:44:77:aa:bb:cc');
+      var seen = await api.bleSeen();
+      expect(seen.paired.map((p) => (p.mac, p.id)).toList(), [('f8:44:77:aa:bb:cc', null)]);
+      await api.addDevice({'adapter': 'ble', 'deviceId': 'f8:44:77:aa:bb:cc', 'paired': true, 'name': 'Okno'});
+      expect((await api.devices()).firstWhere((c) => c.id == 'ble-f84477aabbcc').error, isNull);
+      expect((await api.bleSeen()).paired, isEmpty);
+      await expectLater(
+        api.addDevice({'adapter': 'ble', 'deviceId': 'f8:44:77:aa:bb:cc', 'paired': true, 'name': 'Okno'}),
+        throwsA(isA<ThermostatException>().having((e) => e.message, 'message', contains('Parowanie wygasło'))),
+      );
+      fake.blePaired.add('f8:44:77:aa:bb:cc');
       seen = await api.bleSeen();
-    }
-    expect(seen.found.map((f) => (f.mac, f.encrypted, f.trigger)).toList(), [
-      ('a4:c1:38:12:34:56', false, false),
-      ('f8:44:77:aa:bb:cc', true, true),
-    ]);
-    expect((seen.found.first.values['temp'], seen.found.first.hubId), (21.6, 'ble-a4c138123456'));
-    expect(seen.found.last.buttons, ['btn1']);
+      expect(seen.paired.single.id, 'ble-f84477aabbcc', reason: 'już dodany - nowy klucz');
+    },
+  );
 
-    final id = await api.addDevice({'adapter': 'ble', 'deviceId': 'a4:c1:38:12:34:56', 'name': 'Salon'});
-    expect(id, 'ble-a4c138123456');
-    await expectLater(
-      api.addDevice({'adapter': 'ble', 'deviceId': 'f8:44:77:aa:bb:cc', 'name': 'Przycisk'}),
-      throwsA(isA<ThermostatException>().having((e) => e.message, 'message', contains('32 znaki'))),
-      reason: 'szyfrowany bez klucza',
-    );
-    await expectLater(
-      api.addDevice({'adapter': 'ble', 'deviceId': 'zly', 'name': 'X'}),
-      throwsA(isA<ThermostatException>()),
-    );
-    await api.addDevice({
-      'adapter': 'ble',
-      'deviceId': 'f8:44:77:aa:bb:cc',
-      'name': 'Przycisk',
-      'localKey': 'ffffffffffffffffffffffffffffffff',
-    });
-    var list = await api.devices();
-    final sensor = list.firstWhere((c) => c.id == 'ble-a4c138123456');
-    expect((sensor.adapter, sensor.type, sensor.host, sensor.deviceId, sensor.state['temp']), (
-      HubAdapter.ble,
-      'sensor',
-      '',
-      'a4:c1:38:12:34:56',
-      21.6,
-    ));
-    expect(list.firstWhere((c) => c.id == 'ble-f84477aabbcc').error, 'key');
-    await api.addDevice({
-      'adapter': 'ble',
-      'id': 'ble-f84477aabbcc',
-      'deviceId': 'f8:44:77:aa:bb:cc',
-      'name': 'Przycisk',
-      'localKey': '00112233445566778899AABBCCDDEEFF',
-    });
-    list = await api.devices();
-    expect(list.firstWhere((c) => c.id == 'ble-f84477aabbcc').error, isNull);
-    expect((await api.bleSeen()).found, isEmpty, reason: 'dodane znikają z listy');
-
-    await api.bleStop();
-    expect((await api.bleSeen()).scanning, isFalse);
-    fake.bleNodes = [
-      {'id': 'bt-a1b2c3', 'online': false},
-    ];
-    expect(await api.bleScan(seconds: 30), 0, reason: 'brak węzła btnode online');
-  });
-
-  test('zegarek przez Bluetooth (pkt 15.1): rejestracja, nowy klucz przy ponownej, lista punktów, odłączenie', () async {
-    var r = await api.registerRemote(watchId: '8716545', name: 'T-Rex 3');
-    expect((r.id, r.slot, r.cfgVer, RegExp(r'^[0-9a-f]{64}$').hasMatch(r.key)), ('zegarek-8716545', 1, 1, true));
-    final firstKey = r.key;
-    r = await api.registerRemote(watchId: '8716545', name: 'T-Rex 3');
-    expect((r.slot, r.key == firstKey), (1, false), reason: 'ten sam slot, nowy klucz');
-    await api.putRemote('zegarek-8716545', {
-      'kind': 'watch',
-      'cfgVer': 2,
-      'points': [
-        {'device': 'termostat-ab12cd', 'point': 'temp'},
-      ],
-    });
-    expect((fake.remotes['zegarek-8716545']!['cfgVer'], (fake.remotes['zegarek-8716545']!['points'] as List).length), (
-      2,
-      1,
-    ));
-    await api.deleteRemote('zegarek-8716545');
-    expect(fake.remotes, isEmpty);
-    await expectLater(api.deleteRemote('zegarek-8716545'), throwsA(isA<ThermostatException>()));
-  });
+  test(
+    'zegarek przez Bluetooth (pkt 15.1): rejestracja, nowy klucz przy ponownej, lista punktów, odłączenie',
+    () async {
+      var r = await api.registerRemote(watchId: '8716545', name: 'T-Rex 3');
+      expect((r.id, r.slot, r.cfgVer, RegExp(r'^[0-9a-f]{64}$').hasMatch(r.key)), ('zegarek-8716545', 1, 1, true));
+      final firstKey = r.key;
+      r = await api.registerRemote(watchId: '8716545', name: 'T-Rex 3');
+      expect((r.slot, r.key == firstKey), (1, false), reason: 'ten sam slot, nowy klucz');
+      await api.putRemote('zegarek-8716545', {
+        'kind': 'watch',
+        'cfgVer': 2,
+        'points': [
+          {'device': 'termostat-ab12cd', 'point': 'temp'},
+        ],
+      });
+      expect(
+        (fake.remotes['zegarek-8716545']!['cfgVer'], (fake.remotes['zegarek-8716545']!['points'] as List).length),
+        (2, 1),
+      );
+      await api.deleteRemote('zegarek-8716545');
+      expect(fake.remotes, isEmpty);
+      await expectLater(api.deleteRemote('zegarek-8716545'), throwsA(isA<ThermostatException>()));
+    },
+  );
 
   test('automatyki i sceny w hubie: zapis z updatedAt, błędna reguła, diagnostyka, uruchom, dziennik, czas', () async {
     final a = Automation(
@@ -378,7 +410,18 @@ void main() {
     await local.connect();
     final inHome = HubAutomations(hub: local);
     expect(inHome.isLocal, isTrue);
-    await inHome.save(const Automation(id: 'rano', name: 'Rano', when: [{'time': '06:30'}], then: [{'log': 'x'}]));
+    await inHome.save(
+      const Automation(
+        id: 'rano',
+        name: 'Rano',
+        when: [
+          {'time': '06:30'},
+        ],
+        then: [
+          {'log': 'x'},
+        ],
+      ),
+    );
     expect(fake.automations['rano']!['updatedAt'], isA<int>());
     expect((await inHome.load()).items.single.id, 'rano');
     await inHome.run('rano');
@@ -396,7 +439,18 @@ void main() {
     await remote.connect();
     final away = HubAutomations(hub: remote, store: cloud, homeId: 'h1', clock: () => DateTime(2026, 10, 27, 21));
     expect(away.isLocal, isFalse);
-    await away.save(const Automation(id: 'wieczor', name: 'Wieczór', when: [{'sun': 'sunset'}], then: [{'log': 'x'}]));
+    await away.save(
+      const Automation(
+        id: 'wieczor',
+        name: 'Wieczór',
+        when: [
+          {'sun': 'sunset'},
+        ],
+        then: [
+          {'log': 'x'},
+        ],
+      ),
+    );
     expect(cloud.get('homes/h1/automations/wieczor/updatedAt'), DateTime(2026, 10, 27, 21).millisecondsSinceEpoch);
     expect(conn.sent.single, {'reload': true});
     expect((await away.load()).items.single.name, 'Wieczór');
