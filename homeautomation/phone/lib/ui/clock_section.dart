@@ -229,6 +229,14 @@ class ClockSection extends StatelessWidget {
             onTap: () => _open(context, ClockWeatherPage(controller: c, hub: hub)),
           ),
           ListTile(
+            key: const Key('clockNews'),
+            leading: const Icon(Icons.rss_feed),
+            title: const Text('Wiadomości'),
+            subtitle: Text(_newsText(cfg)),
+            enabled: clockHasNews(cfg),
+            onTap: () => _open(context, ClockNewsPage(controller: c)),
+          ),
+          ListTile(
             key: const Key('clockSensor'),
             leading: const Icon(Icons.thermostat_outlined),
             title: const Text('Czujnik'),
@@ -272,6 +280,14 @@ class ClockSection extends StatelessWidget {
     final t = cfg?['theme'] is Map ? cfg!['theme'] as Map : const {};
     final name = clockThemes[t['name']]?.label ?? clockThemes['pastel']!.label;
     return t['seasonal'] == true ? 'Według pory roku' : name;
+  }
+
+  static String _newsText(Json? cfg) {
+    if (!clockHasNews(cfg)) return 'Wymaga nowszego firmware zegara';
+    final feeds = ClockFeed.listFrom(cfg!['news']);
+    if (feeds.isEmpty) return 'Kanały RSS i ostrzeżenia IMGW na ekranie zegara';
+    final alerts = feeds.where((f) => f.alert).length;
+    return '${clockFeedsText(feeds.length)}${alerts > 0 ? ', alarmowe: $alerts' : ''}';
   }
 
   static String _displayText(Json? cfg) {

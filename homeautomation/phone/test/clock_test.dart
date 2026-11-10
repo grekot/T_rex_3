@@ -114,8 +114,8 @@ class _MemAutomations extends HubAutomations {
 }
 
 /// Dom: hub, zegar i węzeł (przez hub), termostat (poza hubem).
-Future<(DeviceHub, Map<String, _Conn>, FakeClock)> _home() async {
-  final fake = FakeClock();
+Future<(DeviceHub, Map<String, _Conn>, FakeClock)> _home({FakeClock? clock}) async {
+  final fake = clock ?? FakeClock();
   final store = MemoryDeviceStore();
   await store.saveDevice(const PairedDevice(id: 'hub1', name: 'Hub', type: DeviceType.hub));
   await store.saveDevice(const PairedDevice(id: 'zegar-ab12cd', name: 'Biurko', type: DeviceType.clock, via: 'hub1'));
@@ -447,6 +447,170 @@ void main() {
       expect((conn.sent.last['theme'] as Map)['name'], k);
     }
     expect(find.text('Babie lato'), findsOneWidget);
+    hub.dispose();
+  });
+
+  testWidgets('wiadomości: propozycja, IMGW alarmowy, własny adres z błędem, słowo, przeskok, stan i przeczytane', (
+    tester,
+  ) async {
+    final (hub, conns, fake) = await _home();
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    final conn = conns['zegar-ab12cd']!;
+    Map news() => conn.sent.last['news'] as Map;
+    await tester.pumpWidget(_app(ClockNewsPage(controller: c)));
+    await tester.pumpAndSettle();
+    expect(find.text('Bez kanałów zegar nic nie pobiera.'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('clockFeedAdd')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockFeedSuggest-RMF24')));
+    await tester.pumpAndSettle();
+    expect(news()['feeds'], [
+      {'name': 'RMF24', 'url': 'https://www.rmf24.pl/feed', 'alert': false},
+    ]);
+    expect(news()['keywords'], ['pilne', 'alarm', 'ostrzeżenie', 'ewakuacja']);
+
+    await tester.tap(find.byKey(const Key('clockFeedAdd')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clockFeedSuggest-RMF24')), findsNothing);
+    await tester.tap(find.byKey(const Key('clockFeedImgw')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('clockFeedTeryt')), '1201');
+    await tester.pumpAndSettle();
+    expect(find.text('powiat bocheński'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('clockFeedSave')));
+    await tester.pumpAndSettle();
+    expect((news()['feeds'] as List).last, {'name': 'IMGW', 'imgw': '1201', 'alert': true});
+    expect(find.text('Ostrzeżenia IMGW · bocheński (1201)'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('clockFeedAdd')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockFeedOwn')));
+    await tester.pumpAndSettle();
+    final sent = conn.sent.length;
+    await tester.enterText(find.byKey(const Key('clockFeedName')), 'Mój');
+    await tester.enterText(find.byKey(const Key('clockFeedUrl')), 'ftp://x.pl/rss');
+    await tester.tap(find.byKey(const Key('clockFeedSave')));
+    await tester.pumpAndSettle();
+    expect(find.text('Adres zaczyna się od https:// albo http://'), findsOneWidget);
+    expect(conn.sent.length, sent);
+    await tester.enterText(find.byKey(const Key('clockFeedUrl')), 'https://example.com/rss');
+    await tester.tap(find.byKey(const Key('clockFeedSave')));
+    await tester.pumpAndSettle();
+    expect((news()['feeds'] as List).length, 3);
+
+    await tester.tap(find.byKey(const Key('clockFeedAlert-0')));
+    await tester.pumpAndSettle();
+    expect(((news()['feeds'] as List)[0] as Map)['alert'], true);
+    await tester.tap(find.byKey(const Key('clockFeedRemove-2')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockFeedRemoveOk')));
+    await tester.pumpAndSettle();
+    expect((news()['feeds'] as List).length, 2);
+    expect(fake.news!['feeds'], news()['feeds']);
+
+    await tester.ensureVisible(find.byKey(const Key('clockKeywordAdd')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockKeywordAdd')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('clockKeywordField')), 'burz');
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    expect(news()['keywords'], ['pilne', 'alarm', 'ostrzeżenie', 'ewakuacja', 'burz']);
+    await tester.tap(
+      find.descendant(of: find.byKey(const Key('clockKeyword-alarm')), matching: find.byIcon(Icons.close)),
+    );
+    await tester.pumpAndSettle();
+    expect(news()['keywords'], ['pilne', 'ostrzeżenie', 'ewakuacja', 'burz']);
+
+    await tester.ensureVisible(find.byKey(const Key('clockNewsJump')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockNewsJump')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('tylko pasek').last);
+    await tester.pumpAndSettle();
+    expect(news()['jumpS'], 0);
+    expect(
+      fake.applySet({
+        'news': {'jumpS': 5},
+      }),
+      {'news.jumpS': 'range'},
+    );
+    hub.dispose();
+  });
+
+  testWidgets('wiadomości: stan z zegara, błąd kanału, przeczytane; podsumowanie w ustawieniach', (tester) async {
+    final fake = FakeClock()
+      ..applySet({
+        'news': {
+          'feeds': [
+            {'name': 'Onet', 'url': 'https://wiadomosci.onet.pl/.feed'},
+            {'name': 'IMGW', 'imgw': '1201', 'alert': true},
+          ],
+        },
+      })
+      ..newsUnread = 2;
+    final (hub, conns, _) = await _home(clock: fake);
+    final conn = conns['zegar-ab12cd']!;
+    conn.stateJson = {
+      ...fake.stateJson(),
+      'news': {
+        'items': 9,
+        'age': 120,
+        'errors': [
+          {'name': 'Onet', 'error': 'HTTP 404'},
+        ],
+        'alert': {'title': 'Burze z gradem', 'source': 'IMGW', 'ts': 1794329340, 'alert': true},
+      },
+    };
+    conn.configJson = fake.configJson();
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    await tester.pumpWidget(
+      _app(
+        Scaffold(
+          body: SingleChildScrollView(
+            child: ClockSection(controller: c, hub: hub),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('2 kanały, alarmowe: 1'), findsOneWidget);
+    await tester.pumpWidget(_app(ClockNewsPage(controller: c)));
+    await tester.pumpAndSettle();
+    expect(find.text('9 wiadomości'), findsOneWidget);
+    expect(find.text('pobrane 2 min temu'), findsOneWidget);
+    expect(find.text('HTTP 404'), findsOneWidget);
+    expect(find.text('Burze z gradem'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('clockNewsRead')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {'newsRead': true});
+    expect(fake.newsUnread, 0);
+    hub.dispose();
+  });
+
+  testWidgets('wiadomości: zegar bez news - wpis wyszarzony, bez ekranu news', (tester) async {
+    final (hub, _, _) = await _home(clock: FakeClock(withNews: false));
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    await tester.pumpWidget(
+      _app(
+        Scaffold(
+          body: SingleChildScrollView(
+            child: ClockSection(controller: c, hub: hub),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Wymaga nowszego firmware zegara'), findsOneWidget);
+    expect(tester.widget<ListTile>(find.byKey(const Key('clockNews'))).enabled, false);
+    await tester.pumpWidget(_app(ClockScreensPage(controller: c)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clockScreen-news')), findsNothing);
+    expect(find.byKey(const Key('clockScreen-air')), findsOneWidget);
     hub.dispose();
   });
 

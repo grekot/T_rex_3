@@ -14,7 +14,16 @@ class FakeClock extends FakeDevice {
     super.random,
     this.lux = false,
     this.warmup = false,
-  }) : _name = name {
+    bool withNews = true,
+  }) : _name = name,
+       news = withNews
+           ? {
+               'feeds': <dynamic>[],
+               'keywords': ['pilne', 'alarm', 'ostrzeżenie', 'ewakuacja'],
+               'refreshMin': 10,
+               'jumpS': 60,
+             }
+           : null {
     cloudCapable = false;
   }
 
@@ -52,6 +61,10 @@ class FakeClock extends FakeDevice {
 
   /// Czujnik na zewnątrz (`outdoor`): null = temperatura z Open-Meteo.
   Map<String, dynamic>? outdoor;
+
+  /// Wiadomości (`news`); null = zegar sprzed tej funkcji (bez pola i ekranu `news`).
+  Map<String, dynamic>? news;
+  int newsUnread = 0;
   int wantsVer = 1;
   int identifies = 0;
 
@@ -108,6 +121,9 @@ class FakeClock extends FakeDevice {
     'chipTemp': 41.0,
     'wantsVer': wantsVer,
     'uptime': 3600,
+    if (news != null) 'newsUnread': newsUnread,
+    if ((news?['feeds'] as List?)?.isNotEmpty ?? false)
+      'news': {'items': 8 * (news!['feeds'] as List).length, 'age': 120, 'errors': <dynamic>[], 'alert': null},
   };
 
   @override
@@ -122,9 +138,44 @@ class FakeClock extends FakeDevice {
     'sensor': sensor,
     'pages': pages,
     'outdoor': outdoor,
+    if (news != null) 'news': news,
   };
 
-  static const _builtIn = {'main', 'hours', 'days', 'chart', 'calendar', 'air'};
+  static const _builtInOld = {'main', 'hours', 'days', 'chart', 'calendar', 'air'};
+
+  Set<String> get _builtIn => {..._builtInOld, if (news != null) 'news'};
+
+  /// Błędy `news` jak `applyNews` w DeskConfig.cpp (kanał: nazwa 1-24 B, `url` http(s) albo `imgw` 4 cyfry).
+  Map<String, String> _newsErrors(Map n) {
+    int bytes(Object? s) => s is String ? utf8.encode(s).length : -1;
+    bool feedOk(Object? f) {
+      if (f is! Map || bytes(f['name']) < 1 || bytes(f['name']) > 24) return false;
+      final url = f['url'], imgw = f['imgw'];
+      if ((url == null) == (imgw == null)) return false;
+      if (imgw != null) return imgw is String && RegExp(r'^\d{4}$').hasMatch(imgw);
+      return url is String &&
+          RegExp(r'^https?://\S+$').hasMatch(url) &&
+          url.length > 10 &&
+          utf8.encode(url).length <= 256;
+    }
+
+    final feeds = n['feeds'], words = n['keywords'];
+    return {
+      if (n.containsKey('feeds'))
+        if (feeds is! List || !feeds.every(feedOk))
+          'news.feeds': 'value'
+        else if (feeds.length > 6)
+          'news.feeds': 'too_many',
+      if (n.containsKey('keywords'))
+        if (words is! List || !words.every((w) => bytes(w) >= 2 && bytes(w) <= 32))
+          'news.keywords': 'value'
+        else if (words.length > 16)
+          'news.keywords': 'too_many',
+      if (n.containsKey('refreshMin') && !_num(n['refreshMin'], 5, 120)) 'news.refreshMin': 'range',
+      if (n.containsKey('jumpS') && !(n['jumpS'] == 0 || _num(n['jumpS'], 10, 600))) 'news.jumpS': 'range',
+    };
+  }
+
   static const _views = {'value', 'status', 'values', 'level', 'gauge', 'chart', 'thermostat', 'group', 'room', 'hub'};
   static const _commands = {'next', 'prev', 'home', 'wake', 'info'};
 
@@ -283,6 +334,30 @@ class FakeClock extends FakeDevice {
         errors['showScreen'] = 'value';
       }
     }
+    if (v.containsKey('news')) {
+      final n = v['news'];
+      if (news == null) {
+        errors['news'] = 'unknown';
+      } else if (n is! Map) {
+        errors['news'] = 'value';
+      } else {
+        final e = _newsErrors(n);
+        if (e.isEmpty) {
+          news = {...news!, ...n.cast<String, dynamic>()};
+        } else {
+          errors.addAll(e);
+        }
+      }
+    }
+    if (v.containsKey('newsRead')) {
+      if (news == null) {
+        errors['newsRead'] = 'unknown';
+      } else if (v['newsRead'] != true) {
+        errors['newsRead'] = 'value';
+      } else {
+        newsUnread = 0;
+      }
+    }
     if (v['identify'] == true) identifies++;
     if (v['ext'] case final List list) {
       for (final e in list) {
@@ -313,6 +388,10 @@ class FakeClock extends FakeDevice {
       for (final (i, n) in const ['lewy', 'środkowy', 'prawy'].indexed)
         {'key': 'in${i + 1}', 'name': 'Przycisk $n', 'kind': 'status', 'inputKind': 'button'},
       if (lux) {'key': 'lux', 'name': 'Światło', 'kind': 'sensor', 'unit': 'lx'},
+      if (news != null) ...[
+        {'key': 'newsUnread', 'name': 'Ważne wiadomości', 'kind': 'sensor'},
+        {'key': 'newsRead', 'name': 'Wiadomości przeczytane', 'kind': 'action', 'access': 'control'},
+      ],
     ],
   };
 

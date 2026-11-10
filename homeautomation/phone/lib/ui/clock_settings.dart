@@ -97,7 +97,10 @@ class _ClockScreensPageState extends State<ClockScreensPage> with _ClockConfig {
   /// Lista do pokazania: włączone w kolejności `screens.list`, potem wyłączone (wbudowane i strony).
   List<(String, bool)> _rows() {
     final on = clockScreenList(cfg);
-    final all = [...clockScreens.keys, for (final p in ClockPage.listFrom(cfg)) 'page:${p.id}'];
+    final all = [
+      ...clockScreens.keys.where((k) => k != 'news' || clockHasNews(cfg)),
+      for (final p in ClockPage.listFrom(cfg)) 'page:${p.id}',
+    ];
     return [for (final k in on) (k, true), for (final k in all.where((k) => !on.contains(k))) (k, false)];
   }
 
@@ -1063,5 +1066,429 @@ class _ClockTimePageState extends State<ClockTimePage> with _ClockConfig {
         ),
       ),
     ]);
+  }
+}
+
+// ---------------------------------------------------------------- Wiadomości
+
+/// „1 kanał”, „3 kanały”, „5 kanałów”.
+String clockFeedsText(int n) {
+  final few = n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14);
+  return '$n ${n == 1
+      ? 'kanał'
+      : few
+      ? 'kanały'
+      : 'kanałów'}';
+}
+
+/// Kanały RSS i ostrzeżenia IMGW (Config `news`): lista kanałów, słowa kluczowe, pobieranie, stan z State `news`.
+class ClockNewsPage extends StatefulWidget {
+  const ClockNewsPage({super.key, required this.controller});
+
+  final DeviceController<Object?, Object?> controller;
+
+  @override
+  State<ClockNewsPage> createState() => _ClockNewsPageState();
+}
+
+class _ClockNewsPageState extends State<ClockNewsPage> with _ClockConfig {
+  @override
+  DeviceController<Object?, Object?> get c => widget.controller;
+
+  List<ClockFeed> get _feeds => ClockFeed.listFrom(obj('news'));
+
+  List<String> get _keywords => [
+    for (final k in (obj('news')['keywords'] as List? ?? const []))
+      if (k is String) k,
+  ];
+
+  Future<void> _setFeeds(List<ClockFeed> feeds) => setIn('news', {
+    'feeds': [for (final f in feeds) f.toJson()],
+  });
+
+  Future<void> _edit(int index) async {
+    final feeds = _feeds;
+    final f = await showDialog<ClockFeed>(
+      context: context,
+      builder: (_) => _FeedDialog(feed: feeds[index]),
+    );
+    if (f != null) await _setFeeds([...feeds]..[index] = f);
+  }
+
+  Future<void> _add() async {
+    final feeds = _feeds;
+    if (feeds.length >= clockMaxFeeds) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Najwyżej $clockMaxFeeds kanałów.')));
+      return;
+    }
+    final used = {for (final f in feeds) f.url};
+    final pick = await showDialog<Object>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Dodaj kanał'),
+        children: [
+          ListTile(
+            key: const Key('clockFeedOwn'),
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Własny adres RSS'),
+            onTap: () => Navigator.pop(ctx, 'own'),
+          ),
+          ListTile(
+            key: const Key('clockFeedImgw'),
+            leading: const Icon(Icons.thunderstorm_outlined),
+            title: const Text('Ostrzeżenia IMGW'),
+            subtitle: const Text('Ostrzeżenia meteo dla powiatu'),
+            onTap: () => Navigator.pop(ctx, 'imgw'),
+          ),
+          const Divider(),
+          for (final s in clockNewsSuggestions.where((s) => !used.contains(s.url)))
+            ListTile(
+              key: Key('clockFeedSuggest-${s.name}'),
+              leading: const Icon(Icons.rss_feed),
+              title: Text(s.name),
+              subtitle: Text(Uri.parse(s.url).host),
+              onTap: () => Navigator.pop(ctx, ClockFeed(name: s.name, url: s.url)),
+            ),
+        ],
+      ),
+    );
+    if (!mounted || pick == null) return;
+    final f = pick is ClockFeed
+        ? pick
+        : await showDialog<ClockFeed>(
+            context: context,
+            builder: (_) => _FeedDialog(
+              feed: pick == 'imgw' ? const ClockFeed(name: 'IMGW', imgw: '', alert: true) : null,
+            ),
+          );
+    if (f != null) await _setFeeds([..._feeds, f]);
+  }
+
+  Future<void> _remove(int index) async {
+    final f = _feeds[index];
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Usunąć kanał „${f.name}”?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Anuluj')),
+          FilledButton(
+            key: const Key('clockFeedRemoveOk'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Usuń'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) await _setFeeds([..._feeds]..removeAt(index));
+  }
+
+  Future<void> _addKeyword() async {
+    final words = _keywords;
+    if (words.length >= clockMaxKeywords) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Najwyżej $clockMaxKeywords słów.')));
+      return;
+    }
+    final w = await showTextInputDialog(
+      context,
+      title: 'Słowo kluczowe',
+      hint: 'np. burz (pasuje też „burza”)',
+      fieldKey: const Key('clockKeywordField'),
+    );
+    if (w == null || !mounted) return;
+    final err = clockKeywordError(w);
+    if (err != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(err)));
+      return;
+    }
+    if (words.any((k) => k.toLowerCase() == w.toLowerCase())) return;
+    await setIn('news', {
+      'keywords': [...words, w],
+    });
+  }
+
+  /// Stan z zegara (State `news`): liczba pozycji, wiek pobrania, błędy kanałów, nieprzeczytane ważne.
+  List<Widget> _status() {
+    final s = c.stateJson?['news'];
+    final unread = (c.stateJson?['newsUnread'] as num?)?.toInt() ?? 0;
+    if (s is! Map) return const [];
+    final age = s['age'];
+    final alert = s['alert'];
+    return [
+      const SectionHeader('Na zegarze'),
+      ListTile(
+        key: const Key('clockNewsStatus'),
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.newspaper_outlined),
+        title: Text('${s['items'] ?? 0} wiadomości'),
+        subtitle: Text(age is num ? 'pobrane ${fmtAge(age.toInt())}' : 'jeszcze nie pobrane'),
+      ),
+      for (final e in (s['errors'] as List? ?? const []))
+        if (e is Map)
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: Icon(Icons.error_outline, color: Theme.of(context).colorScheme.error),
+            title: Text('${e['name']}'),
+            subtitle: Text('${e['error']}'),
+          ),
+      if (unread > 0)
+        ListTile(
+          key: const Key('clockNewsUnread'),
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(Icons.notification_important_outlined, color: Theme.of(context).colorScheme.error),
+          title: Text(alert is Map ? '${alert['title']}' : 'Ważne wiadomości: $unread'),
+          subtitle: Text(alert is Map ? '${alert['source']} · nieprzeczytane: $unread' : 'nieprzeczytane'),
+          trailing: c.canControl
+              ? TextButton(
+                  key: const Key('clockNewsRead'),
+                  onPressed: () => send({'newsRead': true}),
+                  child: const Text('Przeczytane'),
+                )
+              : null,
+        ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!clockHasNews(cfg)) {
+      return page('Wiadomości', const [Text('Ten zegar nie ma jeszcze wiadomości - zaktualizuj jego firmware.')]);
+    }
+    final n = obj('news');
+    final feeds = _feeds;
+    final words = _keywords;
+    final refresh = (n['refreshMin'] as num?)?.toInt() ?? 10;
+    final jump = (n['jumpS'] as num?)?.toInt() ?? 60;
+    final onScreen = clockScreenList(cfg).contains('news');
+    return page('Wiadomości', [
+      const Text(
+        'Zegar sam pobiera kanały RSS i ostrzeżenia IMGW. Ważna wiadomość (z kanału alarmowego albo ze słowem '
+        'kluczowym w tytule) pokazuje pasek i przełącza zegar na ekran wiadomości.',
+      ),
+      if (!onScreen)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            'Ekranu „Wiadomości” nie ma w pokazie (Ekrany) - zegar przełączy się na niego tylko przy ważnej wiadomości.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+      ..._status(),
+      SectionHeader('Kanały (${feeds.length}/$clockMaxFeeds)'),
+      if (feeds.isEmpty) const Text('Bez kanałów zegar nic nie pobiera.'),
+      for (final (i, f) in feeds.indexed)
+        ListTile(
+          key: Key('clockFeed-$i'),
+          contentPadding: EdgeInsets.zero,
+          leading: Icon(f.isImgw ? Icons.thunderstorm_outlined : Icons.rss_feed),
+          title: Text(f.name),
+          subtitle: Text(
+            f.isImgw ? 'Ostrzeżenia IMGW · ${clockPowiaty[f.imgw] ?? 'powiat'} (${f.imgw})' : f.url ?? '',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          onTap: () => _edit(i),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Tooltip(
+                message: 'Alarmowy: każda nowa pozycja ważna',
+                child: Switch(
+                  key: Key('clockFeedAlert-$i'),
+                  value: f.alert,
+                  onChanged: (v) => _setFeeds([...feeds]..[i] = f.copyWith(alert: v)),
+                ),
+              ),
+              IconButton(
+                key: Key('clockFeedRemove-$i'),
+                tooltip: 'Usuń',
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => _remove(i),
+              ),
+            ],
+          ),
+        ),
+      const SizedBox(height: 8),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: FilledButton.tonalIcon(
+          key: const Key('clockFeedAdd'),
+          icon: const Icon(Icons.add),
+          label: const Text('Dodaj kanał'),
+          onPressed: feeds.length < clockMaxFeeds ? _add : null,
+        ),
+      ),
+      SectionHeader('Słowa kluczowe (${words.length}/$clockMaxKeywords)'),
+      Text(
+        'Wiadomość ze słowem w tytule jest ważna - z każdego kanału. Wielkość liter i polskie znaki bez znaczenia, '
+        'wystarczy fragment („burz” pasuje do „burza”).',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        children: [
+          for (final w in words)
+            InputChip(
+              key: Key('clockKeyword-$w'),
+              label: Text(w),
+              deleteIcon: const Icon(Icons.close, size: 18),
+              deleteButtonTooltipMessage: 'Usuń',
+              onDeleted: () => setIn('news', {'keywords': words.where((k) => k != w).toList()}),
+            ),
+          ActionChip(
+            key: const Key('clockKeywordAdd'),
+            avatar: const Icon(Icons.add, size: 18),
+            label: const Text('Dodaj słowo'),
+            onPressed: words.length < clockMaxKeywords ? _addKeyword : null,
+          ),
+        ],
+      ),
+      const SectionHeader('Pobieranie i przeskok'),
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Pobieranie co'),
+        subtitle: const Text('Po błędzie zegar ponawia po 5 min'),
+        trailing: DropdownButton<int>(
+          key: const Key('clockNewsRefresh'),
+          value: refresh,
+          items: [
+            for (final v in {5, 10, 15, 30, 60, 120, refresh}) DropdownMenuItem(value: v, child: Text('$v min')),
+          ],
+          onChanged: (v) => setIn('news', {'refreshMin': v}),
+        ),
+      ),
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Ekran wiadomości przy ważnej'),
+        subtitle: Text(
+          jump == 0
+              ? 'Tylko pasek, bez przełączania ekranu'
+              : 'Na $jump s; w nocy i przy wstrzymanym pokazie tylko z kanału alarmowego',
+        ),
+        trailing: DropdownButton<int>(
+          key: const Key('clockNewsJump'),
+          value: jump,
+          items: [
+            for (final v in {0, 10, 30, 60, 120, 300, 600, jump})
+              DropdownMenuItem(value: v, child: Text(v == 0 ? 'tylko pasek' : '$v s')),
+          ],
+          onChanged: (v) => setIn('news', {'jumpS': v}),
+        ),
+      ),
+    ]);
+  }
+}
+
+/// Edycja kanału: nazwa, adres RSS albo kod powiatu IMGW, alarmowy. Zwraca kanał albo null (Anuluj).
+class _FeedDialog extends StatefulWidget {
+  const _FeedDialog({this.feed});
+
+  final ClockFeed? feed;
+
+  @override
+  State<_FeedDialog> createState() => _FeedDialogState();
+}
+
+class _FeedDialogState extends State<_FeedDialog> {
+  late final _name = TextEditingController(text: widget.feed?.name ?? '');
+  late final _url = TextEditingController(text: widget.feed?.url ?? 'https://');
+  late final _teryt = TextEditingController(text: widget.feed?.imgw ?? '');
+  late bool _imgw = widget.feed?.isImgw ?? false;
+  late bool _alert = widget.feed?.alert ?? false;
+  bool _tried = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _url.dispose();
+    _teryt.dispose();
+    super.dispose();
+  }
+
+  String? get _nameError => clockFeedNameError(_name.text.trim());
+  String? get _sourceError => _imgw ? clockTerytError(_teryt.text.trim()) : clockFeedUrlError(_url.text.trim());
+
+  void _save() {
+    if (_nameError != null || _sourceError != null) {
+      setState(() => _tried = true);
+      return;
+    }
+    Navigator.pop(
+      context,
+      ClockFeed(
+        name: _name.text.trim(),
+        url: _imgw ? null : _url.text.trim(),
+        imgw: _imgw ? _teryt.text.trim() : null,
+        alert: _alert,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final powiat = clockPowiaty[_teryt.text.trim()];
+    return AlertDialog(
+      title: const Text('Kanał'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SegmentedButton<bool>(
+              key: const Key('clockFeedKind'),
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(value: false, label: Text('RSS')),
+                ButtonSegment(value: true, label: Text('IMGW')),
+              ],
+              selected: {_imgw},
+              onSelectionChanged: (v) => setState(() => _imgw = v.single),
+            ),
+            TextField(
+              key: const Key('clockFeedName'),
+              controller: _name,
+              decoration: InputDecoration(labelText: 'Nazwa (na ekranie)', errorText: _tried ? _nameError : null),
+              onChanged: (_) => setState(() {}),
+            ),
+            if (_imgw)
+              TextField(
+                key: const Key('clockFeedTeryt'),
+                controller: _teryt,
+                keyboardType: TextInputType.number,
+                maxLength: 4,
+                decoration: InputDecoration(
+                  labelText: 'Kod TERYT powiatu',
+                  hintText: '1201',
+                  helperText: powiat != null ? 'powiat $powiat' : 'np. 1201 = bocheński, 1261 = Kraków',
+                  errorText: _tried ? _sourceError : null,
+                ),
+                onChanged: (_) => setState(() {}),
+              )
+            else
+              TextField(
+                key: const Key('clockFeedUrl'),
+                controller: _url,
+                keyboardType: TextInputType.url,
+                decoration: InputDecoration(labelText: 'Adres RSS / Atom', errorText: _tried ? _sourceError : null),
+                onChanged: (_) => setState(() {}),
+              ),
+            SwitchListTile(
+              key: const Key('clockFeedAlertEdit'),
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Alarmowy'),
+              subtitle: const Text('Każda nowa pozycja ważna: pasek i ekran wiadomości, także w nocy'),
+              value: _alert,
+              onChanged: (v) => setState(() => _alert = v),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Anuluj')),
+        FilledButton(key: const Key('clockFeedSave'), onPressed: _save, child: const Text('Zapisz')),
+      ],
+    );
   }
 }

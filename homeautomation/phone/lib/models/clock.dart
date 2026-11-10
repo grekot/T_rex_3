@@ -15,6 +15,7 @@ const clockScreens = {
   'chart': 'Wykres pokoju',
   'calendar': 'Kalendarz',
   'air': 'Powietrze',
+  'news': 'Wiadomości',
 };
 
 /// Opisy ekranów wbudowanych.
@@ -25,6 +26,7 @@ const clockScreenHints = {
   'chart': 'temperatura i wilgotność pokoju z 24 h',
   'calendar': 'data, imieniny, święta, słońce i księżyc, kalendarz domu',
   'air': 'AQI, pyły, pyłki, UV (z huba)',
+  'news': 'kanały RSS i ostrzeżenia IMGW',
 };
 
 const clockTransitions = {
@@ -181,6 +183,102 @@ const clockCommands = {
   'home': 'Ekran główny',
   'wake': 'Rozjaśnij (noc)',
   'info': 'Ekran informacyjny',
+};
+
+// ---------------------------------------------------------------- Wiadomości (Config `news`, pkt 10.2)
+
+const clockMaxFeeds = 6;
+const clockMaxKeywords = 16;
+
+/// Zegar z wiadomościami (fw z Config `news`); starszy nie ma pola i ekranu `news`.
+bool clockHasNews(Map<String, dynamic>? cfg) => cfg?['news'] is Map;
+
+/// Kanał wiadomości (`news.feeds[]`): RSS / Atom spod [url] albo ostrzeżenia meteo IMGW dla powiatu [imgw]
+/// (kod TERYT, 4 cyfry). [alert] - każda nowa pozycja kanału jest ważna.
+class ClockFeed {
+  const ClockFeed({required this.name, this.url, this.imgw, this.alert = false});
+
+  final String name;
+  final String? url;
+  final String? imgw;
+  final bool alert;
+
+  bool get isImgw => imgw != null;
+
+  ClockFeed copyWith({bool? alert}) => ClockFeed(name: name, url: url, imgw: imgw, alert: alert ?? this.alert);
+
+  Json toJson() => {'name': name, if (imgw != null) 'imgw': imgw else 'url': url, 'alert': alert};
+
+  static List<ClockFeed> listFrom(Object? news) {
+    final feeds = news is Map ? news['feeds'] : null;
+    return [
+      for (final f in (feeds is List ? feeds : const []))
+        if (f is Map && f['name'] is String)
+          ClockFeed(
+            name: f['name'] as String,
+            url: f['url'] as String?,
+            imgw: f['imgw'] as String?,
+            alert: f['alert'] == true,
+          ),
+    ];
+  }
+}
+
+int _bytes(String s) => utf8.encode(s).length;
+
+/// Sprawdzenie pól kanału jak `validFeed` w firmware (DeskConfig.cpp); null = dobre.
+String? clockFeedNameError(String name) =>
+    name.trim().isEmpty ? 'Podaj nazwę' : (_bytes(name) > 24 ? 'Najwyżej 24 bajty (polska litera to 2)' : null);
+
+String? clockFeedUrlError(String url) {
+  if (!url.startsWith('https://') && !url.startsWith('http://')) return 'Adres zaczyna się od https:// albo http://';
+  if (url.length <= 10) return 'Za krótki adres';
+  if (RegExp(r'[\x00-\x20]').hasMatch(url)) return 'Adres bez spacji';
+  if (_bytes(url) > 256) return 'Najwyżej 256 znaków';
+  return null;
+}
+
+String? clockTerytError(String code) => RegExp(r'^\d{4}$').hasMatch(code) ? null : 'Kod TERYT powiatu: 4 cyfry';
+
+String? clockKeywordError(String word) =>
+    _bytes(word) < 2 ? 'Co najmniej 2 znaki' : (_bytes(word) > 32 ? 'Najwyżej 32 bajty' : null);
+
+/// Kanały sprawdzone na zegarze 2026-11-10 (sesja firmware wiadomości).
+const clockNewsSuggestions = <({String name, String url})>[
+  (name: 'RMF24', url: 'https://www.rmf24.pl/feed'),
+  (name: 'Polsat News', url: 'https://www.polsatnews.pl/rss/wszystkie.xml'),
+  (name: 'TVN24', url: 'https://tvn24.pl/najnowsze.xml'),
+  (name: 'Onet', url: 'https://wiadomosci.onet.pl/.feed'),
+  (name: 'Gazeta Krakowska', url: 'https://gazetakrakowska.pl/rss/gazetakrakowska.xml'),
+  (name: 'Wyborcza Kraków', url: 'https://krakow.wyborcza.pl/pub/rss/krakow.xml'),
+  (name: 'Bochnianin', url: 'https://bochnianin.pl/feed/'),
+  (name: 'Bochnia z bliska', url: 'https://bochniazbliska.pl/feed/'),
+];
+
+/// Powiaty małopolskie (TERYT) - nazwy przy kodzie IMGW; inne kody można wpisać.
+const clockPowiaty = {
+  '1201': 'bocheński',
+  '1202': 'brzeski',
+  '1203': 'chrzanowski',
+  '1204': 'dąbrowski',
+  '1205': 'gorlicki',
+  '1206': 'krakowski',
+  '1207': 'limanowski',
+  '1208': 'miechowski',
+  '1209': 'myślenicki',
+  '1210': 'nowosądecki',
+  '1211': 'nowotarski',
+  '1212': 'olkuski',
+  '1213': 'oświęcimski',
+  '1214': 'proszowicki',
+  '1215': 'suski',
+  '1216': 'tarnowski',
+  '1217': 'tatrzański',
+  '1218': 'wadowicki',
+  '1219': 'wielicki',
+  '1261': 'Kraków',
+  '1262': 'Nowy Sącz',
+  '1263': 'Tarnów',
 };
 
 const clockMaxScreens = 6;
