@@ -171,6 +171,12 @@ Future<(DeviceHub, Map<String, _Conn>, FakeClock)> _home({FakeClock? clock}) asy
 
 Widget _app(Widget home) => MaterialApp(home: home);
 
+/// Przewija listę strony, aż [finder] się zbuduje i będzie widoczny (ListView buduje tylko okolice ekranu).
+Future<void> _scrollTo(WidgetTester tester, Finder finder) async {
+  await tester.scrollUntilVisible(finder, 300, scrollable: find.byType(Scrollable).first);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUpAll(() => ClockTransitionPreview.animate = false);
 
@@ -425,7 +431,7 @@ void main() {
     final c = hub.controller('zegar-ab12cd')!;
     await tester.runAsync(c.connect);
     final conn = conns['zegar-ab12cd']!;
-    await tester.pumpWidget(_app(ClockThemePage(controller: c)));
+    await tester.pumpWidget(_app(ClockThemePage(controller: c, loadIndex: () async => [])));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('clockSeasonal')));
     await tester.pumpAndSettle();
@@ -448,6 +454,221 @@ void main() {
     }
     expect(find.text('Babie lato'), findsOneWidget);
     hub.dispose();
+  });
+
+  testWidgets('paczki motywów: instalacja z indeksu, wybór motywu z paczki, usunięcie, bez indeksu', (tester) async {
+    const url = 'https://ha-firmware.web.app/themes/pokoj-ani-1.0.0.dctp';
+    final fake = FakeClock();
+    fake.packFiles[url] = {
+      'id': 'pokoj-ani',
+      'version': '1.0.0',
+      'name': 'Pokój Ani',
+      'size': 60000,
+      'themes': [
+        {'id': 'kotki', 'name': 'Kotki'},
+        {'id': 'jednorozce', 'name': 'Jednorożce'},
+      ],
+    };
+    final (hub, conns, _) = await _home(clock: fake);
+    final conn = conns['zegar-ab12cd']!;
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    final index = [
+      ClockThemePack.fromJson({
+        'id': 'pokoj-ani',
+        'name': 'Pokój Ani',
+        'version': '1.0.0',
+        'url': url,
+        'sha256': 'ab' * 32,
+        'size': 60000,
+        'author': 'Tata',
+        'themes': [
+          {'id': 'kotki', 'name': 'Kotki'},
+        ],
+      })!,
+    ];
+    await tester.pumpWidget(_app(ClockThemePage(controller: c, loadIndex: () async => index)));
+    await tester.pumpAndSettle();
+    await _scrollTo(tester, find.text('Ten zegar nie ma jeszcze paczek.'));
+    expect(find.text('Ten zegar nie ma jeszcze paczek.'), findsOneWidget);
+    expect(find.textContaining('wolne miejsce: 5,5 MB'), findsOneWidget);
+    await _scrollTo(tester, find.byKey(const Key('clockPackInstall-pokoj-ani')));
+    await tester.tap(find.byKey(const Key('clockPackInstall-pokoj-ani')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'themePack': {
+        'install': {'url': url, 'sha256': 'ab' * 32},
+      },
+    });
+    expect(fake.themePacks!.single['id'], 'pokoj-ani');
+
+    // State po instalacji (zmienne pola przychodzą z kolejnym odczytem stanu)
+    hub.dispose();
+    final (hub2, conns2, _) = await _home(clock: fake);
+    final c2 = hub2.controller('zegar-ab12cd')!;
+    await tester.runAsync(c2.connect);
+    await tester.pumpWidget(const SizedBox()); // nowa strona, nie stan poprzedniej
+    await tester.pumpWidget(_app(ClockThemePage(controller: c2, loadIndex: () async => index)));
+    await tester.pumpAndSettle();
+    await _scrollTo(tester, find.text('Paczka pokoj-ani zainstalowana'));
+    expect(find.text('Paczka pokoj-ani zainstalowana'), findsOneWidget);
+    expect(find.byKey(const Key('clockPackOffer-pokoj-ani')), findsNothing);
+    await _scrollTo(tester, find.byKey(const Key('clockTheme-pokoj-ani/jednorozce')));
+    await tester.tap(find.byKey(const Key('clockTheme-pokoj-ani/jednorozce')));
+    await tester.pumpAndSettle();
+    expect(conns2['zegar-ab12cd']!.sent.last, {
+      'theme': {'name': 'pokoj-ani/jednorozce'},
+    });
+    expect(
+      clockThemeLabel('pokoj-ani/jednorozce', ClockThemePack.listFrom(fake.stateJson()['themePacks'])),
+      'Jednorożce (Pokój Ani)',
+    );
+    await _scrollTo(tester, find.byKey(const Key('clockPackRemove-pokoj-ani')));
+    await tester.tap(find.byKey(const Key('clockPackRemove-pokoj-ani')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockPackRemoveOk')));
+    await tester.pumpAndSettle();
+    expect(fake.themePacks, isEmpty);
+    hub2.dispose();
+
+    // Bez indeksu (jeszcze nie opublikowany) i zegar bez paczek
+    final (hub3, _, _) = await _home(clock: FakeClock());
+    final c3 = hub3.controller('zegar-ab12cd')!;
+    await tester.runAsync(c3.connect);
+    await tester.pumpWidget(const SizedBox()); // nowa strona, nie stan poprzedniej
+    await tester.pumpWidget(_app(ClockThemePage(controller: c3, loadIndex: () async => throw Exception('HTTP 404'))));
+    await tester.pumpAndSettle();
+    await _scrollTo(tester, find.textContaining('Katalog paczek jest niedostępny'));
+    expect(find.textContaining('Katalog paczek jest niedostępny'), findsOneWidget);
+    hub3.dispose();
+    final (hub4, _, _) = await _home(clock: FakeClock(withThemePacks: false));
+    final c4 = hub4.controller('zegar-ab12cd')!;
+    await tester.runAsync(c4.connect);
+    await tester.pumpWidget(const SizedBox()); // nowa strona, nie stan poprzedniej
+    await tester.pumpWidget(_app(ClockThemePage(controller: c4, loadIndex: () async => index)));
+    await tester.pumpAndSettle();
+    expect(find.text('Paczki motywów'), findsNothing);
+    hub4.dispose();
+  });
+
+  test('paczki motywów: Set theme bez packs, wersje, nazwa motywu z paczki', () {
+    expect(clockVersionNewer('1.2.0', '1.1.9'), true);
+    expect(clockVersionNewer('1.0', '1.0.0'), false);
+    expect(clockThemeLabel('dark', const []), 'Ciemny');
+    expect(clockThemeLabel('brak/kotki', const []), 'brak/kotki');
+    expect(clockBytesText(60000), '59 KB');
+  });
+
+  testWidgets('radio: stacje, włączenie, stacja, głośność, wyciszenie, zaawansowane; bez radia ukryte', (tester) async {
+    final fake = FakeClock();
+    final (hub, conns, _) = await _home(clock: fake);
+    final conn = conns['zegar-ab12cd']!;
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    Map radio() => conn.sent.last['radio'] as Map;
+    await tester.pumpWidget(_app(ClockRadioPage(controller: c)));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Dodaj stację'), findsWidgets);
+    expect(find.byKey(const Key('clockRadioOn')), findsNothing);
+
+    await tester.tap(find.byKey(const Key('clockStationAdd')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('clockStationName')), 'Radio 357');
+    await tester.enterText(find.byKey(const Key('clockStationUrl')), 'stream.radio357.pl');
+    await tester.tap(find.byKey(const Key('clockStationSave')));
+    await tester.pumpAndSettle();
+    expect(find.text('Adres zaczyna się od https:// albo http://'), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('clockStationUrl')), 'https://stream.radio357.pl');
+    await tester.tap(find.byKey(const Key('clockStationSave')));
+    await tester.pumpAndSettle();
+    expect(radio()['stations'], [
+      {'name': 'Radio 357', 'url': 'https://stream.radio357.pl'},
+    ]);
+    await tester.tap(find.byKey(const Key('clockStationAdd')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('clockStationName')), 'Nowy Świat');
+    await tester.enterText(find.byKey(const Key('clockStationUrl')), 'https://stream.nowyswiat.online/mp3');
+    await tester.tap(find.byKey(const Key('clockStationSave')));
+    await tester.pumpAndSettle();
+    expect((fake.radio!['stations'] as List).length, 2);
+
+    // Sterowanie: State z punktami radia (zegar ma już stacje)
+    hub.dispose();
+    final (hub2, conns2, _) = await _home(clock: fake);
+    final conn2 = conns2['zegar-ab12cd']!;
+    final c2 = hub2.controller('zegar-ab12cd')!;
+    await tester.runAsync(c2.connect);
+    await tester.pumpWidget(const SizedBox()); // nowa strona, nie stan poprzedniej
+    await tester.pumpWidget(_app(ClockRadioPage(controller: c2)));
+    await tester.pumpAndSettle();
+    expect(find.text('Wyłączone'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('clockRadioOn')));
+    await tester.pumpAndSettle();
+    expect(conn2.sent.last, {'radioOn': true});
+    expect((fake.radioOn, fake.radioStation), (true, 'Radio 357'));
+    await tester.tap(find.byKey(const Key('clockStationPlay-1')));
+    await tester.pumpAndSettle();
+    expect(conn2.sent.last, {'radioStation': 'Nowy Świat'});
+    await tester.drag(find.byKey(const Key('clockRadioVol')), const Offset(400, 0));
+    await tester.pumpAndSettle();
+    expect(conn2.sent.last, {'radioVol': 100});
+    expect(fake.applySet({'radioVol': 101}), {'radioVol': 'range'});
+    expect(fake.applySet({'radioStation': 'Trójka'}), {'radioStation': 'value'});
+    expect(fake.applySet({'radioStation': 'next'}), isEmpty);
+    expect(fake.radioStation, 'Radio 357');
+
+    await _scrollTo(tester, find.byKey(const Key('clockRadioResume')));
+    await tester.tap(find.byKey(const Key('clockRadioResume')));
+    await tester.pumpAndSettle();
+    expect((conn2.sent.last['radio'] as Map)['resume'], true);
+    await _scrollTo(tester, find.byKey(const Key('clockRadioAdvanced')));
+    await tester.tap(find.byKey(const Key('clockRadioAdvanced')));
+    await tester.pumpAndSettle();
+    await _scrollTo(tester, find.byKey(const Key('clockRadioMaxW')));
+    await tester.drag(find.byKey(const Key('clockRadioMaxW')), const Offset(-400, 0));
+    await tester.pumpAndSettle();
+    expect((conn2.sent.last['radio'] as Map)['maxW'], 0.1);
+    expect(
+      fake.applySet({
+        'radio': {'maxW': 2.0},
+      }),
+      {'radio.maxW': 'range'},
+    );
+    expect(
+      fake.applySet({
+        'radio': {'stations': []},
+      }),
+      isEmpty,
+    );
+    expect(fake.applySet({'radioOn': true}), {'radioOn': 'no_stations'});
+    hub2.dispose();
+
+    final (hub3, _, _) = await _home(clock: FakeClock(withRadio: false));
+    final c3 = hub3.controller('zegar-ab12cd')!;
+    await tester.runAsync(c3.connect);
+    await tester.pumpWidget(const SizedBox()); // nowa strona, nie stan poprzedniej
+    await tester.pumpWidget(
+      _app(
+        Scaffold(
+          body: SingleChildScrollView(
+            child: ClockSection(controller: c3, hub: hub3),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clockRadio')), findsNothing);
+    expect(find.byKey(const Key('clockNews')), findsOneWidget);
+    hub3.dispose();
+  });
+
+  test('radio: dwuklik / przytrzymanie przycisku zegara z radiem koliduje', () {
+    final cfg = FakeClock().configJson();
+    expect(clockPressCollides(cfg, {'device': 'z', 'input': 'in2', 'press': 'double'}), true);
+    expect(clockPressCollides(cfg, {'device': 'z', 'input': 'in1', 'press': 'long'}), true);
+    expect(clockPressCollides(cfg, {'device': 'z', 'input': 'in1', 'press': 'short'}), false);
+    expect(clockPressCollides(cfg, {'device': 'z', 'input': 'btn1', 'press': 'double'}), false);
+    expect(clockPressCollides(FakeClock(withRadio: false).configJson(), {'input': 'in2', 'press': 'double'}), false);
   });
 
   testWidgets('wiadomości: propozycja, IMGW alarmowy, własny adres z błędem, słowo, przeskok, stan i przeczytane', (
@@ -767,6 +988,14 @@ void main() {
     await tester.tap(find.text('podwójnie'));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('clockButtonInput-in3')), findsOneWidget);
+    expect(find.byKey(const Key('clockButtonRadioWarning')), findsNothing);
+    // Dwuklik przycisku samego zegara z radiem: zegar przełączy też stację
+    await tester.tap(find.byKey(const Key('clockButtonDevice-zegar-ab12cd')));
+    await tester.pumpAndSettle();
+    expect(find.text(clockRadioPressWarning), findsOneWidget);
+    await tester.tap(find.byKey(const Key('clockButtonDevice-parter')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clockButtonRadioWarning')), findsNothing);
     await tester.ensureVisible(find.byKey(const Key('clockButtonAction-home')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('clockButtonAction-home')));

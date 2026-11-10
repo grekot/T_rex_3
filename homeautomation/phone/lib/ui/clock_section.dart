@@ -236,6 +236,14 @@ class ClockSection extends StatelessWidget {
             enabled: clockHasNews(cfg),
             onTap: () => _open(context, ClockNewsPage(controller: c)),
           ),
+          if (clockHasRadio(cfg))
+            ListTile(
+              key: const Key('clockRadio'),
+              leading: const Icon(Icons.radio_outlined),
+              title: const Text('Radio'),
+              subtitle: Text(_radioText(cfg, c.stateJson)),
+              onTap: () => _open(context, ClockRadioPage(controller: c)),
+            ),
           ListTile(
             key: const Key('clockSensor'),
             leading: const Icon(Icons.thermostat_outlined),
@@ -247,7 +255,7 @@ class ClockSection extends StatelessWidget {
             key: const Key('clockTheme'),
             leading: const Icon(Icons.palette_outlined),
             title: const Text('Motyw'),
-            subtitle: Text(_themeText(cfg)),
+            subtitle: Text(_themeText(cfg, c.stateJson)),
             onTap: () => _open(context, ClockThemePage(controller: c)),
           ),
           ListTile(
@@ -276,10 +284,17 @@ class ClockSection extends StatelessWidget {
 
   static Json _screens(Json? cfg) => cfg?['screens'] is Map ? (cfg!['screens'] as Map).cast<String, dynamic>() : {};
 
-  static String _themeText(Json? cfg) {
+  static String _themeText(Json? cfg, Json? state) {
     final t = cfg?['theme'] is Map ? cfg!['theme'] as Map : const {};
-    final name = clockThemes[t['name']]?.label ?? clockThemes['pastel']!.label;
-    return t['seasonal'] == true ? 'Według pory roku' : name;
+    if (t['seasonal'] == true) return 'Według pory roku';
+    return clockThemeLabel('${t['name'] ?? 'pastel'}', ClockThemePack.listFrom(state?['themePacks']));
+  }
+
+  static String _radioText(Json? cfg, Json? state) {
+    final n = clockStationsFrom(cfg?['radio']).length;
+    if (n == 0) return 'Radio internetowe - dodaj stacje';
+    if (state?['radioOn'] == true) return 'Gra: ${state?['radioStation'] ?? ''}';
+    return 'Stacje: $n';
   }
 
   static String _newsText(Json? cfg) {

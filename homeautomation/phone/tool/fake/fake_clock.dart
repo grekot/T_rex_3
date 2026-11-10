@@ -15,6 +15,8 @@ class FakeClock extends FakeDevice {
     this.lux = false,
     this.warmup = false,
     bool withNews = true,
+    bool withRadio = true,
+    bool withThemePacks = true,
   }) : _name = name,
        news = withNews
            ? {
@@ -23,9 +25,27 @@ class FakeClock extends FakeDevice {
                'refreshMin': 10,
                'jumpS': 60,
              }
-           : null {
+           : null,
+       radio = withRadio ? {'stations': <dynamic>[], 'muteOffMin': 10, 'maxW': 0.8, 'resume': false} : null,
+       themePacks = withThemePacks ? [] : null {
     cloudCapable = false;
   }
+
+  /// Radio (`radio`); null = zegar bez radia. Stan: [radioOn], [radioMute], [radioVol], [radioStation].
+  Map<String, dynamic>? radio;
+  bool radioOn = false, radioMute = false;
+  int radioVol = 40;
+  String? radioStation;
+
+  /// Zainstalowane paczki motywów (State `themePacks`); null = zegar bez paczek.
+  List<Map<String, dynamic>>? themePacks;
+  int themeFree = 5800000;
+  Map<String, dynamic>? themeInstall;
+
+  /// Pliki paczek pod adresem (`themePack.install.url`) - opis paczki jak w State `themePacks`.
+  final packFiles = <String, Map<String, dynamic>>{};
+
+  List<dynamic> get _stations => radio?['stations'] as List? ?? const [];
 
   String _name;
 
@@ -124,6 +144,22 @@ class FakeClock extends FakeDevice {
     if (news != null) 'newsUnread': newsUnread,
     if ((news?['feeds'] as List?)?.isNotEmpty ?? false)
       'news': {'items': 8 * (news!['feeds'] as List).length, 'age': 120, 'errors': <dynamic>[], 'alert': null},
+    if (_stations.isNotEmpty) ...{
+      'radioOn': radioOn,
+      'radioMute': radioMute,
+      'radioVol': radioVol,
+      'radioStation': radioStation,
+      'radio': {
+        'state': radioOn ? 'playing' : 'off',
+        'title': null,
+        'codec': radioOn ? 'MP3' : null,
+        'kbps': radioOn ? 128 : null,
+        'error': null,
+        'buffer': radioOn ? 80 : 0,
+      },
+    },
+    if (themePacks != null) ...{'themePacks': themePacks, 'themeFree': themeFree},
+    if (themeInstall != null) 'themeInstall': themeInstall,
   };
 
   @override
@@ -139,7 +175,115 @@ class FakeClock extends FakeDevice {
     'pages': pages,
     'outdoor': outdoor,
     if (news != null) 'news': news,
+    if (radio != null) 'radio': radio,
   };
+
+  /// Błędy `radio` jak w kontrakcie (stacja: nazwa 1-24 B, `url` http(s) ≤ 256 B bez spacji).
+  Map<String, String> _radioErrors(Map r) {
+    final st = r['stations'];
+    bool stationOk(Object? s) =>
+        s is Map &&
+        s['name'] is String &&
+        (s['name'] as String).isNotEmpty &&
+        utf8.encode(s['name'] as String).length <= 24 &&
+        s['url'] is String &&
+        RegExp(r'^https?://\S+$').hasMatch(s['url'] as String) &&
+        utf8.encode(s['url'] as String).length <= 256;
+    return {
+      if (r.containsKey('stations'))
+        if (st is! List || !st.every(stationOk))
+          'radio.stations': 'value'
+        else if (st.length > 12)
+          'radio.stations': 'too_many',
+      if (r.containsKey('muteOffMin') && !(r['muteOffMin'] == 0 || _num(r['muteOffMin'], 1, 120)))
+        'radio.muteOffMin': 'range',
+      if (r.containsKey('maxW') && !_num(r['maxW'], 0.1, 1.5)) 'radio.maxW': 'range',
+      if (r.containsKey('resume') && r['resume'] is! bool) 'radio.resume': 'value',
+    };
+  }
+
+  /// Set radia i paczek motywów (pkt 10.2 „Radio”, „Paczki motywów”).
+  void _applyRadioAndPacks(Map<String, dynamic> v, Map<String, String> errors) {
+    if (v.containsKey('radio')) {
+      final r = v['radio'];
+      if (radio == null) {
+        errors['radio'] = 'unknown';
+      } else if (r is! Map) {
+        errors['radio'] = 'value';
+      } else {
+        final e = _radioErrors(r);
+        if (e.isEmpty) {
+          radio = {...radio!, ...r.cast<String, dynamic>()};
+          final names = [for (final s in _stations) (s as Map)['name']];
+          if (radioStation != null && !names.contains(radioStation)) {
+            radioOn = false;
+            radioStation = null;
+          }
+        } else {
+          errors.addAll(e);
+        }
+      }
+    }
+    final names = [for (final s in _stations) (s as Map)['name'] as String];
+    if (v['radioOn'] case final bool on) {
+      if (on && names.isEmpty) {
+        errors['radioOn'] = 'no_stations';
+      } else {
+        radioOn = on;
+        if (on) radioStation ??= names.first;
+      }
+    }
+    if (v['radioStation'] case final Object s) {
+      final i = names.indexOf('$radioStation');
+      final next = switch (s) {
+        'next' when names.isNotEmpty => names[(i + 1) % names.length],
+        'prev' when names.isNotEmpty => names[(i - 1 + names.length) % names.length],
+        final String n when names.contains(n) => n,
+        _ => null,
+      };
+      if (next == null) {
+        errors['radioStation'] = 'value';
+      } else {
+        radioStation = next;
+        radioOn = true;
+      }
+    }
+    if (v.containsKey('radioVol')) {
+      if (_num(v['radioVol'], 0, 100)) {
+        radioVol = (v['radioVol'] as num).round();
+      } else {
+        errors['radioVol'] = 'range';
+      }
+    }
+    if (v['radioMute'] case final bool m) {
+      if (radioOn) radioMute = m;
+    }
+    if (v['themePack'] case final Object p) {
+      if (themePacks == null) {
+        errors['themePack'] = 'unknown';
+      } else if (p is Map && p['install'] is Map) {
+        final url = '${(p['install'] as Map)['url']}';
+        final file = packFiles[url];
+        if (!url.startsWith('https://')) {
+          errors['themePack'] = 'host';
+        } else if (themeInstall?['state'] == 'download' || themeInstall?['state'] == 'verify') {
+          errors['themePack'] = 'busy';
+        } else if (file == null) {
+          themeInstall = {'id': null, 'state': 'error', 'error': 'http'};
+        } else if ((file['size'] as num? ?? 0) > themeFree) {
+          errors['themePack'] = 'space';
+        } else {
+          themePacks!.removeWhere((x) => x['id'] == file['id']);
+          themePacks!.add(file);
+          themeInstall = {'id': file['id'], 'state': 'done', 'error': null};
+        }
+      } else if (p is Map && p['remove'] is String) {
+        themePacks!.removeWhere((x) => x['id'] == p['remove']);
+      } else {
+        errors['themePack'] = 'format';
+      }
+    }
+  }
 
   static const _builtInOld = {'main', 'hours', 'days', 'chart', 'calendar', 'air'};
 
@@ -358,6 +502,7 @@ class FakeClock extends FakeDevice {
         newsUnread = 0;
       }
     }
+    _applyRadioAndPacks(v, errors);
     if (v['identify'] == true) identifies++;
     if (v['ext'] case final List list) {
       for (final e in list) {
@@ -391,6 +536,27 @@ class FakeClock extends FakeDevice {
       if (news != null) ...[
         {'key': 'newsUnread', 'name': 'Ważne wiadomości', 'kind': 'sensor'},
         {'key': 'newsRead', 'name': 'Wiadomości przeczytane', 'kind': 'action', 'access': 'control'},
+      ],
+      if (_stations.isNotEmpty) ...[
+        {'key': 'radioOn', 'name': 'Radio', 'kind': 'switch', 'access': 'control'},
+        {
+          'key': 'radioVol',
+          'name': 'Głośność radia',
+          'kind': 'setpoint',
+          'unit': '%',
+          'min': 0,
+          'max': 100,
+          'step': 5,
+          'access': 'control',
+        },
+        {'key': 'radioMute', 'name': 'Radio wyciszone', 'kind': 'switch', 'access': 'control'},
+        {
+          'key': 'radioStation',
+          'name': 'Stacja radia',
+          'kind': 'select',
+          'options': ['next', 'prev', for (final s in _stations) (s as Map)['name']],
+          'access': 'control',
+        },
       ],
     ],
   };

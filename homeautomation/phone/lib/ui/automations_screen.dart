@@ -7,8 +7,10 @@ import '../data/errors.dart';
 import '../data/hub_api.dart';
 import '../data/device_store.dart';
 import '../models/automation_templates.dart';
+import '../models/clock.dart' show clockPressCollides, clockRadioPressWarning;
 import '../models/dashboard.dart' show reorder;
 import '../models/describe.dart';
+import '../models/device_type.dart';
 import '../models/hub.dart';
 import '../models/hub_weather.dart';
 import '../models/json_utils.dart';
@@ -510,6 +512,13 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> with _R
     }
   }
 
+  /// Config urządzenia wyzwalacza (do ostrzeżenia o radiu zegara); null = nie zegar albo brak.
+  Json? _configOf(Object? device) {
+    if (device is! String || hub.device(device)?.type != DeviceType.clock) return null;
+    final cfg = hub.controller(device)?.config;
+    return cfg is Map ? cfg.cast<String, dynamic>() : null;
+  }
+
   Future<void> _addTrigger(String kind) async {
     Json? t;
     switch (kind) {
@@ -621,6 +630,17 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> with _R
             onAdd: _addTrigger,
             addKey: const Key('addTrigger'),
           ),
+          if (_when.any((t) => clockPressCollides(_configOf(t['device']), t)))
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber, color: cs.tertiary),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text(clockRadioPressWarning, key: Key('automationRadioWarning'))),
+                ],
+              ),
+            ),
           _section(
             title: 'Tylko jeśli',
             help: 'Wszystkie muszą być spełnione (można nic nie dodawać).',

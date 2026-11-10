@@ -11,6 +11,7 @@ import '../controllers/field_errors.dart';
 import '../data/device_store.dart';
 import '../data/errors.dart';
 import '../data/hub_weather.dart';
+import '../data/theme_pack_catalog.dart';
 import '../models/clock.dart';
 import '../models/dashboard.dart' show reorder;
 import '../models/describe.dart';
@@ -890,9 +891,12 @@ class _ClockSensorPageState extends State<ClockSensorPage> with _ClockConfig {
 // ---------------------------------------------------------------- Motyw
 
 class ClockThemePage extends StatefulWidget {
-  const ClockThemePage({super.key, required this.controller});
+  const ClockThemePage({super.key, required this.controller, this.loadIndex = loadThemePackIndex});
 
   final DeviceController<Object?, Object?> controller;
+
+  /// Indeks paczek do pobrania (w testach podmieniany).
+  final Future<List<ClockThemePack>> Function() loadIndex;
 
   @override
   State<ClockThemePage> createState() => _ClockThemePageState();
@@ -902,23 +906,183 @@ class _ClockThemePageState extends State<ClockThemePage> with _ClockConfig {
   @override
   DeviceController<Object?, Object?> get c => widget.controller;
 
+  Future<List<ClockThemePack>>? _index;
+
+  /// Set `theme` bez `packs` (lista paczek jest tylko do odczytu).
+  Future<Map<String, String>> _setTheme(Json changes) => send({
+    'theme': {...obj('theme'), ...changes}..remove('packs'),
+  });
+
+  List<ClockThemePack> get _installed => ClockThemePack.listFrom(c.stateJson?['themePacks']);
+
+  Future<void> _install(ClockThemePack p) => send({
+    'themePack': {
+      'install': {'url': p.url, 'sha256': p.sha256},
+    },
+  });
+
+  Future<void> _remove(ClockThemePack p) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Usunąć paczkę „${p.name}”?'),
+        content: const Text('Gdy zegar pokazuje motyw z tej paczki, wróci do motywu, na którym ten motyw się opiera.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Anuluj')),
+          FilledButton(
+            key: const Key('clockPackRemoveOk'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Usuń'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await send({
+        'themePack': {'remove': p.id},
+      });
+    }
+  }
+
+  /// Instalacja w toku albo jej wynik (State `themeInstall`).
+  Widget? _installState() {
+    final s = c.stateJson?['themeInstall'];
+    if (s is! Map) return null;
+    final (text, busy) = switch (s['state']) {
+      'download' => ('Pobieranie paczki ${s['id'] ?? ''}…', true),
+      'verify' => ('Sprawdzanie paczki ${s['id'] ?? ''}…', true),
+      'done' => ('Paczka ${s['id'] ?? ''} zainstalowana', false),
+      'error' => ('Instalacja nieudana: ${describeErrorCode('${s['error'] ?? ''}')}', false),
+      _ => ('${s['state']}', false),
+    };
+    return ListTile(
+      key: const Key('clockPackInstall'),
+      contentPadding: EdgeInsets.zero,
+      title: Text(text),
+      subtitle: busy ? const LinearProgressIndicator() : null,
+    );
+  }
+
+  List<Widget> _packs(String chosen) {
+    final installed = _installed;
+    final free = (c.stateJson?['themeFree'] as num?)?.toInt();
+    final busy = switch ((c.stateJson?['themeInstall'] as Map?)?['state']) {
+      'download' || 'verify' => true,
+      _ => false,
+    };
+    // FutureBuilder niżej buduje się dopiero po przewinięciu - błąd bez niego nie może zostać „nieobsłużony”
+    _index ??= widget.loadIndex()..ignore();
+    return [
+      const SectionHeader('Paczki motywów'),
+      Text(
+        'Dodatkowe motywy bez aktualizacji firmware, osobno w każdym zegarze'
+        '${free == null ? '' : ' (wolne miejsce: ${clockBytesText(free)})'}.',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      ?_installState(),
+      if (installed.isEmpty)
+        const Padding(padding: EdgeInsets.only(top: 8), child: Text('Ten zegar nie ma jeszcze paczek.')),
+      for (final p in installed) ...[
+        ListTile(
+          key: Key('clockPack-${p.id}'),
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.collections_outlined),
+          title: Text(p.name),
+          subtitle: Text('wersja ${p.version} · ${clockBytesText(p.size)}'),
+          trailing: IconButton(
+            key: Key('clockPackRemove-${p.id}'),
+            tooltip: 'Usuń paczkę',
+            icon: const Icon(Icons.delete_outline),
+            onPressed: busy ? null : () => _remove(p),
+          ),
+        ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          children: [
+            for (final t in p.themes)
+              ChoiceChip(
+                key: Key('clockTheme-${p.id}/${t.id}'),
+                label: Text(t.name),
+                selected: chosen == '${p.id}/${t.id}',
+                onSelected: (_) => _setTheme({'name': '${p.id}/${t.id}'}),
+              ),
+          ],
+        ),
+      ],
+      const SectionHeader('Do pobrania'),
+      FutureBuilder<List<ClockThemePack>>(
+        future: _index,
+        builder: (context, snap) {
+          if (snap.connectionState != ConnectionState.done) return const LinearProgressIndicator();
+          if (snap.hasError) {
+            return const Text('Katalog paczek jest niedostępny (brak internetu albo jeszcze nie opublikowany).');
+          }
+          final have = {for (final p in installed) p.id: p.version};
+          final offer = [
+            for (final p in snap.data ?? const <ClockThemePack>[])
+              if (!have.containsKey(p.id) || clockVersionNewer(p.version, have[p.id]!)) p,
+          ];
+          if (offer.isEmpty) return const Text('Brak nowych paczek.');
+          return Column(
+            children: [
+              for (final p in offer)
+                ListTile(
+                  key: Key('clockPackOffer-${p.id}'),
+                  contentPadding: EdgeInsets.zero,
+                  leading: p.thumb == null
+                      ? const Icon(Icons.collections_outlined)
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: Image.network(
+                            p.thumb!,
+                            width: 56,
+                            height: 42,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, _, _) => const Icon(Icons.collections_outlined),
+                          ),
+                        ),
+                  title: Text(p.name),
+                  subtitle: Text(
+                    [
+                      if (p.author != null) p.author!,
+                      '${p.themes.length} mot.',
+                      clockBytesText(p.size),
+                      if (free != null && p.size > free) 'za mało miejsca',
+                    ].join(' · '),
+                  ),
+                  trailing: FilledButton.tonal(
+                    key: Key('clockPackInstall-${p.id}'),
+                    onPressed: busy || (free != null && p.size > free) ? null : () => _install(p),
+                    child: Text(have.containsKey(p.id) ? 'Aktualizuj' : 'Zainstaluj'),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    ];
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = obj('theme');
     final chosen = t['name'] as String? ?? 'pastel';
     final seasonal = t['seasonal'] == true;
+    final packs = clockHasThemePacks(cfg, c.stateJson);
     return page('Motyw', [
       SwitchListTile(
         key: const Key('clockSeasonal'),
         contentPadding: EdgeInsets.zero,
         title: const Text('Według pory roku'),
-        subtitle: const Text(
+        subtitle: Text(
           'Adwent 1-23.12 (6.12 Mikołajki), Boże Narodzenie 24.12-6.01, zima, roztopy, wiosna, Wielkanoc, lato, '
           'wakacje 28.06-31.08, babie lato, jesień i szaruga według kalendarza; '
-          'zimą i w święta po zachodzie słońca wersja wieczorna',
+          'zimą i w święta po zachodzie słońca wersja wieczorna'
+          '${packs ? '. Okresy z zainstalowanych paczek mają pierwszeństwo' : ''}',
         ),
         value: seasonal,
-        onChanged: (v) => setIn('theme', {'seasonal': v}),
+        onChanged: (v) => _setTheme({'seasonal': v}),
       ),
       SwitchListTile(
         key: const Key('clockAnimations'),
@@ -926,7 +1090,7 @@ class _ClockThemePageState extends State<ClockThemePage> with _ClockConfig {
         title: const Text('Animacje ozdób'),
         subtitle: const Text('Lekkie kołysanie ozdób w narożnikach (ekran trochę bardziej grzeje czujnik)'),
         value: t['animations'] != false,
-        onChanged: (v) => setIn('theme', {'animations': v}),
+        onChanged: (v) => _setTheme({'animations': v}),
       ),
       SectionHeader(seasonal ? 'Motyw (gdy wyłączysz porę roku)' : 'Motyw'),
       GridView.count(
@@ -942,10 +1106,11 @@ class _ClockThemePageState extends State<ClockThemePage> with _ClockConfig {
               key: Key('clockTheme-$k'),
               theme: th,
               selected: k == chosen,
-              onTap: () => setIn('theme', {'name': k}),
+              onTap: () => _setTheme({'name': k}),
             ),
         ],
       ),
+      if (packs) ..._packs(chosen),
     ]);
   }
 }
@@ -1491,4 +1656,307 @@ class _FeedDialogState extends State<_FeedDialog> {
       ],
     );
   }
+}
+
+// ---------------------------------------------------------------- Radio
+
+/// Radio internetowe zegara: sterowanie (Set `radioOn`, `radioStation`, `radioVol`, `radioMute`, State `radio`),
+/// lista stacji i ustawienia (Config `radio`).
+class ClockRadioPage extends StatefulWidget {
+  const ClockRadioPage({super.key, required this.controller});
+
+  final DeviceController<Object?, Object?> controller;
+
+  @override
+  State<ClockRadioPage> createState() => _ClockRadioPageState();
+}
+
+class _ClockRadioPageState extends State<ClockRadioPage> with _ClockConfig {
+  @override
+  DeviceController<Object?, Object?> get c => widget.controller;
+
+  /// Głośność w czasie przesuwania suwaka (Set dopiero po puszczeniu).
+  double? _vol, _maxW;
+
+  List<ClockStation> get _stations => clockStationsFrom(obj('radio'));
+
+  Future<void> _setStations(List<ClockStation> list) => setIn('radio', {
+    'stations': [
+      for (final s in list) {'name': s.name, 'url': s.url},
+    ],
+  });
+
+  Future<void> _edit(int? index) async {
+    final list = _stations;
+    if (index == null && list.length >= clockMaxStations) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Najwyżej $clockMaxStations stacji.')));
+      return;
+    }
+    final s = await showDialog<ClockStation>(
+      context: context,
+      builder: (_) => _StationDialog(station: index == null ? null : list[index]),
+    );
+    if (s == null) return;
+    await _setStations(index == null ? [...list, s] : ([...list]..[index] = s));
+  }
+
+  Future<void> _remove(int index) async {
+    final s = _stations[index];
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Usunąć stację „${s.name}”?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Anuluj')),
+          FilledButton(
+            key: const Key('clockStationRemoveOk'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Usuń'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) await _setStations([..._stations]..removeAt(index));
+  }
+
+  /// Stan odtwarzania z State `radio`.
+  String _playText(Json st) {
+    final r = st['radio'] is Map ? st['radio'] as Map : const {};
+    if (st['radioOn'] != true) return 'Wyłączone';
+    final what = st['radioStation'] as String? ?? '';
+    return switch (r['state']) {
+      'connecting' => 'Łączenie: $what…',
+      'error' => 'Brak połączenia ze stacją $what (${r['error'] ?? 'błąd'}), kolejna próba za kilka minut',
+      'playing' => [
+        if (st['radioMute'] == true) 'Wyciszone' else 'Gra',
+        '$what${r['title'] is String && (r['title'] as String).isNotEmpty ? ' - ${r['title']}' : ''}',
+      ].join(': '),
+      _ => what,
+    };
+  }
+
+  List<Widget> _control(List<ClockStation> stations) {
+    final st = c.stateJson ?? const <String, dynamic>{};
+    final on = st['radioOn'] == true;
+    final mute = st['radioMute'] == true;
+    final vol = _vol ?? ((st['radioVol'] as num?)?.toDouble() ?? 50).clamp(0, 100).toDouble();
+    final r = st['radio'] is Map ? st['radio'] as Map : const {};
+    return [
+      SwitchListTile(
+        key: const Key('clockRadioOn'),
+        contentPadding: EdgeInsets.zero,
+        secondary: Icon(on ? Icons.radio : Icons.radio_outlined),
+        title: const Text('Radio'),
+        subtitle: Text(_playText(st)),
+        value: on,
+        onChanged: c.canControl ? (v) => send({'radioOn': v}) : null,
+      ),
+      if (on && r['codec'] != null)
+        Text(
+          [
+            '${r['codec']}',
+            if (r['kbps'] is num) '${r['kbps']} kb/s',
+            if (r['buffer'] is num) 'bufor ${r['buffer']} %',
+          ].join(' · '),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
+      Row(
+        children: [
+          IconButton(
+            key: const Key('clockRadioMute'),
+            tooltip: mute ? 'Przywróć dźwięk' : 'Wycisz',
+            icon: Icon(mute ? Icons.volume_off : Icons.volume_up),
+            onPressed: c.canControl && on ? () => send({'radioMute': !mute}) : null,
+          ),
+          Expanded(
+            child: Slider(
+              key: const Key('clockRadioVol'),
+              value: vol,
+              max: 100,
+              divisions: 20,
+              label: '${vol.round()} %',
+              onChanged: c.canControl ? (v) => setState(() => _vol = v) : null,
+              onChangeEnd: (v) async {
+                await send({'radioVol': v.round()});
+                if (mounted) setState(() => _vol = null);
+              },
+            ),
+          ),
+          SizedBox(width: 48, child: Text('${vol.round()} %', textAlign: TextAlign.end)),
+        ],
+      ),
+    ];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!clockHasRadio(cfg)) {
+      return page('Radio', const [Text('Ten zegar nie ma radia - wymaga nowszego firmware.')]);
+    }
+    final r = obj('radio');
+    final stations = _stations;
+    final current = c.stateJson?['radioStation'] as String?;
+    final on = c.stateJson?['radioOn'] == true;
+    final muteOff = (r['muteOffMin'] as num?)?.toInt() ?? 10;
+    final maxW = _maxW ?? ((r['maxW'] as num?)?.toDouble() ?? 0.8).clamp(0.1, 1.5).toDouble();
+    return page('Radio', [
+      if (stations.isEmpty)
+        const Text('Dodaj stację (strumień MP3), żeby włączyć radio. Bez stacji zegar nie pokazuje radia.')
+      else
+        ..._control(stations),
+      Text(
+        'Na zegarze: przytrzymanie lewego / prawego - głośność, dwuklik lewego / prawego na ekranie głównym - '
+        'poprzednia / następna stacja, dwuklik środkowego - włącz, wycisz, przywróć.',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      SectionHeader('Stacje (${stations.length}/$clockMaxStations)'),
+      for (final (i, s) in stations.indexed)
+        ListTile(
+          key: Key('clockStation-$i'),
+          contentPadding: EdgeInsets.zero,
+          leading: IconButton(
+            key: Key('clockStationPlay-$i'),
+            tooltip: 'Graj',
+            icon: Icon(on && current == s.name ? Icons.graphic_eq : Icons.play_arrow),
+            onPressed: c.canControl ? () => send({'radioStation': s.name}) : null,
+          ),
+          title: Text(s.name),
+          subtitle: Text(s.url, maxLines: 1, overflow: TextOverflow.ellipsis),
+          selected: on && current == s.name,
+          onTap: () => _edit(i),
+          trailing: IconButton(
+            key: Key('clockStationRemove-$i'),
+            tooltip: 'Usuń',
+            icon: const Icon(Icons.delete_outline),
+            onPressed: () => _remove(i),
+          ),
+        ),
+      const SizedBox(height: 8),
+      Align(
+        alignment: Alignment.centerLeft,
+        child: FilledButton.tonalIcon(
+          key: const Key('clockStationAdd'),
+          icon: const Icon(Icons.add),
+          label: const Text('Dodaj stację'),
+          onPressed: stations.length < clockMaxStations ? () => _edit(null) : null,
+        ),
+      ),
+      const SectionHeader('Ustawienia'),
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Wyłącz po wyciszeniu'),
+        subtitle: const Text('Wyciszone radio wyłącza się po tym czasie'),
+        trailing: DropdownButton<int>(
+          key: const Key('clockRadioMuteOff'),
+          value: muteOff,
+          items: [
+            for (final v in {0, 1, 5, 10, 15, 30, 60, 120, muteOff})
+              DropdownMenuItem(value: v, child: Text(v == 0 ? 'nigdy' : '$v min')),
+          ],
+          onChanged: (v) => setIn('radio', {'muteOffMin': v}),
+        ),
+      ),
+      SwitchListTile(
+        key: const Key('clockRadioResume'),
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Graj dalej po restarcie'),
+        subtitle: const Text('Po zaniku zasilania albo aktualizacji radio włącza się samo'),
+        value: r['resume'] == true,
+        onChanged: (v) => setIn('radio', {'resume': v}),
+      ),
+      ExpansionTile(
+        key: const Key('clockRadioAdvanced'),
+        tilePadding: EdgeInsets.zero,
+        title: const Text('Zaawansowane'),
+        children: [
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text('Moc przy 100 % głośności: ${maxW.toStringAsFixed(1).replaceAll('.', ',')} W'),
+            subtitle: const Text(
+              'Zasilanie zegara ma bezpiecznik 500 mA - przy głośnym graniu i jasnym ekranie '
+              'większa moc może go wyzwolić.',
+            ),
+          ),
+          Slider(
+            key: const Key('clockRadioMaxW'),
+            value: maxW,
+            min: 0.1,
+            max: 1.5,
+            divisions: 14,
+            label: '${maxW.toStringAsFixed(1)} W',
+            onChanged: (v) => setState(() => _maxW = v),
+            onChangeEnd: (v) async {
+              await setIn('radio', {'maxW': double.parse(v.toStringAsFixed(1))});
+              if (mounted) setState(() => _maxW = null);
+            },
+          ),
+        ],
+      ),
+    ]);
+  }
+}
+
+/// Edycja stacji: nazwa i adres strumienia MP3. Zwraca stację albo null (Anuluj).
+class _StationDialog extends StatefulWidget {
+  const _StationDialog({this.station});
+
+  final ClockStation? station;
+
+  @override
+  State<_StationDialog> createState() => _StationDialogState();
+}
+
+class _StationDialogState extends State<_StationDialog> {
+  late final _name = TextEditingController(text: widget.station?.name ?? '');
+  late final _url = TextEditingController(text: widget.station?.url ?? 'https://');
+  bool _tried = false;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _url.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final name = _name.text.trim(), url = _url.text.trim();
+    if (clockFeedNameError(name) != null || clockFeedUrlError(url) != null) {
+      setState(() => _tried = true);
+      return;
+    }
+    Navigator.pop(context, (name: name, url: url));
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Stacja'),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        TextField(
+          key: const Key('clockStationName'),
+          controller: _name,
+          decoration: InputDecoration(
+            labelText: 'Nazwa (na ekranie)',
+            errorText: _tried ? clockFeedNameError(_name.text.trim()) : null,
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+        TextField(
+          key: const Key('clockStationUrl'),
+          controller: _url,
+          keyboardType: TextInputType.url,
+          decoration: InputDecoration(
+            labelText: 'Adres strumienia (MP3)',
+            errorText: _tried ? clockFeedUrlError(_url.text.trim()) : null,
+          ),
+          onChanged: (_) => setState(() {}),
+        ),
+      ],
+    ),
+    actions: [
+      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Anuluj')),
+      FilledButton(key: const Key('clockStationSave'), onPressed: _save, child: const Text('Zapisz')),
+    ],
+  );
 }

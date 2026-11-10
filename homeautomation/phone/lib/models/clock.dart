@@ -281,6 +281,115 @@ const clockPowiaty = {
   '1263': 'Tarnów',
 };
 
+// ---------------------------------------------------------------- Paczki motywów (pkt 10.2 „Paczki motywów”)
+
+const clockThemeIndexUrl = 'https://ha-firmware.web.app/themes/index.json';
+
+/// Zegar z paczkami motywów: State `themePacks` albo Config `theme.packs`.
+bool clockHasThemePacks(Map<String, dynamic>? cfg, Map<String, dynamic>? state) =>
+    state?['themePacks'] is List || (cfg?['theme'] is Map && (cfg!['theme'] as Map)['packs'] is List);
+
+/// Paczka motywów: z indeksu (`url`, `sha256`, `thumb`, `author`) albo zainstalowana (State `themePacks`).
+class ClockThemePack {
+  const ClockThemePack({
+    required this.id,
+    required this.name,
+    required this.version,
+    this.themes = const [],
+    this.size = 0,
+    this.url,
+    this.sha256,
+    this.author,
+    this.thumb,
+  });
+
+  final String id;
+  final String name;
+  final String version;
+  final List<({String id, String name})> themes;
+  final int size;
+  final String? url;
+  final String? sha256;
+  final String? author;
+  final String? thumb;
+
+  static ClockThemePack? fromJson(Object? j) {
+    if (j is! Map || j['id'] is! String) return null;
+    return ClockThemePack(
+      id: j['id'] as String,
+      name: j['name'] as String? ?? j['id'] as String,
+      version: '${j['version'] ?? ''}',
+      themes: [
+        for (final t in (j['themes'] as List? ?? const []))
+          if (t is Map && t['id'] is String)
+            (id: t['id'] as String, name: t['name'] as String? ?? t['id'] as String)
+          else if (t is String)
+            (id: t, name: t),
+      ],
+      size: (j['size'] as num?)?.toInt() ?? 0,
+      url: j['url'] as String?,
+      sha256: j['sha256'] as String?,
+      author: j['author'] as String?,
+      thumb: j['thumb'] as String?,
+    );
+  }
+
+  static List<ClockThemePack> listFrom(Object? list) => [
+    for (final p in (list is List ? list : const [])) ?fromJson(p),
+  ];
+}
+
+/// Wersja `a` nowsza od `b` (liczby po kropkach).
+bool clockVersionNewer(String a, String b) {
+  List<int> parts(String v) => [for (final p in v.split('.')) int.tryParse(p) ?? 0];
+  final x = parts(a), y = parts(b);
+  for (var i = 0; i < x.length || i < y.length; i++) {
+    final d = (i < x.length ? x[i] : 0) - (i < y.length ? y[i] : 0);
+    if (d != 0) return d > 0;
+  }
+  return false;
+}
+
+/// Nazwa motywu do pokazania: wbudowany albo `<paczka>/<motyw>` z zainstalowanych paczek.
+String clockThemeLabel(String name, List<ClockThemePack> packs) {
+  final i = name.indexOf('/');
+  if (i < 0) return clockThemes[name]?.label ?? clockThemes['pastel']!.label;
+  final pack = packs.where((p) => p.id == name.substring(0, i)).firstOrNull;
+  final theme = pack?.themes.where((t) => t.id == name.substring(i + 1)).firstOrNull;
+  return theme == null ? name : '${theme.name} (${pack!.name})';
+}
+
+/// „1,4 MB”, „320 KB”.
+String clockBytesText(int bytes) => bytes >= 1024 * 1024
+    ? '${(bytes / (1024 * 1024)).toStringAsFixed(1).replaceAll('.', ',')} MB'
+    : '${(bytes / 1024).round()} KB';
+
+// ---------------------------------------------------------------- Radio (Config `radio`, pkt 10.2 „Radio”)
+
+const clockMaxStations = 12;
+
+/// Zegar z radiem (fw z Config `radio`).
+bool clockHasRadio(Map<String, dynamic>? cfg) => cfg?['radio'] is Map;
+
+/// Stacja radia (`radio.stations[]`): nazwa 1-24 B, strumień MP3 http/https.
+typedef ClockStation = ({String name, String url});
+
+List<ClockStation> clockStationsFrom(Object? radio) {
+  final s = radio is Map ? radio['stations'] : null;
+  return [
+    for (final x in (s is List ? s : const []))
+      if (x is Map && x['name'] is String && x['url'] is String) (name: x['name'] as String, url: x['url'] as String),
+  ];
+}
+
+const clockRadioPressWarning = 'Dwuklik / przytrzymanie na zegarze steruje radiem - zadziała jedno i drugie';
+
+/// Wyzwalacz `double`/`long` na przycisku `in1`-`in3` zegara z radiem - zegar zrobi też swoje (stacja, głośność).
+bool clockPressCollides(Map<String, dynamic>? clockCfg, Map<String, dynamic> trigger) =>
+    clockHasRadio(clockCfg) &&
+    RegExp(r'^in[1-3]$').hasMatch('${trigger['input']}') &&
+    (trigger['press'] == 'double' || trigger['press'] == 'long');
+
 const clockMaxScreens = 6;
 const clockMaxPages = 4;
 const clockMaxWidgets = 10;

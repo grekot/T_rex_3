@@ -300,6 +300,22 @@ class _AddButtonScreenState extends State<_AddButtonScreen> {
             selected: {_press},
             onSelectionChanged: (v) => setState(() => _press = v.single),
           ),
+          if (d?.id == c.device.id &&
+              input != null &&
+              clockPressCollides(c.config is Map ? (c.config! as Map).cast<String, dynamic>() : null, {
+                'input': input.key,
+                'press': _press,
+              }))
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Row(
+                children: [
+                  Icon(Icons.warning_amber, color: Theme.of(context).colorScheme.tertiary),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text(clockRadioPressWarning, key: Key('clockButtonRadioWarning'))),
+                ],
+              ),
+            ),
           const SizedBox(height: 16),
           Text('Zegar pokaże', style: t.titleSmall),
           RadioGroup<String>(
