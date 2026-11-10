@@ -50,7 +50,7 @@ class FakeClock extends FakeDevice {
   Map<String, dynamic> sensor = {'tempOffset': 0.0, 'humOffset': 0, 'comp': true};
   List<dynamic> pages = [];
 
-  /// Czujnik na zewnątrz (`outdoor`): null = pogoda z internetu.
+  /// Czujnik na zewnątrz (`outdoor`): null = temperatura z Open-Meteo.
   Map<String, dynamic>? outdoor;
   int wantsVer = 1;
   int identifies = 0;

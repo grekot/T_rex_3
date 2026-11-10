@@ -552,12 +552,12 @@ class _ClockWeatherPageState extends State<ClockWeatherPage> with _ClockConfig {
   /// Odczyt z czujnika (State `outdoor.src`) albo dlaczego go nie ma.
   String _outdoorNow() {
     final s = c.stateJson?['outdoor'];
-    if (_outdoor == null) return 'Temperatura i opis z prognozy pogody';
+    if (_outdoor == null) return 'Temperatura i opis pogody z prognozy (bez wilgotności)';
     if (s is Map && s['src'] == 'sensor' && s['temp'] is num) {
       final hum = s['hum'] is num ? ', wilg. ${(s['hum'] as num).round()} %' : '';
       return 'Teraz ${fmtNumber((s['temp'] as num).toDouble(), decimals: 1)} °C$hum';
     }
-    return 'Brak odczytu z ostatnich 30 min - zegar pokazuje pogodę z internetu';
+    return 'Brak odczytu z ostatnich 30 min - zegar pokazuje temperaturę z Open-Meteo';
   }
 
   /// Błąd pola `outdoor…` pod polem (null bez błędu).
@@ -571,9 +571,7 @@ class _ClockWeatherPageState extends State<ClockWeatherPage> with _ClockConfig {
   List<Widget> _outdoorSection() {
     final out = _outdoor;
     if (_hubC == null) {
-      return const [
-        Text('Czujnik na zewnątrz wymaga huba - to hub przysyła odczyty. Bez huba zegar pokazuje pogodę z internetu.'),
-      ];
+      return const [Text('Temperatura z Open-Meteo. Czujnik jako źródło wymaga huba - to hub przysyła odczyty.')];
     }
     final dev = out?['device'] as String?;
     final pts = dev == null ? const <DataPoint>[] : _points[dev] ?? const <DataPoint>[];
@@ -588,7 +586,7 @@ class _ClockWeatherPageState extends State<ClockWeatherPage> with _ClockConfig {
         key: const Key('clockOutdoor'),
         contentPadding: EdgeInsets.zero,
         leading: const Icon(Icons.sensors),
-        title: Text(dev == null ? 'Brak (pogoda z internetu)' : widget.hub?.device(dev)?.name ?? dev),
+        title: Text(dev == null ? 'Open-Meteo (internet)' : widget.hub?.device(dev)?.name ?? dev),
         subtitle: _outError(['outdoor', 'outdoor.device']) ?? Text(_outdoorNow()),
         trailing: const Icon(Icons.edit_outlined),
         onTap: widget.hub == null ? null : _pickOutdoor,
@@ -681,7 +679,7 @@ class _ClockWeatherPageState extends State<ClockWeatherPage> with _ClockConfig {
                     'pogody przez 2 h.',
         ),
       ),
-      const SectionHeader('Czujnik na zewnątrz'),
+      const SectionHeader('Temperatura na zewnątrz - źródło'),
       ..._outdoorSection(),
       const SectionHeader('Lokalizacja zegara'),
       ListTile(
@@ -722,8 +720,8 @@ class _ClockWeatherPageState extends State<ClockWeatherPage> with _ClockConfig {
   }
 }
 
-/// Wybór czujnika na zewnątrz: „brak” i urządzenia znane hubowi zegara z punktem temperatury (°C, `describe`).
-/// Wynik: id urządzenia, `''` = brak (pogoda z internetu).
+/// Źródło temperatury na zewnątrz: Open-Meteo i urządzenia znane hubowi zegara z punktem temperatury (°C, `describe`).
+/// Wynik: id urządzenia, `''` = Open-Meteo (bez czujnika, `outdoor: null`).
 class _OutdoorPicker extends StatefulWidget {
   const _OutdoorPicker({required this.hub, required this.clock, required this.current, required this.points});
 
@@ -777,9 +775,9 @@ class _OutdoorPickerState extends State<_OutdoorPicker> {
   Widget build(BuildContext context) {
     final devices = _devices;
     return SimpleDialog(
-      title: const Text('Czujnik na zewnątrz'),
+      title: const Text('Źródło temperatury na zewnątrz'),
       children: [
-        _option('', 'Brak (pogoda z internetu)', null),
+        _option('', 'Open-Meteo (internet)', 'z prognozy pogody, bez wilgotności'),
         if (devices == null)
           const Padding(
             padding: EdgeInsets.all(16),

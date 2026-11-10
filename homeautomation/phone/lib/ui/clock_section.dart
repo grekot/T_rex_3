@@ -223,8 +223,8 @@ class ClockSection extends StatelessWidget {
               viaHub == null
                   ? 'Własna lokalizacja zegara'
                   : cfg?['outdoor'] is Map
-                  ? 'Z huba; temperatura z czujnika na zewnątrz'
-                  : 'Z huba; czujnik na zewnątrz do wyboru',
+                  ? 'Z huba; temperatura na zewnątrz z czujnika'
+                  : 'Z huba; temperatura na zewnątrz z Open-Meteo',
             ),
             onTap: () => _open(context, ClockWeatherPage(controller: c, hub: hub)),
           ),

@@ -363,7 +363,7 @@ void main() {
     final conn = conns['zegar-ab12cd']!;
     await tester.pumpWidget(_app(ClockWeatherPage(controller: c, hub: hub)));
     await tester.pumpAndSettle();
-    expect(find.text('Brak (pogoda z internetu)'), findsOneWidget);
+    expect(find.text('Open-Meteo (internet)'), findsOneWidget);
 
     await tester.tap(find.byKey(const Key('clockOutdoor')));
     await tester.pumpAndSettle();
@@ -416,7 +416,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(conn.sent.last, {'outdoor': null});
     expect(fake.outdoor, isNull);
-    expect(find.text('Brak (pogoda z internetu)'), findsOneWidget);
+    expect(find.text('Open-Meteo (internet)'), findsOneWidget);
     hub.dispose();
   });
 
