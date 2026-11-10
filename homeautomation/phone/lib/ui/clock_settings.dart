@@ -552,7 +552,7 @@ class _ClockWeatherPageState extends State<ClockWeatherPage> with _ClockConfig {
   /// Odczyt z czujnika (State `outdoor.src`) albo dlaczego go nie ma.
   String _outdoorNow() {
     final s = c.stateJson?['outdoor'];
-    if (_outdoor == null) return 'Temperatura i opis pogody z prognozy (bez wilgotności)';
+    if (_outdoor == null) return 'Temperatura i wilgotność z prognozy pogody';
     if (s is Map && s['src'] == 'sensor' && s['temp'] is num) {
       final hum = s['hum'] is num ? ', wilg. ${(s['hum'] as num).round()} %' : '';
       return 'Teraz ${fmtNumber((s['temp'] as num).toDouble(), decimals: 1)} °C$hum';
@@ -777,7 +777,7 @@ class _OutdoorPickerState extends State<_OutdoorPicker> {
     return SimpleDialog(
       title: const Text('Źródło temperatury na zewnątrz'),
       children: [
-        _option('', 'Open-Meteo (internet)', 'z prognozy pogody, bez wilgotności'),
+        _option('', 'Open-Meteo (internet)', 'temperatura i wilgotność z prognozy pogody'),
         if (devices == null)
           const Padding(
             padding: EdgeInsets.all(16),
