@@ -45,7 +45,8 @@ const clockNightModes = {
 const clockNightScreens = {'clock': 'sama godzina', 'clockTemp': 'godzina i temperatura', 'off': 'wygaszony'};
 
 /// Motyw zegara (`theme.name`, nodes/deskclock/src/GuiTheme.cpp): nazwa i kolory do podglądu w aplikacji -
-/// tło, karta, tekst na karcie, kafle pokój / wilgotność / ciśnienie / pogoda.
+/// tło, karta, tekst na karcie, kafle pokój / wilgotność / ciśnienie / pogoda. Kolejność jak w kalendarzu `theme.seasonal`;
+/// motywy od fw 0.4.0 (`thaw`, `holidays`, `indianSummer`, `gloom`, `advent`, `nicholas`) w kolorach makiet (`LOOKS`).
 typedef ClockTheme = ({String label, int bg, int card, int ink, List<int> tiles});
 
 const clockThemes = <String, ClockTheme>{
@@ -84,19 +85,12 @@ const clockThemes = <String, ClockTheme>{
     ink: 0xFFEAF4FF,
     tiles: [0xFF1C3150, 0xFF183A44, 0xFF252B52, 0xFF1C3150],
   ),
-  'xmas': (
-    label: 'Boże Narodzenie',
-    bg: 0xFF7E1622,
-    card: 0xFFFFF8EC,
-    ink: 0xFF3A0D12,
-    tiles: [0xFFF7DFD2, 0xFFDDEBD7, 0xFFF6E8C4, 0xFFE6F0DA],
-  ),
-  'xmasNight': (
-    label: 'Boże Narodzenie (wieczór)',
-    bg: 0xFF0F2A1E,
-    card: 0xFF173A2A,
-    ink: 0xFFFFF6E2,
-    tiles: [0xFF4A1A1F, 0xFF1F4A33, 0xFF4A3B14, 0xFF5E1A22],
+  'thaw': (
+    label: 'Roztopy',
+    bg: 0xFFCCCCD2,
+    card: 0xFFF0F6F6,
+    ink: 0xFF242A30,
+    tiles: [0xFFDEC6C0, 0xFFA2B4C0, 0xFFC0BACC, 0xFFD8DEC6],
   ),
   'spring': (
     label: 'Wiosna',
@@ -119,12 +113,61 @@ const clockThemes = <String, ClockTheme>{
     ink: 0xFF0E3340,
     tiles: [0xFFFFE1C4, 0xFFC9F0F2, 0xFFE2E4FA, 0xFFFFE680],
   ),
+  'holidays': (
+    label: 'Wakacje',
+    bg: 0xFFF0E4D8,
+    card: 0xFFDEF0FC,
+    ink: 0xFF06243C,
+    tiles: [0xFFFCD8B4, 0xFFBADEDE, 0xFFDED2F0, 0xFFFCEAC6],
+  ),
+  'indianSummer': (
+    label: 'Babie lato',
+    bg: 0xFFEAE4D8,
+    card: 0xFFF6F6F0,
+    ink: 0xFF241E1E,
+    tiles: [0xFFE4A884, 0xFFA2B4AE, 0xFFC0AEA2, 0xFFEABA6C],
+  ),
   'autumn': (
     label: 'Jesień',
     bg: 0xFFF4E7D7,
     card: 0xFFFFFAF2,
     ink: 0xFF3B2414,
     tiles: [0xFFF8D3B5, 0xFFDCE3D0, 0xFFEAD9CF, 0xFFF7DC9C],
+  ),
+  'gloom': (
+    label: 'Szaruga',
+    bg: 0xFFCCD2D8,
+    card: 0xFFF0F0F6,
+    ink: 0xFF242A36,
+    tiles: [0xFFDED2CC, 0xFF90A2B4, 0xFFA2A2AE, 0xFFC0CCD8],
+  ),
+  'advent': (
+    label: 'Adwent',
+    bg: 0xFF1E243C,
+    card: 0xFF2A3654,
+    ink: 0xFFFCB466,
+    tiles: [0xFF3C2A24, 0xFF1E363C, 0xFF2A1E30, 0xFF242A48],
+  ),
+  'nicholas': (
+    label: 'Mikołajki',
+    bg: 0xFFEAEAE4,
+    card: 0xFFFCFCFC,
+    ink: 0xFF1E2430,
+    tiles: [0xFFFCD8BA, 0xFFCCDEF6, 0xFFDED8F6, 0xFFFCE4A8],
+  ),
+  'xmas': (
+    label: 'Boże Narodzenie',
+    bg: 0xFF7E1622,
+    card: 0xFFFFF8EC,
+    ink: 0xFF3A0D12,
+    tiles: [0xFFF7DFD2, 0xFFDDEBD7, 0xFFF6E8C4, 0xFFE6F0DA],
+  ),
+  'xmasNight': (
+    label: 'Boże Narodzenie (wieczór)',
+    bg: 0xFF0F2A1E,
+    card: 0xFF173A2A,
+    ink: 0xFFFFF6E2,
+    tiles: [0xFF4A1A1F, 0xFF1F4A33, 0xFF4A3B14, 0xFF5E1A22],
   ),
 };
 

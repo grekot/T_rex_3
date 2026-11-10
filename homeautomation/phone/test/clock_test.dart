@@ -439,6 +439,14 @@ void main() {
     await tester.tap(find.byKey(const Key('clockTheme-dark')));
     await tester.pumpAndSettle();
     expect((conn.sent.last['theme'] as Map)['name'], 'dark');
+    for (final k in ['advent', 'nicholas', 'thaw', 'holidays', 'indianSummer', 'gloom']) {
+      await tester.ensureVisible(find.byKey(Key('clockTheme-$k')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(Key('clockTheme-$k')));
+      await tester.pumpAndSettle();
+      expect((conn.sent.last['theme'] as Map)['name'], k);
+    }
+    expect(find.text('Babie lato'), findsOneWidget);
     hub.dispose();
   });
 

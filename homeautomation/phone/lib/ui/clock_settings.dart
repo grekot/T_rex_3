@@ -910,7 +910,8 @@ class _ClockThemePageState extends State<ClockThemePage> with _ClockConfig {
         contentPadding: EdgeInsets.zero,
         title: const Text('Według pory roku'),
         subtitle: const Text(
-          'Boże Narodzenie 1.12-6.01, zima, wiosna, Wielkanoc, lato i jesień według kalendarza; '
+          'Adwent 1-23.12 (6.12 Mikołajki), Boże Narodzenie 24.12-6.01, zima, roztopy, wiosna, Wielkanoc, lato, '
+          'wakacje 28.06-31.08, babie lato, jesień i szaruga według kalendarza; '
           'zimą i w święta po zachodzie słońca wersja wieczorna',
         ),
         value: seasonal,
@@ -920,7 +921,7 @@ class _ClockThemePageState extends State<ClockThemePage> with _ClockConfig {
         key: const Key('clockAnimations'),
         contentPadding: EdgeInsets.zero,
         title: const Text('Animacje ozdób'),
-        subtitle: const Text('Padający śnieg, płatki kwiatów, liście (ekran trochę bardziej grzeje czujnik)'),
+        subtitle: const Text('Lekkie kołysanie ozdób w narożnikach (ekran trochę bardziej grzeje czujnik)'),
         value: t['animations'] != false,
         onChanged: (v) => setIn('theme', {'animations': v}),
       ),
