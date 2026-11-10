@@ -16,6 +16,7 @@ import 'package:homeautomation/data/discovery.dart';
 import 'package:homeautomation/data/thermostat_connection.dart';
 import 'package:homeautomation/models/clock.dart';
 import 'package:homeautomation/models/dashboard.dart';
+import 'package:homeautomation/models/describe.dart';
 import 'package:homeautomation/models/device_type.dart';
 import 'package:homeautomation/models/hub.dart';
 import 'package:homeautomation/models/json_utils.dart';
@@ -120,6 +121,9 @@ Future<(DeviceHub, Map<String, _Conn>, FakeClock)> _home() async {
   await store.saveDevice(const PairedDevice(id: 'zegar-ab12cd', name: 'Biurko', type: DeviceType.clock, via: 'hub1'));
   await store.saveDevice(const PairedDevice(id: 'parter', name: 'Parter', type: DeviceType.onOff, via: 'hub1'));
   await store.saveDevice(const PairedDevice(id: 'sasiad-1', name: 'Sąsiad', type: DeviceType.sensor));
+  await store.saveDevice(
+    const PairedDevice(id: 'ble-b8f862d84911', name: 'Ogród', type: DeviceType.sensor, via: 'hub1'),
+  );
   final conns = <String, _Conn<Object?, Object?>>{
     'hub1': _Conn<Json, Json>('hub1', rawCodec, {'id': 'hub1', 'online': 3, 'devices': 4}, {'name': 'Hub'}),
     'zegar-ab12cd': _Conn<Json, Json>(
@@ -145,6 +149,20 @@ Future<(DeviceHub, Map<String, _Conn>, FakeClock)> _home() async {
       },
     ),
     'sasiad-1': _Conn<Json, Json>('sasiad-1', rawCodec, {'temp': 12.0}, {'name': 'Sąsiad'}),
+    'ble-b8f862d84911': _Conn<Json, Json>(
+      'ble-b8f862d84911',
+      rawCodec,
+      {'temp': 4.2, 'hum': 88},
+      {'name': 'Ogród'},
+      describe: {
+        'type': 'sensor',
+        'points': [
+          {'key': 'temp', 'name': 'Temperatura', 'kind': 'sensor', 'unit': '°C', 'decimals': 1},
+          {'key': 'hum', 'name': 'Wilgotność', 'kind': 'sensor', 'unit': '%'},
+          {'key': 'batt', 'name': 'Bateria', 'kind': 'sensor', 'unit': '%'},
+        ],
+      },
+    ),
   };
   final hub = DeviceHub(store: store, manager: _Manager(conns, store), cloud: NoCloudAccess());
   await hub.load();
@@ -322,6 +340,86 @@ void main() {
     hub.dispose();
   });
 
+  test('czujnik na zewnątrz: punkty temp / hum z describe, domyślne i zastępcze', () {
+    const t = DataPoint(key: 'temp', name: 'T', kind: PointKind.sensor, unit: '°C');
+    const t2 = DataPoint(key: 'probe', name: 'Sonda', kind: PointKind.sensor, unit: '°C');
+    const h = DataPoint(key: 'hum', name: 'W', kind: PointKind.sensor, unit: '%');
+    const set = DataPoint(key: 'target', name: 'Nastawa', kind: PointKind.setpoint, unit: '°C');
+    expect(clockOutdoorFor('a', const [t2, t, h]), {'device': 'a', 'temp': 'temp', 'hum': 'hum'});
+    expect(clockOutdoorFor('a', const [set, t2]), {'device': 'a', 'temp': 'probe', 'hum': ''});
+    expect(clockOutdoorTempPoints(const [set, t, h]), [t]);
+  });
+
+  testWidgets('pogoda: czujnik na zewnątrz - lista z huba, zapis, wilgotność, błąd pola, powrót do pogody', (
+    tester,
+  ) async {
+    final (hub, conns, fake) = await _home();
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(() async {
+      for (final id in conns.keys) {
+        await hub.controller(id)!.connect();
+      }
+    });
+    final conn = conns['zegar-ab12cd']!;
+    await tester.pumpWidget(_app(ClockWeatherPage(controller: c, hub: hub)));
+    await tester.pumpAndSettle();
+    expect(find.text('Brak (pogoda z internetu)'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('clockOutdoor')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clockOutdoor-ble-b8f862d84911')), findsOneWidget);
+    expect(find.byKey(const Key('clockOutdoor-parter')), findsOneWidget, reason: 'węzeł z temperaturą');
+    expect(find.byKey(const Key('clockOutdoor-sasiad-1')), findsNothing, reason: 'poza hubem zegara');
+    expect(find.byKey(const Key('clockOutdoor-zegar-ab12cd')), findsNothing, reason: 'nie sam zegar');
+    await tester.tap(find.byKey(const Key('clockOutdoor-ble-b8f862d84911')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'outdoor': {'device': 'ble-b8f862d84911', 'temp': 'temp', 'hum': 'hum'},
+    });
+    expect(find.text('Ogród'), findsOneWidget);
+    expect(find.textContaining('Brak odczytu z ostatnich 30 min'), findsOneWidget);
+
+    // Hub przysłał odczyty - ekran pokazuje temperaturę z czujnika.
+    fake.applySet({
+      'ext': [
+        {'device': 'ble-b8f862d84911', 'point': 'temp', 'v': 4.2},
+        {'device': 'ble-b8f862d84911', 'point': 'hum', 'v': 88},
+      ],
+    });
+    conn.stateJson = fake.stateJson();
+    await tester.pumpWidget(_app(ClockWeatherPage(controller: c, hub: hub)));
+    await tester.pumpAndSettle();
+    expect(find.text('Teraz 4,2 °C, wilg. 88 %'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('clockOutdoorHum')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('bez wilgotności').last);
+    await tester.pumpAndSettle();
+    expect((conn.sent.last['outdoor'] as Map)['hum'], '');
+
+    // Błąd pola przy polu (zły id urządzenia w Config).
+    conn.configJson = {
+      ...conn.configJson,
+      'outdoor': {'device': 'zły id', 'temp': 'temp', 'hum': ''},
+    };
+    conn._configs.add(conn.config);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockOutdoorHum')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('bez wilgotności').last);
+    await tester.pumpAndSettle();
+    expect(find.text('niedozwolona wartość'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('clockOutdoor')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockOutdoor-none')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {'outdoor': null});
+    expect(fake.outdoor, isNull);
+    expect(find.text('Brak (pogoda z internetu)'), findsOneWidget);
+    hub.dispose();
+  });
+
   testWidgets('motyw: wybór z miniatur, pora roku, animacje', (tester) async {
     final (hub, conns, _) = await _home();
     final c = hub.controller('zegar-ab12cd')!;
@@ -353,10 +451,20 @@ void main() {
       id: 'p1',
       title: 'Dom',
       widgets: [
-        const DashWidget(id: 'a', view: WidgetView.status, device: 'parter', point: 'on', label: 'Pompa')
-            .patch({'x': 0, 'y': 0}),
-        const DashWidget(id: 'b', view: WidgetView.value, device: 'parter', point: 'temp', label: 'Warsztat')
-            .patch({'x': 1, 'y': 0}),
+        const DashWidget(
+          id: 'a',
+          view: WidgetView.status,
+          device: 'parter',
+          point: 'on',
+          label: 'Pompa',
+        ).patch({'x': 0, 'y': 0}),
+        const DashWidget(
+          id: 'b',
+          view: WidgetView.value,
+          device: 'parter',
+          point: 'temp',
+          label: 'Warsztat',
+        ).patch({'x': 1, 'y': 0}),
       ],
     );
     await tester.pumpWidget(

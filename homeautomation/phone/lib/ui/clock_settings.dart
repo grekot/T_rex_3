@@ -8,13 +8,18 @@ import 'package:flutter/material.dart';
 import '../controllers/device_controller.dart';
 import '../controllers/device_hub.dart';
 import '../controllers/field_errors.dart';
+import '../data/device_store.dart';
 import '../data/errors.dart';
 import '../data/hub_weather.dart';
 import '../models/clock.dart';
 import '../models/dashboard.dart' show reorder;
+import '../models/describe.dart';
+import '../models/device_type.dart';
 import '../models/json_utils.dart';
+import 'clock_pages.dart' show clockKnownDevices;
 import 'clock_section.dart' show clockScreenList;
 import 'format.dart';
+import 'widget_editor.dart' show pointsOf;
 import 'widgets.dart';
 
 /// Wspólne dla stron ustawień: odczyt obiektów Config i Set z pokazaniem błędów.
@@ -26,13 +31,15 @@ mixin _ClockConfig<T extends StatefulWidget> on State<T> {
   Json obj(String key) => cfg[key] is Map ? (cfg[key] as Map).cast<String, dynamic>() : const {};
 
   /// Set pola [key] = obecny obiekt z [changes].
-  Future<void> setIn(String key, Json changes) => send({
+  Future<Map<String, String>> setIn(String key, Json changes) => send({
     key: {...obj(key), ...changes},
   });
 
-  Future<void> send(Json values) async {
+  /// Set z komunikatem; zwraca błędy pól.
+  Future<Map<String, String>> send(Json values) async {
     final r = await c.sendJson(values);
     if (mounted) showSaveResult(context, r.errors, describeErrors);
+    return r.errors;
   }
 
   // Zmiana stanu / konfiguracji przebudowuje całe build() strony. ListenableBuilder w page() nie wystarczał: dostawał
@@ -496,6 +503,123 @@ class _ClockWeatherPageState extends State<ClockWeatherPage> with _ClockConfig {
     return via == null ? null : widget.hub?.controller(via);
   }
 
+  /// Punkty `describe` urządzeń (czujnik na zewnątrz).
+  final _points = <String, List<DataPoint>>{};
+
+  /// Błędy pól `outdoor` z ostatniego zapisu.
+  Map<String, String> _outErrors = const {};
+
+  Json? get _outdoor => cfg['outdoor'] is Map ? (cfg['outdoor'] as Map).cast<String, dynamic>() : null;
+
+  @override
+  void initState() {
+    super.initState();
+    final dev = _outdoor?['device'];
+    if (dev is String) _pointsOf(dev);
+  }
+
+  Future<List<DataPoint>> _pointsOf(String id) async {
+    final cached = _points[id];
+    if (cached != null) return cached;
+    final d = widget.hub?.device(id);
+    final pts = d == null ? const <DataPoint>[] : await pointsOf(widget.hub!, d);
+    if (mounted) setState(() => _points[id] = pts);
+    return pts;
+  }
+
+  Future<void> _setOutdoor(Json? value) async {
+    final errors = await send({'outdoor': value});
+    if (!mounted) return;
+    setState(
+      () => _outErrors = {
+        for (final e in errors.entries)
+          if (e.key == 'outdoor' || e.key.startsWith('outdoor.')) e.key: e.value,
+      },
+    );
+  }
+
+  Future<void> _pickOutdoor() async {
+    final picked = await showDialog<String>(
+      context: context,
+      builder: (_) =>
+          _OutdoorPicker(hub: widget.hub!, clock: c, current: _outdoor?['device'] as String?, points: _pointsOf),
+    );
+    if (picked == null) return;
+    if (picked.isEmpty) return _setOutdoor(null);
+    await _setOutdoor(clockOutdoorFor(picked, await _pointsOf(picked)));
+  }
+
+  /// Odczyt z czujnika (State `outdoor.src`) albo dlaczego go nie ma.
+  String _outdoorNow() {
+    final s = c.stateJson?['outdoor'];
+    if (_outdoor == null) return 'Temperatura i opis z prognozy pogody';
+    if (s is Map && s['src'] == 'sensor' && s['temp'] is num) {
+      final hum = s['hum'] is num ? ', wilg. ${(s['hum'] as num).round()} %' : '';
+      return 'Teraz ${fmtNumber((s['temp'] as num).toDouble(), decimals: 1)} °C$hum';
+    }
+    return 'Brak odczytu z ostatnich 30 min - zegar pokazuje pogodę z internetu';
+  }
+
+  /// Błąd pola `outdoor…` pod polem (null bez błędu).
+  Widget? _outError(List<String> keys) {
+    final code = keys.map((k) => _outErrors[k]).nonNulls.firstOrNull;
+    return code == null
+        ? null
+        : Text(describeErrorCode(code), style: TextStyle(color: Theme.of(context).colorScheme.error));
+  }
+
+  List<Widget> _outdoorSection() {
+    final out = _outdoor;
+    if (_hubC == null) {
+      return const [
+        Text('Czujnik na zewnątrz wymaga huba - to hub przysyła odczyty. Bez huba zegar pokazuje pogodę z internetu.'),
+      ];
+    }
+    final dev = out?['device'] as String?;
+    final pts = dev == null ? const <DataPoint>[] : _points[dev] ?? const <DataPoint>[];
+    final t = out?['temp'] as String? ?? 'temp';
+    final h = out?['hum'] as String? ?? '';
+    final temps = {for (final p in clockOutdoorTempPoints(pts)) p.key: p.name};
+    final hums = {'': 'bez wilgotności', for (final p in clockOutdoorHumPoints(pts)) p.key: p.name};
+    if (!hums.containsKey(h)) hums[h] = h;
+    if (!temps.containsKey(t)) temps[t] = t;
+    return [
+      ListTile(
+        key: const Key('clockOutdoor'),
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.sensors),
+        title: Text(dev == null ? 'Brak (pogoda z internetu)' : widget.hub?.device(dev)?.name ?? dev),
+        subtitle: _outError(['outdoor', 'outdoor.device']) ?? Text(_outdoorNow()),
+        trailing: const Icon(Icons.edit_outlined),
+        onTap: widget.hub == null ? null : _pickOutdoor,
+      ),
+      if (out != null) ...[
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Temperatura'),
+          subtitle: _outError(['outdoor.temp']),
+          trailing: DropdownButton<String>(
+            key: const Key('clockOutdoorTemp'),
+            value: t,
+            items: [for (final e in temps.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
+            onChanged: (v) => _setOutdoor({...out, 'temp': v}),
+          ),
+        ),
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Wilgotność'),
+          subtitle: _outError(['outdoor.hum']),
+          trailing: DropdownButton<String>(
+            key: const Key('clockOutdoorHum'),
+            value: h,
+            items: [for (final e in hums.entries) DropdownMenuItem(value: e.key, child: Text(e.value))],
+            onChanged: (v) => _setOutdoor({...out, 'hum': v}),
+          ),
+        ),
+      ],
+    ];
+  }
+
   Future<void> _fromHub() async {
     final h = _hubC?.config;
     final loc = h is Map ? h['location'] : null;
@@ -557,6 +681,8 @@ class _ClockWeatherPageState extends State<ClockWeatherPage> with _ClockConfig {
                     'pogody przez 2 h.',
         ),
       ),
+      const SectionHeader('Czujnik na zewnątrz'),
+      ..._outdoorSection(),
       const SectionHeader('Lokalizacja zegara'),
       ListTile(
         key: const Key('clockWeatherLoc'),
@@ -593,6 +719,81 @@ class _ClockWeatherPageState extends State<ClockWeatherPage> with _ClockConfig {
       const SizedBox(height: 8),
       seg('wind', const {'kmh': 'km/h', 'ms': 'm/s'}, 'kmh'),
     ]);
+  }
+}
+
+/// Wybór czujnika na zewnątrz: „brak” i urządzenia znane hubowi zegara z punktem temperatury (°C, `describe`).
+/// Wynik: id urządzenia, `''` = brak (pogoda z internetu).
+class _OutdoorPicker extends StatefulWidget {
+  const _OutdoorPicker({required this.hub, required this.clock, required this.current, required this.points});
+
+  final DeviceHub hub;
+  final DeviceController<Object?, Object?> clock;
+  final String? current;
+  final Future<List<DataPoint>> Function(String id) points;
+
+  @override
+  State<_OutdoorPicker> createState() => _OutdoorPickerState();
+}
+
+class _OutdoorPickerState extends State<_OutdoorPicker> {
+  List<PairedDevice>? _devices;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final known = await clockKnownDevices(widget.hub, widget.clock);
+    final candidates = known
+        .map(widget.hub.device)
+        .nonNulls
+        .where((d) => d.type != DeviceType.hub && d.id != widget.clock.device.id)
+        .toList();
+    final pts = await Future.wait(candidates.map((d) => widget.points(d.id)));
+    if (!mounted) return;
+    setState(
+      () => _devices = [
+        for (final (i, d) in candidates.indexed)
+          if (clockOutdoorTempPoints(pts[i]).isNotEmpty) d,
+      ],
+    );
+  }
+
+  Widget _option(String id, String title, String? subtitle) => SimpleDialogOption(
+    key: Key('clockOutdoor-${id.isEmpty ? 'none' : id}'),
+    onPressed: () => Navigator.pop(context, id),
+    child: ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon((widget.current ?? '') == id ? Icons.radio_button_checked : Icons.radio_button_unchecked),
+      title: Text(title),
+      subtitle: subtitle == null ? null : Text(subtitle),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final devices = _devices;
+    return SimpleDialog(
+      title: const Text('Czujnik na zewnątrz'),
+      children: [
+        _option('', 'Brak (pogoda z internetu)', null),
+        if (devices == null)
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (devices.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+            child: Text('Hub zegara nie zna urządzeń z temperaturą.'),
+          )
+        else
+          for (final d in devices) _option(d.id, d.name, d.type.label),
+      ],
+    );
   }
 }
 

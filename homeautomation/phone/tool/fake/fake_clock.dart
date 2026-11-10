@@ -49,6 +49,9 @@ class FakeClock extends FakeDevice {
   Map<String, dynamic> weather = {'lat': 49.894, 'lon': 20.609, 'place': 'Kraków'};
   Map<String, dynamic> sensor = {'tempOffset': 0.0, 'humOffset': 0, 'comp': true};
   List<dynamic> pages = [];
+
+  /// Czujnik na zewnątrz (`outdoor`): null = pogoda z internetu.
+  Map<String, dynamic>? outdoor;
   int wantsVer = 1;
   int identifies = 0;
 
@@ -74,6 +77,13 @@ class FakeClock extends FakeDevice {
       ? 'ciepło'
       : 'komfort';
 
+  /// Temperatura z czujnika na zewnątrz (odczyt `ext`), null = pogoda.
+  num? get _outSensor {
+    final o = outdoor;
+    final v = o == null ? null : ext['${o['device']}/${o['temp']}'];
+    return v is num ? v : null;
+  }
+
   @override
   Map<String, dynamic> stateJson() => {
     'id': id,
@@ -84,8 +94,10 @@ class FakeClock extends FakeDevice {
     if (lux) 'lux': 120.0,
     'sensorFault': sensorFault,
     'warmup': warmup,
-    'outTemp': 9.1,
-    'outdoor': {'temp': 9.1, 'icon': 2, 'day': true, 'age': 600},
+    'outTemp': _outSensor ?? 9.1,
+    'outdoor': _outSensor == null
+        ? {'temp': 9.1, 'src': 'weather', 'icon': 2, 'day': true, 'age': 600}
+        : {'temp': _outSensor, 'src': 'sensor', 'hum': ext['${outdoor!['device']}/${outdoor!['hum']}'], 'age': 0},
     'night': false,
     'brightness': display['brightness'],
     'screen': screen,
@@ -109,6 +121,7 @@ class FakeClock extends FakeDevice {
     'weather': weather,
     'sensor': sensor,
     'pages': pages,
+    'outdoor': outdoor,
   };
 
   static const _builtIn = {'main', 'hours', 'days', 'chart', 'calendar', 'air'};
@@ -232,6 +245,29 @@ class FakeClock extends FakeDevice {
         errors['sensor.humOffset'] = 'range';
       } else {
         sensor = {...sensor, ...s.cast<String, dynamic>()};
+      }
+    }
+    if (v.containsKey('outdoor')) {
+      final o = v['outdoor'];
+      bool id(Object? x, int max) => x is String && RegExp('^[A-Za-z0-9._-]{1,$max}\$').hasMatch(x);
+      if (o == null) {
+        if (outdoor != null) wantsVer++;
+        outdoor = null;
+      } else if (o is! Map) {
+        errors['outdoor'] = 'value';
+      } else {
+        final next = {'device': o['device'] ?? '', 'temp': o['temp'] ?? 'temp', 'hum': o['hum'] ?? ''};
+        final e = {
+          if (!id(next['device'], 32)) 'outdoor.device': 'value',
+          if (!id(next['temp'], 24)) 'outdoor.temp': 'value',
+          if (next['hum'] != '' && !id(next['hum'], 24)) 'outdoor.hum': 'value',
+        };
+        if (e.isEmpty) {
+          wantsVer++;
+          outdoor = next;
+        } else {
+          errors.addAll(e);
+        }
       }
     }
     if (v['showScreen'] case final String s) {

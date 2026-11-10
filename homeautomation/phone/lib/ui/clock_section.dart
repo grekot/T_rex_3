@@ -219,7 +219,13 @@ class ClockSection extends StatelessWidget {
             key: const Key('clockWeather'),
             leading: const Icon(Icons.wb_cloudy_outlined),
             title: const Text('Pogoda i jednostki'),
-            subtitle: Text(viaHub == null ? 'Własna lokalizacja zegara' : 'Z huba; lokalizacja zegara awaryjnie'),
+            subtitle: Text(
+              viaHub == null
+                  ? 'Własna lokalizacja zegara'
+                  : cfg?['outdoor'] is Map
+                  ? 'Z huba; temperatura z czujnika na zewnątrz'
+                  : 'Z huba; czujnik na zewnątrz do wyboru',
+            ),
             onTap: () => _open(context, ClockWeatherPage(controller: c, hub: hub)),
           ),
           ListTile(

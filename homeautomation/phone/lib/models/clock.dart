@@ -4,6 +4,7 @@
 import 'dart:convert';
 
 import 'dashboard.dart';
+import 'describe.dart';
 import 'json_utils.dart';
 
 /// Ekrany wbudowane (`screens.list`), w kolejności proponowanej.
@@ -356,6 +357,29 @@ List<List<bool>> _occupied(Iterable<DashWidget> widgets) {
   }
   flush();
   return (pages: pages, skipped: skipped);
+}
+
+/// Punkty czujnika na zewnątrz (Config `outdoor`, pkt 10.2): temperatura (°C) i wilgotność (%) z `describe`.
+List<DataPoint> clockOutdoorTempPoints(List<DataPoint> points) => [
+  for (final p in points)
+    if (p.kind == PointKind.sensor && p.unit == '°C') p,
+];
+
+List<DataPoint> clockOutdoorHumPoints(List<DataPoint> points) => [
+  for (final p in points)
+    if (p.kind == PointKind.sensor && p.unit == '%') p,
+];
+
+/// Config `outdoor` po wyborze urządzenia: punkt `temp` (gdy jest, inaczej pierwszy °C), `hum` (gdy jest, inaczej
+/// pierwszy %, bez wilgotności - `""`).
+Json clockOutdoorFor(String device, List<DataPoint> points) {
+  String pick(List<DataPoint> list, String def, String none) =>
+      list.any((p) => p.key == def) ? def : list.firstOrNull?.key ?? none;
+  return {
+    'device': device,
+    'temp': pick(clockOutdoorTempPoints(points), 'temp', 'temp'),
+    'hum': pick(clockOutdoorHumPoints(points), 'hum', ''),
+  };
 }
 
 /// Domyślne punkty widżetów bez `point` (pkt 10.2): termostat i hub.
