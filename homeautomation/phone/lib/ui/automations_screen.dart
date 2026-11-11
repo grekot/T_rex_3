@@ -7,7 +7,7 @@ import '../data/errors.dart';
 import '../data/hub_api.dart';
 import '../data/device_store.dart';
 import '../models/automation_templates.dart';
-import '../models/clock.dart' show clockPressCollides, clockRadioPressWarning;
+import '../models/clock.dart';
 import '../models/dashboard.dart' show reorder;
 import '../models/describe.dart';
 import '../models/device_type.dart';
@@ -16,6 +16,7 @@ import '../models/hub_weather.dart';
 import '../models/json_utils.dart';
 import '../models/scene.dart';
 import '../services.dart';
+import 'clock_bubble.dart';
 import 'dashboard_tiles.dart' show channelName, describeSet, fallbackPoint;
 import 'point_controls.dart' show optionLabel;
 import 'widget_editor.dart';
@@ -141,6 +142,9 @@ String describeAction(DeviceHub hub, Json j) {
         ? ', inaczej → ${_actionsCount(j['else'])}'
         : '';
     return 'Jeśli $conds → ${_actionsCount(j['then'])}$otherwise';
+  }
+  if (j['device'] != null && j['set'] is Map && (j['set'] as Map)['bubble'] is Map) {
+    return '${_deviceName(hub, j['device'])}: dymek ${clockBubbleText((j['set'] as Map)['bubble'] as Map)}';
   }
   if (j['device'] != null && j['set'] is Map) {
     return '${_deviceName(hub, j['device'])}: ${_describeDeviceSet(hub, j['device'], (j['set'] as Map).cast<String, dynamic>())}';
@@ -476,6 +480,33 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> with _R
   @override
   DeviceHub get hub => widget.hub;
 
+  /// Akcje pozostałych automatyk (podpowiedzi `id` dymków).
+  List<Map> _otherActions = const [];
+
+  @override
+  Iterable<Map> get knownActions => [..._then, ..._otherActions];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadOthers();
+  }
+
+  Future<void> _loadOthers() async {
+    try {
+      final info = await widget.service.load();
+      if (!mounted) return;
+      setState(
+        () => _otherActions = [
+          for (final a in info.items)
+            if (a.id != widget.initial?.id) ...a.then,
+        ],
+      );
+    } on Object {
+      // podpowiedzi są tylko wygodą
+    }
+  }
+
   @override
   void dispose() {
     _name.dispose();
@@ -657,7 +688,7 @@ class _AutomationEditorScreenState extends State<AutomationEditorScreen> with _R
             items: _then,
             describe: (j) => describeAction(hub, j),
             onChanged: (l) => setState(() => _then = l),
-            add: _actionKinds(0),
+            add: _actionKinds(0, bubbles: _bubbleClocks.isNotEmpty),
             onAdd: _addAction,
             addKey: const Key('addAction'),
             reorderable: true,
@@ -746,7 +777,7 @@ class _BranchEditorScreenState extends State<BranchEditorScreen> with _RuleEditi
             items: _then,
             describe: (j) => describeAction(hub, j),
             onChanged: (l) => setState(() => _then = l),
-            add: _actionKinds(d),
+            add: _actionKinds(d, bubbles: _bubbleClocks.isNotEmpty),
             onAdd: (k) async {
               final a = await _actionOf(k, d);
               if (a != null) setState(() => _then = [..._then, a]);
@@ -761,7 +792,7 @@ class _BranchEditorScreenState extends State<BranchEditorScreen> with _RuleEditi
             items: _else,
             describe: (j) => describeAction(hub, j),
             onChanged: (l) => setState(() => _else = l),
-            add: _actionKinds(d),
+            add: _actionKinds(d, bubbles: _bubbleClocks.isNotEmpty),
             onAdd: (k) async {
               final a = await _actionOf(k, d);
               if (a != null) setState(() => _else = [..._else, a]);
@@ -782,6 +813,62 @@ const _skyPrefixes = ['weather.', 'astro.', 'air.'];
 /// Wspólne dla edytora automatyki i bloku „Jeśli…”: wybór urządzeń, warunki, akcje, sekcje listy.
 mixin _RuleEditing<W extends StatefulWidget> on State<W> {
   DeviceHub get hub;
+
+  /// Akcje automatyk tego domu (podpowiedzi `id` dymków do wyzwalacza „Odpowiedź z dymka”).
+  Iterable<Map> get knownActions => const [];
+
+  // ---- dymki zegara (pkt 10.2 „Dymki i ciekawostki”)
+
+  /// Zegary z dymkami (Config `bubbles`).
+  List<PairedDevice> get _bubbleClocks => [
+    for (final d in hub.devices)
+      if (d.type == DeviceType.clock && clockHasBubbles(_cfgOf(d.id))) d,
+  ];
+
+  Json? _cfgOf(String id) {
+    final cfg = hub.controller(id)?.config;
+    return cfg is Map ? cfg.cast<String, dynamic>() : null;
+  }
+
+  bool _isBubble(Json j) => j['device'] is String && j['set'] is Map && (j['set'] as Map)['bubble'] is Map;
+
+  /// Akcja „Dymek na zegarze”: zegar (gdy jest kilka) i treść; [initial] - edycja istniejącej.
+  Future<Json?> _bubbleAction([Json? initial]) async {
+    final clocks = _bubbleClocks;
+    var device = initial?['device'] as String?;
+    if (device == null) {
+      if (clocks.isEmpty) return null;
+      device = clocks.length == 1
+          ? clocks.single.id
+          : await showDialog<String>(
+              context: context,
+              builder: (ctx) => SimpleDialog(
+                title: const Text('Zegar'),
+                children: [
+                  for (final d in clocks)
+                    SimpleDialogOption(
+                      key: Key('bubble-clock-${d.id}'),
+                      onPressed: () => Navigator.pop(ctx, d.id),
+                      child: Text(d.name),
+                    ),
+                ],
+              ),
+            );
+    }
+    if (device == null || !mounted) return null;
+    final b = await showBubbleDialog(
+      context,
+      initial: initial == null ? null : ((initial['set'] as Map)['bubble'] as Map).cast<String, dynamic>(),
+      automation: true,
+      ids: clockBubbleIds(knownActions, device),
+    );
+    return b == null
+        ? null
+        : {
+            'device': device,
+            'set': {'bubble': b},
+          };
+  }
 
   // ---- wybór urządzenia i punktu
 
@@ -868,6 +955,12 @@ mixin _RuleEditing<W extends StatefulWidget> on State<W> {
     final picked = await _pickPoint();
     if (picked == null || !mounted) return null;
     final (d, p) = picked;
+    if (p.key == 'bubbleReply' && d.type == DeviceType.clock) {
+      return showDialog<Json>(
+        context: context,
+        builder: (_) => _BubbleReplyDialog(device: d, ids: clockBubbleIds(knownActions, d.id)),
+      );
+    }
     return showDialog<Json>(
       context: context,
       builder: (_) => _StateDialog(device: d, point: p, trigger: trigger, allowFor: allowFor),
@@ -953,6 +1046,8 @@ mixin _RuleEditing<W extends StatefulWidget> on State<W> {
       case 'log':
         final text = await showTextInputDialog(context, title: 'Wpis w dzienniku', maxLength: 60);
         if (text != null && text.trim().isNotEmpty) a = {'log': text.trim()};
+      case 'bubble':
+        a = await _bubbleAction();
     }
     return a;
   }
@@ -992,6 +1087,11 @@ mixin _RuleEditing<W extends StatefulWidget> on State<W> {
             onTap: j['if'] is List
                 ? () async {
                     final edited = await _editBranch(j, depth + 1);
+                    if (edited != null) onChanged([...items]..[i] = edited);
+                  }
+                : _isBubble(j)
+                ? () async {
+                    final edited = await _bubbleAction(j);
                     if (edited != null) onChanged([...items]..[i] = edited);
                   }
                 : null,
@@ -1042,8 +1142,9 @@ const _conditionKinds = {
 };
 
 /// Rodzaje akcji; „Jeśli…” najwyżej na 2 poziomach (na drugim już bez niego).
-Map<String, String> _actionKinds(int depth) => {
+Map<String, String> _actionKinds(int depth, {bool bubbles = false}) => {
   'set': 'Ustaw urządzenie',
+  if (bubbles) 'bubble': 'Dymek na zegarze',
   'delay': 'Przerwa',
   'scene': 'Uruchom scenę',
   'notify': 'Powiadomienie',
@@ -1297,6 +1398,78 @@ class _StateDialogState extends State<_StateDialog> {
                   'point': p.key,
                   _op: value,
                   if (forS != null && forS > 0) 'for': forS,
+                }),
+          child: const Text('OK'),
+        ),
+      ],
+    );
+  }
+}
+
+/// Wyzwalacz „Odpowiedź z dymka” (State `bubbleReply` = `id` dymku przez 10 s): pole `eq` i podpowiedzi id
+/// z akcji „Dymek na zegarze” tego zegara.
+class _BubbleReplyDialog extends StatefulWidget {
+  const _BubbleReplyDialog({required this.device, required this.ids});
+
+  final PairedDevice device;
+  final Set<String> ids;
+
+  @override
+  State<_BubbleReplyDialog> createState() => _BubbleReplyDialogState();
+}
+
+class _BubbleReplyDialogState extends State<_BubbleReplyDialog> {
+  late final _id = TextEditingController(text: widget.ids.length == 1 ? widget.ids.single : '');
+
+  @override
+  void dispose() {
+    _id.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final id = _id.text.trim();
+    final error = id.isEmpty || id == 'msg' ? null : clockBubbleIdError(id);
+    return AlertDialog(
+      title: Text('${widget.device.name}: odpowiedź z dymka'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text('Gdy ktoś odpowie środkowym przyciskiem na dymek o tym id.'),
+          TextField(
+            key: const Key('bubbleReplyId'),
+            controller: _id,
+            decoration: InputDecoration(labelText: 'Id dymku', hintText: 'np. obiad', errorText: error),
+            onChanged: (_) => setState(() {}),
+          ),
+          if (widget.ids.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 6,
+              children: [
+                for (final i in widget.ids)
+                  ActionChip(
+                    key: Key('bubbleReplyId-$i'),
+                    label: Text(i),
+                    onPressed: () => setState(() => _id.text = i),
+                  ),
+              ],
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Anuluj')),
+        FilledButton(
+          key: const Key('bubbleReplyOk'),
+          onPressed: id.isEmpty || error != null
+              ? null
+              : () => Navigator.pop(context, <String, dynamic>{
+                  'device': widget.device.id,
+                  'point': 'bubbleReply',
+                  'eq': id,
                 }),
           child: const Text('OK'),
         ),

@@ -284,18 +284,20 @@ const clockPowiaty = {
 // ---------------------------------------------------------------- Paczki motywów (pkt 10.2 „Paczki motywów”)
 
 const clockThemeIndexUrl = 'https://ha-firmware.web.app/themes/index.json';
+const clockContentIndexUrl = 'https://ha-firmware.web.app/content/index.json';
 
 /// Zegar z paczkami motywów: State `themePacks` albo Config `theme.packs`.
 bool clockHasThemePacks(Map<String, dynamic>? cfg, Map<String, dynamic>? state) =>
     state?['themePacks'] is List || (cfg?['theme'] is Map && (cfg!['theme'] as Map)['packs'] is List);
 
-/// Paczka motywów: z indeksu (`url`, `sha256`, `thumb`, `author`) albo zainstalowana (State `themePacks`).
-class ClockThemePack {
-  const ClockThemePack({
+/// Paczka motywów (`.dctp`) albo treści (`.dccp`): z indeksu (`url`, `sha256`, `thumb`, `author`) albo zainstalowana
+/// (State `themePacks` / `contentPacks`). [items] - motywy (`themes`) albo kategorie (`categories`, z liczbą pozycji).
+class ClockPack {
+  const ClockPack({
     required this.id,
     required this.name,
     required this.version,
-    this.themes = const [],
+    this.items = const [],
     this.size = 0,
     this.url,
     this.sha256,
@@ -306,25 +308,29 @@ class ClockThemePack {
   final String id;
   final String name;
   final String version;
-  final List<({String id, String name})> themes;
+  final List<({String id, String name, int count})> items;
   final int size;
   final String? url;
   final String? sha256;
   final String? author;
   final String? thumb;
 
-  static ClockThemePack? fromJson(Object? j) {
+  static ClockPack? fromJson(Object? j) {
     if (j is! Map || j['id'] is! String) return null;
-    return ClockThemePack(
+    return ClockPack(
       id: j['id'] as String,
       name: j['name'] as String? ?? j['id'] as String,
       version: '${j['version'] ?? ''}',
-      themes: [
-        for (final t in (j['themes'] as List? ?? const []))
+      items: [
+        for (final t in (j['themes'] as List? ?? j['categories'] as List? ?? const []))
           if (t is Map && t['id'] is String)
-            (id: t['id'] as String, name: t['name'] as String? ?? t['id'] as String)
+            (
+              id: t['id'] as String,
+              name: t['name'] as String? ?? t['id'] as String,
+              count: (t['count'] as num?)?.toInt() ?? 0,
+            )
           else if (t is String)
-            (id: t, name: t),
+            (id: t, name: t, count: 0),
       ],
       size: (j['size'] as num?)?.toInt() ?? 0,
       url: j['url'] as String?,
@@ -334,9 +340,7 @@ class ClockThemePack {
     );
   }
 
-  static List<ClockThemePack> listFrom(Object? list) => [
-    for (final p in (list is List ? list : const [])) ?fromJson(p),
-  ];
+  static List<ClockPack> listFrom(Object? list) => [for (final p in (list is List ? list : const [])) ?fromJson(p)];
 }
 
 /// Wersja `a` nowsza od `b` (liczby po kropkach).
@@ -351,11 +355,11 @@ bool clockVersionNewer(String a, String b) {
 }
 
 /// Nazwa motywu do pokazania: wbudowany albo `<paczka>/<motyw>` z zainstalowanych paczek.
-String clockThemeLabel(String name, List<ClockThemePack> packs) {
+String clockThemeLabel(String name, List<ClockPack> packs) {
   final i = name.indexOf('/');
   if (i < 0) return clockThemes[name]?.label ?? clockThemes['pastel']!.label;
   final pack = packs.where((p) => p.id == name.substring(0, i)).firstOrNull;
-  final theme = pack?.themes.where((t) => t.id == name.substring(i + 1)).firstOrNull;
+  final theme = pack?.items.where((t) => t.id == name.substring(i + 1)).firstOrNull;
   return theme == null ? name : '${theme.name} (${pack!.name})';
 }
 
@@ -389,6 +393,73 @@ bool clockPressCollides(Map<String, dynamic>? clockCfg, Map<String, dynamic> tri
     clockHasRadio(clockCfg) &&
     RegExp(r'^in[1-3]$').hasMatch('${trigger['input']}') &&
     (trigger['press'] == 'double' || trigger['press'] == 'long');
+
+// ---------------------------------------------------------------- Dymki i ciekawostki (pkt 10.2)
+
+/// Zegar z dymkami: Config `bubbles` (firmware z dymkami, spotkaniem i ciekawostkami).
+bool clockHasBubbles(Map<String, dynamic>? cfg) => cfg?['bubbles'] is Map;
+
+/// Ikony dymków - klucze z firmware zegara (`tools/gen_state_icons.py`), w aplikacji z katalogu `appIcons`.
+const clockBubbleIcons = [
+  'chat',
+  'food',
+  'bell',
+  'door',
+  'laundry',
+  'rain',
+  'meeting',
+  'phone',
+  'info',
+  'warning',
+  'heart',
+  'smile',
+  'calendar',
+  'quote',
+  'puzzle',
+  'book',
+];
+
+const clockBubbleSounds = {
+  'chime': 'Dzwonek',
+  'pop': 'Pyknięcie',
+  'gong': 'Gong',
+  'alarm': 'Alarm',
+  'none': 'Bez dźwięku',
+};
+
+/// `id` dymku: `[a-z0-9-]{1,24}`, bez zarezerwowanego `fun`.
+String? clockBubbleIdError(String id) => !RegExp(r'^[a-z0-9-]{1,24}$').hasMatch(id)
+    ? 'Małe litery bez polskich znaków, cyfry i „-”, do 24 znaków'
+    : (id == 'fun' ? '„fun” jest zarezerwowane dla ciekawostek' : null);
+
+String? clockBubbleTextError(String text) =>
+    text.trim().isEmpty ? 'Wpisz treść' : (_bytes(text) > 200 ? 'Najwyżej 200 bajtów (polska litera to 2)' : null);
+
+String? clockBubbleTitleError(String title) => _bytes(title) > 32 ? 'Najwyżej 32 bajty' : null;
+
+String? clockBubbleReplyError(String reply) => _bytes(reply) > 24 ? 'Najwyżej 24 bajty' : null;
+
+/// Opis dymku do listy akcji: „Obiad gotowy!” (odpowiedź „Idę!”).
+String clockBubbleText(Map bubble) {
+  final title = bubble['title'] is String && (bubble['title'] as String).isNotEmpty ? '${bubble['title']}: ' : '';
+  final reply = bubble['reply'] is String ? ' (odpowiedź „${bubble['reply']}”)' : '';
+  return '„$title${bubble['text'] ?? ''}”$reply${bubble['prio'] == 'high' ? ', ważny' : ''}';
+}
+
+/// Id dymków z akcji `{"device": clockId, "set": {"bubble": {"id"}}}` (także w blokach „Jeśli…”) - podpowiedzi
+/// do wyzwalacza `bubbleReply`.
+Set<String> clockBubbleIds(Iterable<Map> actions, String clockId) => {
+  for (final a in actions) ...[
+    if (a['device'] == clockId && a['set'] is Map && (a['set'] as Map)['bubble'] is Map)
+      '${((a['set'] as Map)['bubble'] as Map)['id'] ?? 'msg'}',
+    for (final key in ['then', 'else'])
+      if (a[key] is List) ...clockBubbleIds((a[key] as List).whereType<Map>(), clockId),
+  ],
+};
+
+const clockFunTtl = [10, 20, 30, 60, 120, 300, 600];
+
+const clockMeetingMinutes = [15, 30, 45, 60, 90, 120, 180, 240];
 
 const clockMaxScreens = 6;
 const clockMaxPages = 4;

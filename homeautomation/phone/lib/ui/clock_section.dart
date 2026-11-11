@@ -8,6 +8,7 @@ import '../controllers/device_hub.dart';
 import '../controllers/field_errors.dart';
 import '../models/clock.dart';
 import '../models/json_utils.dart';
+import 'clock_bubble.dart';
 import 'clock_buttons.dart';
 import 'clock_pages.dart';
 import 'clock_settings.dart';
@@ -77,6 +78,27 @@ class ClockSection extends StatelessWidget {
       ),
     );
     if (key != null && context.mounted) await _send(context, {'showScreen': key});
+  }
+
+  /// „Wiadomość”: dymek na zegarze (Set `bubble`, poziom `control`).
+  Future<void> _sendBubble(BuildContext context) async {
+    final b = await showBubbleDialog(context);
+    if (b != null && context.mounted) await _send(context, {'bubble': b});
+  }
+
+  /// „Spotkanie”: czas albo do wyłączenia (Set `meeting`); w trakcie - koniec.
+  Future<void> _meeting(BuildContext context, bool on) async {
+    if (on) return _send(context, {'meeting': false});
+    final v = await showMeetingDialog(context);
+    if (v != null && context.mounted) await _send(context, {'meeting': v});
+  }
+
+  /// „ (do 14:30)” z State `meetingUntil` (s od epoki), bez końca - pusto.
+  static String _untilText(Json s) {
+    final u = s['meetingUntil'];
+    if (u is! num || u <= 0) return '';
+    final t = DateTime.fromMillisecondsSinceEpoch(u.toInt() * 1000);
+    return ' (do ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')})';
   }
 
   void _open(BuildContext context, Widget page) =>
@@ -178,6 +200,20 @@ class ClockSection extends StatelessWidget {
                 label: const Text('Pokaż, który to'),
                 onPressed: () => _send(context, {'identify': true}),
               ),
+              if (clockHasBubbles(cfg)) ...[
+                OutlinedButton.icon(
+                  key: const Key('clockBubble'),
+                  icon: const Icon(Icons.chat_bubble_outline),
+                  label: const Text('Wiadomość'),
+                  onPressed: () => _sendBubble(context),
+                ),
+                OutlinedButton.icon(
+                  key: const Key('clockMeeting'),
+                  icon: Icon(s['meeting'] == true ? Icons.groups : Icons.groups_outlined),
+                  label: Text(s['meeting'] == true ? 'Zakończ spotkanie${_untilText(s)}' : 'Spotkanie'),
+                  onPressed: () => _meeting(context, s['meeting'] == true),
+                ),
+              ],
             ],
           ),
         if (c.canConfig) ...[
@@ -244,6 +280,25 @@ class ClockSection extends StatelessWidget {
               subtitle: Text(_radioText(cfg, c.stateJson)),
               onTap: () => _open(context, ClockRadioPage(controller: c)),
             ),
+          if (clockHasBubbles(cfg)) ...[
+            ListTile(
+              key: const Key('clockBubbles'),
+              leading: const Icon(Icons.chat_bubble_outline),
+              title: const Text('Dymki'),
+              subtitle: Text(
+                'Głośność ${(cfg!['bubbles'] as Map)['vol'] ?? 30} %, '
+                'najwyżej ${(cfg['bubbles'] as Map)['maxPerDay'] ?? 30} na dobę',
+              ),
+              onTap: () => _open(context, ClockBubblesPage(controller: c)),
+            ),
+            ListTile(
+              key: const Key('clockFun'),
+              leading: const Icon(Icons.lightbulb_outline),
+              title: const Text('Ciekawostki'),
+              subtitle: Text(_funText(cfg)),
+              onTap: () => _open(context, ClockFunPage(controller: c)),
+            ),
+          ],
           ListTile(
             key: const Key('clockSensor'),
             leading: const Icon(Icons.thermostat_outlined),
@@ -287,7 +342,13 @@ class ClockSection extends StatelessWidget {
   static String _themeText(Json? cfg, Json? state) {
     final t = cfg?['theme'] is Map ? cfg!['theme'] as Map : const {};
     if (t['seasonal'] == true) return 'Według pory roku';
-    return clockThemeLabel('${t['name'] ?? 'pastel'}', ClockThemePack.listFrom(state?['themePacks']));
+    return clockThemeLabel('${t['name'] ?? 'pastel'}', ClockPack.listFrom(state?['themePacks']));
+  }
+
+  static String _funText(Json? cfg) {
+    final f = cfg?['fun'] is Map ? cfg!['fun'] as Map : const {};
+    if (f['enabled'] == false) return 'Wyłączone';
+    return '${f['perDay'] ?? 3} dziennie, ${f['window'] ?? '09:00-20:00'}';
   }
 
   static String _radioText(Json? cfg, Json? state) {

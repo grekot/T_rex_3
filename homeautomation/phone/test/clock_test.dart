@@ -26,6 +26,7 @@ import 'package:homeautomation/models/set_values.dart';
 import 'package:homeautomation/ui/clock_buttons.dart';
 import 'package:homeautomation/ui/clock_pages.dart';
 import 'package:homeautomation/ui/clock_section.dart';
+import 'package:homeautomation/ui/automations_screen.dart';
 import 'package:homeautomation/ui/clock_settings.dart';
 
 import '../tool/fake/fake_thermostat_server.dart';
@@ -474,7 +475,7 @@ void main() {
     final c = hub.controller('zegar-ab12cd')!;
     await tester.runAsync(c.connect);
     final index = [
-      ClockThemePack.fromJson({
+      ClockPack.fromJson({
         'id': 'pokoj-ani',
         'name': 'Pokój Ani',
         'version': '1.0.0',
@@ -520,7 +521,7 @@ void main() {
       'theme': {'name': 'pokoj-ani/jednorozce'},
     });
     expect(
-      clockThemeLabel('pokoj-ani/jednorozce', ClockThemePack.listFrom(fake.stateJson()['themePacks'])),
+      clockThemeLabel('pokoj-ani/jednorozce', ClockPack.listFrom(fake.stateJson()['themePacks'])),
       'Jednorożce (Pokój Ani)',
     );
     await _scrollTo(tester, find.byKey(const Key('clockPackRemove-pokoj-ani')));
@@ -660,6 +661,197 @@ void main() {
     expect(find.byKey(const Key('clockRadio')), findsNothing);
     expect(find.byKey(const Key('clockNews')), findsOneWidget);
     hub3.dispose();
+  });
+
+  testWidgets('dymki: wiadomość na zegar z ikoną i odpowiedzią, spotkanie; zegar bez dymków bez przycisków', (
+    tester,
+  ) async {
+    final fake = FakeClock();
+    final (hub, conns, _) = await _home(clock: fake);
+    final conn = conns['zegar-ab12cd']!;
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    Widget section(DeviceController<Object?, Object?> c, DeviceHub hub) => _app(
+      Scaffold(
+        body: SingleChildScrollView(
+          child: ClockSection(controller: c, hub: hub),
+        ),
+      ),
+    );
+    await tester.pumpWidget(section(c, hub));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clockBubbles')), findsOneWidget);
+    expect(find.text('3 dziennie, 09:00-20:00'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('clockBubble')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('bubbleSend')));
+    await tester.pumpAndSettle();
+    expect(find.text('Wpisz treść'), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('bubbleText')), 'Obiad gotowy!');
+    await tester.tap(find.byKey(const Key('bubbleIcon-food')));
+    await tester.tap(find.text('Idę!'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('bubbleSend')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'bubble': {'text': 'Obiad gotowy!', 'icon': 'food', 'reply': 'Idę!'},
+    });
+    expect(fake.bubbleShown.single['text'], 'Obiad gotowy!');
+    expect(
+      fake.applySet({
+        'bubble': {'text': 'x', 'id': 'fun'},
+      }),
+      {'bubble.id': 'value'},
+    );
+    expect(
+      fake.applySet({
+        'bubble': {'text': ''},
+      }),
+      {'bubble.text': 'length'},
+    );
+
+    await tester.tap(find.byKey(const Key('clockMeeting')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('meeting-30')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {'meeting': 30});
+    expect(fake.meetingUntil, isNotNull);
+    hub.dispose();
+
+    final (hub2, _, _) = await _home(clock: FakeClock(withBubbles: false));
+    final c2 = hub2.controller('zegar-ab12cd')!;
+    await tester.runAsync(c2.connect);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(section(c2, hub2));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clockBubble')), findsNothing);
+    expect(find.byKey(const Key('clockMeeting')), findsNothing);
+    expect(find.byKey(const Key('clockFun')), findsNothing);
+    hub2.dispose();
+  });
+
+  testWidgets('dymki i ciekawostki: limit, kategorie, dni, paczka treści z indeksu', (tester) async {
+    const url = 'https://ha-firmware.web.app/content/zagadki-dla-dzieci-1.0.0.dccp';
+    final fake = FakeClock();
+    fake.packFiles[url] = {
+      'id': 'zagadki-dla-dzieci',
+      'version': '1.0.0',
+      'name': 'Zagadki dla dzieci',
+      'size': 30000,
+      'categories': [
+        {'id': 'zagadki', 'name': 'Zagadki', 'count': 80},
+      ],
+    };
+    final (hub, conns, _) = await _home(clock: fake);
+    final conn = conns['zegar-ab12cd']!;
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    await tester.pumpWidget(_app(ClockBubblesPage(controller: c)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockBubbleMax')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('10').last);
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'bubbles': {'vol': 30, 'maxPerDay': 10},
+    });
+
+    final index = [
+      ClockPack.fromJson({
+        'id': 'zagadki-dla-dzieci',
+        'name': 'Zagadki dla dzieci',
+        'version': '1.0.0',
+        'url': url,
+        'sha256': 'cd' * 32,
+        'size': 30000,
+        'categories': [
+          {'id': 'zagadki', 'name': 'Zagadki', 'count': 80},
+        ],
+      })!,
+    ];
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_app(ClockFunPage(controller: c, loadIndex: () async => index)));
+    await tester.pumpAndSettle();
+    Map fun() => conn.sent.last['fun'] as Map;
+    await tester.tap(find.byKey(const Key('clockFunDay-7')));
+    await tester.pumpAndSettle();
+    expect(fun()['days'], [1, 2, 3, 4, 5, 6]);
+    await tester.tap(find.byKey(const Key('clockFunCat-cytaty')));
+    await tester.pumpAndSettle();
+    expect(fun()['categories'], ['swieta', 'zagadki']);
+    await tester.tap(find.byKey(const Key('clockFunCat-cytaty')));
+    await tester.pumpAndSettle();
+    expect(fun()['categories'], isEmpty, reason: 'wszystkie = []');
+    expect(
+      fake.applySet({
+        'fun': {'window': '20:00-09:00'},
+      }),
+      {'fun.window': 'format'},
+    );
+
+    await _scrollTo(tester, find.byKey(const Key('clockPack-wbudowane')));
+    expect(find.byKey(const Key('clockPackRemove-wbudowane')), findsNothing, reason: 'wbudowane nieusuwalne');
+    await _scrollTo(tester, find.byKey(const Key('clockPackInstall-zagadki-dla-dzieci')));
+    await tester.tap(find.byKey(const Key('clockPackInstall-zagadki-dla-dzieci')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'contentPack': {
+        'install': {'url': url, 'sha256': 'cd' * 32},
+      },
+    });
+    expect(fake.contentPacks!.map((p) => p['id']), ['wbudowane', 'zagadki-dla-dzieci']);
+    hub.dispose();
+  });
+
+  testWidgets('dymki w automatyce: akcja „Dymek na zegarze” i wyzwalacz „Odpowiedź z dymka” z podpowiedzią id', (
+    tester,
+  ) async {
+    final (hub, _, _) = await _home();
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    final store = _MemAutomations(hub.controller('hub1')!);
+    await tester.pumpWidget(_app(AutomationEditorScreen(hub: hub, service: store)));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('addAction')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('addAction')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Dymek na zegarze').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('bubbleText')), 'Obiad gotowy!');
+    await tester.enterText(find.byKey(const Key('bubbleId')), 'obiad');
+    await tester.enterText(find.byKey(const Key('bubbleReply')), 'Idę!');
+    await tester.tap(find.byKey(const Key('bubbleSend')));
+    await tester.pumpAndSettle();
+    expect(find.text('Biurko: dymek „Obiad gotowy!” (odpowiedź „Idę!”)'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('addTrigger')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Stan urządzenia').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('auto-device-zegar-ab12cd')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('auto-point-bubbleReply')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('bubbleReplyId-obiad')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('bubbleReplyOk')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('automationName')), 'Obiad');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('automationSave')));
+    await tester.pumpAndSettle();
+    final a = store.items.values.single;
+    expect(a.when.single, {'device': 'zegar-ab12cd', 'point': 'bubbleReply', 'eq': 'obiad'});
+    expect(a.then.single, {
+      'device': 'zegar-ab12cd',
+      'set': {
+        'bubble': {'text': 'Obiad gotowy!', 'reply': 'Idę!', 'id': 'obiad'},
+      },
+    });
+    expect(clockBubbleIds([...a.then], 'zegar-ab12cd'), {'obiad'});
+    hub.dispose();
   });
 
   test('radio: dwuklik / przytrzymanie przycisku zegara z radiem koliduje', () {

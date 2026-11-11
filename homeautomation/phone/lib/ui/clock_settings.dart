@@ -890,43 +890,24 @@ class _ClockSensorPageState extends State<ClockSensorPage> with _ClockConfig {
 
 // ---------------------------------------------------------------- Motyw
 
-class ClockThemePage extends StatefulWidget {
-  const ClockThemePage({super.key, required this.controller, this.loadIndex = loadThemePackIndex});
+/// Paczki zegara - motywy (`themePack`, `.dctp`) albo treści ciekawostek (`contentPack`, `.dccp`): zainstalowane
+/// (State `themePacks` / `contentPacks`), postęp (`themeInstall` / `contentInstall`), usuwanie i paczki do pobrania
+/// z indeksu. Wolne miejsce (`themeFree`) jest wspólne - obie leżą w LittleFS zegara.
+mixin _ClockPacks<T extends StatefulWidget> on State<T>, _ClockConfig<T> {
+  Future<List<ClockPack>>? _index;
 
-  final DeviceController<Object?, Object?> controller;
-
-  /// Indeks paczek do pobrania (w testach podmieniany).
-  final Future<List<ClockThemePack>> Function() loadIndex;
-
-  @override
-  State<ClockThemePage> createState() => _ClockThemePageState();
-}
-
-class _ClockThemePageState extends State<ClockThemePage> with _ClockConfig {
-  @override
-  DeviceController<Object?, Object?> get c => widget.controller;
-
-  Future<List<ClockThemePack>>? _index;
-
-  /// Set `theme` bez `packs` (lista paczek jest tylko do odczytu).
-  Future<Map<String, String>> _setTheme(Json changes) => send({
-    'theme': {...obj('theme'), ...changes}..remove('packs'),
-  });
-
-  List<ClockThemePack> get _installed => ClockThemePack.listFrom(c.stateJson?['themePacks']);
-
-  Future<void> _install(ClockThemePack p) => send({
-    'themePack': {
+  Future<void> _install(String setKey, ClockPack p) => send({
+    setKey: {
       'install': {'url': p.url, 'sha256': p.sha256},
     },
   });
 
-  Future<void> _remove(ClockThemePack p) async {
+  Future<void> _remove(String setKey, ClockPack p, String what) async {
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Usunąć paczkę „${p.name}”?'),
-        content: const Text('Gdy zegar pokazuje motyw z tej paczki, wróci do motywu, na którym ten motyw się opiera.'),
+        content: Text(what),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Anuluj')),
           FilledButton(
@@ -939,14 +920,13 @@ class _ClockThemePageState extends State<ClockThemePage> with _ClockConfig {
     );
     if (ok == true) {
       await send({
-        'themePack': {'remove': p.id},
+        setKey: {'remove': p.id},
       });
     }
   }
 
-  /// Instalacja w toku albo jej wynik (State `themeInstall`).
-  Widget? _installState() {
-    final s = c.stateJson?['themeInstall'];
+  /// Instalacja w toku albo jej wynik.
+  Widget? _installState(Object? s) {
     if (s is! Map) return null;
     final (text, busy) = switch (s['state']) {
       'download' => ('Pobieranie paczki ${s['id'] ?? ''}…', true),
@@ -963,55 +943,65 @@ class _ClockThemePageState extends State<ClockThemePage> with _ClockConfig {
     );
   }
 
-  List<Widget> _packs(String chosen) {
-    final installed = _installed;
-    final free = (c.stateJson?['themeFree'] as num?)?.toInt();
-    final busy = switch ((c.stateJson?['themeInstall'] as Map?)?['state']) {
+  /// Sekcja paczek; [below] - pod zainstalowaną paczką (np. wybór motywu z niej).
+  List<Widget> packSection({
+    required bool content,
+    required Future<List<ClockPack>> Function() load,
+    Widget Function(ClockPack)? below,
+  }) {
+    final st = c.stateJson;
+    final setKey = content ? 'contentPack' : 'themePack';
+    final install = st?[content ? 'contentInstall' : 'themeInstall'];
+    final installed = ClockPack.listFrom(st?[content ? 'contentPacks' : 'themePacks']);
+    final free = (st?['themeFree'] as num?)?.toInt();
+    final busy = switch ((install as Map?)?['state']) {
       'download' || 'verify' => true,
       _ => false,
     };
+    String itemsText(ClockPack p) => content
+        ? '${p.items.length} kat., ${p.items.fold<int>(0, (n, i) => n + i.count)} poz.'
+        : '${p.items.length} mot.';
     // FutureBuilder niżej buduje się dopiero po przewinięciu - błąd bez niego nie może zostać „nieobsłużony”
-    _index ??= widget.loadIndex()..ignore();
+    _index ??= load()..ignore();
     return [
-      const SectionHeader('Paczki motywów'),
+      SectionHeader(content ? 'Paczki ciekawostek' : 'Paczki motywów'),
       Text(
-        'Dodatkowe motywy bez aktualizacji firmware, osobno w każdym zegarze'
-        '${free == null ? '' : ' (wolne miejsce: ${clockBytesText(free)})'}.',
+        '${content ? 'Dodatkowe ciekawostki, zagadki i cytaty' : 'Dodatkowe motywy'} bez aktualizacji firmware, '
+        'osobno w każdym zegarze${free == null ? '' : ' (wolne miejsce: ${clockBytesText(free)})'}.',
         style: Theme.of(context).textTheme.bodySmall,
       ),
-      ?_installState(),
+      ?_installState(install),
       if (installed.isEmpty)
         const Padding(padding: EdgeInsets.only(top: 8), child: Text('Ten zegar nie ma jeszcze paczek.')),
       for (final p in installed) ...[
         ListTile(
           key: Key('clockPack-${p.id}'),
           contentPadding: EdgeInsets.zero,
-          leading: const Icon(Icons.collections_outlined),
+          leading: Icon(content ? Icons.library_books_outlined : Icons.collections_outlined),
           title: Text(p.name),
-          subtitle: Text('wersja ${p.version} · ${clockBytesText(p.size)}'),
-          trailing: IconButton(
-            key: Key('clockPackRemove-${p.id}'),
-            tooltip: 'Usuń paczkę',
-            icon: const Icon(Icons.delete_outline),
-            onPressed: busy ? null : () => _remove(p),
-          ),
+          subtitle: Text('wersja ${p.version} · ${itemsText(p)} · ${clockBytesText(p.size)}'),
+          // Zestaw wbudowany w firmware jest nieusuwalny (wyłącza się go kategoriami)
+          trailing: content && p.id == 'wbudowane'
+              ? null
+              : IconButton(
+                  key: Key('clockPackRemove-${p.id}'),
+                  tooltip: 'Usuń paczkę',
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: busy
+                      ? null
+                      : () => _remove(
+                          setKey,
+                          p,
+                          content
+                              ? 'Ciekawostki z tej paczki przestaną się pojawiać.'
+                              : 'Gdy zegar pokazuje motyw z tej paczki, wróci do motywu, na którym ten motyw się opiera.',
+                        ),
+                ),
         ),
-        Wrap(
-          spacing: 8,
-          runSpacing: 4,
-          children: [
-            for (final t in p.themes)
-              ChoiceChip(
-                key: Key('clockTheme-${p.id}/${t.id}'),
-                label: Text(t.name),
-                selected: chosen == '${p.id}/${t.id}',
-                onSelected: (_) => _setTheme({'name': '${p.id}/${t.id}'}),
-              ),
-          ],
-        ),
+        ?below?.call(p),
       ],
       const SectionHeader('Do pobrania'),
-      FutureBuilder<List<ClockThemePack>>(
+      FutureBuilder<List<ClockPack>>(
         future: _index,
         builder: (context, snap) {
           if (snap.connectionState != ConnectionState.done) return const LinearProgressIndicator();
@@ -1020,7 +1010,7 @@ class _ClockThemePageState extends State<ClockThemePage> with _ClockConfig {
           }
           final have = {for (final p in installed) p.id: p.version};
           final offer = [
-            for (final p in snap.data ?? const <ClockThemePack>[])
+            for (final p in snap.data ?? const <ClockPack>[])
               if (!have.containsKey(p.id) || clockVersionNewer(p.version, have[p.id]!)) p,
           ];
           if (offer.isEmpty) return const Text('Brak nowych paczek.');
@@ -1031,7 +1021,7 @@ class _ClockThemePageState extends State<ClockThemePage> with _ClockConfig {
                   key: Key('clockPackOffer-${p.id}'),
                   contentPadding: EdgeInsets.zero,
                   leading: p.thumb == null
-                      ? const Icon(Icons.collections_outlined)
+                      ? Icon(content ? Icons.library_books_outlined : Icons.collections_outlined)
                       : ClipRRect(
                           borderRadius: BorderRadius.circular(6),
                           child: Image.network(
@@ -1046,14 +1036,14 @@ class _ClockThemePageState extends State<ClockThemePage> with _ClockConfig {
                   subtitle: Text(
                     [
                       if (p.author != null) p.author!,
-                      '${p.themes.length} mot.',
+                      itemsText(p),
                       clockBytesText(p.size),
                       if (free != null && p.size > free) 'za mało miejsca',
                     ].join(' · '),
                   ),
                   trailing: FilledButton.tonal(
                     key: Key('clockPackInstall-${p.id}'),
-                    onPressed: busy || (free != null && p.size > free) ? null : () => _install(p),
+                    onPressed: busy || (free != null && p.size > free) ? null : () => _install(setKey, p),
                     child: Text(have.containsKey(p.id) ? 'Aktualizuj' : 'Zainstaluj'),
                   ),
                 ),
@@ -1063,6 +1053,28 @@ class _ClockThemePageState extends State<ClockThemePage> with _ClockConfig {
       ),
     ];
   }
+}
+
+class ClockThemePage extends StatefulWidget {
+  const ClockThemePage({super.key, required this.controller, this.loadIndex = loadThemePackIndex});
+
+  final DeviceController<Object?, Object?> controller;
+
+  /// Indeks paczek do pobrania (w testach podmieniany).
+  final Future<List<ClockPack>> Function() loadIndex;
+
+  @override
+  State<ClockThemePage> createState() => _ClockThemePageState();
+}
+
+class _ClockThemePageState extends State<ClockThemePage> with _ClockConfig, _ClockPacks {
+  @override
+  DeviceController<Object?, Object?> get c => widget.controller;
+
+  /// Set `theme` bez `packs` (lista paczek jest tylko do odczytu).
+  Future<Map<String, String>> _setTheme(Json changes) => send({
+    'theme': {...obj('theme'), ...changes}..remove('packs'),
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1110,7 +1122,24 @@ class _ClockThemePageState extends State<ClockThemePage> with _ClockConfig {
             ),
         ],
       ),
-      if (packs) ..._packs(chosen),
+      if (packs)
+        ...packSection(
+          content: false,
+          load: widget.loadIndex,
+          below: (p) => Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              for (final t in p.items)
+                ChoiceChip(
+                  key: Key('clockTheme-${p.id}/${t.id}'),
+                  label: Text(t.name),
+                  selected: chosen == '${p.id}/${t.id}',
+                  onSelected: (_) => _setTheme({'name': '${p.id}/${t.id}'}),
+                ),
+            ],
+          ),
+        ),
     ]);
   }
 }
@@ -1959,4 +1988,279 @@ class _StationDialogState extends State<_StationDialog> {
       FilledButton(key: const Key('clockStationSave'), onPressed: _save, child: const Text('Zapisz')),
     ],
   );
+}
+
+// ---------------------------------------------------------------- Dymki i ciekawostki
+
+/// Dymki (Config `bubbles`): głośność sygnału i limit zwykłych dymków na dobę.
+class ClockBubblesPage extends StatefulWidget {
+  const ClockBubblesPage({super.key, required this.controller});
+
+  final DeviceController<Object?, Object?> controller;
+
+  @override
+  State<ClockBubblesPage> createState() => _ClockBubblesPageState();
+}
+
+class _ClockBubblesPageState extends State<ClockBubblesPage> with _ClockConfig {
+  @override
+  DeviceController<Object?, Object?> get c => widget.controller;
+
+  double? _vol;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!clockHasBubbles(cfg)) {
+      return page('Dymki', const [Text('Ten zegar nie ma dymków - wymaga nowszego firmware.')]);
+    }
+    final b = obj('bubbles');
+    final vol = _vol ?? ((b['vol'] as num?)?.toDouble() ?? 30).clamp(0, 100).toDouble();
+    final max = (b['maxPerDay'] as num?)?.toInt() ?? 30;
+    return page('Dymki', [
+      const Text(
+        'Dymki to krótkie wiadomości na ekranie zegara - z aplikacji („Wiadomość” na ekranie zegara) albo '
+        'z automatyki („Dymek na zegarze”). Odpowiedź środkowym przyciskiem może uruchomić inną automatykę.',
+      ),
+      const SectionHeader('Dźwięk'),
+      Row(
+        children: [
+          const Icon(Icons.volume_down),
+          Expanded(
+            child: Slider(
+              key: const Key('clockBubbleVol'),
+              value: vol,
+              max: 100,
+              divisions: 20,
+              label: '${vol.round()} %',
+              onChanged: (v) => setState(() => _vol = v),
+              onChangeEnd: (v) async {
+                await setIn('bubbles', {'vol': v.round()});
+                if (mounted) setState(() => _vol = null);
+              },
+            ),
+          ),
+          SizedBox(width: 48, child: Text('${vol.round()} %', textAlign: TextAlign.end)),
+        ],
+      ),
+      Text(
+        'Niezależnie od radia; grające radio na czas sygnału się ścisza.',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      const SectionHeader('Limit'),
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Zwykłe dymki na dobę'),
+        subtitle: const Text('Ważne dymki nie mają limitu'),
+        trailing: DropdownButton<int>(
+          key: const Key('clockBubbleMax'),
+          value: max,
+          items: [
+            for (final v in {5, 10, 20, 30, 50, 100, 200, max}) DropdownMenuItem(value: v, child: Text('$v')),
+          ],
+          onChanged: (v) => setIn('bubbles', {'maxPerDay': v}),
+        ),
+      ),
+    ]);
+  }
+}
+
+const _dayLetters = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
+
+/// Ciekawostki (Config `fun`): liczba dziennie, okno godzin, dni, kategorie z paczek treści, czas i dźwięk;
+/// paczki treści jak paczki motywów.
+class ClockFunPage extends StatefulWidget {
+  const ClockFunPage({super.key, required this.controller, this.loadIndex = loadContentPackIndex});
+
+  final DeviceController<Object?, Object?> controller;
+
+  /// Indeks paczek treści (w testach podmieniany).
+  final Future<List<ClockPack>> Function() loadIndex;
+
+  @override
+  State<ClockFunPage> createState() => _ClockFunPageState();
+}
+
+class _ClockFunPageState extends State<ClockFunPage> with _ClockConfig, _ClockPacks {
+  @override
+  DeviceController<Object?, Object?> get c => widget.controller;
+
+  /// Kategorie z zainstalowanych paczek; ta sama kategoria w kilku paczkach - pozycje razem.
+  Map<String, ({String name, int count})> get _categories {
+    final out = <String, ({String name, int count})>{};
+    for (final p in ClockPack.listFrom(c.stateJson?['contentPacks'])) {
+      for (final i in p.items) {
+        out[i.id] = (name: out[i.id]?.name ?? i.name, count: (out[i.id]?.count ?? 0) + i.count);
+      }
+    }
+    return out;
+  }
+
+  Future<void> _window(bool start, String window) async {
+    final parts = window.split('-');
+    final from = _parseHhmm(parts.first) ?? const TimeOfDay(hour: 9, minute: 0);
+    final to = _parseHhmm(parts.length > 1 ? parts[1] : '') ?? const TimeOfDay(hour: 20, minute: 0);
+    final t = await _pickTime(context, start ? from : to);
+    if (t == null || !mounted) return;
+    final a = start ? t : from, b = start ? to : t;
+    if (a.hour * 60 + a.minute >= b.hour * 60 + b.minute) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Okno w ciągu jednego dnia: początek przed końcem (bez przejścia przez północ).')),
+      );
+      return;
+    }
+    await setIn('fun', {'window': '${_hhmm(a)}-${_hhmm(b)}'});
+  }
+
+  Future<void> _toggleCategory(String id, List<String> chosen, Iterable<String> all) async {
+    final on = chosen.isEmpty ? {...all} : {...chosen};
+    on.contains(id) ? on.remove(id) : on.add(id);
+    if (on.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Zostaw co najmniej jedną kategorię.')));
+      return;
+    }
+    await setIn('fun', {
+      'categories': on.containsAll(all)
+          ? <String>[]
+          : [
+              for (final k in all)
+                if (on.contains(k)) k,
+            ],
+    });
+  }
+
+  /// Stan z zegara (State `fun`).
+  String? _today() {
+    final f = c.stateJson?['fun'];
+    if (f is! Map) return null;
+    final next = f['next'];
+    final nextText = next is num && next > 0
+        ? ', następna o ${_hhmm(TimeOfDay.fromDateTime(DateTime.fromMillisecondsSinceEpoch(next.toInt() * 1000)))}'
+        : (next is String ? ', następna o $next' : '');
+    return f['today'] is num ? 'Dziś pokazane: ${f['today']}$nextText' : null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!clockHasBubbles(cfg)) {
+      return page('Ciekawostki', const [Text('Ten zegar nie ma ciekawostek - wymaga nowszego firmware.')]);
+    }
+    final f = obj('fun');
+    final enabled = f['enabled'] != false;
+    final perDay = (f['perDay'] as num?)?.toInt() ?? 3;
+    final window = f['window'] as String? ?? '09:00-20:00';
+    final days = {
+      for (final d in (f['days'] as List? ?? const [1, 2, 3, 4, 5, 6, 7]))
+        if (d is int) d,
+    };
+    final chosen = [
+      for (final k in (f['categories'] as List? ?? const []))
+        if (k is String) k,
+    ];
+    final ttl = (f['ttlS'] as num?)?.toInt() ?? 60;
+    final sound = clockBubbleSounds.containsKey(f['sound']) ? f['sound'] as String : 'pop';
+    final cats = _categories;
+    final today = _today();
+    return page('Ciekawostki', [
+      SwitchListTile(
+        key: const Key('clockFunOn'),
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Ciekawostki w dymkach'),
+        subtitle: Text(
+          today ?? 'Święto dnia, ciekawostki, zagadki i cytaty o losowych porach (co najmniej 45 min odstępu)',
+        ),
+        value: enabled,
+        onChanged: (v) => setIn('fun', {'enabled': v}),
+      ),
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Dziennie'),
+        trailing: DropdownButton<int>(
+          key: const Key('clockFunPerDay'),
+          value: perDay,
+          items: [for (var v = 1; v <= 12; v++) DropdownMenuItem(value: v, child: Text('$v'))],
+          onChanged: enabled ? (v) => setIn('fun', {'perDay': v}) : null,
+        ),
+      ),
+      ListTile(
+        key: const Key('clockFunFrom'),
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Od godziny'),
+        trailing: Text(window.split('-').first),
+        enabled: enabled,
+        onTap: () => _window(true, window),
+      ),
+      ListTile(
+        key: const Key('clockFunTo'),
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Do godziny'),
+        trailing: Text(window.contains('-') ? window.split('-')[1] : ''),
+        enabled: enabled,
+        onTap: () => _window(false, window),
+      ),
+      Wrap(
+        spacing: 6,
+        children: [
+          for (var d = 1; d <= 7; d++)
+            FilterChip(
+              key: Key('clockFunDay-$d'),
+              label: Text(_dayLetters[d - 1]),
+              selected: days.contains(d),
+              onSelected: !enabled
+                  ? null
+                  : (v) {
+                      final next = {...days};
+                      v ? next.add(d) : next.remove(d);
+                      if (next.isEmpty) return;
+                      setIn('fun', {'days': next.toList()..sort()});
+                    },
+            ),
+        ],
+      ),
+      const SectionHeader('Kategorie'),
+      if (cats.isEmpty)
+        const Text('Kategorie pokaże zegar z zestawem ciekawostek.')
+      else
+        Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          children: [
+            for (final MapEntry(key: id, value: cat) in cats.entries)
+              FilterChip(
+                key: Key('clockFunCat-$id'),
+                label: Text(cat.count > 0 ? '${cat.name} (${cat.count})' : cat.name),
+                selected: chosen.isEmpty || chosen.contains(id),
+                onSelected: enabled ? (_) => _toggleCategory(id, chosen, cats.keys) : null,
+              ),
+          ],
+        ),
+      const SectionHeader('Dymek'),
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Na ekranie'),
+        trailing: DropdownButton<int>(
+          key: const Key('clockFunTtl'),
+          value: ttl,
+          items: [
+            for (final v in {...clockFunTtl, ttl})
+              DropdownMenuItem(value: v, child: Text(v < 60 ? '$v s' : '${v ~/ 60} min')),
+          ],
+          onChanged: enabled ? (v) => setIn('fun', {'ttlS': v}) : null,
+        ),
+      ),
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Dźwięk'),
+        trailing: DropdownButton<String>(
+          key: const Key('clockFunSound'),
+          value: sound,
+          items: [
+            for (final MapEntry(key: k, value: l) in clockBubbleSounds.entries)
+              DropdownMenuItem(value: k, child: Text(l)),
+          ],
+          onChanged: enabled ? (v) => setIn('fun', {'sound': v}) : null,
+        ),
+      ),
+      ...packSection(content: true, load: widget.loadIndex),
+    ]);
+  }
 }

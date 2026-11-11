@@ -17,7 +17,35 @@ class FakeClock extends FakeDevice {
     bool withNews = true,
     bool withRadio = true,
     bool withThemePacks = true,
+    bool withBubbles = true,
   }) : _name = name,
+       bubbles = withBubbles ? {'vol': 30, 'maxPerDay': 30} : null,
+       fun = withBubbles
+           ? {
+               'enabled': true,
+               'perDay': 3,
+               'window': '09:00-20:00',
+               'days': [1, 2, 3, 4, 5, 6, 7],
+               'categories': <dynamic>[],
+               'ttlS': 60,
+               'sound': 'pop',
+             }
+           : null,
+       contentPacks = withBubbles
+           ? [
+               {
+                 'id': 'wbudowane',
+                 'version': '1.0.0',
+                 'name': 'Wbudowane',
+                 'size': 0,
+                 'categories': [
+                   {'id': 'swieta', 'name': 'Święta dnia', 'count': 120},
+                   {'id': 'zagadki', 'name': 'Zagadki', 'count': 40},
+                   {'id': 'cytaty', 'name': 'Cytaty', 'count': 60},
+                 ],
+               },
+             ]
+           : null,
        news = withNews
            ? {
                'feeds': <dynamic>[],
@@ -160,6 +188,15 @@ class FakeClock extends FakeDevice {
     },
     if (themePacks != null) ...{'themePacks': themePacks, 'themeFree': themeFree},
     if (themeInstall != null) 'themeInstall': themeInstall,
+    if (bubbles != null) ...{
+      'meeting': meetingUntil != null,
+      'meetingUntil': meetingUntil == 0 ? null : meetingUntil,
+      'bubbleReply': bubbleReply,
+      'bubble': bubbleShown.isEmpty ? null : {'id': bubbleShown.last['id'] ?? 'msg', 'source': 'set', 'since': 0},
+      'bubbleQueue': 0,
+      'fun': {'today': 1, 'next': null},
+      'contentPacks': contentPacks,
+    },
   };
 
   @override
@@ -176,7 +213,114 @@ class FakeClock extends FakeDevice {
     'outdoor': outdoor,
     if (news != null) 'news': news,
     if (radio != null) 'radio': radio,
+    if (bubbles != null) ...{'bubbles': bubbles, 'fun': fun},
   };
+
+  /// Dymki (`bubbles`, `fun`); null = zegar sprzed dymków.
+  Map<String, dynamic>? bubbles, fun;
+  List<Map<String, dynamic>>? contentPacks;
+
+  /// Przyjęte dymki (ostatni na wierzchu), odpowiedź z dymka (`bubbleReply`), koniec spotkania (0 = do wyłączenia).
+  final bubbleShown = <Map<String, dynamic>>[];
+  String? bubbleReply;
+  int? meetingUntil;
+
+  /// Set dymków, spotkania i ciekawostek (pkt 10.2 „Dymki i ciekawostki”).
+  void _applyBubbles(Map<String, dynamic> v, Map<String, String> errors) {
+    int bytes(Object? s) => s is String ? utf8.encode(s).length : -1;
+    if (v['bubble'] case final Object b) {
+      if (bubbles == null) {
+        errors['bubble'] = 'unknown';
+      } else if (b is! Map) {
+        errors['bubble'] = 'value';
+      } else {
+        final e = {
+          if (bytes(b['text']) < 1 || bytes(b['text']) > 200) 'bubble.text': 'length',
+          if (b.containsKey('title') && bytes(b['title']) > 32) 'bubble.title': 'length',
+          if (b.containsKey('reply') && (bytes(b['reply']) < 1 || bytes(b['reply']) > 24)) 'bubble.reply': 'length',
+          if (b.containsKey('sound') && !const {'chime', 'pop', 'gong', 'alarm', 'none'}.contains(b['sound']))
+            'bubble.sound': 'value',
+          if (b.containsKey('ttlS') && !_num(b['ttlS'], 5, 3600)) 'bubble.ttlS': 'range',
+          if (b.containsKey('waitMin') && !_num(b['waitMin'], 0, 720)) 'bubble.waitMin': 'range',
+          if (b.containsKey('prio') && !const {'normal', 'high'}.contains(b['prio'])) 'bubble.prio': 'value',
+          if (b.containsKey('id') && (!RegExp(r'^[a-z0-9-]{1,24}$').hasMatch('${b['id']}') || b['id'] == 'fun'))
+            'bubble.id': 'value',
+        };
+        final normal = bubbleShown.where((x) => x['prio'] != 'high').length;
+        if (e.isNotEmpty) {
+          errors.addAll(e);
+        } else if (b['prio'] != 'high' && normal >= ((bubbles!['maxPerDay'] as num?) ?? 30)) {
+          errors['bubble'] = 'limit';
+        } else {
+          bubbleShown.add(b.cast<String, dynamic>());
+        }
+      }
+    }
+    if (v['bubbleCancel'] is String) {
+      bubbleShown.removeWhere((x) => v['bubbleCancel'] == '*' || x['id'] == v['bubbleCancel']);
+    }
+    if (v.containsKey('meeting')) {
+      final m = v['meeting'];
+      if (bubbles == null) {
+        errors['meeting'] = 'unknown';
+      } else if (m == true) {
+        meetingUntil = 0;
+      } else if (m == false) {
+        meetingUntil = null;
+      } else if (_num(m, 1, 720)) {
+        meetingUntil = _clock().millisecondsSinceEpoch ~/ 1000 + (m as num).toInt() * 60;
+      } else {
+        errors['meeting'] = 'range';
+      }
+    }
+    if (v['bubbles'] case final Map b) {
+      if (b.containsKey('vol') && !_num(b['vol'], 0, 100)) {
+        errors['bubbles.vol'] = 'range';
+      } else if (b.containsKey('maxPerDay') && !_num(b['maxPerDay'], 1, 200)) {
+        errors['bubbles.maxPerDay'] = 'range';
+      } else if (bubbles != null) {
+        bubbles = {...bubbles!, ...b.cast<String, dynamic>()};
+      }
+    }
+    if (v['fun'] case final Map f) {
+      final w = RegExp(r'^(\d\d):(\d\d)-(\d\d):(\d\d)$').firstMatch('${f['window'] ?? '09:00-20:00'}');
+      final e = {
+        if (f.containsKey('perDay') && !_num(f['perDay'], 1, 12)) 'fun.perDay': 'range',
+        if (w == null || '${w[1]}${w[2]}'.compareTo('${w[3]}${w[4]}') >= 0) 'fun.window': 'format',
+        if (f.containsKey('days') && (f['days'] is! List || (f['days'] as List).any((d) => !_num(d, 1, 7))))
+          'fun.days': 'value',
+        if (f.containsKey('ttlS') && !_num(f['ttlS'], 10, 600)) 'fun.ttlS': 'range',
+        if (f.containsKey('sound') && !const {'chime', 'pop', 'gong', 'alarm', 'none'}.contains(f['sound']))
+          'fun.sound': 'value',
+      };
+      if (e.isNotEmpty) {
+        errors.addAll(e);
+      } else if (fun != null) {
+        fun = {...fun!, ...f.cast<String, dynamic>()};
+      }
+    }
+    if (v['contentPack'] case final Map p) {
+      if (contentPacks == null) {
+        errors['contentPack'] = 'unknown';
+      } else if (p['remove'] is String && p['remove'] != 'wbudowane') {
+        contentPacks!.removeWhere((x) => x['id'] == p['remove']);
+      } else if (p['install'] case final Map i when packFiles.containsKey('${i['url']}')) {
+        final f = packFiles['${i['url']}']!;
+        contentPacks!
+          ..removeWhere((x) => x['id'] == f['id'])
+          ..add(f);
+      } else {
+        errors['contentPack'] = 'format';
+      }
+    }
+  }
+
+  /// Środkowy przycisk przy dymku z odpowiedzią: State `bubbleReply` = id (atrapa nie wraca sama do null).
+  void replyToBubble() {
+    final b = bubbleShown.lastWhere((x) => x['reply'] != null, orElse: () => const {});
+    bubbleReply = b.isEmpty ? null : '${b['id'] ?? 'msg'}';
+    _broadcastState();
+  }
 
   /// Błędy `radio` jak w kontrakcie (stacja: nazwa 1-24 B, `url` http(s) ≤ 256 B bez spacji).
   Map<String, String> _radioErrors(Map r) {
@@ -503,6 +647,7 @@ class FakeClock extends FakeDevice {
       }
     }
     _applyRadioAndPacks(v, errors);
+    _applyBubbles(v, errors);
     if (v['identify'] == true) identifies++;
     if (v['ext'] case final List list) {
       for (final e in list) {
@@ -557,6 +702,10 @@ class FakeClock extends FakeDevice {
           'options': ['next', 'prev', for (final s in _stations) (s as Map)['name']],
           'access': 'control',
         },
+      ],
+      if (bubbles != null) ...[
+        {'key': 'meeting', 'name': 'Spotkanie', 'kind': 'switch', 'access': 'control'},
+        {'key': 'bubbleReply', 'name': 'Odpowiedź z dymka', 'kind': 'status'},
       ],
     ],
   };
