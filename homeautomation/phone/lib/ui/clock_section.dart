@@ -8,6 +8,7 @@ import '../controllers/device_hub.dart';
 import '../controllers/field_errors.dart';
 import '../models/clock.dart';
 import '../models/json_utils.dart';
+import 'clock_alarms.dart';
 import 'clock_bubble.dart';
 import 'clock_buttons.dart';
 import 'clock_pages.dart';
@@ -101,6 +102,103 @@ class ClockSection extends StatelessWidget {
     return ' (do ${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')})';
   }
 
+  /// „Wyłącz radio za”: 15-90 min albo anulowanie (Set `sleepTimer`, fw 0.8.0).
+  Future<void> _sleep(BuildContext context, bool active) async {
+    final v = await showModalBottomSheet<int>(
+      context: context,
+      showDragHandle: true,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const ListTile(title: Text('Wyłącz radio za')),
+            for (final MapEntry(key: m, value: label) in clockSleepOptions.entries)
+              ListTile(
+                key: Key('clockSleep-$m'),
+                leading: const Icon(Icons.bedtime_outlined),
+                title: Text(label),
+                onTap: () => Navigator.pop(ctx, m),
+              ),
+            if (active)
+              ListTile(
+                key: const Key('clockSleep-0'),
+                leading: const Icon(Icons.close),
+                title: const Text('Nie wyłączaj'),
+                onTap: () => Navigator.pop(ctx, 0),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (v != null && context.mounted) await _send(context, {'sleepTimer': v});
+  }
+
+  /// Budzik dzwoni albo drzemka (State `alarm`, fw 0.8.0): karta z drzemką i wyłączeniem.
+  Widget? _alarmCard(BuildContext context, Json s) {
+    final a = s['alarm'];
+    if (a is! Map) return null;
+    final cs = Theme.of(context).colorScheme;
+    final ringing = a['ringing'];
+    final snooze = a['snoozeUntil'];
+    if (ringing is! num && (snooze is! num || snooze <= 0)) return null;
+    final alarms = clockAlarms(_cfg);
+    final id = ringing is num ? ringing.toInt() : ((a['next'] as Map?)?['id'] as num?)?.toInt() ?? 0;
+    final al = alarms != null && id >= 0 && id < alarms.length ? alarms[id] : null;
+    return Card(
+      key: const Key('clockAlarmCard'),
+      color: ringing is num ? cs.errorContainer : cs.secondaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(0, 4, 8, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            ListTile(
+              leading: Icon(ringing is num ? Icons.alarm : Icons.snooze),
+              title: Text(ringing is num ? 'Dzwoni budzik ${id + 1}' : 'Drzemka do ${clockHm(snooze as num)}'),
+              subtitle: Text(
+                [
+                  if (a['source'] == 'radio') 'stacja' else if (a['source'] == 'tone') 'dźwięk wbudowany',
+                  if (a['snoozes'] is num && (a['snoozes'] as num) > 0) 'drzemki: ${a['snoozes']}',
+                ].join(' · '),
+              ),
+            ),
+            if (c.canControl)
+              Wrap(
+                spacing: 8,
+                children: [
+                  if (ringing is num)
+                    FilledButton.tonalIcon(
+                      key: const Key('clockAlarmSnooze'),
+                      icon: const Icon(Icons.snooze),
+                      label: Text('Drzemka ${al?.snoozeMin ?? 9} min'),
+                      onPressed: () => _send(context, {'alarmSnooze': true}),
+                    ),
+                  FilledButton.icon(
+                    key: const Key('clockAlarmStop'),
+                    icon: const Icon(Icons.alarm_off),
+                    label: const Text('Wyłącz'),
+                    onPressed: () => _send(context, {'alarmStop': true}),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// „budzik jutro 6:30” (State `alarm.next`), brak czasu - ostrzeżenie; null = bez budzika.
+  String? _alarmText(Json s) {
+    final a = s['alarm'];
+    if (a is! Map) return null;
+    if (a['noTime'] == true && (clockAlarms(_cfg)?.any((x) => x.on) ?? false)) {
+      return 'budzik nie zadzwoni: zegar nie zna czasu';
+    }
+    final n = a['next'];
+    if (n is Map && n['at'] is num) return 'budzik ${clockWhen(n['at'] as num, DateTime.now())}';
+    return null;
+  }
+
   void _open(BuildContext context, Widget page) =>
       Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
 
@@ -159,6 +257,7 @@ class ClockSection extends StatelessWidget {
                     if (s['lux'] is num) '${(s['lux'] as num).round()} lx',
                     if (s['night'] == true) 'tryb nocny',
                     if (s['screen'] is String) 'ekran: ${clockScreenName(s['screen'] as String, pages)}',
+                    if (_alarmText(s) case final String a) a,
                   ].join(' · '),
                   style: t.bodyMedium,
                 ),
@@ -184,10 +283,22 @@ class ClockSection extends StatelessWidget {
             ),
           ),
         ),
+        ?_alarmCard(context, s),
         if (c.canControl)
           Wrap(
             spacing: 8,
             children: [
+              if (s['radioOn'] == true && s.containsKey('sleepUntil'))
+                OutlinedButton.icon(
+                  key: const Key('clockSleep'),
+                  icon: const Icon(Icons.bedtime_outlined),
+                  label: Text(
+                    s['sleepUntil'] is num && (s['sleepUntil'] as num) > 0
+                        ? 'Radio do ${clockHm(s['sleepUntil'] as num)}'
+                        : 'Wyłącz radio za…',
+                  ),
+                  onPressed: () => _sleep(context, s['sleepUntil'] is num && (s['sleepUntil'] as num) > 0),
+                ),
               OutlinedButton.icon(
                 key: const Key('clockShowScreen'),
                 icon: const Icon(Icons.tv_outlined),
@@ -272,6 +383,19 @@ class ClockSection extends StatelessWidget {
             enabled: clockHasNews(cfg),
             onTap: () => _open(context, ClockNewsPage(controller: c)),
           ),
+          if (clockAlarms(cfg) case final alarms?)
+            ListTile(
+              key: const Key('clockAlarms'),
+              leading: const Icon(Icons.alarm),
+              title: const Text('Budzik'),
+              subtitle: Text(
+                [
+                  for (final (i, a) in alarms.indexed)
+                    'Budzik ${i + 1}: ${a.on ? '${a.timeText} · ${clockAlarmDays(a.days)}' : 'wył.'}',
+                ].join('\n'),
+              ),
+              onTap: () => _open(context, ClockAlarmsPage(controller: c)),
+            ),
           if (clockHasRadio(cfg))
             ListTile(
               key: const Key('clockRadio'),

@@ -390,7 +390,8 @@ const clockMaxStations = 12;
 bool clockHasRadio(Map<String, dynamic>? cfg) => cfg?['radio'] is Map;
 
 /// Zegar z ekranem `radio` (fw 0.6.0: Config `radio.showS`, `stations[].logo`).
-bool clockHasRadioScreen(Map<String, dynamic>? cfg) => cfg?['radio'] is Map && (cfg!['radio'] as Map).containsKey('showS');
+bool clockHasRadioScreen(Map<String, dynamic>? cfg) =>
+    cfg?['radio'] is Map && (cfg!['radio'] as Map).containsKey('showS');
 
 /// Stacja radia (`radio.stations[]`): nazwa 1-24 B, strumień MP3 http/https, logo (adres PNG/JPG, '' = bez logo).
 typedef ClockStation = ({String name, String url, String logo});
@@ -761,3 +762,96 @@ const clockTileColors = {
   'purple': (0xFFE4DCFF, 0xFF5B3FB8, 0xFF33207A),
   'grey': (0xFFE3E6EC, 0xFF5A6275, 0xFF1B1F2A),
 };
+
+// ---------------------------------------------------------------- Budzik (fw 0.8.0, pkt 10.2 „Menu i budzik”)
+
+/// Budzik z Config `alarms` (zawsze 2). `days` - dni ISO 1-7, pusta lista = jednorazowo.
+class ClockAlarm {
+  const ClockAlarm({
+    this.on = false,
+    this.time = '06:30',
+    this.days = const [1, 2, 3, 4, 5],
+    this.source = 'tone',
+    this.station = '',
+    this.vol = 50,
+    this.rampS = 30,
+    this.snoozeMin = 9,
+  });
+
+  factory ClockAlarm.fromJson(Object? j) {
+    if (j is! Map) return const ClockAlarm();
+    return ClockAlarm(
+      on: j['on'] == true,
+      time: j['time'] is String ? j['time'] as String : '06:30',
+      days: j['days'] is List
+          ? [
+              for (final d in j['days'] as List)
+                if (d is num) d.toInt(),
+            ]
+          : const [],
+      source: j['source'] == 'radio' ? 'radio' : 'tone',
+      station: j['station'] is String ? j['station'] as String : '',
+      vol: (j['vol'] as num?)?.toInt() ?? 50,
+      rampS: (j['rampS'] as num?)?.toInt() ?? 30,
+      snoozeMin: (j['snoozeMin'] as num?)?.toInt() ?? 9,
+    );
+  }
+
+  final bool on;
+  final String time;
+  final List<int> days;
+  final String source, station;
+  final int vol, rampS, snoozeMin;
+
+  /// „6:30” bez zera wiodącego godziny.
+  String get timeText => time.startsWith('0') && time.length == 5 ? time.substring(1) : time;
+}
+
+/// Budziki z Config; null = zegar bez budzika (fw starszy niż 0.8.0).
+List<ClockAlarm>? clockAlarms(Map<String, dynamic>? cfg) {
+  final a = cfg?['alarms'];
+  if (a is! List) return null;
+  return [for (var i = 0; i < 2; i++) ClockAlarm.fromJson(i < a.length ? a[i] : null)];
+}
+
+const clockWeekdays = ['pn', 'wt', 'śr', 'cz', 'pt', 'so', 'nd'];
+
+/// „pn–pt”, „weekend”, „codziennie”, „jednorazowo”, „pn, śr, pt” (jak zegar: alarmDaysText).
+String clockAlarmDays(List<int> days) {
+  final s = {...days};
+  if (s.isEmpty) return 'jednorazowo';
+  if (s.length == 7) return 'codziennie';
+  if (s.length == 5 && s.containsAll(const [1, 2, 3, 4, 5])) return 'pn–pt';
+  if (s.length == 2 && s.containsAll(const [6, 7])) return 'weekend';
+  return [
+    for (var d = 1; d <= 7; d++)
+      if (s.contains(d)) clockWeekdays[d - 1],
+  ].join(', ');
+}
+
+const clockAlarmDayPresets = {
+  'Pn–Pt': [1, 2, 3, 4, 5],
+  'Weekend': [6, 7],
+  'Codziennie': [1, 2, 3, 4, 5, 6, 7],
+};
+const clockAlarmRamps = {0: 'Od razu', 15: '15 s', 30: '30 s', 45: '45 s', 60: '60 s', 90: '90 s', 120: '120 s'};
+const clockAlarmSnoozes = {5: '5 min', 9: '9 min', 10: '10 min', 15: '15 min', 20: '20 min', 30: '30 min'};
+
+/// Wyłącznik czasowy radia (Set `sleepTimer`, minuty).
+const clockSleepOptions = {15: '15 min', 30: '30 min', 60: '60 min', 90: '90 min'};
+
+/// „16:22” z czasu unix (s), czas lokalny telefonu.
+String clockHm(num unix) {
+  final t = DateTime.fromMillisecondsSinceEpoch(unix.toInt() * 1000);
+  return '${t.hour}:${t.minute.toString().padLeft(2, '0')}';
+}
+
+/// „dziś 6:30”, „jutro 6:30”, „pn 6:30” względem [now].
+String clockWhen(num unix, DateTime now) {
+  final t = DateTime.fromMillisecondsSinceEpoch(unix.toInt() * 1000);
+  final days = DateTime(t.year, t.month, t.day).difference(DateTime(now.year, now.month, now.day)).inDays;
+  final hm = clockHm(unix);
+  if (days == 0) return 'dziś $hm';
+  if (days == 1) return 'jutro $hm';
+  return '${clockWeekdays[t.weekday - 1]} $hm';
+}

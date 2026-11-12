@@ -26,6 +26,8 @@ import 'package:homeautomation/models/json_utils.dart';
 import 'package:homeautomation/models/light.dart';
 import 'package:homeautomation/models/room.dart';
 import 'package:homeautomation/models/set_values.dart';
+import 'package:homeautomation/controllers/field_errors.dart';
+import 'package:homeautomation/ui/clock_alarms.dart';
 import 'package:homeautomation/ui/clock_buttons.dart';
 import 'package:homeautomation/ui/clock_pages.dart';
 import 'package:homeautomation/ui/clock_section.dart';
@@ -59,6 +61,13 @@ class _Conn<S, C> implements DeviceConnection<S, C> {
 
   /// Set jak w urządzeniu (atrapa) - błędy pól.
   final Map<String, String> Function(Json values)? apply;
+
+  /// Config z urządzenia po Secie częściowym (np. `alarms` z `null`): pełny obraz jak przysłałby zegar.
+  void push(Json cfg) {
+    configJson = cfg;
+    _configs.add(config);
+  }
+
   final sent = <Json>[];
   final _configs = StreamController<C>.broadcast();
 
@@ -679,16 +688,33 @@ void main() {
     final client = MockClient((req) async {
       asked.add(req.url.toString());
       if (req.url.path == '/json/stations/byurl') {
-        return http.Response(jsonEncode([{'favicon': 'https://radio357.pl/logo.png', 'homepage': ''}]), 200);
+        return http.Response(
+          jsonEncode([
+            {'favicon': 'https://radio357.pl/logo.png', 'homepage': ''},
+          ]),
+          200,
+        );
       }
       if (req.url.path == '/json/stations/search') {
-        return http.Response(jsonEncode([{'favicon': 'https://radio357.pl/inne.png'}]), 200);
+        return http.Response(
+          jsonEncode([
+            {'favicon': 'https://radio357.pl/inne.png'},
+          ]),
+          200,
+        );
       }
       if (req.url.path == '/logo.png') return http.Response.bytes(_png1, 200, headers: {'content-type': 'image/png'});
       if (req.url.path == '/inne.png') return http.Response.bytes(_png2, 200, headers: {'content-type': 'image/png'});
       return http.Response('<html>404</html>', 404, headers: {'content-type': 'text/html'});
     });
-    await tester.pumpWidget(_app(ClockRadioPage(controller: c, browser: RadioBrowser(client: client))));
+    await tester.pumpWidget(
+      _app(
+        ClockRadioPage(
+          controller: c,
+          browser: RadioBrowser(client: client),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('clockStationAdd')));
     await tester.pumpAndSettle();
@@ -748,20 +774,35 @@ void main() {
     hub.dispose();
 
     // Model: ekran „radio” tylko przy firmware z showS, stacja bez logo bez pola logo
-    expect(clockHasRadioScreen({'radio': {'stations': [], 'showS': 10}}), true);
-    expect(clockHasRadioScreen({'radio': {'stations': []}}), false);
+    expect(
+      clockHasRadioScreen({
+        'radio': {'stations': [], 'showS': 10},
+      }),
+      true,
+    );
+    expect(
+      clockHasRadioScreen({
+        'radio': {'stations': []},
+      }),
+      false,
+    );
     expect(clockStationJson((name: 'A', url: 'https://a.pl/s', logo: '')), {'name': 'A', 'url': 'https://a.pl/s'});
-    expect(clockStationsFrom({
-      'stations': [
-        {'name': 'A', 'url': 'https://a.pl/s', 'logo': 'https://a.pl/l.jpg'},
-      ],
-    }).single.logo, 'https://a.pl/l.jpg');
+    expect(
+      clockStationsFrom({
+        'stations': [
+          {'name': 'A', 'url': 'https://a.pl/s', 'logo': 'https://a.pl/l.jpg'},
+        ],
+      }).single.logo,
+      'https://a.pl/l.jpg',
+    );
     expect(clockLogoWarning('https://a.pl/favicon.ico'), isNotNull);
     expect(clockLogoWarning('https://a.pl/logo.JPG'), isNull);
     expect(clockScreens['radio'], 'Radio');
   });
 
-  testWidgets('po ręcznej zmianie ekranu: do środkowego przycisku / 5 min, błąd atrapy, ukryte bez holdS', (tester) async {
+  testWidgets('po ręcznej zmianie ekranu: do środkowego przycisku / 5 min, błąd atrapy, ukryte bez holdS', (
+    tester,
+  ) async {
     final fake = FakeClock();
     final (hub, conns, _) = await _home(clock: fake);
     final conn = conns['zegar-ab12cd']!;
@@ -795,6 +836,142 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('clockHold')), findsNothing);
     hub2.dispose();
+  });
+
+  testWidgets('budzik: karta dzwonienia (drzemka, wyłącz), wyłącznik czasowy radia, kafel ustawień', (tester) async {
+    final fake = FakeClock()
+      ..radio!['stations'] = [
+        {'name': 'Jazz', 'url': 'http://a/jazz'},
+      ]
+      ..radioOn = true
+      ..radioStation = 'Jazz'
+      ..alarms![0]['on'] = true
+      ..ring(0);
+    final (hub, conns, _) = await _home(clock: fake);
+    final conn = conns['zegar-ab12cd']!;
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    await tester.pumpWidget(
+      _app(
+        Scaffold(
+          body: SingleChildScrollView(
+            child: ClockSection(controller: c, hub: hub),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Dzwoni budzik 1'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('clockAlarmSnooze')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {'alarmSnooze': true});
+    expect(fake.snoozeUntil, greaterThan(0));
+    expect(fake.alarmRinging, isNull);
+    await tester.tap(find.byKey(const Key('clockAlarmStop')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {'alarmStop': true});
+    expect(fake.snoozeUntil, 0);
+    // Wyłącznik czasowy: przy grającym radiu
+    await tester.tap(find.byKey(const Key('clockSleep')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockSleep-30')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {'sleepTimer': 30});
+    expect(fake.sleepUntil, greaterThan(0));
+    expect(fake.applySet({'sleepTimer': 200}), {'sleepTimer': 'range'});
+    expect(find.byKey(const Key('clockAlarms')), findsOneWidget);
+    expect(find.text('Budzik 1: 6:30 · pn–pt\nBudzik 2: wył.'), findsOneWidget);
+    hub.dispose();
+
+    // Zegar sprzed 0.8.0: bez budzika i wyłącznika
+    final old = FakeClock(withAlarms: false)
+      ..radio!['stations'] = [
+        {'name': 'Jazz', 'url': 'http://a/jazz'},
+      ]
+      ..radioOn = true;
+    final (hub2, _, _) = await _home(clock: old);
+    final c2 = hub2.controller('zegar-ab12cd')!;
+    await tester.runAsync(c2.connect);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(
+      _app(
+        Scaffold(
+          body: SingleChildScrollView(
+            child: ClockSection(controller: c2, hub: hub2),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clockAlarms')), findsNothing);
+    expect(find.byKey(const Key('clockSleep')), findsNothing);
+    expect(find.byKey(const Key('clockAlarmCard')), findsNothing);
+    hub2.dispose();
+  });
+
+  testWidgets('budzik: ekran budzików - włączenie, dni, skrót, dźwięk ze stacji, drzemka, błędy', (tester) async {
+    final fake = FakeClock()
+      ..radio!['stations'] = [
+        {'name': 'Jazz', 'url': 'http://a/jazz'},
+      ];
+    final (hub, conns, _) = await _home(clock: fake);
+    final conn = conns['zegar-ab12cd']!;
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    await tester.pumpWidget(_app(ClockAlarmsPage(controller: c)));
+    await tester.pumpAndSettle();
+    // Po każdym Secie zegar przysyła pełny Config (Set budzika jest częściowy)
+    Future<void> sync() async {
+      conn.push(fake.configJson());
+      await tester.pumpAndSettle();
+    }
+
+    expect(find.text('Żaden budzik nie jest włączony'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('clockAlarmOn-0')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'alarms': [
+        {'on': true},
+        null,
+      ],
+    });
+    expect(fake.alarms![0]['on'], isTrue);
+    await sync();
+    await tester.tap(find.byKey(const Key('clockAlarmDay-0-3'))); // środa odznaczona
+    await tester.pumpAndSettle();
+    expect(fake.alarms![0]['days'], [1, 2, 4, 5]);
+    await sync();
+    await tester.tap(find.byKey(const Key('clockAlarmPreset-0-Weekend')));
+    await tester.pumpAndSettle();
+    expect(fake.alarms![0]['days'], [6, 7]);
+    await sync();
+    await tester.tap(find.byKey(const Key('clockAlarmSource-0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Jazz').last);
+    await tester.pumpAndSettle();
+    expect(fake.alarms![0]['source'], 'radio');
+    expect(fake.alarms![0]['station'], 'Jazz');
+    await sync();
+    await _scrollTo(tester, find.byKey(const Key('clockAlarmSnooze-0')));
+    await tester.tap(find.byKey(const Key('clockAlarmSnooze-0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('15 min').last);
+    await tester.pumpAndSettle();
+    expect(fake.alarms![0]['snoozeMin'], 15);
+    expect(
+      fake.applySet({
+        'alarms': [
+          {'time': '25:00', 'vol': 3},
+        ],
+      }),
+      {'alarms.0.time': 'value', 'alarms.0.vol': 'range'},
+    );
+    expect(fake.applySet({'alarmSnooze': true}), {'alarmSnooze': 'state'});
+    expect(describeErrors({'alarms.0.time': 'value'}), startsWith('Budzik 1 - godzina: '));
+    expect(clockAlarmDays([1, 2, 3, 4, 5]), 'pn–pt');
+    expect(clockAlarmDays([1, 3]), 'pn, śr');
+    expect(clockAlarmDays([]), 'jednorazowo');
+    hub.dispose();
   });
 
   testWidgets('korekcja głośnika: wybór w ustawieniach radia, opis, błąd atrapy, ukryta bez pola eq', (tester) async {
@@ -832,7 +1009,9 @@ void main() {
     hub2.dispose();
   });
 
-  testWidgets('Szukaj stacji: filtr MP3, wypełnienie nazwy (limit), strumienia i logo ze strony stacji', (tester) async {
+  testWidgets('Szukaj stacji: filtr MP3, wypełnienie nazwy (limit), strumienia i logo ze strony stacji', (
+    tester,
+  ) async {
     final fake = FakeClock();
     final (hub, conns, _) = await _home(clock: fake);
     final conn = conns['zegar-ab12cd']!;
@@ -869,7 +1048,14 @@ void main() {
       if (p == '/img/apple.png') return http.Response.bytes(_png1, 200, headers: {'content-type': 'image/png'});
       return http.Response('nie ma', 404, headers: {'content-type': 'text/html'});
     });
-    await tester.pumpWidget(_app(ClockRadioPage(controller: c, browser: RadioBrowser(client: client))));
+    await tester.pumpWidget(
+      _app(
+        ClockRadioPage(
+          controller: c,
+          browser: RadioBrowser(client: client),
+        ),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('clockStationAdd')));
     await tester.pumpAndSettle();
@@ -901,7 +1087,10 @@ void main() {
     // Ręcznie wpisany martwy adres logo: komunikat i „Zapisz mimo to”
     await tester.tap(find.byKey(const Key('clockStation-0')));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byKey(const Key('clockStationLogo')), 'https://www.rmf.fm/inc/img/favicon/apple-icon-114x114.png?2');
+    await tester.enterText(
+      find.byKey(const Key('clockStationLogo')),
+      'https://www.rmf.fm/inc/img/favicon/apple-icon-114x114.png?2',
+    );
     await tester.tap(find.byKey(const Key('clockStationSave')));
     await tester.pumpAndSettle();
     expect(find.textContaining('Logo nie działa: HTTP 404'), findsOneWidget);
@@ -1530,5 +1719,7 @@ void main() {
 }
 
 /// Prawidłowy PNG 1×1 (podgląd w testach) i ten sam obraz z dopiskiem za IEND (inny plik, ten sam nagłówek).
-final _png1 = base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=');
+final _png1 = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=',
+);
 final _png2 = Uint8List.fromList([..._png1, 1, 2, 3]);

@@ -18,7 +18,32 @@ class FakeClock extends FakeDevice {
     bool withRadio = true,
     bool withThemePacks = true,
     bool withBubbles = true,
+    bool withAlarms = true,
   }) : _name = name,
+       alarms = withAlarms
+           ? [
+               {
+                 'on': false,
+                 'time': '06:30',
+                 'days': [1, 2, 3, 4, 5],
+                 'source': 'tone',
+                 'station': '',
+                 'vol': 50,
+                 'rampS': 30,
+                 'snoozeMin': 9,
+               },
+               {
+                 'on': false,
+                 'time': '08:00',
+                 'days': [6, 7],
+                 'source': 'tone',
+                 'station': '',
+                 'vol': 60,
+                 'rampS': 30,
+                 'snoozeMin': 9,
+               },
+             ]
+           : null,
        bubbles = withBubbles ? {'vol': 30, 'maxPerDay': 30} : null,
        fun = withBubbles
            ? {
@@ -59,7 +84,117 @@ class FakeClock extends FakeDevice {
            : null,
        themePacks = withThemePacks ? [] : null {
     cloudCapable = false;
-    wifiApSupported = true;   // zegar fw 0.7.0: punkt sieci mesh (pkt 9.6)
+    wifiApSupported = true; // zegar fw 0.7.0: punkt sieci mesh (pkt 9.6)
+  }
+
+  /// Budziki (`alarms`, fw 0.8.0); null = zegar sprzed budzika. Stan: dzwoni [alarmRinging] (id), drzemka do
+  /// [snoozeUntil] (unix), [snoozes], wyłącznik czasowy radia [sleepUntil] (unix, 0 = brak).
+  List<Map<String, dynamic>>? alarms;
+  int? alarmRinging;
+  int snoozeUntil = 0, snoozes = 0, sleepUntil = 0;
+  bool alarmNoTime = false;
+
+  /// Budzik [id] zaczyna dzwonić (testy).
+  void ring(int id) {
+    alarmRinging = id;
+    snoozeUntil = 0;
+    _broadcastState();
+  }
+
+  int get _now => _clock().millisecondsSinceEpoch ~/ 1000;
+
+  /// Następny budzik (uproszczony: najbliższa godzina włączonego budzika, bez dni) jak State `alarm.next`.
+  Map<String, dynamic>? get _alarmNext {
+    if (alarmNoTime) return null;
+    final now = _clock();
+    if (alarmRinging != null) return {'id': alarmRinging, 'at': _now, 'local': ''};
+    if (snoozeUntil > 0) return {'id': 0, 'at': snoozeUntil, 'local': ''};
+    Map<String, dynamic>? best;
+    for (final (i, a) in (alarms ?? const <Map<String, dynamic>>[]).indexed) {
+      if (a['on'] != true) continue;
+      final p = '${a['time']}'.split(':');
+      var t = DateTime(now.year, now.month, now.day, int.parse(p[0]), int.parse(p[1]));
+      if (!t.isAfter(now)) t = t.add(const Duration(days: 1));
+      final at = t.millisecondsSinceEpoch ~/ 1000;
+      if (best == null || at < (best['at'] as int)) best = {'id': i, 'at': at, 'local': '${a['time']}'};
+    }
+    return best;
+  }
+
+  /// Błędy `alarms` jak AlarmsConfig::apply (Alarm.cpp).
+  Map<String, String> _alarmErrors(Object? v) {
+    if (v is! List || v.length > 2) return {'alarms': 'value'};
+    final e = <String, String>{};
+    for (final (i, x) in v.indexed) {
+      if (x == null) continue;
+      final k = 'alarms.$i';
+      if (x is! Map) {
+        e[k] = 'value';
+        continue;
+      }
+      if (x.containsKey('on') && x['on'] is! bool) e['$k.on'] = 'value';
+      if (x.containsKey('time') && !RegExp(r'^([01]\d|2[0-3]):[0-5]\d$').hasMatch('${x['time']}'))
+        e['$k.time'] = 'value';
+      if (x.containsKey('days') &&
+          (x['days'] is! List || (x['days'] as List).any((d) => d is! int || d < 1 || d > 7))) {
+        e['$k.days'] = 'value';
+      }
+      if (x.containsKey('source') && !const ['tone', 'radio'].contains(x['source'])) e['$k.source'] = 'value';
+      if (x.containsKey('station') && x['station'] is! String) e['$k.station'] = 'value';
+      if (x.containsKey('vol') && !(x['vol'] is int && _num(x['vol'], 5, 100))) e['$k.vol'] = 'range';
+      if (x.containsKey('rampS') && !(x['rampS'] is int && _num(x['rampS'], 0, 120))) e['$k.rampS'] = 'range';
+      if (x.containsKey('snoozeMin') && !(x['snoozeMin'] is int && _num(x['snoozeMin'], 1, 30)))
+        e['$k.snoozeMin'] = 'range';
+    }
+    return e;
+  }
+
+  /// Set budzika i wyłącznika czasowego (pkt 10.2 „Menu i budzik”).
+  void _applyAlarms(Map<String, dynamic> v, Map<String, String> errors) {
+    if (v.containsKey('alarms')) {
+      if (alarms == null) {
+        errors['alarms'] = 'unknown';
+      } else {
+        final e = _alarmErrors(v['alarms']);
+        if (e.isNotEmpty) {
+          errors.addAll(e);
+        } else {
+          for (final (i, x) in (v['alarms'] as List).indexed) {
+            if (x is Map) alarms![i] = {...alarms![i], ...x.cast<String, dynamic>()};
+          }
+        }
+      }
+    }
+    if (v['alarmSnooze'] == true) {
+      if (alarmRinging == null) {
+        errors['alarmSnooze'] = 'state';
+      } else {
+        final m = (alarms![alarmRinging!]['snoozeMin'] as num).toInt();
+        alarmRinging = null;
+        snoozes++;
+        snoozeUntil = _now + m * 60;
+      }
+    }
+    if (v['alarmStop'] == true) {
+      if (alarmRinging == null && snoozeUntil == 0) {
+        errors['alarmStop'] = 'state';
+      } else {
+        alarmRinging = null;
+        snoozeUntil = 0;
+        snoozes = 0;
+      }
+    }
+    if (v.containsKey('sleepTimer')) {
+      final m = v['sleepTimer'];
+      if (!(m is int && _num(m, 0, 180))) {
+        errors['sleepTimer'] = 'range';
+      } else if (m > 0 && !radioOn) {
+        errors['sleepTimer'] = 'state';
+      } else {
+        sleepUntil = m == 0 ? 0 : _now + m * 60;
+      }
+    }
+    if (v['radioOn'] == false) sleepUntil = 0;
   }
 
   /// Radio (`radio`); null = zegar bez radia. Stan: [radioOn], [radioMute], [radioVol], [radioStation].
@@ -192,6 +327,20 @@ class FakeClock extends FakeDevice {
       },
     },
     if (themePacks != null) ...{'themePacks': themePacks, 'themeFree': themeFree},
+    if (alarms != null) ...{
+      'alarmRinging': alarmRinging != null,
+      'sleepUntil': sleepUntil,
+      'alarm': {
+        'next': _alarmNext,
+        'ringing': alarmRinging,
+        'snoozeUntil': snoozeUntil,
+        'snoozes': snoozes,
+        'source': alarmRinging != null || snoozeUntil > 0 ? 'tone' : null,
+        'noTime': alarmNoTime,
+        'missed': 0,
+        'warn': null,
+      },
+    },
     if (themeInstall != null) 'themeInstall': themeInstall,
     if (bubbles != null) ...{
       'meeting': meetingUntil != null,
@@ -219,6 +368,7 @@ class FakeClock extends FakeDevice {
     if (news != null) 'news': news,
     if (radio != null) 'radio': radio,
     if (bubbles != null) ...{'bubbles': bubbles, 'fun': fun},
+    if (alarms != null) 'alarms': alarms,
   };
 
   /// Dymki (`bubbles`, `fun`); null = zegar sprzed dymków.
@@ -528,6 +678,7 @@ class FakeClock extends FakeDevice {
   @override
   Map<String, String> applySet(Map<String, dynamic> v) {
     final errors = <String, String>{};
+    _applyAlarms(v, errors);
     if (v['name'] case final String n) _name = n;
     if (v.containsKey('pages')) {
       final e = _pagesErrors(v['pages']);
@@ -726,6 +877,11 @@ class FakeClock extends FakeDevice {
       if (bubbles != null) ...[
         {'key': 'meeting', 'name': 'Spotkanie', 'kind': 'switch', 'access': 'control'},
         {'key': 'bubbleReply', 'name': 'Odpowiedź z dymka', 'kind': 'status'},
+      ],
+      if (alarms != null) ...[
+        {'key': 'alarmRinging', 'name': 'Budzik dzwoni', 'kind': 'status'},
+        {'key': 'alarmSnooze', 'name': 'Drzemka', 'kind': 'action', 'access': 'control'},
+        {'key': 'alarmStop', 'name': 'Wyłącz budzik', 'kind': 'action', 'access': 'control'},
       ],
     ],
   };

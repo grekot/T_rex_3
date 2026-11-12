@@ -43,6 +43,10 @@ const fieldLabels = <String, String>{
   'radio.showS': 'Ekran radia po włączeniu',
   'radio.eq': 'Korekcja głośnika',
   'screens.holdS': 'Po ręcznej zmianie ekranu',
+  'alarms': 'Budziki',
+  'alarmStop': 'Wyłączenie budzika',
+  'alarmSnooze': 'Drzemka',
+  'sleepTimer': 'Wyłącz radio za',
   'radioOn': 'Radio',
   'radioStation': 'Stacja radia',
   'radioVol': 'Głośność radia',
@@ -111,6 +115,7 @@ String describeErrorCode(String code) => switch (code) {
   'invalid' => 'plik uszkodzony albo w złym formacie',
   'http' => 'nie udało się pobrać pliku',
   'no_stations' => 'brak stacji radia',
+  'state' => 'nie w tej chwili',
   '' => 'błąd',
   _ => code,
 };
@@ -137,11 +142,29 @@ String? _channelLabel(String key) {
   return '$what ${m.group(2)}$sub';
 }
 
+/// Pola budzików zegara (pkt 10.2): `alarms.0.time` → „Budzik 1 - godzina”.
+String? _alarmLabel(String key) {
+  final m = RegExp(r'^alarms\.(\d)(?:\.(\w+))?$').firstMatch(key);
+  if (m == null) return null;
+  final sub = switch (m.group(2)) {
+    'on' => ' - włączony',
+    'time' => ' - godzina',
+    'days' => ' - dni',
+    'source' => ' - dźwięk',
+    'station' => ' - stacja',
+    'vol' => ' - głośność',
+    'rampS' => ' - narastanie',
+    'snoozeMin' => ' - drzemka',
+    _ => '',
+  };
+  return 'Budzik ${int.parse(m.group(1)!) + 1}$sub';
+}
+
 /// Pod kluczem `_` jest kod termostatu (`json`) albo gotowy komunikat aplikacji.
 String describeErrors(Map<String, String> errors) => errors.entries
     .map(
       (e) => e.key == '_'
           ? describeErrorCode(e.value)
-          : '${fieldLabels[e.key] ?? _channelLabel(e.key) ?? e.key}: ${describeErrorCode(e.value)}',
+          : '${fieldLabels[e.key] ?? _channelLabel(e.key) ?? _alarmLabel(e.key) ?? e.key}: ${describeErrorCode(e.value)}',
     )
     .join('\n');
