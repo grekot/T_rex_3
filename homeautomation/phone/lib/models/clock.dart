@@ -257,12 +257,12 @@ String? clockTerytError(String code) => RegExp(r'^\d{4}$').hasMatch(code) ? null
 String? clockKeywordError(String word) =>
     _bytes(word) < 2 ? 'Co najmniej 2 znaki' : (_bytes(word) > 32 ? 'Najwyżej 32 bajty' : null);
 
-/// Kanały sprawdzone na zegarze 2026-11-10 (sesja firmware wiadomości).
+/// Kanały sprawdzone 2026-11-10 / 2026-11-12. Wiadomości ogólne: Deon (same tytuły - cały tekst przez kod QR na
+/// zegarze) i Vatican News (pełne opisy); RMF24, Polsat, TVN24, Onet zdjęte z listy na prośbę użytkownika
+/// (2026-11-12). PAP i KAI blokują pobieranie przez urządzenia (zabezpieczenie przed botami, 403).
 const clockNewsSuggestions = <({String name, String url})>[
-  (name: 'RMF24', url: 'https://www.rmf24.pl/feed'),
-  (name: 'Polsat News', url: 'https://www.polsatnews.pl/rss/wszystkie.xml'),
-  (name: 'TVN24', url: 'https://tvn24.pl/najnowsze.xml'),
-  (name: 'Onet', url: 'https://wiadomosci.onet.pl/.feed'),
+  (name: 'Deon', url: 'https://deon.pl/rss'),
+  (name: 'Vatican News', url: 'https://www.vaticannews.va/pl.rss.xml'),
   (name: 'Gazeta Krakowska', url: 'https://gazetakrakowska.pl/rss/gazetakrakowska.xml'),
   (name: 'Wyborcza Kraków', url: 'https://krakow.wyborcza.pl/pub/rss/krakow.xml'),
   (name: 'Bochnianin', url: 'https://bochnianin.pl/feed/'),

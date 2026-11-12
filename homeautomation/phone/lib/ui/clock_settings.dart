@@ -1381,6 +1381,35 @@ class _ClockNewsPageState extends State<ClockNewsPage> with _ClockConfig {
     if (f != null) await _setFeeds([..._feeds, f]);
   }
 
+  /// „Alarmowy” na zwykłym kanale (nie IMGW): ostrzeżenie przed włączeniem. Kanał informacyjny publikuje co kilka
+  /// minut - każda pozycja byłaby ważna (pasek na zegarze stał na stałe; od fw 0.8.1 najwyżej raz na godzinę).
+  Future<void> _setAlert(int index, bool on) async {
+    final f = _feeds[index];
+    if (on && !f.isImgw) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('„${f.name}” jako kanał alarmowy?'),
+          content: const Text(
+            'Kanał alarmowy jest przeznaczony dla ostrzeżeń IMGW. Zwykły kanał informacyjny publikuje co kilka '
+            'minut, więc każda jego wiadomość zapalałaby pasek i przełączała ekran, także w nocy. Zegar ogranicza '
+            'to do raz na godzinę. Ważne wiadomości lepiej wyłapią słowa kluczowe.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Anuluj')),
+            FilledButton(
+              key: const Key('clockFeedAlertOk'),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Włącz'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+    await _setFeeds([..._feeds]..[index] = f.copyWith(alert: on));
+  }
+
   Future<void> _remove(int index) async {
     final f = _feeds[index];
     final ok = await showDialog<bool>(
@@ -1476,12 +1505,23 @@ class _ClockNewsPageState extends State<ClockNewsPage> with _ClockConfig {
     final words = _keywords;
     final refresh = (n['refreshMin'] as num?)?.toInt() ?? 10;
     final jump = (n['jumpS'] as num?)?.toInt() ?? 60;
+    // Od fw 0.8.1: czas paska, limit raz na godzinę, szczegóły z kodem QR (środkowy przycisk na ekranie wiadomości)
+    final banner = (n['bannerMin'] as num?)?.toInt();
     final onScreen = clockScreenList(cfg).contains('news');
     return page('Wiadomości', [
       const Text(
         'Zegar sam pobiera kanały RSS i ostrzeżenia IMGW. Ważna wiadomość (z kanału alarmowego albo ze słowem '
         'kluczowym w tytule) pokazuje pasek i przełącza zegar na ekran wiadomości.',
       ),
+      if (banner != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 8),
+          child: Text(
+            'Na ekranie wiadomości środkowy przycisk pokazuje cały opis i kod QR - zeskanuj go telefonem, '
+            'żeby przeczytać artykuł. Kanał inny niż IMGW zapala pasek najwyżej raz na godzinę.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
       if (!onScreen)
         Padding(
           padding: const EdgeInsets.only(top: 8),
@@ -1513,7 +1553,7 @@ class _ClockNewsPageState extends State<ClockNewsPage> with _ClockConfig {
                 child: Switch(
                   key: Key('clockFeedAlert-$i'),
                   value: f.alert,
-                  onChanged: (v) => _setFeeds([...feeds]..[i] = f.copyWith(alert: v)),
+                  onChanged: (v) => _setAlert(i, v),
                 ),
               ),
               IconButton(
@@ -1594,6 +1634,20 @@ class _ClockNewsPageState extends State<ClockNewsPage> with _ClockConfig {
           onChanged: (v) => setIn('news', {'jumpS': v}),
         ),
       ),
+      if (banner != null)
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Pasek wiadomości stoi'),
+          subtitle: const Text('Potem znika sam; środkowy przycisk chowa go od razu'),
+          trailing: DropdownButton<int>(
+            key: const Key('clockNewsBanner'),
+            value: banner,
+            items: [
+              for (final v in {1, 5, 10, 15, 30, 60, banner}) DropdownMenuItem(value: v, child: Text('$v min')),
+            ],
+            onChanged: (v) => setIn('news', {'bannerMin': v}),
+          ),
+        ),
     ]);
   }
 }
@@ -1695,7 +1749,12 @@ class _FeedDialogState extends State<_FeedDialog> {
               key: const Key('clockFeedAlertEdit'),
               contentPadding: EdgeInsets.zero,
               title: const Text('Alarmowy'),
-              subtitle: const Text('Każda nowa pozycja ważna: pasek i ekran wiadomości, także w nocy'),
+              subtitle: Text(
+                _imgw
+                    ? 'Każda nowa pozycja ważna: pasek i ekran wiadomości, także w nocy'
+                    : 'Dla ostrzeżeń IMGW. Zwykły kanał publikuje co kilka minut - zegar zapali pasek najwyżej raz '
+                          'na godzinę; lepiej użyć słów kluczowych',
+              ),
               value: _alert,
               onChanged: (v) => setState(() => _alert = v),
             ),

@@ -77,6 +77,7 @@ class FakeClock extends FakeDevice {
                'keywords': ['pilne', 'alarm', 'ostrzeżenie', 'ewakuacja'],
                'refreshMin': 10,
                'jumpS': 60,
+               'bannerMin': 10,
              }
            : null,
        radio = withRadio
@@ -629,6 +630,7 @@ class FakeClock extends FakeDevice {
           'news.keywords': 'too_many',
       if (n.containsKey('refreshMin') && !_num(n['refreshMin'], 5, 120)) 'news.refreshMin': 'range',
       if (n.containsKey('jumpS') && !(n['jumpS'] == 0 || _num(n['jumpS'], 10, 600))) 'news.jumpS': 'range',
+      if (n.containsKey('bannerMin') && !_num(n['bannerMin'], 1, 60)) 'news.bannerMin': 'range',
     };
   }
 

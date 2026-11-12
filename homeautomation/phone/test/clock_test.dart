@@ -1388,16 +1388,17 @@ void main() {
 
     await tester.tap(find.byKey(const Key('clockFeedAdd')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('clockFeedSuggest-RMF24')));
+    expect(find.byKey(const Key('clockFeedSuggest-RMF24')), findsNothing);   // zdjęty z listy 2026-11-12
+    await tester.tap(find.byKey(const Key('clockFeedSuggest-Deon')));
     await tester.pumpAndSettle();
     expect(news()['feeds'], [
-      {'name': 'RMF24', 'url': 'https://www.rmf24.pl/feed', 'alert': false},
+      {'name': 'Deon', 'url': 'https://deon.pl/rss', 'alert': false},
     ]);
     expect(news()['keywords'], ['pilne', 'alarm', 'ostrzeżenie', 'ewakuacja']);
 
     await tester.tap(find.byKey(const Key('clockFeedAdd')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('clockFeedSuggest-RMF24')), findsNothing);
+    expect(find.byKey(const Key('clockFeedSuggest-Deon')), findsNothing);
     await tester.tap(find.byKey(const Key('clockFeedImgw')));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('clockFeedTeryt')), '1201');
@@ -1424,7 +1425,16 @@ void main() {
     await tester.pumpAndSettle();
     expect((news()['feeds'] as List).length, 3);
 
+    // Alarmowy na zwykłym kanale: najpierw ostrzeżenie (Anuluj = bez zmian)
     await tester.tap(find.byKey(const Key('clockFeedAlert-0')));
+    await tester.pumpAndSettle();
+    expect(find.text('„Deon” jako kanał alarmowy?'), findsOneWidget);
+    await tester.tap(find.text('Anuluj'));
+    await tester.pumpAndSettle();
+    expect(((news()['feeds'] as List)[0] as Map)['alert'], false);
+    await tester.tap(find.byKey(const Key('clockFeedAlert-0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockFeedAlertOk')));
     await tester.pumpAndSettle();
     expect(((news()['feeds'] as List)[0] as Map)['alert'], true);
     await tester.tap(find.byKey(const Key('clockFeedRemove-2')));
@@ -1460,6 +1470,21 @@ void main() {
         'news': {'jumpS': 5},
       }),
       {'news.jumpS': 'range'},
+    );
+
+    // Pasek wiadomości (fw 0.8.1, news.bannerMin)
+    await tester.ensureVisible(find.byKey(const Key('clockNewsBanner')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockNewsBanner')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('5 min').last);
+    await tester.pumpAndSettle();
+    expect(news()['bannerMin'], 5);
+    expect(
+      fake.applySet({
+        'news': {'bannerMin': 0},
+      }),
+      {'news.bannerMin': 'range'},
     );
     hub.dispose();
   });

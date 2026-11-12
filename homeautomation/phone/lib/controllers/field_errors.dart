@@ -32,6 +32,7 @@ const fieldLabels = <String, String>{
   'news.keywords': 'Słowa kluczowe',
   'news.refreshMin': 'Pobieranie wiadomości',
   'news.jumpS': 'Ekran wiadomości',
+  'news.bannerMin': 'Pasek wiadomości',
   'newsRead': 'Wiadomości przeczytane',
   'theme.name': 'Motyw',
   'themePack': 'Paczka motywów',
