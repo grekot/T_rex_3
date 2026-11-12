@@ -486,7 +486,7 @@ const clockFunTtl = [10, 20, 30, 60, 120, 300, 600];
 
 const clockMeetingMinutes = [15, 30, 45, 60, 90, 120, 180, 240];
 
-const clockMaxScreens = 6;
+const clockMaxScreens = 12; // fw zegara od 0.6.3 (wcześniej 6)
 const clockMaxPages = 4;
 const clockMaxWidgets = 10;
 const clockMaxPairs = 24;
