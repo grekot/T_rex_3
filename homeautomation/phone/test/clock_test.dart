@@ -3,6 +3,7 @@
 // z opisami z `describe` i rozwinięciem `room`, przyciski zdalne jako automatyki huba z `owner`.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,6 +14,7 @@ import 'package:homeautomation/data/cloud_access.dart';
 import 'package:homeautomation/data/connection_manager.dart';
 import 'package:homeautomation/data/device_store.dart';
 import 'package:homeautomation/data/discovery.dart';
+import 'package:homeautomation/data/radio_logo_lookup.dart';
 import 'package:homeautomation/data/thermostat_connection.dart';
 import 'package:homeautomation/models/clock.dart';
 import 'package:homeautomation/models/dashboard.dart';
@@ -28,6 +30,8 @@ import 'package:homeautomation/ui/clock_pages.dart';
 import 'package:homeautomation/ui/clock_section.dart';
 import 'package:homeautomation/ui/automations_screen.dart';
 import 'package:homeautomation/ui/clock_settings.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 import '../tool/fake/fake_thermostat_server.dart';
 
@@ -661,6 +665,119 @@ void main() {
     expect(find.byKey(const Key('clockRadio')), findsNothing);
     expect(find.byKey(const Key('clockNews')), findsOneWidget);
     hub3.dispose();
+  });
+
+  testWidgets('ekran radia: logo ze „Znajdź logo”, błędny adres logo, czas ekranu, ekran na liście', (tester) async {
+    final fake = FakeClock();
+    final (hub, conns, _) = await _home(clock: fake);
+    final conn = conns['zegar-ab12cd']!;
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    Map radio() => conn.sent.last['radio'] as Map;
+    final asked = <(String, String)>[];
+    await tester.pumpWidget(
+      _app(
+        ClockRadioPage(
+          controller: c,
+          findLogos: (name, url) async {
+            asked.add((name, url));
+            return ['https://radio357.pl/logo.png', 'https://radio357.pl/logo.svg'];
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockStationAdd')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('clockStationName')), 'Radio 357');
+    await tester.enterText(find.byKey(const Key('clockStationUrl')), 'https://stream.radio357.pl');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockStationFindLogo')));
+    await tester.pumpAndSettle();
+    expect(asked, [('Radio 357', 'https://stream.radio357.pl')]);
+    await tester.tap(find.byKey(const Key('clockLogoPick-0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockStationSave')));
+    await tester.pumpAndSettle();
+    expect(radio()['stations'], [
+      {'name': 'Radio 357', 'url': 'https://stream.radio357.pl', 'logo': 'https://radio357.pl/logo.png'},
+    ]);
+
+    // Zły adres logo blokuje zapis; SVG - ostrzeżenie (zegar pokaże inicjały)
+    await tester.tap(find.byKey(const Key('clockStationAdd')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('clockStationName')), 'Nowy Świat');
+    await tester.enterText(find.byKey(const Key('clockStationUrl')), 'https://stream.nowyswiat.online/mp3');
+    await tester.enterText(find.byKey(const Key('clockStationLogo')), 'ftp://nowyswiat.online/logo.png');
+    await tester.tap(find.byKey(const Key('clockStationSave')));
+    await tester.pumpAndSettle();
+    expect(find.text('Adres zaczyna się od https:// albo http://'), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('clockStationLogo')), 'https://nowyswiat.online/logo.svg');
+    await tester.pumpAndSettle();
+    expect(find.textContaining('tylko PNG i JPG'), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('clockStationLogo')), '');
+    await tester.tap(find.byKey(const Key('clockStationSave')));
+    await tester.pumpAndSettle();
+    expect((radio()['stations'] as List)[1], {'name': 'Nowy Świat', 'url': 'https://stream.nowyswiat.online/mp3'});
+
+    // Czas ekranu radia (Config radio.showS)
+    await _scrollTo(tester, find.byKey(const Key('clockRadioShowS')));
+    await tester.drag(find.byKey(const Key('clockRadioShowS')), const Offset(-600, 0));
+    await tester.pumpAndSettle();
+    expect(radio()['showS'], 0);
+    expect(
+      fake.applySet({
+        'radio': {'showS': 121},
+      }),
+      {'radio.showS': 'range'},
+    );
+    expect(
+      fake.applySet({
+        'radio': {
+          'stations': [
+            {'name': 'A', 'url': 'https://a.pl/stream', 'logo': 'a.png'},
+          ],
+        },
+      }),
+      {'radio.stations': 'value'},
+    );
+    hub.dispose();
+
+    // Model: ekran „radio” tylko przy firmware z showS, stacja bez logo bez pola logo
+    expect(clockHasRadioScreen({'radio': {'stations': [], 'showS': 10}}), true);
+    expect(clockHasRadioScreen({'radio': {'stations': []}}), false);
+    expect(clockStationJson((name: 'A', url: 'https://a.pl/s', logo: '')), {'name': 'A', 'url': 'https://a.pl/s'});
+    expect(clockStationsFrom({
+      'stations': [
+        {'name': 'A', 'url': 'https://a.pl/s', 'logo': 'https://a.pl/l.jpg'},
+      ],
+    }).single.logo, 'https://a.pl/l.jpg');
+    expect(clockLogoWarning('https://a.pl/favicon.ico'), isNotNull);
+    expect(clockLogoWarning('https://a.pl/logo.JPG'), isNull);
+    expect(clockScreens['radio'], 'Radio');
+  });
+
+  test('Znajdź logo: radio-browser.info po adresie, potem po nazwie; PNG / JPG najpierw', () async {
+    final paths = <String>[];
+    final client = MockClient((req) async {
+      paths.add(req.url.path);
+      if (req.url.path.endsWith('/byurl')) return http.Response('[]', 200);
+      return http.Response(
+        jsonEncode([
+          {'favicon': 'https://a.pl/icon.svg'},
+          {'favicon': ''},
+          {'favicon': 'https://a.pl/logo.png'},
+          {'favicon': 'https://a.pl/logo.png'},
+          {'favicon': 'https://b.pl/l.jpeg'},
+        ]),
+        200,
+      );
+    });
+    final logos = await findStationLogos(name: 'Radio 357', streamUrl: 'https://stream.radio357.pl', client: client);
+    expect(paths, ['/json/stations/byurl', '/json/stations/search']);
+    expect(logos, ['https://a.pl/logo.png', 'https://b.pl/l.jpeg', 'https://a.pl/icon.svg']);
+    final down = MockClient((_) async => http.Response('', 503));
+    expect(await findStationLogos(name: 'X', streamUrl: 'https://x.pl/s', client: down), isEmpty);
   });
 
   testWidgets('dymki: wiadomość na zegar z ikoną i odpowiedzią, spotkanie; zegar bez dymków bez przycisków', (

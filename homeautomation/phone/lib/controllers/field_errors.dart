@@ -40,6 +40,7 @@ const fieldLabels = <String, String>{
   'radio.muteOffMin': 'Wyłączenie po wyciszeniu',
   'radio.maxW': 'Moc głośnika',
   'radio.resume': 'Radio po restarcie',
+  'radio.showS': 'Ekran radia po włączeniu',
   'radioOn': 'Radio',
   'radioStation': 'Stacja radia',
   'radioVol': 'Głośność radia',

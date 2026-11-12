@@ -54,7 +54,9 @@ class FakeClock extends FakeDevice {
                'jumpS': 60,
              }
            : null,
-       radio = withRadio ? {'stations': <dynamic>[], 'muteOffMin': 10, 'maxW': 0.8, 'resume': false} : null,
+       radio = withRadio
+           ? {'stations': <dynamic>[], 'muteOffMin': 10, 'maxW': 0.8, 'resume': false, 'showS': 10}
+           : null,
        themePacks = withThemePacks ? [] : null {
     cloudCapable = false;
   }
@@ -184,6 +186,7 @@ class FakeClock extends FakeDevice {
         'kbps': radioOn ? 128 : null,
         'error': null,
         'buffer': radioOn ? 80 : 0,
+        'logo': _logoOf(radioStation) == null ? 'none' : 'ok',
       },
     },
     if (themePacks != null) ...{'themePacks': themePacks, 'themeFree': themeFree},
@@ -322,17 +325,28 @@ class FakeClock extends FakeDevice {
     _broadcastState();
   }
 
-  /// Błędy `radio` jak w kontrakcie (stacja: nazwa 1-24 B, `url` http(s) ≤ 256 B bez spacji).
+  /// Logo stacji (`stations[].logo`), null = bez logo.
+  String? _logoOf(String? station) {
+    for (final s in _stations) {
+      if (s is Map && s['name'] == station && s['logo'] is String && (s['logo'] as String).isNotEmpty) {
+        return s['logo'] as String;
+      }
+    }
+    return null;
+  }
+
+  /// Błędy `radio` jak w kontrakcie (stacja: nazwa 1-24 B, `url` i opcjonalne `logo` http(s) ≤ 256 B bez spacji,
+  /// `showS` 0-120).
   Map<String, String> _radioErrors(Map r) {
     final st = r['stations'];
+    bool urlOk(Object? u) => u is String && RegExp(r'^https?://\S+$').hasMatch(u) && utf8.encode(u).length <= 256;
     bool stationOk(Object? s) =>
         s is Map &&
         s['name'] is String &&
         (s['name'] as String).isNotEmpty &&
         utf8.encode(s['name'] as String).length <= 24 &&
-        s['url'] is String &&
-        RegExp(r'^https?://\S+$').hasMatch(s['url'] as String) &&
-        utf8.encode(s['url'] as String).length <= 256;
+        urlOk(s['url']) &&
+        (s['logo'] == null || s['logo'] == '' || urlOk(s['logo']));
     return {
       if (r.containsKey('stations'))
         if (st is! List || !st.every(stationOk))
@@ -343,6 +357,7 @@ class FakeClock extends FakeDevice {
         'radio.muteOffMin': 'range',
       if (r.containsKey('maxW') && !_num(r['maxW'], 0.1, 1.5)) 'radio.maxW': 'range',
       if (r.containsKey('resume') && r['resume'] is! bool) 'radio.resume': 'value',
+      if (r.containsKey('showS') && !(r['showS'] is int && _num(r['showS'], 0, 120))) 'radio.showS': 'range',
     };
   }
 

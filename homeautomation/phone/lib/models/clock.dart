@@ -16,6 +16,7 @@ const clockScreens = {
   'calendar': 'Kalendarz',
   'air': 'Powietrze',
   'news': 'Wiadomości',
+  'radio': 'Radio',
 };
 
 /// Opisy ekranów wbudowanych.
@@ -27,6 +28,7 @@ const clockScreenHints = {
   'calendar': 'data, imieniny, święta, słońce i księżyc, kalendarz domu',
   'air': 'AQI, pyły, pyłki, UV (z huba)',
   'news': 'kanały RSS i ostrzeżenia IMGW',
+  'radio': 'stacja, logo, tytuł utworu, głośność (gdy radio gra)',
 };
 
 const clockTransitions = {
@@ -375,15 +377,38 @@ const clockMaxStations = 12;
 /// Zegar z radiem (fw z Config `radio`).
 bool clockHasRadio(Map<String, dynamic>? cfg) => cfg?['radio'] is Map;
 
-/// Stacja radia (`radio.stations[]`): nazwa 1-24 B, strumień MP3 http/https.
-typedef ClockStation = ({String name, String url});
+/// Zegar z ekranem `radio` (fw 0.6.0: Config `radio.showS`, `stations[].logo`).
+bool clockHasRadioScreen(Map<String, dynamic>? cfg) => cfg?['radio'] is Map && (cfg!['radio'] as Map).containsKey('showS');
+
+/// Stacja radia (`radio.stations[]`): nazwa 1-24 B, strumień MP3 http/https, logo (adres PNG/JPG, '' = bez logo).
+typedef ClockStation = ({String name, String url, String logo});
 
 List<ClockStation> clockStationsFrom(Object? radio) {
   final s = radio is Map ? radio['stations'] : null;
   return [
     for (final x in (s is List ? s : const []))
-      if (x is Map && x['name'] is String && x['url'] is String) (name: x['name'] as String, url: x['url'] as String),
+      if (x is Map && x['name'] is String && x['url'] is String)
+        (name: x['name'] as String, url: x['url'] as String, logo: x['logo'] is String ? x['logo'] as String : ''),
   ];
+}
+
+/// Stacja do Config: `logo` tylko, gdy jest (starszy firmware zna tylko `name` i `url`).
+Map<String, dynamic> clockStationJson(ClockStation s) => {
+  'name': s.name,
+  'url': s.url,
+  if (s.logo.isNotEmpty) 'logo': s.logo,
+};
+
+/// Adres logo: pusty (bez logo) albo jak adres strumienia.
+String? clockLogoUrlError(String url) => url.isEmpty ? null : clockFeedUrlError(url);
+
+/// Ostrzeżenie dla formatów, których zegar nie zdekoduje (pokaże inicjały): SVG, WebP, ICO, GIF.
+String? clockLogoWarning(String url) {
+  final path = Uri.tryParse(url)?.path.toLowerCase() ?? '';
+  for (final ext in ['.svg', '.webp', '.ico', '.gif']) {
+    if (path.endsWith(ext)) return 'Zegar czyta tylko PNG i JPG (do 64 KB) - ten plik pokaże jako inicjały';
+  }
+  return null;
 }
 
 const clockRadioPressWarning = 'Dwuklik / przytrzymanie na zegarze steruje radiem - zadziała jedno i drugie';
