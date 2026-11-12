@@ -2,6 +2,7 @@
 // czujnik, zegar. Każda zmiana od razu idzie Setem (obiekt w całości, z obecnymi polami Config).
 
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -11,7 +12,7 @@ import '../controllers/field_errors.dart';
 import '../data/device_store.dart';
 import '../data/errors.dart';
 import '../data/hub_weather.dart';
-import '../data/radio_logo_lookup.dart';
+import '../data/radio_browser.dart';
 import '../data/theme_pack_catalog.dart';
 import '../models/clock.dart';
 import '../models/dashboard.dart' show reorder;
@@ -1714,12 +1715,12 @@ class _FeedDialogState extends State<_FeedDialog> {
 /// Radio internetowe zegara: sterowanie (Set `radioOn`, `radioStation`, `radioVol`, `radioMute`, State `radio`),
 /// lista stacji i ustawienia (Config `radio`).
 class ClockRadioPage extends StatefulWidget {
-  const ClockRadioPage({super.key, required this.controller, this.findLogos});
+  const ClockRadioPage({super.key, required this.controller, this.browser});
 
   final DeviceController<Object?, Object?> controller;
 
-  /// Szukanie logo stacji (testy podstawiają własne); domyślnie katalog radio-browser.info.
-  final Future<List<String>> Function(String name, String streamUrl)? findLogos;
+  /// Katalog radio-browser.info: szukanie stacji i logo (testy podstawiają własny klient HTTP).
+  final RadioBrowser? browser;
 
   @override
   State<ClockRadioPage> createState() => _ClockRadioPageState();
@@ -1731,6 +1732,15 @@ class _ClockRadioPageState extends State<ClockRadioPage> with _ClockConfig {
 
   /// Głośność, moc i czas ekranu radia w czasie przesuwania suwaka (Set dopiero po puszczeniu).
   double? _vol, _maxW, _showS;
+
+  RadioBrowser? _ownBrowser;
+  RadioBrowser get _browser => widget.browser ?? (_ownBrowser ??= RadioBrowser());
+
+  @override
+  void dispose() {
+    _ownBrowser?.close();
+    super.dispose();
+  }
 
   List<ClockStation> get _stations => clockStationsFrom(obj('radio'));
 
@@ -1749,7 +1759,7 @@ class _ClockRadioPageState extends State<ClockRadioPage> with _ClockConfig {
       builder: (_) => _StationDialog(
         station: index == null ? null : list[index],
         withLogo: clockHasRadioScreen(cfg),
-        findLogos: widget.findLogos ?? (name, url) => findStationLogos(name: name, streamUrl: url),
+        browser: _browser,
       ),
     );
     if (s == null) return;
@@ -2007,13 +2017,14 @@ class _ClockRadioPageState extends State<ClockRadioPage> with _ClockConfig {
   }
 }
 
-/// Edycja stacji: nazwa, adres strumienia MP3 i (zegar z ekranem radia) logo. Zwraca stację albo null (Anuluj).
+/// Edycja stacji: nazwa, adres strumienia MP3, (zegar z ekranem radia) logo; „Szukaj stacji” w katalogu
+/// radio-browser.info wypełnia wszystko. Logo tylko sprawdzone (PNG / JPG do 64 KB). Zwraca stację albo null.
 class _StationDialog extends StatefulWidget {
-  const _StationDialog({this.station, this.withLogo = false, required this.findLogos});
+  const _StationDialog({this.station, this.withLogo = false, required this.browser});
 
   final ClockStation? station;
   final bool withLogo;
-  final Future<List<String>> Function(String name, String streamUrl) findLogos;
+  final RadioBrowser browser;
 
   @override
   State<_StationDialog> createState() => _StationDialogState();
@@ -2023,8 +2034,14 @@ class _StationDialogState extends State<_StationDialog> {
   late final _name = TextEditingController(text: widget.station?.name ?? '');
   late final _url = TextEditingController(text: widget.station?.url ?? 'https://');
   late final _logo = TextEditingController(text: widget.station?.logo ?? '');
-  bool _tried = false, _searching = false;
-  String? _searchNote;
+  bool _tried = false, _searching = false, _checking = false, _saveAnyway = false;
+  String? _searchNote, _logoProblem;
+
+  /// Sprawdzone logo (obraz w pamięci do podglądu); null = adres niesprawdzony.
+  LogoCandidate? _verified;
+
+  /// Ze „Szukaj stacji”: strona i favicon z katalogu (kandydaci logo).
+  String _homepage = '', _favicon = '';
 
   @override
   void dispose() {
@@ -2034,65 +2051,123 @@ class _StationDialogState extends State<_StationDialog> {
     super.dispose();
   }
 
-  void _save() {
+  Future<void> _save() async {
     final name = _name.text.trim(), url = _url.text.trim(), logo = _logo.text.trim();
     if (clockFeedNameError(name) != null || clockFeedUrlError(url) != null || clockLogoUrlError(logo) != null) {
       setState(() => _tried = true);
       return;
     }
-    Navigator.pop(context, (name: name, url: url, logo: logo));
+    // Nowy albo zmieniony adres logo: sprawdzenie jak w zegarze; martwy adres zapisuje się tylko po potwierdzeniu
+    if (widget.withLogo && logo.isNotEmpty && logo != widget.station?.logo && _verified?.url != logo && !_saveAnyway) {
+      setState(() => _checking = true);
+      final c = await widget.browser.check(logo);
+      if (!mounted) return;
+      setState(() {
+        _checking = false;
+        _verified = c.logo;
+        _logoProblem = c.error == null ? null : 'Logo nie działa: ${c.error}. Zegar pokaże inicjały.';
+        _saveAnyway = c.error != null;
+      });
+      if (c.error != null) return;
+    }
+    if (mounted) Navigator.pop(context, (name: name, url: url, logo: logo));
   }
 
-  /// „Znajdź logo”: katalog radio-browser.info po adresie strumienia albo nazwie; kilka wyników - wybór z podglądem.
-  Future<void> _find() async {
+  void _setLogo(LogoCandidate? l) => setState(() {
+    _verified = l;
+    _logo.text = l?.url ?? '';
+    _logoProblem = null;
+    _saveAnyway = false;
+  });
+
+  /// „Znajdź logo”: działający kandydaci (katalog, strona stacji, domena); kilku - wybór z podglądem.
+  Future<void> _find({bool auto = false}) async {
     setState(() {
       _searching = true;
       _searchNote = null;
     });
-    final found = await widget.findLogos(_name.text.trim(), _url.text.trim());
+    final found = await widget.browser.findLogos(
+      name: _name.text.trim(),
+      streamUrl: _url.text.trim(),
+      homepage: _homepage,
+      favicon: _favicon,
+    );
     if (!mounted) return;
     setState(() => _searching = false);
     if (found.isEmpty) {
-      setState(() => _searchNote = 'Nie znaleziono logo w katalogu radio-browser.info - wklej adres obrazka.');
+      setState(
+        () => _searchNote =
+            'Nie znaleziono logo, które zegar pokaże (PNG albo JPG do 64 KB). Możesz wkleić adres obrazka - bez logo '
+            'zegar pokaże inicjały.',
+      );
       return;
     }
-    final pick = found.length == 1
-        ? found.first
-        : await showDialog<String>(
-            context: context,
-            builder: (ctx) => SimpleDialog(
-              title: const Text('Wybierz logo'),
-              children: [
-                for (final (i, u) in found.take(8).indexed)
-                  SimpleDialogOption(
-                    key: Key('clockLogoPick-$i'),
-                    onPressed: () => Navigator.pop(ctx, u),
-                    child: Row(
-                      children: [
-                        _LogoPreview(url: u, size: 40),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(Uri.tryParse(u)?.host ?? u, maxLines: 1, overflow: TextOverflow.ellipsis),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
+    if (auto || found.length == 1) {
+      _setLogo(found.first);
+      if (auto) setState(() => _searchNote = 'Logo dobrane automatycznie - inne: „Znajdź logo”.');
+      return;
+    }
+    final pick = await showDialog<LogoCandidate>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Wybierz logo'),
+        children: [
+          for (final (i, l) in found.take(10).indexed)
+            SimpleDialogOption(
+              key: Key('clockLogoPick-$i'),
+              onPressed: () => Navigator.pop(ctx, l),
+              child: Row(
+                children: [
+                  _LogoPreview(bytes: l.bytes, size: 48),
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(l.label, maxLines: 2, overflow: TextOverflow.ellipsis)),
+                ],
+              ),
             ),
-          );
-    if (pick != null && mounted) setState(() => _logo.text = pick);
+        ],
+      ),
+    );
+    if (pick != null && mounted) _setLogo(pick);
+  }
+
+  /// „Szukaj stacji”: wybór z katalogu wypełnia nazwę (skróconą do limitu), strumień i logo (sprawdzone).
+  Future<void> _searchStation() async {
+    final st = await showDialog<RbStation>(
+      context: context,
+      builder: (_) => _StationSearchDialog(browser: widget.browser, query: _name.text.trim()),
+    );
+    if (st == null || !mounted) return;
+    setState(() {
+      _name.text = clockTrimName(st.name);
+      _url.text = st.url;
+      _homepage = st.homepage;
+      _favicon = st.favicon;
+      _tried = true;
+    });
+    if (widget.withLogo) {
+      _setLogo(null);
+      await _find(auto: true);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final logo = _logo.text.trim();
     final logoErr = clockLogoUrlError(logo);
+    final busy = _searching || _checking;
     return AlertDialog(
       title: const Text('Stacja'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            FilledButton.tonalIcon(
+              key: const Key('clockStationSearch'),
+              icon: const Icon(Icons.travel_explore),
+              label: const Text('Szukaj stacji'),
+              onPressed: busy ? null : _searchStation,
+            ),
             TextField(
               key: const Key('clockStationName'),
               controller: _name,
@@ -2123,29 +2198,58 @@ class _StationDialogState extends State<_StationDialog> {
                   helperText: clockLogoWarning(logo) ?? 'Bez logo zegar pokaże inicjały stacji',
                   helperMaxLines: 2,
                 ),
-                onChanged: (_) => setState(() {}),
+                onChanged: (_) => setState(() {
+                  _verified = null;
+                  _logoProblem = null;
+                  _saveAnyway = false;
+                }),
               ),
               const SizedBox(height: 8),
               Row(
                 children: [
                   if (logo.isNotEmpty && logoErr == null) ...[
-                    _LogoPreview(url: logo, size: 76),
+                    _verified?.url == logo
+                        ? _LogoPreview(bytes: _verified!.bytes, size: 76)
+                        : _LogoPreview(url: logo, size: 76),
                     const SizedBox(width: 12),
                   ],
-                  FilledButton.tonalIcon(
-                    key: const Key('clockStationFindLogo'),
-                    icon: _searching
-                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(Icons.image_search),
-                    label: const Text('Znajdź logo'),
-                    onPressed: _searching || clockFeedUrlError(_url.text.trim()) != null ? null : _find,
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: FilledButton.tonalIcon(
+                        key: const Key('clockStationFindLogo'),
+                        icon: _searching
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(Icons.image_search),
+                        label: const Text('Znajdź logo'),
+                        onPressed: busy || clockFeedUrlError(_url.text.trim()) != null ? null : _find,
+                      ),
+                    ),
                   ),
                 ],
               ),
+              if (_verified != null && _verified!.url == logo)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text('Sprawdzone: ${_verified!.label}', style: Theme.of(context).textTheme.bodySmall),
+                ),
+              if (_logoProblem != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    _logoProblem!,
+                    key: const Key('clockStationLogoProblem'),
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
+                ),
               if (_searchNote != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Text(_searchNote!, style: Theme.of(context).textTheme.bodySmall),
+                  child: Text(
+                    _searchNote!,
+                    key: const Key('clockStationSearchNote'),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
                 ),
             ],
           ],
@@ -2153,33 +2257,181 @@ class _StationDialogState extends State<_StationDialog> {
       ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Anuluj')),
-        FilledButton(key: const Key('clockStationSave'), onPressed: _save, child: const Text('Zapisz')),
+        FilledButton(
+          key: const Key('clockStationSave'),
+          onPressed: busy ? null : _save,
+          child: Text(_saveAnyway ? 'Zapisz mimo to' : 'Zapisz'),
+        ),
       ],
     );
   }
 }
 
-/// Podgląd logo z sieci (biały kafel z zaokrągleniem jak na zegarze); błąd wczytania - ikona.
-class _LogoPreview extends StatelessWidget {
-  const _LogoPreview({required this.url, required this.size});
+/// Wyszukiwanie stacji po nazwie w radio-browser.info; domyślnie tylko MP3 (zegar nie gra AAC).
+class _StationSearchDialog extends StatefulWidget {
+  const _StationSearchDialog({required this.browser, required this.query});
 
-  final String url;
+  final RadioBrowser browser;
+  final String query;
+
+  @override
+  State<_StationSearchDialog> createState() => _StationSearchDialogState();
+}
+
+class _StationSearchDialogState extends State<_StationSearchDialog> {
+  late final _q = TextEditingController(text: widget.query);
+  List<RbStation>? _found;
+  bool _busy = false, _mp3Only = true;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.query.isNotEmpty) _run();
+  }
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  Future<void> _run() async {
+    setState(() => _busy = true);
+    final r = await widget.browser.search(_q.text);
+    if (mounted) {
+      setState(() {
+        _found = r;
+        _busy = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final all = _found ?? const <RbStation>[];
+    final shown = _mp3Only ? all.where((s) => s.mp3).toList() : all;
+    final hidden = all.length - shown.length;
+    return AlertDialog(
+      title: const Text('Szukaj stacji'),
+      contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      content: SizedBox(
+        width: double.maxFinite,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              key: const Key('clockStationQuery'),
+              controller: _q,
+              autofocus: widget.query.isEmpty,
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                labelText: 'Nazwa stacji',
+                suffixIcon: IconButton(
+                  key: const Key('clockStationQueryGo'),
+                  icon: const Icon(Icons.search),
+                  onPressed: _busy ? null : _run,
+                ),
+              ),
+              onSubmitted: (_) => _run(),
+            ),
+            SwitchListTile(
+              key: const Key('clockStationMp3Only'),
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+              title: const Text('Tylko MP3 (zegar gra tylko MP3)'),
+              value: _mp3Only,
+              onChanged: (v) => setState(() => _mp3Only = v),
+            ),
+            if (_busy) const Padding(padding: EdgeInsets.all(16), child: CircularProgressIndicator()),
+            if (!_busy && _found != null && shown.isEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  all.isEmpty
+                      ? 'Nic nie znaleziono w katalogu radio-browser.info (albo brak połączenia).'
+                      : 'Znalezione stacje nadają w innym formacie niż MP3 ($hidden) - zegar ich nie zagra.',
+                  key: const Key('clockStationSearchEmpty'),
+                ),
+              ),
+            if (!_busy && shown.isNotEmpty)
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final (i, s) in shown.indexed)
+                      ListTile(
+                        key: Key('clockStationHit-$i'),
+                        contentPadding: EdgeInsets.zero,
+                        leading: SizedBox(
+                          width: 40,
+                          height: 40,
+                          child: s.favicon.isEmpty
+                              ? const Icon(Icons.radio)
+                              : Image.network(
+                                  s.favicon,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (_, _, _) => const Icon(Icons.radio),
+                                ),
+                        ),
+                        title: Text(s.name, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        subtitle: Text(
+                          [
+                            if (s.countryCode.isNotEmpty) s.countryCode else if (s.country.isNotEmpty) s.country,
+                            if (s.codec.isNotEmpty) s.codec,
+                            if (s.bitrate > 0) '${s.bitrate} kb/s',
+                            if (!s.mp3) 'zegar nie zagra (${s.codec.isEmpty ? 'nieznany format' : s.codec})',
+                          ].join(' · '),
+                        ),
+                        enabled: s.mp3,
+                        onTap: () => Navigator.pop(context, s),
+                      ),
+                  ],
+                ),
+              ),
+            if (!_busy && _mp3Only && hidden > 0 && shown.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('Ukryte inne formaty: $hidden', style: Theme.of(context).textTheme.bodySmall),
+              ),
+          ],
+        ),
+      ),
+      actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Anuluj'))],
+    );
+  }
+}
+
+/// Podgląd logo (biały kafel z zaokrągleniem jak na zegarze): sprawdzony obraz z pamięci albo adres z sieci;
+/// błąd wczytania (martwy adres) - ikona i „nie działa”.
+class _LogoPreview extends StatelessWidget {
+  const _LogoPreview({this.url, this.bytes, required this.size});
+
+  final String? url;
+  final Uint8List? bytes;
   final double size;
 
   @override
-  Widget build(BuildContext context) => ClipRRect(
-    borderRadius: BorderRadius.circular(size * 0.18),
-    child: Container(
-      width: size,
-      height: size,
-      color: Colors.white,
-      child: Image.network(
-        url,
-        fit: BoxFit.contain,
-        errorBuilder: (_, _, _) => Icon(Icons.broken_image_outlined, size: size * 0.5, color: Colors.grey),
+  Widget build(BuildContext context) {
+    Widget broken(BuildContext _, Object _, StackTrace? _) => Column(
+      key: const Key('clockLogoBroken'),
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.broken_image_outlined, size: size * 0.4, color: Colors.red),
+        if (size >= 60) const Text('nie działa', style: TextStyle(fontSize: 11, color: Colors.red)),
+      ],
+    );
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(size * 0.18),
+      child: Container(
+        width: size,
+        height: size,
+        color: Colors.white,
+        child: bytes != null
+            ? Image.memory(bytes!, fit: BoxFit.contain, errorBuilder: broken)
+            : Image.network(url!, fit: BoxFit.contain, errorBuilder: broken),
       ),
-    ),
-  );
+    );
+  }
 }
 
 // ---------------------------------------------------------------- Dymki i ciekawostki

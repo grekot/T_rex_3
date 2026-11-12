@@ -4,6 +4,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -14,7 +15,7 @@ import 'package:homeautomation/data/cloud_access.dart';
 import 'package:homeautomation/data/connection_manager.dart';
 import 'package:homeautomation/data/device_store.dart';
 import 'package:homeautomation/data/discovery.dart';
-import 'package:homeautomation/data/radio_logo_lookup.dart';
+import 'package:homeautomation/data/radio_browser.dart';
 import 'package:homeautomation/data/thermostat_connection.dart';
 import 'package:homeautomation/models/clock.dart';
 import 'package:homeautomation/models/dashboard.dart';
@@ -674,18 +675,20 @@ void main() {
     final c = hub.controller('zegar-ab12cd')!;
     await tester.runAsync(c.connect);
     Map radio() => conn.sent.last['radio'] as Map;
-    final asked = <(String, String)>[];
-    await tester.pumpWidget(
-      _app(
-        ClockRadioPage(
-          controller: c,
-          findLogos: (name, url) async {
-            asked.add((name, url));
-            return ['https://radio357.pl/logo.png', 'https://radio357.pl/logo.svg'];
-          },
-        ),
-      ),
-    );
+    final asked = <String>[];
+    final client = MockClient((req) async {
+      asked.add(req.url.toString());
+      if (req.url.path == '/json/stations/byurl') {
+        return http.Response(jsonEncode([{'favicon': 'https://radio357.pl/logo.png', 'homepage': ''}]), 200);
+      }
+      if (req.url.path == '/json/stations/search') {
+        return http.Response(jsonEncode([{'favicon': 'https://radio357.pl/inne.png'}]), 200);
+      }
+      if (req.url.path == '/logo.png') return http.Response.bytes(_png1, 200, headers: {'content-type': 'image/png'});
+      if (req.url.path == '/inne.png') return http.Response.bytes(_png2, 200, headers: {'content-type': 'image/png'});
+      return http.Response('<html>404</html>', 404, headers: {'content-type': 'text/html'});
+    });
+    await tester.pumpWidget(_app(ClockRadioPage(controller: c, browser: RadioBrowser(client: client))));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('clockStationAdd')));
     await tester.pumpAndSettle();
@@ -694,8 +697,9 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('clockStationFindLogo')));
     await tester.pumpAndSettle();
-    expect(asked, [('Radio 357', 'https://stream.radio357.pl')]);
-    await tester.tap(find.byKey(const Key('clockLogoPick-0')));
+    expect(asked.first, contains('/json/stations/byurl?url=https%3A%2F%2Fstream.radio357.pl'));
+    expect(find.byKey(const Key('clockLogoPick-1')), findsOneWidget); // dwa działające, martwe pominięte
+    await tester.tap(find.text('PNG 1×1 · 1 KB · radio357.pl').first);
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('clockStationSave')));
     await tester.pumpAndSettle();
@@ -828,27 +832,157 @@ void main() {
     hub2.dispose();
   });
 
-  test('Znajdź logo: radio-browser.info po adresie, potem po nazwie; PNG / JPG najpierw', () async {
-    final paths = <String>[];
+  testWidgets('Szukaj stacji: filtr MP3, wypełnienie nazwy (limit), strumienia i logo ze strony stacji', (tester) async {
+    final fake = FakeClock();
+    final (hub, conns, _) = await _home(clock: fake);
+    final conn = conns['zegar-ab12cd']!;
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
     final client = MockClient((req) async {
-      paths.add(req.url.path);
-      if (req.url.path.endsWith('/byurl')) return http.Response('[]', 200);
-      return http.Response(
-        jsonEncode([
-          {'favicon': 'https://a.pl/icon.svg'},
-          {'favicon': ''},
-          {'favicon': 'https://a.pl/logo.png'},
-          {'favicon': 'https://a.pl/logo.png'},
-          {'favicon': 'https://b.pl/l.jpeg'},
-        ]),
-        200,
-      );
+      final p = req.url.path;
+      if (p == '/json/stations/search' && req.url.queryParameters['limit'] == '30') {
+        expect(req.url.queryParameters['name'], 'Nowy Świat');
+        expect(req.headers['User-Agent'], radioBrowserUserAgent);
+        return http.Response.bytes(
+          utf8.encode(
+            jsonEncode([
+              {'name': 'Radio Nowy Świat AAC', 'url_resolved': 'https://n.pl/aac', 'codec': 'AAC', 'bitrate': 64},
+              {
+                'name': 'Radio Nowy Świat - Muzyka i Rozmowy',
+                'url': 'https://n.pl/stary',
+                'url_resolved': 'https://n.pl/mp3',
+                'codec': 'MP3',
+                'bitrate': 128,
+                'countrycode': 'PL',
+                'homepage': 'https://nowyswiat.online/',
+                'favicon': 'https://nowyswiat.online/stare.png',
+              },
+            ]),
+          ),
+          200,
+        );
+      }
+      if (p.startsWith('/json/')) return http.Response('[]', 200);
+      if (req.url.host == 'nowyswiat.online' && p == '/') {
+        return http.Response('<head><link rel="apple-touch-icon" href="/img/apple.png"></head>', 200);
+      }
+      if (p == '/img/apple.png') return http.Response.bytes(_png1, 200, headers: {'content-type': 'image/png'});
+      return http.Response('nie ma', 404, headers: {'content-type': 'text/html'});
     });
-    final logos = await findStationLogos(name: 'Radio 357', streamUrl: 'https://stream.radio357.pl', client: client);
-    expect(paths, ['/json/stations/byurl', '/json/stations/search']);
-    expect(logos, ['https://a.pl/logo.png', 'https://b.pl/l.jpeg', 'https://a.pl/icon.svg']);
-    final down = MockClient((_) async => http.Response('', 503));
-    expect(await findStationLogos(name: 'X', streamUrl: 'https://x.pl/s', client: down), isEmpty);
+    await tester.pumpWidget(_app(ClockRadioPage(controller: c, browser: RadioBrowser(client: client))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockStationAdd')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockStationSearch')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('clockStationQuery')), 'Nowy Świat');
+    await tester.tap(find.byKey(const Key('clockStationQueryGo')));
+    await tester.pumpAndSettle();
+    expect(find.text('Radio Nowy Świat AAC'), findsNothing); // domyślnie tylko MP3
+    expect(find.text('Ukryte inne formaty: 1'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('clockStationMp3Only')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('zegar nie zagra (AAC)'), findsOneWidget);
+    await tester.tap(find.text('Radio Nowy Świat - Muzyka i Rozmowy'));
+    await tester.pumpAndSettle();
+    final name = tester.widget<TextField>(find.byKey(const Key('clockStationName'))).controller!.text;
+    expect(utf8.encode(name).length <= 24, true);
+    expect(name, startsWith('Radio Nowy Świat'));
+    expect(tester.widget<TextField>(find.byKey(const Key('clockStationUrl'))).controller!.text, 'https://n.pl/mp3');
+    expect(
+      tester.widget<TextField>(find.byKey(const Key('clockStationLogo'))).controller!.text,
+      'https://nowyswiat.online/img/apple.png', // martwy favicon z katalogu pominięty, ikona ze strony stacji
+    );
+    await tester.tap(find.byKey(const Key('clockStationSave')));
+    await tester.pumpAndSettle();
+    final st = ((conn.sent.last['radio'] as Map)['stations'] as List).single as Map;
+    expect((st['url'], st['logo']), ('https://n.pl/mp3', 'https://nowyswiat.online/img/apple.png'));
+
+    // Ręcznie wpisany martwy adres logo: komunikat i „Zapisz mimo to”
+    await tester.tap(find.byKey(const Key('clockStation-0')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('clockStationLogo')), 'https://www.rmf.fm/inc/img/favicon/apple-icon-114x114.png?2');
+    await tester.tap(find.byKey(const Key('clockStationSave')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Logo nie działa: HTTP 404'), findsOneWidget);
+    expect(find.text('Zapisz mimo to'), findsOneWidget);
+    hub.dispose();
+  });
+
+  test('radio-browser: martwy favicon, kandydaci ze strony, formaty, rozmiar, zapasowy serwer, MP3', () async {
+    final big = Uint8List.fromList([..._png1, ...List.filled(70 * 1024, 0)]);
+    final prog = Uint8List.fromList([0xFF, 0xD8, 0xFF, 0xC2, 0, 11, 8, 0, 64, 0, 64, 3, 1, 0, 0, 0, 0]);
+    final hosts = <String>[];
+    final client = MockClient((req) async {
+      final u = req.url;
+      if (u.host.endsWith('radio-browser.info')) {
+        hosts.add(u.host);
+        if (u.host == 'all.api.radio-browser.info') return http.Response('', 503); // zapasowy serwer
+        if (u.path == '/json/stations/byurl') {
+          return http.Response(
+            jsonEncode([
+              {
+                'name': 'RMF FM',
+                'url': 'http://195.150.20.242:8000/rmf_fm',
+                'codec': 'MP3',
+                'favicon': 'https://www.rmf.fm/inc/img/favicon/apple-icon-114x114.png?2',
+                'homepage': 'https://www.rmf.fm/',
+              },
+            ]),
+            200,
+          );
+        }
+        return http.Response('[]', 200);
+      }
+      switch (u.path) {
+        case '/':
+          return http.Response(
+            '<html><head><link rel="icon" type="image/svg+xml" href="/i.svg">'
+            "<link href='/duze.png' rel='apple-touch-icon' sizes='180x180'>"
+            '<link rel="shortcut icon" href="https://cdn.rmf.fm/prog.jpg">'
+            '<meta property="og:image" content="/og.jpg&amp;v=2"></head></html>',
+            200,
+            headers: {'content-type': 'text/html'},
+          );
+        case '/duze.png':
+          return http.Response.bytes(_png2, 200, headers: {'content-type': 'image/png'});
+        case '/i.svg':
+          return http.Response('<svg/>', 200, headers: {'content-type': 'image/svg+xml'});
+        case '/prog.jpg':
+          return http.Response.bytes(prog, 200, headers: {'content-type': 'image/jpeg'});
+        case '/og.jpg':
+          return http.Response.bytes(big, 200, headers: {'content-type': 'image/jpeg'});
+        case '/apple-touch-icon.png':
+          return http.Response.bytes(_png1, 200, headers: {'content-type': 'image/png'});
+        case '/favicon.ico':
+          return http.Response.bytes([0, 0, 1, 0], 200, headers: {'content-type': 'image/x-icon'});
+      }
+      return http.Response('<html>404</html>', 404, headers: {'content-type': 'text/html'});
+    });
+    final rb = RadioBrowser(client: client);
+    final logos = await rb.findLogos(name: 'RMF FM', streamUrl: 'http://195.150.20.242:8000/rmf_fm');
+    expect(hosts.first, 'all.api.radio-browser.info');
+    expect(hosts, contains('de1.api.radio-browser.info'));
+    expect([for (final l in logos) Uri.parse(l.url).path], unorderedEquals(['/duze.png', '/apple-touch-icon.png']));
+    expect(pageIconLinks('<link rel="apple-touch-icon" href="/a.png"><meta property="og:image" content="/b.jpg">'), [
+      '/a.png',
+      '/b.jpg',
+    ]);
+    expect((await rb.check('https://www.rmf.fm/inc/img/favicon/apple-icon-114x114.png?2')).error, 'HTTP 404');
+    expect((await rb.check('https://www.rmf.fm/i.svg')).error, contains('SVG'));
+    expect((await rb.check('https://www.rmf.fm/favicon.ico')).error, contains('X-ICON'));
+    expect((await rb.check('https://cdn.rmf.fm/prog.jpg')).error, contains('progresywny'));
+    expect((await rb.check('https://www.rmf.fm/og.jpg&v=2')).logo, isNull);
+    expect((await rb.check('https://www.rmf.fm/og.jpg')).error, contains('za duży'));
+    final nothing = RadioBrowser(client: MockClient((_) async => http.Response('', 503)));
+    expect(await nothing.findLogos(name: 'X', streamUrl: 'https://x.pl/s'), isEmpty);
+    expect(await nothing.search('X'), isEmpty);
+
+    final s = RbStation.fromJson({'name': 'A', 'url': 'http://a/x', 'url_resolved': 'http://a/y', 'codec': 'mp3'});
+    expect((s.url, s.mp3), ('http://a/y', true));
+    expect(RbStation.fromJson({'name': 'B', 'url': 'http://b', 'codec': 'AAC+'}).mp3, false);
+    expect(clockTrimName('Radio Nowy Świat - Muzyka i Rozmowy').length <= 24, true);
+    expect(utf8.encode(clockTrimName('ŚŚŚŚŚŚŚŚŚŚŚŚŚŚŚ')).length, 24);
   });
 
   testWidgets('dymki: wiadomość na zegar z ikoną i odpowiedzią, spotkanie; zegar bez dymków bez przycisków', (
@@ -1394,3 +1528,7 @@ void main() {
     hub.dispose();
   });
 }
+
+/// Prawidłowy PNG 1×1 (podgląd w testach) i ten sam obraz z dopiskiem za IEND (inny plik, ten sam nagłówek).
+final _png1 = base64Decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=');
+final _png2 = Uint8List.fromList([..._png1, 1, 2, 3]);

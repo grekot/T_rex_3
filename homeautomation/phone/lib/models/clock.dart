@@ -232,6 +232,15 @@ class ClockFeed {
 int _bytes(String s) => utf8.encode(s).length;
 
 /// Sprawdzenie pól kanału jak `validFeed` w firmware (DeskConfig.cpp); null = dobre.
+/// Nazwa skrócona do limitu Config (24 B UTF-8; polska litera to 2 B), bez ucięcia znaku w połowie.
+String clockTrimName(String name) {
+  var n = name.trim();
+  while (_bytes(n) > 24) {
+    n = n.substring(0, n.length - 1);
+  }
+  return n.trimRight();
+}
+
 String? clockFeedNameError(String name) =>
     name.trim().isEmpty ? 'Podaj nazwę' : (_bytes(name) > 24 ? 'Najwyżej 24 bajty (polska litera to 2)' : null);
 
