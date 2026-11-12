@@ -757,6 +757,42 @@ void main() {
     expect(clockScreens['radio'], 'Radio');
   });
 
+  testWidgets('po ręcznej zmianie ekranu: do środkowego przycisku / 5 min, błąd atrapy, ukryte bez holdS', (tester) async {
+    final fake = FakeClock();
+    final (hub, conns, _) = await _home(clock: fake);
+    final conn = conns['zegar-ab12cd']!;
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    await tester.pumpWidget(_app(ClockScreensPage(controller: c)));
+    await tester.pumpAndSettle();
+    await _scrollTo(tester, find.byKey(const Key('clockHold')));
+    expect(find.text('Do środkowego przycisku'), findsOneWidget);
+    expect(find.textContaining('do środkowego przycisku (w rogu ikona pauzy)'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('clockHold')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('5 min').last);
+    await tester.pumpAndSettle();
+    expect((conn.sent.last['screens'] as Map)['holdS'], 300);
+    expect(fake.screens['holdS'], 300);
+    expect(
+      fake.applySet({
+        'screens': {'holdS': 30},
+      }),
+      {'screens.holdS': 'range'},
+    );
+    hub.dispose();
+
+    final old = FakeClock()..screens.remove('holdS');
+    final (hub2, _, _) = await _home(clock: old);
+    final c2 = hub2.controller('zegar-ab12cd')!;
+    await tester.runAsync(c2.connect);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_app(ClockScreensPage(controller: c2)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clockHold')), findsNothing);
+    hub2.dispose();
+  });
+
   testWidgets('korekcja głośnika: wybór w ustawieniach radia, opis, błąd atrapy, ukryta bez pola eq', (tester) async {
     final fake = FakeClock();
     final (hub, conns, _) = await _home(clock: fake);

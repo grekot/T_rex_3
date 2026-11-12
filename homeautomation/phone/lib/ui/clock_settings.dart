@@ -134,6 +134,7 @@ class _ClockScreensPageState extends State<ClockScreensPage> with _ClockConfig {
           final s = obj('screens');
           final interval = (s['intervalS'] as num?)?.toInt() ?? 15;
           final factor = (s['mainFactor'] as num?)?.toInt() ?? 1;
+          final hold = (s['holdS'] as num?)?.toInt();   // null = zegar bez screens.holdS (starszy firmware)
           final transition = s['transition'] as String? ?? 'cards';
           return ListView(
             padding: const EdgeInsets.fromLTRB(0, 8, 0, 32),
@@ -195,6 +196,24 @@ class _ClockScreensPageState extends State<ClockScreensPage> with _ClockConfig {
                   onSelectionChanged: (v) => setIn('screens', {'mainFactor': v.single}),
                 ),
               ),
+              if (hold != null)
+                ListTile(
+                  title: const Text('Po ręcznej zmianie ekranu'),
+                  subtitle: Text(
+                    hold == 0
+                        ? 'Pokaz stoi na wybranym ekranie do środkowego przycisku (w rogu ikona pauzy)'
+                        : 'Pokaz stoi na wybranym ekranie, potem wraca do głównego',
+                  ),
+                  trailing: DropdownButton<int>(
+                    key: const Key('clockHold'),
+                    value: hold,
+                    items: [
+                      for (final v in {...clockHoldOptions.keys, hold})
+                        DropdownMenuItem(value: v, child: Text(clockHoldOptions[v] ?? '${(v / 60).round()} min')),
+                    ],
+                    onChanged: (v) => setIn('screens', {'holdS': v}),
+                  ),
+                ),
               const SectionHeader('Przejście'),
               RadioGroup<String>(
                 groupValue: transition,

@@ -95,6 +95,7 @@ class FakeClock extends FakeDevice {
     'intervalS': 15,
     'mainFactor': 2,
     'transition': 'cards',
+    'holdS': 0,
   };
   Map<String, dynamic> display = {'brightness': 80, 'auto': true, 'rotation': 0};
   Map<String, dynamic> night = {
@@ -554,6 +555,8 @@ class FakeClock extends FakeDevice {
         errors['screens.intervalS'] = 'range';
       } else if (s.containsKey('mainFactor') && !_num(s['mainFactor'], 1, 4)) {
         errors['screens.mainFactor'] = 'range';
+      } else if (s.containsKey('holdS') && !(s['holdS'] == 0 || _num(s['holdS'], 60, 3600))) {
+        errors['screens.holdS'] = 'range';
       } else if (s.containsKey('transition') &&
           !const {'cards', 'slide', 'cover', 'fade', 'none'}.contains(s['transition'])) {
         errors['screens.transition'] = 'value';

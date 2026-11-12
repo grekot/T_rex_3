@@ -31,6 +31,9 @@ const clockScreenHints = {
   'radio': 'stacja, logo, tytuł utworu, głośność (gdy radio gra)',
 };
 
+/// Po ręcznej zmianie ekranu pokaz stoi (`screens.holdS`, fw 0.7.3): 0 = do środkowego przycisku.
+const clockHoldOptions = {0: 'Do środkowego przycisku', 60: '1 min', 300: '5 min', 900: '15 min', 3600: '1 h'};
+
 const clockTransitions = {
   'cards': 'Karty kaskadą',
   'slide': 'Przesunięcie',

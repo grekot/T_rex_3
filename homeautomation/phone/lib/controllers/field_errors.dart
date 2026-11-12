@@ -42,6 +42,7 @@ const fieldLabels = <String, String>{
   'radio.resume': 'Radio po restarcie',
   'radio.showS': 'Ekran radia po włączeniu',
   'radio.eq': 'Korekcja głośnika',
+  'screens.holdS': 'Po ręcznej zmianie ekranu',
   'radioOn': 'Radio',
   'radioStation': 'Stacja radia',
   'radioVol': 'Głośność radia',
