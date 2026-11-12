@@ -212,6 +212,21 @@ abstract class FakeDevice {
   /// Ile razy wywołano `POST /api/wifi/reset`.
   int wifiResets = 0;
 
+  /// Punkt sieci mesh (pkt 9.6): false = urządzenie bez tej funkcji (`/api/wifi*` → 404 not_found).
+  bool wifiApSupported = false;
+
+  /// Punkty sieci „Dom” (Deco): pierwszy to bieżący; skan zwraca je od najsilniejszego.
+  List<Map<String, Object>> wifiAps = [
+    {'bssid': 'A8:42:A1:11:22:31', 'rssi': -93, 'channel': 11},
+    {'bssid': 'A8:42:A1:33:3A:F1', 'rssi': -52, 'channel': 6},
+    {'bssid': 'A8:42:A1:55:66:71', 'rssi': -74, 'channel': 1},
+  ];
+  String? wifiPinned;
+
+  /// Odmowa skanu (`409 busy` z `reason`), np. `radio`; null = skan wolno.
+  String? wifiBusyReason;
+  bool _wifiScanned = false;
+
   /// Dom, z którym atrapa jest połączona w chmurze (null = niepołączona).
   String? cloudHomeId;
 
@@ -312,6 +327,9 @@ abstract class FakeDevice {
       ..patch('/api/clients', _auth(_clientsPatch, 'config'))
       ..post('/api/clients', _auth(_clientsPost, 'config'))
       ..post('/api/wifi/reset', _auth(_wifiReset, 'config'))
+      ..get('/api/wifi', _auth(_wifiGet))
+      ..post('/api/wifi/scan', _auth(_wifiScan, 'config'))
+      ..post('/api/wifi/pin', _auth(_wifiPin, 'config'))
       ..post('/api/cloud', _auth(_cloud, 'config'))
       ..get('/api/cloud', _auth(_cloudGet, 'config'))
       ..post('/api/ota', _auth(_otaPost, 'config'))
@@ -487,6 +505,46 @@ abstract class FakeDevice {
       'state': stateJson(),
       'config': _fullConfig(),
     }, status: errors.isEmpty ? 200 : 400);
+  }
+
+  Response _wifiGet(Request req) {
+    if (!wifiApSupported) return _json({'ok': false, 'error': 'not_found'}, status: 404);
+    final cur = wifiAps.first;
+    final sorted = [...wifiAps]..sort((a, b) => (b['rssi'] as int).compareTo(a['rssi'] as int));
+    return _json({
+      'ssid': 'Dom',
+      'bssid': cur['bssid'],
+      'rssi': cur['rssi'],
+      'channel': cur['channel'],
+      'pinned': wifiPinned,
+      'mode': wifiPinned == null ? 'auto' : (wifiPinned == cur['bssid'] ? 'pinned' : 'connecting'),
+      'link': 'wifi',
+      'scan': {'state': _wifiScanned ? 'done' : 'none', 'ageS': 0, 'aps': _wifiScanned ? sorted : <Object>[]},
+    });
+  }
+
+  /// `POST /api/wifi/scan`: od razu gotowy wynik (prawdziwe urządzenie skanuje ok. 2 s).
+  Response _wifiScan(Request req) {
+    if (!wifiApSupported) return _json({'ok': false, 'error': 'not_found'}, status: 404);
+    if (wifiBusyReason != null) return _json({'ok': false, 'error': 'busy', 'reason': wifiBusyReason}, status: 409);
+    _wifiScanned = true;
+    return _json({'ok': true, 'scan': 'scanning'}, status: 202);
+  }
+
+  /// `POST /api/wifi/pin {"bssid"}`: przypięcie od razu „łączy” z punktem (staje się bieżącym).
+  Future<Response> _wifiPin(Request req) async {
+    if (!wifiApSupported) return _json({'ok': false, 'error': 'not_found'}, status: 404);
+    final body = await _body(req);
+    if (body == null || !body.containsKey('bssid')) return _json({'ok': false, 'error': 'json'}, status: 400);
+    final b = body['bssid'];
+    if (b != null && (b is! String || !RegExp(r'^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$').hasMatch(b))) {
+      return _json({'ok': false, 'error': 'bssid'}, status: 400);
+    }
+    wifiPinned = (b as String?)?.toUpperCase().replaceAll('-', ':');
+    final i = wifiAps.indexWhere((a) => a['bssid'] == wifiPinned);
+    if (i > 0) wifiAps.insert(0, wifiAps.removeAt(i));
+    log('WiFi: punkt ${wifiPinned ?? 'automatycznie'}');
+    return _json({'ok': true, 'pinned': wifiPinned});
   }
 
   /// `POST /api/wifi/reset` (pkt 9.3): po ~1 s „restart” w trybie konfiguracji Bluetooth -

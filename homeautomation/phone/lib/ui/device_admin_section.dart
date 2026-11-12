@@ -17,6 +17,7 @@ import 'firmware_screen.dart';
 import 'hub_screen.dart' show AssignToHubScreen;
 import 'notify_screen.dart';
 import 'phones_screen.dart';
+import 'wifi_ap_screen.dart';
 import 'format.dart';
 import 'widgets.dart';
 
@@ -47,6 +48,9 @@ class _DeviceAdminSectionState extends State<DeviceAdminSection> {
   /// `GET /api/info` (lokalnie): `prov` (zmiana sieci przez SoftAP) i `cloud: false` (węzeł bez chmury).
   DeviceInfo? _info;
 
+  /// Urządzenie z wyborem punktu sieci mesh (`GET /api/wifi` odpowiada, pkt 9.6) - lokalnie, poziom `config`.
+  bool _wifiAp = false;
+
   /// Za hubem: czy `deviceIndex/{id}/via` wskazuje ten hub (hub prowadzi lustro w chmurze); null = jeszcze nie wiadomo.
   bool? _viaLinked;
   String? _hubName;
@@ -65,6 +69,11 @@ class _DeviceAdminSectionState extends State<DeviceAdminSection> {
     c.localApi?.info(timeout: const Duration(seconds: 3)).then((i) {
       if (mounted) setState(() => _info = i);
     }, onError: (_) {});
+    if (c.canConfig) {
+      c.localApi?.wifiAp(timeout: const Duration(seconds: 3)).then((w) {
+        if (mounted && w != null) setState(() => _wifiAp = true);
+      }, onError: (_) {});
+    }
   }
 
   @override
@@ -355,6 +364,16 @@ class _DeviceAdminSectionState extends State<DeviceAdminSection> {
             enabled: _canAdmin,
             onTap: _changeWifi,
           ),
+          if (_wifiAp)
+            ListTile(
+              key: const Key('wifiAp'),
+              leading: const Icon(Icons.router_outlined),
+              title: const Text('Punkt WiFi'),
+              subtitle: Text(_canAdmin ? 'Który punkt sieci (np. Deco): najsilniejszy albo wybrany' : _adminHint),
+              enabled: _canAdmin,
+              onTap: () =>
+                  Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => WifiApScreen.forController(c))),
+            ),
           ListTile(
             key: const Key('notify'),
             leading: const Icon(Icons.notifications_active_outlined),

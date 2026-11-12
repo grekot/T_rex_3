@@ -11,6 +11,7 @@ import '../models/json_utils.dart';
 import '../models/set_values.dart';
 import '../models/thermostat_config.dart';
 import '../models/thermostat_state.dart';
+import '../models/wifi_ap.dart';
 import 'errors.dart';
 import 'local_endpoint.dart';
 
@@ -269,6 +270,34 @@ class LocalApi {
 
   /// `POST /api/set` z dowolnym Set (każdy typ urządzenia).
   Future<SetResult> setJson(Json values) async => SetResult.fromJson(await _send('POST', '/api/set', body: values));
+
+  /// `GET /api/wifi` (pkt 9.6): bieżący i przypięty punkt sieci mesh, ostatni skan. null = urządzenie bez tej
+  /// funkcji (starszy firmware albo platforma bez niej - 404).
+  Future<WifiApStatus?> wifiAp({Duration? timeout}) async {
+    final j = await _send('GET', '/api/wifi', timeout: timeout);
+    if (j['ok'] == false) {
+      final e = asStringOrNull(j['error'], 'error');
+      if (e == 'not_found' || e == 'not_supported') return null;
+      throw ThermostatException(describeApiError(e));
+    }
+    return WifiApStatus.fromJson(j);
+  }
+
+  /// `POST /api/wifi/scan` (pkt 9.6): skan w tle; odmowa (`409 busy` z `reason`) jako wyjątek z opisem.
+  Future<void> wifiScan() async {
+    final j = await _send('POST', '/api/wifi/scan', body: const {});
+    if (j['ok'] == false) {
+      throw ThermostatException(
+        j['error'] == 'busy' ? wifiScanRefusal(asStringOrNull(j['reason'], 'reason')) : describeApiError(asStringOrNull(j['error'], 'error')),
+      );
+    }
+  }
+
+  /// `POST /api/wifi/pin` (pkt 9.6): przypięcie punktu ([bssid] `AA:BB:…`) albo automatycznie (null).
+  Future<void> wifiPin(String? bssid) async {
+    final j = await _send('POST', '/api/wifi/pin', body: {'bssid': bssid});
+    if (j['ok'] == false) throw ThermostatException(describeApiError(asStringOrNull(j['error'], 'error')));
+  }
 
   /// `POST /api/wifi/reset` (pkt 3, 9.3): urządzenie zapomina sieć i wraca do trybu konfiguracji Bluetooth.
   Future<void> wifiReset() async {

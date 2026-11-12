@@ -59,6 +59,7 @@ class FakeClock extends FakeDevice {
            : null,
        themePacks = withThemePacks ? [] : null {
     cloudCapable = false;
+    wifiApSupported = true;   // zegar fw 0.7.0: punkt sieci mesh (pkt 9.6)
   }
 
   /// Radio (`radio`); null = zegar bez radia. Stan: [radioOn], [radioMute], [radioVol], [radioStation].
