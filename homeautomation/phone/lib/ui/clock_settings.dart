@@ -1909,6 +1909,30 @@ class _ClockRadioPageState extends State<ClockRadioPage> with _ClockConfig {
         value: r['resume'] == true,
         onChanged: (v) => setIn('radio', {'resume': v}),
       ),
+      // Korekcja głośnika (fw 0.7.1 zgłasza radio.eq); zmiana działa w locie
+      if (r['eq'] is String) ...[
+        const ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: Text('Korekcja głośnika'),
+        ),
+        SegmentedButton<String>(
+          key: const Key('clockRadioEq'),
+          segments: [
+            for (final MapEntry(key: k, value: label) in clockRadioEq.entries)
+              ButtonSegment(value: k, label: Text(label)),
+          ],
+          selected: {r['eq'] as String},
+          onSelectionChanged: (v) => setIn('radio', {'eq': v.single}),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: 4, bottom: 8),
+          child: Text(
+            clockRadioEqHints[r['eq']] ?? '',
+            key: const Key('clockRadioEqHint'),
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ),
+      ],
       if (clockHasRadioScreen(cfg)) ...[
         ListTile(
           contentPadding: EdgeInsets.zero,

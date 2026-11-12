@@ -55,7 +55,7 @@ class FakeClock extends FakeDevice {
              }
            : null,
        radio = withRadio
-           ? {'stations': <dynamic>[], 'muteOffMin': 10, 'maxW': 0.8, 'resume': false, 'showS': 10}
+           ? {'stations': <dynamic>[], 'muteOffMin': 10, 'maxW': 0.8, 'resume': false, 'showS': 10, 'eq': 'music'}
            : null,
        themePacks = withThemePacks ? [] : null {
     cloudCapable = false;
@@ -359,6 +359,7 @@ class FakeClock extends FakeDevice {
       if (r.containsKey('maxW') && !_num(r['maxW'], 0.1, 1.5)) 'radio.maxW': 'range',
       if (r.containsKey('resume') && r['resume'] is! bool) 'radio.resume': 'value',
       if (r.containsKey('showS') && !(r['showS'] is int && _num(r['showS'], 0, 120))) 'radio.showS': 'range',
+      if (r.containsKey('eq') && !const ['off', 'voice', 'music'].contains(r['eq'])) 'radio.eq': 'value',
     };
   }
 

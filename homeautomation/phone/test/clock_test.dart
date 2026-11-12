@@ -757,6 +757,41 @@ void main() {
     expect(clockScreens['radio'], 'Radio');
   });
 
+  testWidgets('korekcja głośnika: wybór w ustawieniach radia, opis, błąd atrapy, ukryta bez pola eq', (tester) async {
+    final fake = FakeClock();
+    final (hub, conns, _) = await _home(clock: fake);
+    final conn = conns['zegar-ab12cd']!;
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    await tester.pumpWidget(_app(ClockRadioPage(controller: c)));
+    await tester.pumpAndSettle();
+    await _scrollTo(tester, find.byKey(const Key('clockRadioEq')));
+    expect(find.text(clockRadioEqHints['music']!), findsOneWidget);
+    await tester.tap(find.text('Mowa'));
+    await tester.pumpAndSettle();
+    expect((conn.sent.last['radio'] as Map)['eq'], 'voice');
+    expect(fake.radio!['eq'], 'voice');
+    expect(find.text(clockRadioEqHints['voice']!), findsOneWidget);
+    expect(
+      fake.applySet({
+        'radio': {'eq': 'bass'},
+      }),
+      {'radio.eq': 'value'},
+    );
+    hub.dispose();
+
+    // Starszy firmware (bez radio.eq): wybór ukryty
+    final old = FakeClock()..radio!.remove('eq');
+    final (hub2, _, _) = await _home(clock: old);
+    final c2 = hub2.controller('zegar-ab12cd')!;
+    await tester.runAsync(c2.connect);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_app(ClockRadioPage(controller: c2)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clockRadioEq')), findsNothing);
+    hub2.dispose();
+  });
+
   test('Znajdź logo: radio-browser.info po adresie, potem po nazwie; PNG / JPG najpierw', () async {
     final paths = <String>[];
     final client = MockClient((req) async {

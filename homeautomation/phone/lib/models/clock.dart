@@ -411,6 +411,14 @@ String? clockLogoWarning(String url) {
   return null;
 }
 
+/// Korekcja głośnika (`radio.eq`, fw 0.7.1): nazwa i opis.
+const clockRadioEq = {'off': 'Wyłączona', 'music': 'Muzyka', 'voice': 'Mowa'};
+const clockRadioEqHints = {
+  'off': 'Pełne pasmo - mały głośnik i tak nie odda basu, a bas zabiera moc',
+  'music': 'Lekko odcięty bas (poniżej 200 Hz) i odrobinę wyraźniej (+2 dB przy 3 kHz)',
+  'voice': 'Mocniej odcięty bas (poniżej 300 Hz) i wyraźniejsza mowa (+4 dB przy 3 kHz) - wiadomości, audycje',
+};
+
 const clockRadioPressWarning = 'Dwuklik / przytrzymanie na zegarze steruje radiem - zadziała jedno i drugie';
 
 /// Wyzwalacz `double`/`long` na przycisku `in1`-`in3` zegara z radiem - zegar zrobi też swoje (stacja, głośność).

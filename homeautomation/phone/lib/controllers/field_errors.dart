@@ -41,6 +41,7 @@ const fieldLabels = <String, String>{
   'radio.maxW': 'Moc głośnika',
   'radio.resume': 'Radio po restarcie',
   'radio.showS': 'Ekran radia po włączeniu',
+  'radio.eq': 'Korekcja głośnika',
   'radioOn': 'Radio',
   'radioStation': 'Stacja radia',
   'radioVol': 'Głośność radia',
