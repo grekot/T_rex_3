@@ -415,7 +415,7 @@ String? clockLogoWarning(String url) {
 const clockRadioEq = {'off': 'Wyłączona', 'music': 'Muzyka', 'voice': 'Mowa'};
 const clockRadioEqHints = {
   'off': 'Pełne pasmo - mały głośnik i tak nie odda basu, a bas zabiera moc',
-  'music': 'Lekko odcięty bas (poniżej 200 Hz) i odrobinę wyraźniej (+2 dB przy 3 kHz)',
+  'music': 'Bez najniższego basu (poniżej ok. 120 Hz) i pełniejsze brzmienie (podbicie ok. 300 Hz)',
   'voice': 'Mocniej odcięty bas (poniżej 300 Hz) i wyraźniejsza mowa (+4 dB przy 3 kHz) - wiadomości, audycje',
 };
 
