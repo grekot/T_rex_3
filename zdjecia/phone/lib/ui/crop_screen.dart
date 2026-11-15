@@ -5,7 +5,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import '../media/gallery.dart';
 import '../pool_controller.dart';
 import '../select/crop.dart';
 
@@ -36,10 +35,8 @@ class _CropScreenState extends State<CropScreen> {
 
   Future<void> _load() async {
     try {
-      final asset = widget.pool.assetOf(widget.item.id);
-      if (asset == null) throw StateError('Zdjęcia nie ma już w galerii');
-      final bytes = await imageBytes(asset, 1600, quality: 90);
-      if (bytes == null) throw StateError('System nie oddał danych zdjęcia');
+      final bytes = await widget.pool.sourceBytes(widget.item.id);
+      if (bytes == null) throw StateError('Zdjęcia nie ma już w galerii ani w archiwum');
       final codec = await ui.instantiateImageCodec(bytes);
       final frame = await codec.getNextFrame();
       if (mounted) setState(() => _image = frame.image);

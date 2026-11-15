@@ -1,7 +1,10 @@
 // Sterowanie pulą: szuka zdjęć z aparatu, analizuje tylko nowe, daje je do oceny Gemini (gdy jest klucz),
 // układa pulę 20 zdjęć, kadruje i publikuje gotowe PNG w plikach (published.json), skąd most w usłudze
-// w tle podaje je zegarkowi (a z danych kadru robi też JPEG-i dla zegarów HomeAutomation). Ten sam kod działa w aplikacji i bez ekranu w usłudze w tle (headless);
-// blokada w plikach pilnuje, żeby nie odświeżały naraz.
+// w tle podaje je zegarkowi (a z danych kadru robi też JPEG-i dla zegarów HomeAutomation). Wspomnienia biorą się
+// z archiwum w Firestore (najciekawsze zdjęcia z całej biblioteki, ARCHIWUM.md), a bez niego - z historii galerii.
+// Strumień dla zegarów (clocks.json) dostaje nowe zdjęcia puli i co godzinę kilka z archiwum.
+// Ten sam kod działa w aplikacji i bez ekranu w usłudze w tle (headless); blokada w plikach pilnuje,
+// żeby nie odświeżały naraz.
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -14,10 +17,14 @@ import 'ai/gemini_client.dart';
 import 'ai/key_store.dart';
 import 'ai/photo_rating.dart';
 import 'ai/rater.dart';
+import 'archive/archive.dart';
+import 'archive/archive_source.dart';
+import 'bridge/photo_prep.dart';
 import 'media/analyzer.dart';
 import 'media/gallery.dart';
 import 'select/analysis.dart';
 import 'select/candidates.dart';
+import 'select/clock_stream.dart';
 import 'select/crop.dart';
 import 'select/memories.dart';
 import 'select/rotation.dart';
@@ -25,7 +32,7 @@ import 'select/pool.dart';
 import 'select/scoring.dart';
 import 'select/store.dart';
 
-enum PoolPhase { starting, scanning, analyzing, rating, memories, preparing, ready, noAccess, failed }
+enum PoolPhase { starting, scanning, analyzing, rating, memories, archive, preparing, ready, noAccess, failed }
 
 /// Najwięcej zdjęć wysyłanych do oceny w jednym odświeżeniu (reszta przy następnym)
 const int maxRatingsPerRefresh = 400;
@@ -55,17 +62,19 @@ class PoolItem {
   final CropSource cropSource;
 
   /// Podpis dla zegarka; przy wspomnieniu z rokiem, np. „Nad jeziorem · 2019”
-  String get watchCaption {
-    final caption = rating?.caption ?? '';
-    if (!isMemory) return caption;
-    return caption.isEmpty ? '${taken.year}' : '$caption · ${taken.year}';
-  }
+  String get watchCaption => isMemory ? memoryCaption(rating?.caption ?? '', taken) : rating?.caption ?? '';
+
+  /// Zdjęcie z archiwum w Firestore (nie z galerii telefonu)
+  bool get fromArchive => archiveIdOf(scored.analysis.assetId) != null;
 
   String get id => scored.id;
   String get watchId => watchPhotoId(scored.id, crop);
   DateTime get taken => scored.taken;
   PhotoRating? get rating => scored.rating;
 }
+
+/// Podpis wspomnienia z rokiem: „Nad jeziorem · 2019” (sam rok, gdy brak podpisu)
+String memoryCaption(String caption, DateTime taken) => caption.isEmpty ? '${taken.year}' : '$caption · ${taken.year}';
 
 class PoolController extends ChangeNotifier {
   PoolController({this.headless = false});
@@ -74,6 +83,22 @@ class PoolController extends ChangeNotifier {
   final bool headless;
   late SelectStore _store;
   late Directory _tempDir;
+  late ArchiveSource _archive;
+  List<ArchiveEntry> _archiveEntries = const [];
+  Map<String, ArchiveEntry> _archiveById = {};
+
+  /// Wspomnienia z archiwum obecne w tym odświeżeniu (id w puli: `a_<id>`)
+  final Set<String> _archiveIds = {};
+
+  /// Konto i spis archiwum (do ekranu „Archiwum”)
+  ArchiveStatus archiveStatus = const ArchiveStatus();
+  bool _archiveReady = false;
+
+  @override
+  void dispose() {
+    if (_archiveReady) _archive.cloud.close(); // klient HTTP archiwum (usługa w tle tworzy kontroler co kwadrans)
+    super.dispose();
+  }
   PoolPrefs prefs = PoolPrefs();
   Map<String, PhotoAnalysis> _analyses = {};
   Map<String, PhotoRating> _ratings = {};
@@ -125,7 +150,10 @@ class PoolController extends ChangeNotifier {
   Future<void> init({bool refreshNow = true}) async {
     _store = await openSelectStore();
     _tempDir = await getTemporaryDirectory();
+    _archive = ArchiveSource(_store.archiveDir);
+    _archiveReady = true;
     await _reload();
+    await _loadArchive(check: false);
     notifyListeners();
     if (refreshNow) await refresh();
   }
@@ -169,8 +197,11 @@ class PoolController extends ChangeNotifier {
         }
         // Wspomnienia, które jeszcze nie wygasły, zostają w puli
         _memories = [];
+        _archiveIds.clear();
+        await _loadArchive();
         final active = activeMemories(await _store.loadMemories(), DateTime.now(),
             pinned: prefs.pinned, removed: prefs.removed);
+        final archived = <MemoryItem>[];
         if (swap) {
           // Najdłużej obecne, nieprzypięte wspomnienia ustępują nowym
           final old = [for (final m in active) if (!prefs.pinned.contains(m.photoId)) m]
@@ -178,12 +209,17 @@ class PoolController extends ChangeNotifier {
           active.removeWhere(old.take(memorySwapOnRefresh).contains);
         }
         for (final m in active) {
+          if (archiveIdOf(m.assetId) != null) {
+            archived.add(m);
+            continue;
+          }
           final a = assets[m.photoId] ?? await AssetEntity.fromId(m.assetId);
           if (a == null) continue;
           assets[photoIdOf(a)] = a;
           _memories.add(m);
         }
         _assets = assets;
+        await _restoreArchiveMemories(archived);
         await _analyzeMissing();
         _forgetOld();
         await _store.saveAnalyses(_analyses);
@@ -193,12 +229,170 @@ class PoolController extends ChangeNotifier {
         await _preparePool(swap: swap ? freshSwapOnRefresh : 0);
   }
 
-  /// Uzupełnia wspomnienia do udziału z ustawień: losuje okresy z historii galerii, z każdego
-  /// najlepszych kandydatów (telefon odsiewa, AI wybiera), najwyżej [maxPeriodsPerRefresh] okresów naraz.
+  // --- archiwum (Firestore) ---
+
+  /// Spis archiwum (z pliku; [check] - sprawdza w bazie, czy się zmienił). Błąd sieci nie przerywa odświeżania.
+  Future<void> _loadArchive({bool check = true, bool force = false}) async {
+    try {
+      final r = await _archive.index(check: check, force: force);
+      _archiveEntries = r.entries;
+      archiveStatus = r.status;
+    } catch (e) {
+      archiveStatus = ArchiveStatus(email: archiveStatus.email, count: _archiveEntries.length, error: '$e');
+    }
+    _archiveById = {for (final e in _archiveEntries) e.photoId: e};
+  }
+
+  /// Analiza zdjęcia z archiwum na telefonie (twarze, pasy ciekawości - do kadrów); zdjęcie ściągane, gdy go nie ma
+  Future<PhotoAnalysis> _analyzeArchive(ArchiveEntry e, PhotoAnalyzer analyzer) async {
+    final bytes = await _archive.photo(e.id);
+    if (bytes == null) throw StateError('Nie udało się pobrać zdjęcia z archiwum');
+    return analyzer.analyzeBytes(bytes, id: e.photoId, assetId: e.assetId, taken: e.taken);
+  }
+
+  /// Wspomnienia z archiwum, które jeszcze nie wygasły: zostają, o ile zdjęcie jest w spisie (i da się je przeanalizować)
+  Future<void> _restoreArchiveMemories(List<MemoryItem> items) async {
+    if (items.isEmpty) return;
+    final todo = [for (final m in items) if (_archiveById.containsKey(m.photoId) && !_analyses.containsKey(m.photoId)) m];
+    final analyzer = todo.isEmpty ? null : PhotoAnalyzer(_tempDir);
+    try {
+      for (final m in items) {
+        final e = _archiveById[m.photoId];
+        if (e == null) continue; // usunięte z archiwum albo wylogowano
+        if (!_analyses.containsKey(m.photoId)) {
+          try {
+            _analyses[m.photoId] = await _analyzeArchive(e, analyzer!);
+          } catch (err) {
+            debugPrint('Archiwum ${e.id}: $err');
+            continue;
+          }
+        }
+        _archiveIds.add(m.photoId);
+        _memories.add(m);
+      }
+    } finally {
+      await analyzer?.close();
+    }
+  }
+
+  Set<String> get _removedArchive => {
+        for (final id in prefs.removed)
+          if (id.startsWith('a_')) id.substring(2),
+      };
+
+  /// Nowe wspomnienia z archiwum: lepsze oceny częściej, różne lata, „ten tydzień X lat temu”,
+  /// pokazane wracają najwcześniej po [archiveRest]. Bez Gemini - ocena i podpis są ze spisu.
+  Future<void> _archiveMemories(int need) async {
+    _set(PoolPhase.archive, total: need);
+    final now = DateTime.now();
+    final shown = await _archive.loadShown();
+    final clocks = await _store.loadClockStream();
+    final picks = pickArchive(
+      _archiveEntries,
+      count: need + 3, // zapas na zdjęcia, których nie uda się pobrać
+      now: now,
+      random: _random,
+      shown: shown,
+      exclude: {
+        ..._removedArchive,
+        ...clocks.archiveIds,
+        for (final m in _memories) ?archiveIdOf(m.assetId),
+      },
+      avoidYears: {for (final m in _memories) m.taken.year},
+      recentDays: prefs.days,
+    );
+    final analyzer = PhotoAnalyzer(_tempDir);
+    var found = 0;
+    try {
+      for (final e in picks) {
+        if (found >= need) break;
+        try {
+          _analyses[e.photoId] = await _analyzeArchive(e, analyzer);
+        } catch (err) {
+          aiError = 'Archiwum: $err';
+          continue;
+        }
+        // Ważność rozłożona losowo, żeby wspomnienia wymieniały się po trochu (zegarek dociąga 1-2 zdjęcia naraz)
+        final age = Duration(minutes: _random.nextInt(memoryLifetime.inMinutes ~/ 2));
+        _memories.add(MemoryItem(photoId: e.photoId, assetId: e.assetId, addedAt: now.subtract(age), taken: e.taken));
+        _archiveIds.add(e.photoId);
+        shown[e.id] = now;
+        found++;
+        done = found;
+        notifyListeners();
+      }
+    } finally {
+      await analyzer.close();
+    }
+    shown.removeWhere((_, at) => now.difference(at) > archiveRest * 2);
+    await _archive.saveShown(shown);
+    await _store.saveAnalyses(_analyses);
+    await _store.saveMemories(_memories);
+  }
+
+  /// Strumień dla zegarów HomeAutomation: nowe zdjęcia puli od razu, co godzinę (w dzień) kilka z archiwum.
+  Future<void> _updateClocks() async {
+    final now = DateTime.now();
+    final stream = await _store.loadClockStream();
+    final published = await _store.loadPublished();
+    syncPoolSlots(stream, [for (final p in published) (id: p.id, taken: p.taken)], now);
+    final due = _archiveEntries.isEmpty ? 0 : archiveDue(stream, now);
+    if (due > 0) {
+      final picks = pickArchive(
+        _archiveEntries,
+        count: due,
+        now: now,
+        random: _random,
+        shown: stream.shown,
+        exclude: {..._removedArchive, ...stream.archiveIds, for (final p in published) ?archiveIdOf(p.assetId)},
+        recentDays: prefs.days,
+        rest: clockRest,
+      );
+      final slots = <ClockSlot>[];
+      final analyzer = PhotoAnalyzer(_tempDir);
+      try {
+        for (final e in picks) {
+          try {
+            final a = await _analyzeArchive(e, analyzer);
+            slots.add(ClockSlot(
+              id: clockArchiveId(e.id),
+              ref: e.id,
+              archive: true,
+              added: now,
+              taken: e.taken,
+              caption: memoryCaption(e.caption, e.taken),
+              frame: CropFrame.of(a, subject: e.subject, focus: e.focus),
+            ));
+          } catch (err) {
+            debugPrint('Zegary, archiwum ${e.id}: $err');
+          }
+        }
+      } finally {
+        await analyzer.close();
+      }
+      addArchiveSlots(stream, slots, now);
+    }
+    await _store.saveClockStream(stream);
+    await _store.pruneJpegs({for (final p in published) p.id, for (final s in stream.slots) s.id});
+    await _archive.prune({
+      ...stream.archiveIds,
+      for (final p in published) ?archiveIdOf(p.assetId),
+    });
+  }
+
+  /// Usługa w tle co kwadrans: strumień zegarów (zdjęcia z archiwum dochodzą co godzinę)
+  Future<void> updateClocks() => _run(() async {
+        await _loadArchive();
+        await _updateClocks();
+      });
+
+  /// Uzupełnia wspomnienia do udziału z ustawień: z archiwum, gdy jest, a bez niego - losuje okresy z historii galerii,
+  /// z każdego najlepszych kandydatów (telefon odsiewa, AI wybiera), najwyżej [maxPeriodsPerRefresh] okresów naraz.
   Future<void> _refreshMemories() async {
     final target = memoryTarget(prefs.size, prefs.memoryShare);
     if (target == 0) {
       _memories = [for (final m in _memories) if (prefs.pinned.contains(m.photoId)) m];
+      _archiveIds.retainWhere((id) => _memories.any((m) => m.photoId == id));
       await _store.saveMemories(_memories);
       return;
     }
@@ -207,6 +401,7 @@ class PoolController extends ChangeNotifier {
       await _store.saveMemories(_memories);
       return;
     }
+    if (_archiveEntries.isNotEmpty) return _archiveMemories(need);
     final oldest = await oldestCameraPhoto();
     if (oldest == null) return;
 
@@ -292,7 +487,7 @@ class PoolController extends ChangeNotifier {
           }, keepPerPeriod);
         }
         for (final s in chosen.take(need - found)) {
-          // Ważność rozłożona losowo (3,5-7 dni), żeby wspomnienia wymieniały się po trochu,
+          // Ważność rozłożona losowo (1-2 dni), żeby wspomnienia wymieniały się po trochu,
           // a nie wszystkie naraz - zegarek dociąga tylko 1-2 zdjęcia przy każdym wyskoczeniu
           final age = Duration(minutes: _random.nextInt(memoryLifetime.inMinutes ~/ 2));
           _memories.add(MemoryItem(photoId: s.id, assetId: s.analysis.assetId, addedAt: now.subtract(age), taken: s.taken));
@@ -338,15 +533,24 @@ class PoolController extends ChangeNotifier {
     }
   }
 
-  // Wyniki zdjęć, których już nie ma w okresie ani w przypiętych, nie są potrzebne
+  // Wyniki zdjęć, których już nie ma w okresie, w przypiętych ani we wspomnieniach z archiwum, nie są potrzebne
   void _forgetOld() {
-    _analyses.removeWhere((id, _) => !_assets.containsKey(id));
+    _analyses.removeWhere((id, _) => !_assets.containsKey(id) && !_archiveIds.contains(id));
     _ratings.removeWhere((id, _) => !_assets.containsKey(id));
   }
 
   void _rescore() {
-    final present = [for (final id in _assets.keys) ?_analyses[id]];
-    scored = scoreAll(present, now: DateTime.now(), days: prefs.days, ratings: _ratings);
+    final present = [
+      for (final id in _assets.keys) ?_analyses[id],
+      for (final id in _archiveIds) ?_analyses[id],
+    ];
+    // Zdjęcia z archiwum mają ocenę ze spisu (przegląd na PC), nie z Gemini
+    final ratings = {
+      ..._ratings,
+      for (final id in _archiveIds)
+        if (_archiveById[id] case final e?) id: e.rating,
+    };
+    scored = scoreAll(present, now: DateTime.now(), days: prefs.days, ratings: ratings);
   }
 
   /// Gemini ocenia zdjęcia bez aktualnej oceny: po odsianiu przez telefon (nieostre, dokumenty,
@@ -472,16 +676,28 @@ class PoolController extends ChangeNotifier {
         ),
     ]);
     await _store.prunePngs({for (final i in items) _store.pngFile(i.id, i.crop).path});
-    await _store.pruneJpegs({for (final i in items) i.watchId});
+    try {
+      await _updateClocks();
+    } catch (e) {
+      debugPrint('Strumień zegarów: $e');
+    }
     _set(PoolPhase.ready);
   }
 
   Future<Uint8List> _png(ScoredPhoto s, CropBox crop) async {
     final file = _store.pngFile(s.id, crop);
     if (await file.exists()) return file.readAsBytes();
-    final asset = _assets[s.id] ?? await AssetEntity.fromId(s.analysis.assetId);
-    if (asset == null) throw StateError('Zdjęcia nie ma już w galerii');
-    final png = await watchPng(asset, crop);
+    final Uint8List png;
+    final archiveId = archiveIdOf(s.analysis.assetId);
+    if (archiveId != null) {
+      final source = await _archive.photo(archiveId);
+      if (source == null) throw StateError('Nie udało się pobrać zdjęcia z archiwum');
+      png = await compute(preparePngJob, PrepJob(source, crop));
+    } else {
+      final asset = _assets[s.id] ?? await AssetEntity.fromId(s.analysis.assetId);
+      if (asset == null) throw StateError('Zdjęcia nie ma już w galerii');
+      png = await watchPng(asset, crop);
+    }
     await file.parent.create(recursive: true);
     await file.writeAsBytes(png, flush: true);
     return png;
@@ -538,6 +754,43 @@ class PoolController extends ChangeNotifier {
       });
 
   AssetEntity? assetOf(String id) => _assets[id];
+
+  /// Zdjęcie źródłowe (do ręcznego kadru): z galerii 1600 px albo z archiwum
+  Future<Uint8List?> sourceBytes(String id) async {
+    final archive = _archiveById[id];
+    if (archive != null) return _archive.photo(archive.id);
+    final asset = _assets[id];
+    return asset == null ? null : imageBytes(asset, 1600, quality: 90);
+  }
+
+  // --- konto archiwum ---
+
+  /// null = zalogowano, inaczej komunikat
+  Future<String?> archiveSignIn(String email, String password) async {
+    try {
+      archiveStatus = await _archive.signIn(email, password);
+      await _loadArchive(check: false);
+      notifyListeners();
+      if (archiveStatus.error != null) return archiveStatus.error;
+      await refresh();
+      return null;
+    } catch (e) {
+      return '$e';
+    }
+  }
+
+  Future<void> archiveSignOut() async {
+    await _archive.signOut();
+    await _loadArchive(check: false);
+    notifyListeners();
+    await refresh();
+  }
+
+  /// Sprawdza spis w bazie teraz (np. po wysłaniu nowego archiwum z PC)
+  Future<void> archiveCheck() async {
+    await _loadArchive(force: true);
+    notifyListeners();
+  }
 
   Future<AutoState> autoState() => _store.loadAuto();
 

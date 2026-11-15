@@ -8,6 +8,7 @@ import 'package:zdjecia/background/auto_service.dart';
 import 'package:zdjecia/bridge/bridge_server.dart';
 import 'package:zdjecia/bridge/photo_prep.dart';
 import 'package:zdjecia/bridge/published_source.dart';
+import 'package:zdjecia/select/clock_stream.dart';
 import 'package:zdjecia/select/crop.dart';
 import 'package:zdjecia/select/store.dart';
 
@@ -233,11 +234,89 @@ void main() {
     }
   });
 
-  test('automatyczne odświeżanie: co 12 h, po błędzie po godzinie', () async {
+  test('lista dla zegarów (/clocks.json): pula + archiwum z czasem dodania, JPEG z archiwum', () async {
+    final dir = await Directory.systemTemp.createTemp('zdjecia_clocks');
+    final loads = <String>[];
+    final store = SelectStore(dir);
+    final maker = JpegMaker(store, loadSource: (assetId) async {
+      loads.add(assetId);
+      return sourcePhoto();
+    });
+    final pub = BridgeServer(
+      source: () => publishedPhotos(store, jpeg: maker),
+      clockSource: () => clockPhotos(store, jpeg: maker),
+      port: 0,
+    );
+    try {
+      final png = File('${dir.path}/x.png')..writeAsBytesSync([7, 7]);
+      await store.publish([
+        PublishedPhoto(
+          id: 'x_1',
+          photoId: 'x',
+          path: png.path,
+          size: 2,
+          taken: DateTime.utc(2026, 11, 10),
+          caption: 'Spacer',
+          assetId: '42',
+          frame: const CropFrame(aspect: 4 / 3),
+        ),
+      ]);
+      final added = DateTime.utc(2026, 11, 15, 9);
+      final stream = ClockStream();
+      syncPoolSlots(stream, [(id: 'x_1', taken: DateTime.utc(2026, 11, 10))], added);
+      addArchiveSlots(stream, [
+        ClockSlot(
+          id: clockArchiveId('abcdef'),
+          ref: 'abcdef',
+          archive: true,
+          added: added,
+          taken: DateTime.utc(2014, 7, 3),
+          caption: 'Nad morzem · 2014',
+          frame: const CropFrame(aspect: 4 / 3, focus: [0.78, 0.3, 0.2, 0.4]),
+        ),
+      ], added.add(const Duration(hours: 1)));
+      await store.saveClockStream(stream);
+
+      await pub.start();
+      Future<(int, List<int>)> fetch(String path) async {
+        final req = await client.getUrl(Uri.parse('http://127.0.0.1:${pub.boundPort}$path'));
+        final res = await req.close();
+        return (res.statusCode, await res.fold<List<int>>([], (a, b) => a..addAll(b)));
+      }
+
+      // Zegarek widzi tylko pulę
+      final watch = jsonDecode(utf8.decode((await fetch('/manifest.json')).$2)) as Map;
+      expect([for (final p in watch['photos'] as List) p['id']], ['x_1']);
+      // Zegary: pula i archiwum, z czasem dodania (zegar bierze najnowsze)
+      final clocks = jsonDecode(utf8.decode((await fetch('/clocks.json')).$2)) as Map;
+      final list = (clocks['photos'] as List).cast<Map>();
+      expect([for (final p in list) p['id']], ['x_1', 'z_abcdef']);
+      expect([for (final p in list) p['memory']], [false, true]);
+      expect(list[1]['caption'], 'Nad morzem · 2014');
+      expect(list[1]['added'], greaterThan(list[0]['added'] as int));
+
+      final (status, body) = await fetch('/p/z_abcdef.jpg?w=480&h=272');
+      expect(status, 200);
+      final out = img.decodeJpg(Uint8List.fromList(body))!;
+      expect((out.width, out.height), (480, 272));
+      // fragment od przeglądu (focus) przy prawej krawędzi: prawa część kadru pomarańczowa, lewa niebieska
+      expect(out.getPixel(420, 136).r, greaterThan(150));
+      expect(out.getPixel(40, 136).b, greaterThan(150));
+      expect(loads, ['archiwum:abcdef']);
+      expect((await fetch('/p/x_1.jpg?w=480&h=272')).$1, 200);
+      expect(loads, ['archiwum:abcdef', '42']);
+      expect((await fetch('/p/z_nieznane.jpg?w=480&h=272')).$1, 404);
+    } finally {
+      await pub.dispose();
+      await dir.delete(recursive: true);
+    }
+  });
+
+  test('automatyczne odświeżanie: co 6 h, po błędzie po godzinie', () async {
     final now = DateTime(2026, 10, 20, 12);
     expect(autoRefreshDue(const AutoState(), now), isTrue);
-    expect(autoRefreshDue(AutoState(lastRun: now.subtract(const Duration(hours: 11))), now), isFalse);
-    expect(autoRefreshDue(AutoState(lastRun: now.subtract(const Duration(hours: 12))), now), isTrue);
+    expect(autoRefreshDue(AutoState(lastRun: now.subtract(const Duration(hours: 5))), now), isFalse);
+    expect(autoRefreshDue(AutoState(lastRun: now.subtract(const Duration(hours: 6))), now), isTrue);
     expect(autoRefreshDue(AutoState(lastRun: now.subtract(const Duration(minutes: 70)), ok: false), now), isTrue);
 
     final dir = await Directory.systemTemp.createTemp('zdjecia_auto');

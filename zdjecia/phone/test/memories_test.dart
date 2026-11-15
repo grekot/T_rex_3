@@ -57,8 +57,8 @@ void main() {
           taken: DateTime(2018),
         );
 
-    test('wygasają po tygodniu, przypięte zostają, usunięte znikają', () {
-      final list = [m('swieze', 2), m('stare', 8), m('przypiete', 30), m('usuniete', 1)];
+    test('wygasają po 2 dniach, przypięte zostają, usunięte znikają', () {
+      final list = [m('swieze', 1), m('stare', 2), m('przypiete', 30), m('usuniete', 1)];
       final active = activeMemories(list, now, pinned: {'przypiete'}, removed: {'usuniete'});
       expect(active.map((e) => e.photoId), ['swieze', 'przypiete']);
     });

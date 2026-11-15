@@ -1,11 +1,16 @@
-// Źródło zdjęć dla mostu: opublikowana pula z plików (published.json + PNG na dysku).
-// JPEG-i dla zegarów HomeAutomation powstają na żądanie z tego samego zdjęcia w galerii (kadr z danych
-// zapisanych przy publikowaniu) i zostają w pamięci podręcznej na dysku - kolejne pobranie jest od razu.
+// Źródło zdjęć dla mostu: opublikowana pula z plików (published.json + PNG na dysku) i strumień dla zegarów
+// (clocks.json: zdjęcia puli + z archiwum). JPEG-i dla zegarów HomeAutomation powstają na żądanie z tego samego
+// zdjęcia w galerii albo w archiwum (kadr z danych zapisanych przy publikowaniu) i zostają w pamięci podręcznej
+// na dysku - kolejne pobranie jest od razu.
 import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../archive/archive.dart';
+import '../archive/archive_source.dart';
+import '../media/gallery.dart';
+import '../select/clock_stream.dart';
 import '../select/crop.dart';
 import '../select/store.dart';
 import 'bridge_server.dart';
@@ -68,6 +73,52 @@ class JpegMaker {
       frame: CropFrame.of(analysis, subject: rating?.subject, focus: rating?.focus, manual: manual),
     );
   }
+}
+
+/// Źródło w usłudze w tle: zdjęcia z archiwum z pamięci podręcznej / Firestore, inne z galerii
+SourceLoader backgroundLoader(ArchiveSource archive) => (assetId) async {
+      final id = archiveIdOf(assetId);
+      return id != null ? archive.photo(id) : backgroundSource(assetId);
+    };
+
+/// Zdjęcie strumienia z archiwum w postaci, której potrzebuje [JpegMaker]
+PublishedPhoto clockArchivePhoto(ClockSlot s) => PublishedPhoto(
+      id: s.id,
+      path: '',
+      size: 0,
+      taken: s.taken,
+      caption: s.caption,
+      photoId: 'a_${s.ref}',
+      memory: true,
+      assetId: '$archiveAssetPrefix${s.ref}',
+      frame: s.frame,
+    );
+
+/// Lista dla zegarów HomeAutomation: strumień (pula + archiwum) z czasem dodania
+Future<List<BridgePhoto>> clockPhotos(SelectStore store, {required JpegMaker jpeg}) async {
+  final stream = await store.loadClockStream();
+  final published = {for (final p in await store.loadPublished()) p.id: p};
+  return [
+    for (final s in stream.slots)
+      if (s.archive && s.frame != null)
+        BridgePhoto.jpegOnly(
+          id: s.id,
+          taken: s.taken,
+          caption: s.caption,
+          memory: true,
+          added: s.added,
+          jpeg: (w, h) => jpeg.jpeg(clockArchivePhoto(s), w, h),
+        )
+      else if (!s.archive && published[s.ref] != null)
+        BridgePhoto.jpegOnly(
+          id: s.id,
+          taken: published[s.ref]!.taken,
+          caption: published[s.ref]!.caption,
+          memory: published[s.ref]!.memory,
+          added: s.added,
+          jpeg: (w, h) => jpeg.jpeg(published[s.ref]!, w, h),
+        ),
+  ];
 }
 
 Future<List<BridgePhoto>> publishedPhotos(SelectStore store, {JpegMaker? jpeg}) async => [

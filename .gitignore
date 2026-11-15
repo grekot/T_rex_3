@@ -15,6 +15,10 @@ korona/phone/android/app/google-services.json
 korona/phone/lib/firebase_options.dart
 homeautomation/phone/android/app/google-services.json
 homeautomation/phone/lib/firebase_options.dart
+zdjecia/phone/lib/cloud/firebase_config.dart
+
+# Python
+__pycache__/
 
 # Flutter / Dart
 build/

@@ -27,8 +27,19 @@ class PhotoAnalyzer {
   Future<PhotoAnalysis?> analyze(AssetEntity asset) async {
     final bytes = await imageBytes(asset, 512, quality: 85);
     if (bytes == null) return null;
+    return analyzeBytes(bytes, id: photoIdOf(asset), assetId: asset.id, taken: asset.createDateTime, favorite: asset.isFavorite);
+  }
+
+  /// Analiza gotowego JPEG-a (np. zdjęcia z archiwum w Firestore)
+  Future<PhotoAnalysis> analyzeBytes(
+    Uint8List bytes, {
+    required String id,
+    required String assetId,
+    required DateTime taken,
+    bool favorite = false,
+  }) async {
     final quality = await compute(measureQuality, bytes);
-    final file = File('${tempDir.path}/analiza_${asset.id.replaceAll(RegExp(r'[^0-9A-Za-z]'), '_')}.jpg');
+    final file = File('${tempDir.path}/analiza_${assetId.replaceAll(RegExp(r'[^0-9A-Za-z]'), '_')}.jpg');
     await file.writeAsBytes(bytes, flush: true);
     try {
       final input = InputImage.fromFilePath(file.path);
@@ -41,10 +52,10 @@ class PhotoAnalyzer {
       }
       final w = quality.width.toDouble(), h = quality.height.toDouble();
       return PhotoAnalysis(
-        id: photoIdOf(asset),
-        assetId: asset.id,
-        taken: asset.createDateTime,
-        favorite: asset.isFavorite,
+        id: id,
+        assetId: assetId,
+        taken: taken,
+        favorite: favorite,
         quality: quality,
         faces: [
           for (final f in faces)

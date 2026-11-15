@@ -21,13 +21,15 @@ void main() {
   const rules = PoolRules(size: 10);
 
   test('pula zmienia się po trochu, wygasłe odpoczywają', () {
-    final all = photos(80);
+    // Zdjęcie jest w puli 1-2 dni, potem odpoczywa 14 dni: 10 miejsc potrzebuje ~100 zdjęć, żeby nic nie wracało wcześniej
+    final all = photos(200);
     final state = FreshRotation();
     final random = math.Random(7);
     final shown = <String>{};
     final left = <String, DateTime>{};
     var previous = <String>{};
-    for (var h = 0; h <= 30 * 24; h += 8) {
+    // Co 4 godziny (odświeżanie w tle jest co 6 h, ręczne - kiedykolwiek)
+    for (var h = 0; h <= 30 * 24; h += 4) {
       final now = start.add(Duration(hours: h));
       final pool = ids(rotateFresh(all, rules, state, now, random));
       expect(pool.length, 10);
@@ -46,10 +48,10 @@ void main() {
       previous = pool;
     }
     // W miesiąc przewija się większość dobrych zdjęć, nie ta sama dziesiątka
-    expect(shown.length, greaterThan(50));
+    expect(shown.length, greaterThan(120));
   });
 
-  test('zdjęcie zostaje w puli co najmniej 2 dni', () {
+  test('zdjęcie zostaje w puli co najmniej dobę', () {
     final all = photos(80);
     final state = FreshRotation();
     final random = math.Random(3);

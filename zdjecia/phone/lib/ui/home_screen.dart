@@ -16,6 +16,7 @@ import '../media/gallery.dart';
 import '../pool_controller.dart';
 import '../select/store.dart';
 import 'ai_settings_screen.dart';
+import 'archive_screen.dart';
 import 'photo_sheet.dart';
 import 'pick_screen.dart';
 import 'settings_sheet.dart';
@@ -152,6 +153,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
               onPressed: _pool.busy ? null : _openAi,
             ),
             IconButton(
+              tooltip: 'Archiwum zdjęć',
+              icon: const Icon(Icons.photo_library_outlined),
+              onPressed: _pool.busy
+                  ? null
+                  : () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => ArchiveScreen(pool: _pool))),
+            ),
+            IconButton(
               tooltip: 'Dodaj zdjęcie ręcznie',
               icon: const Icon(Icons.add_photo_alternate_outlined),
               onPressed: _pool.busy
@@ -195,6 +203,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         line = 'Gemini ocenia zdjęcia: ${p.done} z ${p.total}';
       case PoolPhase.memories:
         line = 'Szukam wspomnień w starszych zdjęciach: okres ${p.done + 1} z ${p.total}';
+      case PoolPhase.archive:
+        line = 'Pobieram wspomnienia z archiwum: ${p.done} z ${p.total}';
       case PoolPhase.preparing:
         line = 'Kadruję zdjęcia dla zegarka: ${p.done} z ${p.total}';
       case PoolPhase.noAccess:
@@ -203,8 +213,10 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         line = 'Błąd: ${p.error}';
       case PoolPhase.ready:
         final memories = p.pool.where((i) => i.isMemory).length;
+        final archive = p.pool.where((i) => i.fromArchive).length;
         line = 'Pula: ${p.pool.length} zdjęć – ${p.pool.length - memories} świeżych '
-            '(ostatnie ${p.prefs.days} dni) i $memories wspomnień';
+            '(ostatnie ${p.prefs.days} dni) i $memories wspomnień'
+            '${archive > 0 ? ' (z archiwum: $archive)' : ''}';
     }
     final rejected = p.rejectedCounts.entries.map((e) => '${e.key} ${e.value}').join(', ');
     return Card(

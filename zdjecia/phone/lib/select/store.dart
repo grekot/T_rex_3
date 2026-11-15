@@ -9,6 +9,7 @@ import '../ai/gemini_client.dart';
 import '../bridge/photo_prep.dart';
 import '../ai/photo_rating.dart';
 import 'analysis.dart';
+import 'clock_stream.dart';
 import 'crop.dart';
 import 'memories.dart';
 import 'rotation.dart';
@@ -187,7 +188,7 @@ class AutoState {
 }
 
 /// Co ile automatyczne odświeżanie puli; po błędzie próba wcześniej
-const Duration autoRefreshEvery = Duration(hours: 12);
+const Duration autoRefreshEvery = Duration(hours: 6);
 const Duration autoRetryAfterError = Duration(hours: 1);
 
 bool autoRefreshDue(AutoState s, DateTime now) {
@@ -215,6 +216,18 @@ class SelectStore {
   File get _lockFile => File('${dir.path}/refresh.lock');
   File get _memoriesFile => File('${dir.path}/memories.json');
   File get _rotationFile => File('${dir.path}/fresh.json');
+  File get _clocksFile => File('${dir.path}/clocks.json');
+
+  /// Archiwum z Firestore: spis, pamięć podręczna zdjęć, pokazane wspomnienia
+  Directory get archiveDir => Directory('${dir.path}/archiwum');
+
+  /// Strumień zdjęć dla zegarów HomeAutomation
+  Future<ClockStream> loadClockStream() async {
+    final j = await _readJson(_clocksFile);
+    return j == null ? ClockStream() : ClockStream.fromJson(j);
+  }
+
+  Future<void> saveClockStream(ClockStream s) => _writeJson(_clocksFile, s.toJson());
 
   Future<List<MemoryItem>> loadMemories() async {
     final j = await _readJson(_memoriesFile);
@@ -330,7 +343,7 @@ class SelectStore {
   File jpegFile(String id, int width, int height) =>
       File('${jpegDir.path}/${id}_${width}x${height}_$jpegStyleKey.jpg');
 
-  /// Usuwa JPEG-i zdjęć spoza puli i ze starszych wersji obróbki
+  /// Usuwa JPEG-i zdjęć spoza puli i strumienia zegarów oraz ze starszych wersji obróbki
   Future<void> pruneJpegs(Set<String> keepIds) async {
     if (!await jpegDir.exists()) return;
     await for (final f in jpegDir.list()) {

@@ -1,6 +1,7 @@
 // Most lokalny: serwer HTTP tylko pod 127.0.0.1 (niewidoczny w Wi-Fi). Side Service aplikacji Zepp
 // na tym samym telefonie pobiera z niego listę zdjęć (/manifest.json) i pliki PNG (/p/<id>.png),
-// a aplikacja HomeAutomation - JPEG-i w rozmiarze ekranu zegara ESP32 (/p/<id>.jpg?w=320&h=240).
+// a aplikacja HomeAutomation - swoją listę (/clocks.json: pula + zdjęcia z archiwum, z czasem dodania)
+// i JPEG-i w rozmiarze ekranu zegara ESP32 (/p/<id>.jpg?w=320&h=240).
 // Zdjęcia bierze przy każdym zapytaniu ze źródła - w usłudze w tle jest nim opublikowana pula w plikach,
 // więc nowa pula po odświeżeniu jest od razu widoczna dla zegarka.
 import 'dart:async';
@@ -23,6 +24,7 @@ class BridgePhoto {
     this.caption = '',
     this.memory = false,
     this.jpeg,
+    this.added,
   })  : size = png.length,
         read = (() async => png);
 
@@ -35,7 +37,19 @@ class BridgePhoto {
     this.caption = '',
     this.memory = false,
     this.jpeg,
+    this.added,
   }) : read = file.readAsBytes;
+
+  /// Zdjęcie tylko dla zegarów (JPEG na żądanie, bez PNG dla zegarka)
+  BridgePhoto.jpegOnly({
+    required this.id,
+    required this.taken,
+    required JpegReader this.jpeg,
+    this.caption = '',
+    this.memory = false,
+    this.added,
+  })  : size = 0,
+        read = (() async => const <int>[]);
 
   final String id;
   final int size;
@@ -50,6 +64,9 @@ class BridgePhoto {
 
   /// Kadr prostokątny w JPEG (null = most go nie robi)
   final JpegReader? jpeg;
+
+  /// Kiedy zdjęcie weszło do strumienia zegarów (zegar trzyma najnowsze wg tego czasu)
+  final DateTime? added;
 }
 
 typedef PhotoSource = Future<List<BridgePhoto>> Function();
@@ -100,6 +117,7 @@ Map<String, Object> manifestOf(List<BridgePhoto> photos) => {
             'taken': p.taken.millisecondsSinceEpoch,
             if (p.caption.isNotEmpty) 'caption': p.caption,
             'memory': p.memory,
+            if (p.added != null) 'added': p.added!.millisecondsSinceEpoch,
           },
       ],
     };
@@ -111,9 +129,12 @@ int? jpegSide(String? value) {
 }
 
 class BridgeServer {
-  BridgeServer({required this.source, this.port = bridgePort});
+  BridgeServer({required this.source, this.clockSource, this.port = bridgePort});
 
   final PhotoSource source;
+
+  /// Lista dla zegarów HomeAutomation (/clocks.json); null = jak dla zegarka
+  final PhotoSource? clockSource;
   final int port;
   HttpServer? _server;
   final _requests = StreamController<BridgeRequest>.broadcast();
@@ -156,6 +177,9 @@ class BridgeServer {
       } else if (path == '/manifest.json') {
         body = utf8.encode(jsonEncode(manifestOf(await source())));
         type = ContentType.json;
+      } else if (path == '/clocks.json') {
+        body = utf8.encode(jsonEncode(manifestOf(await (clockSource ?? source)())));
+        type = ContentType.json;
       } else if (path.startsWith('/p/') && path.endsWith('.png')) {
         final id = path.substring(3, path.length - 4);
         final photo = (await source()).where((p) => p.id == id).firstOrNull;
@@ -168,7 +192,9 @@ class BridgeServer {
       } else if (path.startsWith('/p/') && path.endsWith('.jpg')) {
         final id = path.substring(3, path.length - 4);
         final w = jpegSide(req.uri.queryParameters['w']), h = jpegSide(req.uri.queryParameters['h']);
-        final photo = (await source()).where((p) => p.id == id).firstOrNull;
+        final clocks = clockSource;
+        final photo = (clocks == null ? null : (await clocks()).where((p) => p.id == id).firstOrNull) ??
+            (await source()).where((p) => p.id == id).firstOrNull;
         if (w == null || h == null) {
           status = HttpStatus.badRequest;
         } else if (photo == null || photo.jpeg == null) {

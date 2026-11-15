@@ -5,8 +5,10 @@ name: Release Zdjęcia
 # stała nazwa zdjecia.apk + app.json w GitHub Release tego repo.
 # Wersja = tag bez prefiksu `zdjecia-v`. versionCode = (run_number + 10), a przy
 # --split-per-abi Flutter dodaje 2000 dla arm64 – więcej niż lokalne buildy 1.0.0+1.
-# Bez Firebase: Zdjęcia nie mają konta, sekret FIREBASE_SERVICE_ACCOUNT służy tylko do
-# zapisu wersji w bibliotece sklepu i powiadomienia.
+# Od 0.11.0 archiwum zdjęć w Firestore (logowanie i odczyt przez REST, bez wtyczek Firebase):
+# phone/lib/cloud/firebase_config.dart (klucz API + projekt, poza repo) odtwarza CI z sekretu
+# FIREBASE_OPTIONS_ZDJECIA_B64 (zawartość pliku w base64). Bez sekretu build się nie uda
+# (zaślepka wspólnego workflow ma inny format). FIREBASE_SERVICE_ACCOUNT - zapis wersji w bibliotece sklepu.
 on:
   push:
     tags: ['zdjecia-v*']
@@ -34,9 +36,11 @@ jobs:
       release_name: Zdjęcia ${{ needs.meta.outputs.version }}
       target_abi: arm64
       version_code_offset: 10
+      firebase_options_path: zdjecia/phone/lib/cloud/firebase_config.dart
     secrets:
       KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
       KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
       KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
       KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      FIREBASE_OPTIONS_DART_B64: ${{ secrets.FIREBASE_OPTIONS_ZDJECIA_B64 }}
       FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

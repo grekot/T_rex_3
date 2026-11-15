@@ -26,14 +26,17 @@ Side Service w aplikacji Zepp: lista → pobranie PNG → image.convert → Tran
 Zegarek: odbiór do data://download/zd_<id>.png → IMG na cały ekran
 ```
 
-Zdjęcia Google nie wchodzą w grę: od 31.03.2025 Google Photos API nie daje dostępu do biblioteki
+Zdjęcia Google nie dają API do biblioteki: od 31.03.2025 Google Photos API nie daje dostępu do biblioteki
 (tylko ręczny wybór w Pickerze), a Ambient API jest wyłącznie dla firm partnerskich.
-Dlatego źródłem jest galeria telefonu (te same zdjęcia, które Google Photos kopiuje do chmury).
+Dlatego świeże zdjęcia są z galerii telefonu, a całą historię daje jednorazowy eksport Google Takeout:
+na PC wybiera się z niego ~1000 najciekawszych zdjęć do archiwum w Firestore
+([niżej](#archiwum-z-całej-biblioteki-telefon-0110), [ARCHIWUM.md](ARCHIWUM.md)).
 
 | Folder   | Co to                                                          |
 |----------|----------------------------------------------------------------|
 | `watch/` | aplikacja na zegarek (zeus, appId 1087163, API 3.0)             |
 | `phone/` | aplikacja na telefon (Flutter, `pl.grekot.zdjecia`)             |
+| `tools/archiwum/` | narzędzie na PC: Google Takeout → archiwum w Firestore (Python) |
 
 ## Test etapu 0
 
@@ -182,7 +185,7 @@ Bez udziału właściciela:
 
 - **Telefon – usługa w tle** (`phone/lib/background/auto_service.dart`, `flutter_foreground_task`,
   typ `specialUse`: bez limitu czasu, start po restarcie telefonu i po aktualizacji). Most 127.0.0.1 działa
-  cały czas i czyta pulę z plików (`published.json` + PNG), a co 12 h (po błędzie po godzinie) usługa sama
+  cały czas i czyta pulę z plików (`published.json` + PNG), a co 6 h (od 0.11.0; po błędzie po godzinie) usługa sama
   odświeża pulę: nowe zdjęcia → analiza → Gemini → kadry. Ten sam `PoolController` działa w aplikacji
   i w usłudze (headless); blokada `refresh.lock` pilnuje, żeby nie odświeżały naraz. Android wymaga
   cichego stałego powiadomienia („Pula: 20 zdjęć · odświeżono …”).
@@ -199,7 +202,7 @@ wspomnienia (`phone/lib/select/memories.dart`). Przy odświeżeniu, gdy wspomnie
 do 6 tygodniowych okresów z historii galerii (od najstarszego zdjęcia z aparatu do 30 dni wstecz; co trzeci
 okres to ten sam tydzień w którymś z poprzednich lat). Z okresu bierze do 20 zdjęć rozłożonych w czasie
 (bez serii), analizuje je, 10 najlepszych wg telefonu ocenia Gemini (jedno zapytanie), a do puli trafiają
-najwyżej 2 z oceną ≥ 6. Wspomnienie zostaje w puli 3,5–7 dni (losowo, żeby wymieniały się po trochu),
+najwyżej 2 z oceną ≥ 6. Wspomnienie zostaje w puli 1–2 dni (od 0.11.0; losowo, żeby wymieniały się po trochu),
 przypięte – na stałe. Na zegarku podpis z rokiem, np. „Nad jeziorem · 2019”.
 
 **Data zrobienia, nie dodania (0.6.1).** Filtry biblioteki galerii działają na `date_added` (kiedy plik
@@ -265,6 +268,35 @@ aplikacja HomeAutomation na tym samym telefonie: pobiera z mostu 127.0.0.1:8765 
   i `prefs.json`, do najbliższego odświeżenia.
 
 Testy: `phone/test/rect_crop_test.dart` (kadr prostokątny, JPEG baseline, limit 96 KB) i `phone/test/bridge_server_test.dart`.
+
+## Archiwum z całej biblioteki (telefon 0.11.0)
+
+Zdjęcia zmieniały się za rzadko, a galeria telefonu nie ma całej historii. Teraz:
+
+- **Archiwum** ([ARCHIWUM.md](ARCHIWUM.md)): z eksportu Google Takeout narzędzie na PC
+  ([tools/archiwum](tools/archiwum/README.md)) odsiewa techniczne odrzuty, serie i duplikaty, robi arkusze miniatur,
+  a z przeglądu (Claude, bez Gemini) wychodzi ~1000 najciekawszych zdjęć z ocenami, podpisami i fragmentem do kadru.
+  JPEG-i ≤ 800×600 bez EXIF trafiają do Firestore (`archiwum/{uid}`, reguły w App_storage), wgrywane kontem właściciela.
+- **Telefon** (ikona „Archiwum zdjęć”): logowanie tym samym kontem co w Zakupach / Wadze (REST, bez wtyczek Firebase -
+  działa też w usłudze w tle; na telefonie zostaje token, nie hasło). Spis sprawdzany najwyżej co godzinę jednym małym
+  odczytem, zdjęcia ściągane dopiero, gdy są potrzebne (w pamięci podręcznej tylko używane + 40 ostatnich).
+  Gdy archiwum jest, **wspomnienia biorą się z niego** (bez Gemini: ocena i podpis ze spisu; analiza twarzy i pasów
+  na telefonie do kadru): lepsze oceny częściej, różne lata, co trzecie losowanie „ten tydzień X lat temu”,
+  pokazane wraca najwcześniej po 120 dniach. Bez konta - jak dotąd z historii galerii.
+- **Szybsza wymiana**: wspomnienie zostaje w puli 1–2 dni (było 3,5–7), świeże zdjęcie 1–2 dni (było 2–4),
+  usługa w tle odświeża pulę co 6 h (było 12 h) - pula zegarka wymienia się w całości w ok. 2 dni, a zegarek
+  dociąga nowe po 2 przy każdym wyskoczeniu.
+- **Zegary HomeAutomation** dostają osobną listę **`/clocks.json`**: zdjęcia puli (nowe od razu) i co godzinę
+  (6–23) 4 zdjęcia z archiwum, każde z czasem dodania `added` (ms); lista ma 40 pozycji, a zegar (HomeAutomation
+  1.31.0+) trzyma najpóźniej dodane, więc w ciągu dnia przewija się kilkadziesiąt różnych zdjęć. Zdjęcie z archiwum
+  wraca na zegary najwcześniej po 45 dniach. Id zdjęć z archiwum: `z_<id>`, JPEG `/p/z_<id>.jpg?w=&h=` jak dotąd.
+  `/manifest.json` (zegarek Zepp) bez zmian. Starszy HomeAutomation czyta dalej `/manifest.json`.
+
+Wydanie wymaga sekretu `FIREBASE_OPTIONS_ZDJECIA_B64` (zawartość `phone/lib/cloud/firebase_config.dart` w base64)
+i reguł `archiwum` w Firestore (App_storage, publikowane przez CI po wypchnięciu `main`).
+
+Testy: `phone/test/archive_test.dart` (spis, losowanie, strumień zegarów, logowanie i Firestore przez REST na atrapie,
+pamięć podręczna), `phone/test/bridge_server_test.dart` (`/clocks.json`, JPEG z archiwum), `tools/archiwum/test_archiwum.py`.
 
 ## Wydanie do Sklepu rodzinnego
 

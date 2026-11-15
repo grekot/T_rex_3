@@ -4,8 +4,9 @@
 // ustępują nowym, więc zegarek co jakiś czas dostaje zupełnie inne wspomnienie. Czysta logika (testy).
 import 'dart:math' as math;
 
-/// Tyle dni wspomnienie zostaje w puli (przypięte zostają na stałe)
-const Duration memoryLifetime = Duration(days: 7);
+/// Tyle dni wspomnienie zostaje w puli (przypięte zostają na stałe); dodawane z losowym „wiekiem”
+/// do połowy tego czasu, więc realnie 1-2 dni i wymieniają się po trochu
+const Duration memoryLifetime = Duration(days: 2);
 
 /// Długość losowanego okresu
 const Duration periodLength = Duration(days: 7);

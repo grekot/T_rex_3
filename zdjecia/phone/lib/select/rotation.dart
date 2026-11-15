@@ -7,8 +7,8 @@ import 'dart:math' as math;
 import 'pool.dart';
 import 'scoring.dart';
 
-const Duration freshStayMin = Duration(days: 2);
-const Duration freshStayMax = Duration(days: 4);
+const Duration freshStayMin = Duration(days: 1);
+const Duration freshStayMax = Duration(days: 2);
 
 /// Po zejściu z puli zdjęcie tyle czeka, zanim znów może wejść (chyba że brakuje innych)
 const Duration freshRest = Duration(days: 14);

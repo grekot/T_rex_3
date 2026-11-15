@@ -1,16 +1,17 @@
 // Usługa w tle (Android foreground service, typ specialUse - bez limitu czasu i z uruchomieniem po restarcie):
 //  - most 127.0.0.1 dla zegarka działa cały czas, także przy zamkniętej aplikacji (PNG dla zegarka Zepp,
-//    JPEG-i dla zegarów HomeAutomation robione na żądanie z galerii),
-//  - co [autoRefreshEvery] pula odświeża się sama (nowe zdjęcia, analiza, ocena Gemini, kadry).
+//    JPEG-i dla zegarów HomeAutomation robione na żądanie z galerii albo z archiwum),
+//  - co [autoRefreshEvery] pula odświeża się sama (nowe zdjęcia, analiza, ocena Gemini, wspomnienia, kadry),
+//  - co kwadrans strumień zegarów: nowe zdjęcia puli, a co godzinę kilka zdjęć z archiwum.
 // Android wymaga stałego powiadomienia - kanał jest cichy i można go zwinąć w ustawieniach.
 import 'dart:async';
 
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 
+import '../archive/archive_source.dart';
 import '../bridge/bridge_server.dart';
 import '../bridge/format.dart';
 import '../bridge/published_source.dart';
-import '../media/gallery.dart';
 import '../pool_controller.dart';
 import '../select/store.dart';
 
@@ -95,9 +96,12 @@ class AutoTaskHandler extends TaskHandler {
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
     final store = await openSelectStore();
     _store = store;
-    // JPEG-i dla zegarów HomeAutomation: kadr z danych w published.json, zdjęcie prosto z galerii
-    final jpeg = JpegMaker(store, loadSource: backgroundSource);
-    final server = BridgeServer(source: () => publishedPhotos(store, jpeg: jpeg));
+    // JPEG-i dla zegarów HomeAutomation: kadr z danych w published.json / clocks.json, zdjęcie z galerii albo z archiwum
+    final jpeg = JpegMaker(store, loadSource: backgroundLoader(ArchiveSource(store.archiveDir)));
+    final server = BridgeServer(
+      source: () => publishedPhotos(store, jpeg: jpeg),
+      clockSource: () => clockPhotos(store, jpeg: jpeg),
+    );
     try {
       await server.start();
       _server = server;
@@ -133,7 +137,7 @@ class AutoTaskHandler extends TaskHandler {
   Future<void> _maybeRefresh({bool force = false}) async {
     final store = _store;
     if (store == null || _refreshing) return;
-    if (!force && !autoRefreshDue(await store.loadAuto(), DateTime.now())) return;
+    if (!force && !autoRefreshDue(await store.loadAuto(), DateTime.now())) return _clocks();
     _refreshing = true;
     FlutterForegroundTask.sendDataToMain({'type': 'refreshing'});
     final pool = PoolController(headless: true);
@@ -163,6 +167,21 @@ class AutoTaskHandler extends TaskHandler {
       await _showState(state);
     }
     FlutterForegroundTask.sendDataToMain({'type': 'refreshed'});
+  }
+
+  /// Między odświeżeniami: strumień zegarów (pełne odświeżenie robi to samo na końcu)
+  Future<void> _clocks() async {
+    _refreshing = true;
+    final pool = PoolController(headless: true);
+    try {
+      await pool.init(refreshNow: false);
+      await pool.updateClocks();
+    } catch (_) {
+      // następna próba za kwadrans
+    } finally {
+      _refreshing = false;
+      pool.dispose();
+    }
   }
 
   Future<void> _showState(AutoState s) async {
