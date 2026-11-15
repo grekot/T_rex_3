@@ -568,6 +568,35 @@ void main() {
     hub4.dispose();
   });
 
+  test('przeglądanie zdjęć: akcja przycisku zdalnego, Set, nazwa', () {
+    expect(clockActionSet('photo:next'), {'photo': 'next'});
+    expect(clockActionSet('photo:prev'), {'photo': 'prev'});
+    expect(clockActionSet('hours'), {'showScreen': 'hours'});
+    expect(clockScreenName('photo:prev', const []), 'Poprzednie zdjęcie');
+    final a = Automation(
+      id: 'x',
+      name: 'x',
+      when: const [
+        {'device': 'parter', 'input': 'in1', 'press': 'short'},
+      ],
+      then: const [
+        {
+          'device': 'zegar-ab12cd',
+          'set': {'photo': 'next'},
+        },
+      ],
+      owner: 'zegar-ab12cd',
+    );
+    expect(clockButtonOf(a, 'zegar-ab12cd')?.action, 'photo:next');
+    final fake = FakeClock();
+    expect(fake.applySet({'photo': 'next'}), {'photo': 'value'}); // brak zdjęć
+    fake.photos['a1'] = {'id': 'a1', 'size': 1, 'taken': 0, 'memory': false, 'caption': ''};
+    expect(fake.applySet({'photo': 'next'}), isEmpty);
+    expect(fake.applySet({'photo': 'a1'}), isEmpty);
+    expect(fake.applySet({'photo': 'zz'}), {'photo': 'value'});
+    expect(fake.photoCommands, ['next', 'a1']);
+  });
+
   test('paczki motywów: Set theme bez packs, wersje, nazwa motywu z paczki', () {
     expect(clockVersionNewer('1.2.0', '1.1.9'), true);
     expect(clockVersionNewer('1.0', '1.0.0'), false);
@@ -1345,6 +1374,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('auto-device-zegar-ab12cd')));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('auto-point-bubbleReply')));   // lista punktów dłuższa niż ekran
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('auto-point-bubbleReply')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('bubbleReplyId-obiad')));
@@ -1390,7 +1421,7 @@ void main() {
 
     await tester.tap(find.byKey(const Key('clockFeedAdd')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const Key('clockFeedSuggest-RMF24')), findsNothing);   // zdjęty z listy 2026-11-12
+    expect(find.byKey(const Key('clockFeedSuggest-RMF24')), findsNothing); // zdjęty z listy 2026-11-12
     await tester.tap(find.byKey(const Key('clockFeedSuggest-Deon')));
     await tester.pumpAndSettle();
     expect(news()['feeds'], [
@@ -1600,6 +1631,13 @@ void main() {
     await tester.pumpAndSettle();
     expect((conn.sent.last['screens'] as Map)['list'], ['main', 'hours', 'days', 'chart', 'photo']);
     expect(find.byKey(const Key('clockPhotosAddScreen')), findsNothing);
+    // Przeglądanie na zegarze (Set `photo`)
+    await tester.tap(find.byKey(const Key('clockPhotoNext')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {'photo': 'next'});
+    await tester.tap(find.byKey(const Key('clockPhotoPrev')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {'photo': 'prev'});
     // Zmiany Config przychodzą strumieniem połączenia otwartego w runAsync - zapis kończy się w prawdziwym czasie.
     await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
     expect(log.clocks['zegar-ab12cd']!.photoOn, isTrue);

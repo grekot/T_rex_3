@@ -1,5 +1,6 @@
 // „Przyciski zdalne” zegara (pkt 10.2, PLAN zegara pkt 9): zwykłe automatyki huba z wyzwalaczem naciśnięcia
-// (`{"device","input","press"}`) i akcją `{"device":"zegar-…","set":{"showScreen":…}}`, z polem `owner` = zegar.
+// (`{"device","input","press"}`) i akcją `{"device":"zegar-…","set":{"showScreen":…}}` albo `{"photo":"next|prev"}`
+// (przeglądanie zdjęć), z polem `owner` = zegar.
 
 import 'package:flutter/material.dart';
 
@@ -25,7 +26,8 @@ ClockButton? clockButtonOf(Automation a, String clockId) {
   final w = a.when.single, t = a.then.single;
   final set = t['set'];
   if (w['device'] is! String || w['input'] is! String || t['device'] != clockId || set is! Map) return null;
-  final action = set['showScreen'];
+  final photo = set['photo'];
+  final action = set['showScreen'] ?? (photo is String ? 'photo:$photo' : null);
   if (action is! String) return null;
   return (
     device: w['device'] as String,
@@ -140,7 +142,7 @@ class _ClockButtonsScreenState extends State<ClockButtonsScreen> {
                       padding: EdgeInsets.all(24),
                       child: Text(
                         'Pilot Bluetooth, przycisk węzła albo czujnika może przełączać ekrany zegara '
-                        '(następny, główny, rozjaśnij w nocy, wybrany ekran). Wykonuje to hub.',
+                        '(następny, główny, rozjaśnij w nocy, wybrany ekran) i zdjęcia. Wykonuje to hub.',
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -241,10 +243,7 @@ class _AddButtonScreenState extends State<_AddButtonScreen> {
                           {'device': d.id, 'input': input.key, 'press': _press},
                         ],
                         then: [
-                          {
-                            'device': c.device.id,
-                            'set': {'showScreen': _action},
-                          },
+                          {'device': c.device.id, 'set': clockActionSet(_action)},
                         ],
                         owner: c.device.id,
                       ),
@@ -323,7 +322,11 @@ class _AddButtonScreenState extends State<_AddButtonScreen> {
             onChanged: (v) => setState(() => _action = v ?? 'next'),
             child: Column(
               children: [
-                for (final k in [...clockCommands.keys, ...screens])
+                for (final k in [
+                  ...clockCommands.keys,
+                  if (screens.contains('photo')) ...clockPhotoCommands.keys,
+                  ...screens,
+                ])
                   RadioListTile<String>(
                     key: Key('clockButtonAction-$k'),
                     value: k,

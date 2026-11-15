@@ -192,6 +192,14 @@ const clockCommands = {
   'info': 'Ekran informacyjny',
 };
 
+/// Przeglądanie zdjęć na ekranie `photo` (Set `photo`: `next` / `prev`, zegar biurkowy od fw 0.9.1 i salonowy).
+/// Jako akcja przycisku zdalnego i w „Pokaż ekran”: klucz `photo:next` / `photo:prev`.
+const clockPhotoCommands = {'photo:next': 'Następne zdjęcie', 'photo:prev': 'Poprzednie zdjęcie'};
+
+/// Set dla akcji przycisku / „Pokaż ekran”: `photo:next` → `{"photo":"next"}`, reszta → `{"showScreen": …}`.
+Json clockActionSet(String action) =>
+    action.startsWith('photo:') ? {'photo': action.substring(6)} : {'showScreen': action};
+
 // ---------------------------------------------------------------- Wiadomości (Config `news`, pkt 10.2)
 
 const clockMaxFeeds = 6;
@@ -555,7 +563,7 @@ String clockScreenName(String key, List<ClockPage> pages) {
     final p = pages.where((p) => 'page:${p.id}' == key).firstOrNull;
     return p == null ? 'Strona (usunięta)' : 'Strona: ${p.title}';
   }
-  return clockScreens[key] ?? clockCommands[key] ?? key;
+  return clockScreens[key] ?? clockCommands[key] ?? clockPhotoCommands[key] ?? key;
 }
 
 /// Strona z widżetami (`pages[]`).

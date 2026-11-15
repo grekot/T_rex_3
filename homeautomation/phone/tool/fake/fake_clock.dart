@@ -95,6 +95,9 @@ class FakeClock extends FakeDevice {
 
   /// Zapisane zdjęcia: id → `{id, size, taken, memory, caption}` (jak `GET /api/photos`), treść w [photoBytes].
   final photos = <String, Map<String, dynamic>>{};
+
+  /// Polecenia Set `photo` (przeglądanie), po kolei.
+  final photoCommands = <String>[];
   final photoBytes = <String, List<int>>{};
   int photoW = 320, photoH = 240, photoMax = 20, photoMaxBytes = 98304;
 
@@ -923,6 +926,18 @@ class FakeClock extends FakeDevice {
         errors['showScreen'] = 'value';
       }
     }
+    // Przeglądanie zdjęć (fw 0.9.1): next / prev / id - ekran zdjęć; brak zdjęć albo nieznane id = value
+    if (v.containsKey('photo')) {
+      final s = v['photo'];
+      if (photoCfg == null) {
+        errors['photo'] = 'unknown';
+      } else if (s is! String || photos.isEmpty || (s != 'next' && s != 'prev' && !photos.containsKey(s))) {
+        errors['photo'] = 'value';
+      } else {
+        screen = 'photo';
+        photoCommands.add(s);
+      }
+    }
     if (v.containsKey('news')) {
       final n = v['news'];
       if (news == null) {
@@ -976,6 +991,14 @@ class FakeClock extends FakeDevice {
         'options': [..._commands, ...(screens['list'] as List)],
         'access': 'control',
       },
+      if (photoCfg != null)
+        {
+          'key': 'photo',
+          'name': 'Zdjęcie',
+          'kind': 'select',
+          'options': ['next', 'prev'],
+          'access': 'control',
+        },
       {'key': 'identify', 'name': 'Pokaż, który to', 'kind': 'action', 'access': 'control'},
       for (final (i, n) in const ['lewy', 'środkowy', 'prawy'].indexed)
         {'key': 'in${i + 1}', 'name': 'Przycisk $n', 'kind': 'status', 'inputKind': 'button'},

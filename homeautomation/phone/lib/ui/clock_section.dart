@@ -75,11 +75,20 @@ class ClockSection extends StatelessWidget {
                 title: Text(label),
                 onTap: () => Navigator.pop(ctx, k),
               ),
+            // Przeglądanie zdjęć (Set `photo`): ekran zdjęć z następnym / poprzednim
+            if (clockScreenList(_cfg).contains('photo'))
+              for (final MapEntry(key: k, value: label) in clockPhotoCommands.entries)
+                ListTile(
+                  key: Key('clockShow-$k'),
+                  leading: Icon(k == 'photo:next' ? Icons.photo_library_outlined : Icons.photo_outlined),
+                  title: Text(label),
+                  onTap: () => Navigator.pop(ctx, k),
+                ),
           ],
         ),
       ),
     );
-    if (key != null && context.mounted) await _send(context, {'showScreen': key});
+    if (key != null && context.mounted) await _send(context, clockActionSet(key));
   }
 
   /// „Wiadomość”: dymek na zegarze (Set `bubble`, poziom `control`).

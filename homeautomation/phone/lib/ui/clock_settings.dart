@@ -139,7 +139,7 @@ class _ClockScreensPageState extends State<ClockScreensPage> with _ClockConfig {
           final s = obj('screens');
           final interval = (s['intervalS'] as num?)?.toInt() ?? 15;
           final factor = (s['mainFactor'] as num?)?.toInt() ?? 1;
-          final hold = (s['holdS'] as num?)?.toInt();   // null = zegar bez screens.holdS (starszy firmware)
+          final hold = (s['holdS'] as num?)?.toInt(); // null = zegar bez screens.holdS (starszy firmware)
           final transition = s['transition'] as String? ?? 'cards';
           return ListView(
             padding: const EdgeInsets.fromLTRB(0, 8, 0, 32),
@@ -1554,11 +1554,7 @@ class _ClockNewsPageState extends State<ClockNewsPage> with _ClockConfig {
             children: [
               Tooltip(
                 message: 'Alarmowy: każda nowa pozycja ważna',
-                child: Switch(
-                  key: Key('clockFeedAlert-$i'),
-                  value: f.alert,
-                  onChanged: (v) => _setAlert(i, v),
-                ),
+                child: Switch(key: Key('clockFeedAlert-$i'), value: f.alert, onChanged: (v) => _setAlert(i, v)),
               ),
               IconButton(
                 key: Key('clockFeedRemove-$i'),
@@ -2003,10 +1999,7 @@ class _ClockRadioPageState extends State<ClockRadioPage> with _ClockConfig {
       ),
       // Korekcja głośnika (fw 0.7.1 zgłasza radio.eq); zmiana działa w locie
       if (r['eq'] is String) ...[
-        const ListTile(
-          contentPadding: EdgeInsets.zero,
-          title: Text('Korekcja głośnika'),
-        ),
+        const ListTile(contentPadding: EdgeInsets.zero, title: Text('Korekcja głośnika')),
         SegmentedButton<String>(
           key: const Key('clockRadioEq'),
           segments: [
@@ -2578,6 +2571,31 @@ class _ClockPhotosPageState extends State<ClockPhotosPage> with _ClockConfig {
                 onPressed: _sync.canRun && on ? () => _sync.run() : null,
               ),
       ),
+      if (on && c.canControl)
+        ListTile(
+          key: const Key('clockPhotosBrowse'),
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.photo_library_outlined),
+          title: const Text('Przeglądaj na zegarze'),
+          subtitle: const Text('Zegar pokazuje wybrane zdjęcie z licznikiem; po 2 min pokaz rusza dalej'),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                key: const Key('clockPhotoPrev'),
+                tooltip: 'Poprzednie zdjęcie',
+                icon: const Icon(Icons.chevron_left),
+                onPressed: () => send({'photo': 'prev'}),
+              ),
+              IconButton(
+                key: const Key('clockPhotoNext'),
+                tooltip: 'Następne zdjęcie',
+                icon: const Icon(Icons.chevron_right),
+                onPressed: () => send({'photo': 'next'}),
+              ),
+            ],
+          ),
+        ),
       const SectionHeader('Na zegarze'),
       SwitchListTile(
         key: const Key('clockPhotoCaption'),

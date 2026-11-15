@@ -26,6 +26,8 @@ Firmware, kontrakt API v2 (`docs/API.md`) i konfiguracja Firebase (`docs/firebas
 - **Zdjęcia na zegarach** (od 1.29.0): pulę z aplikacji „Zdjęcia” (most `127.0.0.1:8765` na tym samym telefonie)
   aplikacja przenosi na zegary z ekranem „Zdjęcia” w pokazie - w sieci domowej, osobnym zadaniem WorkManager co ~15 min
   (także bez konta), przy otwarciu aplikacji i ekranu zegara; tylko różnice, najwyżej 6 zdjęć na przebieg.
+  Od 1.30.0 przeglądanie na zegarze: ◀ ▶ na stronie „Zdjęcia”, „Następne / Poprzednie zdjęcie” w „Pokaż ekran”
+  i jako akcja przycisku zdalnego (pilot, przycisk węzła) - Set `photo`.
 - Wydanie do Sklepu rodzinnego: tag `homeautomation-vX.Y.Z`.
 
 Szczegóły, uruchomienie i testy: [phone/README.md](phone/README.md).

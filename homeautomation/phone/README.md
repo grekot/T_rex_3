@@ -396,6 +396,9 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   tokenem ≥ `control` w sieci lokalnej. Zadanie WorkManager `homeautomation-photos` (co 15 min, z siecią) - osobne od
   powiadomień, zarejestrowane, dopóki jest zegar, który może mieć ekran `photo`; wynik per zegar w SharedPreferences
   (`photo_sync_<id>`, `photo_bridge`). Atrapy: `FakeClock` (`/api/photos`), `tool/fake/fake_photo_bridge.dart`.
+  Przeglądanie (1.30.0, Set `photo`: `next` / `prev`): ◀ ▶ „Przeglądaj na zegarze” na stronie „Zdjęcia”, pozycje
+  w „Pokaż ekran” i akcje przycisków zdalnych `photo:next` / `photo:prev` (`clockPhotoCommands`, `clockActionSet`) -
+  tylko gdy ekran `photo` jest w pokazie.
   Kafelki: „Zegar - pokój” (ikona pogody z zegara), wykres temperatury, ciśnienie, na zewnątrz. Atrapa:
   `dart run tool/fake_device.dart --type clock`.
 - **Kalendarz domu** (☰ → Kalendarz, z kontem; `calendar_screen.dart`, `homes/{h}/calendar/{id}`, pkt 11): wywóz śmieci
