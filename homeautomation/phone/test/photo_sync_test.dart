@@ -23,8 +23,13 @@ class _NoDiscovery extends ThermostatDiscovery {
   Stream<List<DiscoveredDevice>> watch() => Stream.value(const []);
 }
 
-BridgePhoto _b(String id, int day, {String caption = '', bool memory = false}) =>
-    BridgePhoto(id: id, taken: DateTime(2026, 11, day, 12).millisecondsSinceEpoch, caption: caption, memory: memory);
+BridgePhoto _b(String id, int day, {String caption = '', bool memory = false, int? added}) => BridgePhoto(
+  id: id,
+  taken: DateTime(2026, 11, day, 12).millisecondsSinceEpoch,
+  caption: caption,
+  memory: memory,
+  added: added,
+);
 
 ClockPhoto _c(BridgePhoto p, {String? caption}) =>
     ClockPhoto(id: p.id, taken: p.takenS, caption: caption ?? p.caption, memory: p.memory);
@@ -102,6 +107,23 @@ void main() {
       expect([for (final p in plan.upload) p.id], ['p4', 'p3']);
     });
 
+    test('lista dla zegarów: najpóźniej dodane wygrywają z najnowszymi (wspomnienia z archiwum)', () {
+      final hour = DateTime(2026, 11, 15, 9).millisecondsSinceEpoch;
+      final pool = [
+        _b('wczoraj', 14, added: hour),
+        _b('przedwczoraj', 13, added: hour + 1),
+        BridgePhoto(id: 'z_2014', taken: DateTime(2014, 7, 3).millisecondsSinceEpoch, memory: true, added: hour + 3600000),
+        BridgePhoto(id: 'z_2009', taken: DateTime(2009, 5, 1).millisecondsSinceEpoch, memory: true, added: hour + 3600001),
+      ];
+      final plan = planPhotoSync(
+        pool: pool,
+        clock: ClockPhotos(max: 3, photos: [_c(pool[0]), _c(pool[1])]),
+      );
+      // Zegar na 3 zdjęcia: dwa z archiwum (dodane godzinę później) i jedno z puli; najstarsze dodane - usunięte
+      expect(plan.delete, ['wczoraj']);
+      expect([for (final p in plan.upload) p.id], ['z_2009', 'z_2014']);
+    });
+
     test('złe i powtórzone id z manifestu pominięte', () {
       final plan = planPhotoSync(
         pool: [_b('ok_1-A', 1), _b('zły/id', 2), _b('a' * 41, 3), _b('ok_1-A', 4)],
@@ -124,6 +146,14 @@ void main() {
         [('a', 1731600000, true, ''), ('b', 1731600001, false, 'Poranek')],
       );
       expect(BridgePhoto.manifest({'version': 1}), isNull);
+      // /clocks.json: czas dodania (stary manifest go nie ma - kolejność po dacie zdjęcia)
+      final clocks = BridgePhoto.manifest({
+        'photos': [
+          {'id': 'z_a', 'taken': 1404390000000, 'memory': true, 'added': 1763200000000},
+        ],
+      })!;
+      expect((clocks.single.added, clocks.single.order), (1763200000000, 1763200000000));
+      expect((list.first.added, list.first.order), (null, 1731600000123));
     });
   });
 
@@ -226,6 +256,20 @@ void main() {
       expect(clock.photoLog, ['GET']);
       expect(bridge.requests, ['manifest']);
       expect(log.clocks[clock.id]!.count, 9);
+    });
+
+    test('most z /clocks.json (Zdjęcia 0.11.0+): lista dla zegarów zamiast manifestu, kolejność wg dodania', () async {
+      bridge.clocks = true;
+      final at = DateTime(2026, 11, 15, 9);
+      bridge
+        ..add('p1', DateTime(2026, 11, 14), added: at)
+        ..add('z_a', DateTime(2014, 7, 3), caption: 'Nad morzem · 2014', memory: true, added: at.add(const Duration(hours: 1)));
+      final r = await sync().run();
+      expect(r.sent, 2);
+      expect(bridge.requests.first, 'clocks');
+      expect(bridge.requests, isNot(contains('manifest')));
+      expect(clock.photoLog, ['GET', 'PUT z_a', 'PUT p1']);
+      expect(clock.photos['z_a']!['caption'], 'Nad morzem');
     });
 
     test('nowy podpis - wysłane jeszcze raz; zdjęcie zniknęło z puli - usunięte z zegara', () async {

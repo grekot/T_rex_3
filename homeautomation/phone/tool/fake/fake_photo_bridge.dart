@@ -1,4 +1,5 @@
-// Atrapa mostu aplikacji „Zdjęcia” (127.0.0.1:8765 na telefonie): `GET /manifest.json` i `GET /p/<id>.jpg?w=&h=`
+// Atrapa mostu aplikacji „Zdjęcia” (127.0.0.1:8765 na telefonie): `GET /manifest.json`, `GET /clocks.json`
+// (gdy [FakePhotoBridge.clocks]; inaczej 404 jak w Zdjęciach < 0.11.0) i `GET /p/<id>.jpg?w=&h=`
 // (kadr W×H jako JPEG baseline). Do testów synchronizacji zdjęć z zegarami (lib/data/photo_sync.dart).
 
 import 'dart:convert';
@@ -15,20 +16,24 @@ class FakePhotoBridge {
   /// Własna treść kadru dla id (np. za duży albo progresywny JPEG).
   final override = <String, List<int>>{};
 
-  /// Żądania: `manifest`, `jpg <id> <w>x<h>`.
+  /// Żądania: `manifest`, `clocks`, `jpg <id> <w>x<h>`.
   final requests = <String>[];
+
+  /// Most zna `/clocks.json` (Zdjęcia 0.11.0+): ta sama lista z czasem dodania.
+  bool clocks = false;
 
   HttpServer? _server;
 
   int get port => _server!.port;
   Uri get uri => Uri.parse('http://127.0.0.1:$port');
 
-  void add(String id, DateTime taken, {String? caption, bool memory = false}) => photos.add({
+  void add(String id, DateTime taken, {String? caption, bool memory = false, DateTime? added}) => photos.add({
     'id': id,
     'size': 1000,
     'taken': taken.millisecondsSinceEpoch,
     'caption': ?caption,
     'memory': memory,
+    'added': ?added?.millisecondsSinceEpoch,
   });
 
   Future<void> start() async {
@@ -41,6 +46,11 @@ class FakePhotoBridge {
     final path = '/${req.url.path}';
     if (path == '/manifest.json') {
       requests.add('manifest');
+      return Response.ok(jsonEncode({'version': 1, 'photos': photos}), headers: {'Content-Type': 'application/json'});
+    }
+    if (path == '/clocks.json') {
+      if (!clocks) return Response.notFound('');
+      requests.add('clocks');
       return Response.ok(jsonEncode({'version': 1, 'photos': photos}), headers: {'Content-Type': 'application/json'});
     }
     final m = RegExp(r'^/p/([^/]+)\.jpg$').firstMatch(path);

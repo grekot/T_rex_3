@@ -28,6 +28,8 @@ Firmware, kontrakt API v2 (`docs/API.md`) i konfiguracja Firebase (`docs/firebas
   (także bez konta), przy otwarciu aplikacji i ekranu zegara; tylko różnice, najwyżej 6 zdjęć na przebieg.
   Od 1.30.0 przeglądanie na zegarze: ◀ ▶ na stronie „Zdjęcia”, „Następne / Poprzednie zdjęcie” w „Pokaż ekran”
   i jako akcja przycisku zdalnego (pilot, przycisk węzła) - Set `photo`.
+  Od 1.31.0 lista `/clocks.json` (Zdjęcia 0.11.0+: pula + co godzinę kilka zdjęć z archiwum całej biblioteki,
+  z czasem dodania) - zegar trzyma najpóźniej dodane, więc zdjęcia wymieniają się przez cały dzień.
 - Wydanie do Sklepu rodzinnego: tag `homeautomation-vX.Y.Z`.
 
 Szczegóły, uruchomienie i testy: [phone/README.md](phone/README.md).

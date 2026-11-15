@@ -389,9 +389,11 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   (automatyki huba z `owner` = zegar: wejście / przycisk → krótko / podwójnie / długo → ekran albo polecenie).
   **Zdjęcia** (`photo_sync.dart`, `clock_photos.dart`, pkt 10.2 „Zdjęcia”): ekran `photo` w pokazie, „Podpis pod
   zdjęciem” (`photos.caption`), czas pokazu (`photos.showS`: 0 = jak inne ekrany, 5-300 s), stan „N zdjęć na zegarze ·
-  ostatnio HH:MM” albo „Zainstaluj aplikację Zdjęcia…”. Synchronizacja: manifest mostu aplikacji „Zdjęcia”
-  (`http://127.0.0.1:8765/manifest.json`), `GET /api/photos` zegara, DELETE spoza puli (i ponad `max`), PUT brakujących
-  i ze zmienionym podpisem (kadr `/p/<id>.jpg?w=&h=` z rozmiaru zegara, najnowsze najpierw, najwyżej 6, `503 busy` -
+  ostatnio HH:MM” albo „Zainstaluj aplikację Zdjęcia…”. Synchronizacja: lista mostu aplikacji „Zdjęcia”
+  (`http://127.0.0.1:8765/clocks.json` z czasem dodania `added`, a przy 404 - `/manifest.json` starszych Zdjęć),
+  `GET /api/photos` zegara, DELETE spoza listy (i ponad `max`), PUT brakujących
+  i ze zmienionym podpisem (kadr `/p/<id>.jpg?w=&h=` z rozmiaru zegara, najpóźniej dodane najpierw - bez `added`
+  najnowsze zdjęcia, najwyżej 6, `503 busy` -
   ponowienie co 1 s do 10 razy, `507 full` - koniec); podpis wspomnienia bez końcówki „ · RRRR”. Tylko zegary z własnym
   tokenem ≥ `control` w sieci lokalnej. Zadanie WorkManager `homeautomation-photos` (co 15 min, z siecią) - osobne od
   powiadomień, zarejestrowane, dopóki jest zegar, który może mieć ekran `photo`; wynik per zegar w SharedPreferences

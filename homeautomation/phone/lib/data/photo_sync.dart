@@ -1,5 +1,7 @@
-// Zdjęcia na zegarach (docs/API.md pkt 10.2 „Zdjęcia”): aplikacja „Zdjęcia” na tym samym telefonie wystawia pulę
-// ~20 zdjęć mostem HTTP tylko pod 127.0.0.1:8765, a HomeAutomation przenosi je do zegarów z ekranem `photo` w pokazie.
+// Zdjęcia na zegarach (docs/API.md pkt 10.2 „Zdjęcia”): aplikacja „Zdjęcia” na tym samym telefonie wystawia mostem HTTP
+// tylko pod 127.0.0.1:8765 listę dla zegarów (`/clocks.json`: pula zegarka + co godzinę kilka zdjęć z archiwum, każde
+// z czasem dodania; starsze wersje - tylko `/manifest.json` z pulą ~20 zdjęć), a HomeAutomation przenosi je do zegarów
+// z ekranem `photo` w pokazie. Zegar trzyma najnowsze wg czasu dodania, więc przez dzień zdjęcia wymieniają się po kilka.
 // Najpierw czysta logika różnic ([planPhotoSync]), potem wykonanie po HTTP ([PhotoSync]). Gdy nic się nie zmieniło,
 // przebieg kończy się na trzech małych GET-ach do zegara - bez pobierania zdjęć z mostu.
 
@@ -27,15 +29,19 @@ final _memoryYear = RegExp(r'\s·\s\d{4}$');
 /// Identyfikator zdjęcia, jaki przyjmuje zegar.
 final _photoId = RegExp(r'^[A-Za-z0-9_-]{1,40}$');
 
-/// Zdjęcie z `manifest.json` mostu: [taken] w ms (jak w moście), [caption] od AI ('' = bez podpisu),
-/// [memory] = wspomnienie z historii galerii.
+/// Zdjęcie z listy mostu: [taken] w ms (jak w moście), [caption] od AI ('' = bez podpisu),
+/// [memory] = wspomnienie (z historii galerii albo z archiwum), [added] - kiedy weszło do listy dla zegarów (ms).
 class BridgePhoto {
-  const BridgePhoto({required this.id, required this.taken, this.caption = '', this.memory = false});
+  const BridgePhoto({required this.id, required this.taken, this.caption = '', this.memory = false, this.added});
 
   final String id;
   final int taken;
   final String caption;
   final bool memory;
+  final int? added;
+
+  /// Kolejność na zegarze: najpóźniej dodane (stary most bez [added] - najnowsze zdjęcia).
+  int get order => added ?? taken;
 
   /// Czas zrobienia w sekundach od epoki (tak zapisuje zegar).
   int get takenS => taken ~/ 1000;
@@ -54,6 +60,7 @@ class BridgePhoto {
       taken: j['taken'] is num ? (j['taken'] as num).toInt() : 0,
       caption: j['caption'] is String ? j['caption'] as String : '',
       memory: j['memory'] == true,
+      added: j['added'] is num ? (j['added'] as num).toInt() : null,
     );
   }
 
@@ -132,7 +139,7 @@ class PhotoPlan {
 }
 
 /// Różnice puli mostu i zegara.
-/// - Na zegarze ma być najwyżej `max` najnowszych zdjęć puli (`taken` malejąco); inne zdjęcia zegara - do usunięcia.
+/// - Na zegarze ma być najwyżej `max` najpóźniej dodanych zdjęć puli ([BridgePhoto.order] malejąco); inne - do usunięcia.
 /// - Brakujące i te ze zmienionym podpisem (`taken`, `memory`, `caption`) - do wysłania, najwyżej [maxUploads].
 /// - [sent]: podpis wysłany ostatnio do tego zegara. Gdy zegar odda podpis inaczej (np. przycięty), nie wysyłamy
 ///   w kółko: zmiana liczy się tylko, gdy podpis z puli różni się też od wysłanego.
@@ -148,7 +155,7 @@ PhotoPlan planPhotoSync({
   final valid = [
     for (final p in pool)
       if (_photoId.hasMatch(p.id) && seen.add(p.id)) p,
-  ]..sort((a, b) => b.taken != a.taken ? b.taken.compareTo(a.taken) : a.id.compareTo(b.id));
+  ]..sort((a, b) => b.order != a.order ? b.order.compareTo(a.order) : a.id.compareTo(b.id));
   final wanted = valid.take(clock.max < 0 ? 0 : clock.max).toList();
   final wantedIds = {for (final p in wanted) p.id};
   final onClock = {for (final p in clock.photos) p.id: p};
@@ -475,10 +482,12 @@ class PhotoSync {
     }
   }
 
-  /// Manifest mostu; null = brak mostu (aplikacja Zdjęcia nie zainstalowana albo jej usługa nie działa).
+  /// Lista mostu dla zegarów (`/clocks.json`, a gdy aplikacja Zdjęcia jej nie zna - `/manifest.json`);
+  /// null = brak mostu (aplikacja Zdjęcia nie zainstalowana albo jej usługa nie działa).
   Future<List<BridgePhoto>?> _manifest(http.Client client) async {
     try {
-      final res = await client.get(bridge.replace(path: '/manifest.json')).timeout(bridgeTimeout);
+      var res = await client.get(bridge.replace(path: '/clocks.json')).timeout(bridgeTimeout);
+      if (res.statusCode == 404) res = await client.get(bridge.replace(path: '/manifest.json')).timeout(bridgeTimeout);
       if (res.statusCode != 200) return null;
       return BridgePhoto.manifest(jsonDecode(utf8.decode(res.bodyBytes)));
     } on Object {
