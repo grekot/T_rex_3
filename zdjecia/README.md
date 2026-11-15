@@ -19,6 +19,7 @@ Dalej: etap 2 – synchronizacja przyrostowa i kasowanie starych zdjęć.
 Telefon: aplikacja „Zdjęcia” (Flutter)
   ostatnie zdjęcia z galerii → kwadrat ze środka → PNG 480×480 (czarne narożniki)
   serwer tylko pod 127.0.0.1:8765:  /manifest.json  i  /p/<id>.png
+  (od 0.10.0 także /p/<id>.jpg?w=&h= dla zegarów HomeAutomation – niżej)
         ↓  ten sam telefon
 Side Service w aplikacji Zepp: lista → pobranie PNG → image.convert → TransferFile
         ↓  Bluetooth
@@ -239,6 +240,31 @@ zdjęcie dla zegarka (dociągane po trochu). Skąd kadr, widać na karcie zdjęc
 
   Na próbnych przejściach kolorów (prawie biel = jasność ≥ 245): śnieg 25% → v2 48%, v3 25%; niebo z chmurami
   7,5% → v2 20%, v3 7,5%; ciemne wnętrze: średnia jasność 54 → v2 53, v3 58. Testy w `phone/test/photo_prep_test.dart`.
+
+## Zegary HomeAutomation (telefon 0.10.0)
+
+Pulę dostają też zegary ESP32 z prostokątnymi ekranami (biurkowy 320×240, salonowy 260×260). Przenosi ją
+aplikacja HomeAutomation na tym samym telefonie: pobiera z mostu 127.0.0.1:8765 i wysyła do zegara w sieci lokalnej.
+
+- `/manifest.json`: przy każdym zdjęciu dodatkowo `"memory": true|false` (wspomnienie z historii galerii);
+  reszta bez zmian, więc zegarek Zepp działa jak dotąd.
+- **`GET /p/<id>.jpg?w=<W>&h=<H>`** (W, H: 64–800, inaczej 400; nieznane id albo zdjęcia nie ma już w galerii – 404):
+  kadr o proporcjach W:H z tego samego zdjęcia co `<id>.png`, przeskalowany dokładnie do W×H, obróbka „vivid” v3
+  (jasność liczona na całym kadrze, nie w kole), **JPEG baseline** 4:2:0 (TJpgDec na ESP32 nie zna progresywnego),
+  jakość 88, bez EXIF. Plik nie przekracza **96 KB** – w razie potrzeby niższa jakość, a przy bardzo drobnym
+  wzorze lekkie rozmycie.
+- Kadr (`rectCropWithSource` w `phone/lib/select/crop.dart`) w tej samej kolejności co okrągły, ale prostokąt
+  zamiast koła: ręczny kadr = ten sam środek, kwadrat rozszerzony do proporcji W:H (cały zostaje w kadrze) →
+  fragment od AI z zapasem 8% (krótszy bok co najmniej 0,4 krótszego boku zdjęcia) → gdy ucina twarz, kadr obejmuje
+  i fragment, i twarz; gdy się nie da, wyraźna twarz wygrywa → twarze z ramionami (+12%) → główny motyw (+12%) →
+  najciekawszy pas (największy prostokąt W:H przesuwany wzdłuż dłuższego boku zdjęcia). Zawsze w granicach zdjęcia.
+- JPEG robi most w usłudze w tle przy pierwszym pobraniu (kilka sekund, miniatura 1600 px z galerii) i trzyma go
+  w `wybor/jpg/<id>_<W>x<H>_s3r1.jpg` (id, rozmiar, wersja obróbki i kadru); po odświeżeniu puli JPEG-i zdjęć
+  spoza puli są kasowane. Dane kadru (id w galerii, proporcje, twarze, profil, fragment i motyw od AI, kadr ręczny)
+  są zapisywane przy publikowaniu w `published.json`; pula sprzed 0.10.0 bierze je z `analysis.json`, `ratings.json`
+  i `prefs.json`, do najbliższego odświeżenia.
+
+Testy: `phone/test/rect_crop_test.dart` (kadr prostokątny, JPEG baseline, limit 96 KB) i `phone/test/bridge_server_test.dart`.
 
 ## Wydanie do Sklepu rodzinnego
 

@@ -80,6 +80,14 @@ Future<Uint8List?> imageBytes(AssetEntity a, int size, {int quality = 90}) async
   return a.originBytes;
 }
 
+/// Źródło JPEG-ów dla zegarów HomeAutomation w usłudze w tle: ta sama miniatura 1600 px co dla PNG.
+/// Bez okien systemowych - korzysta ze zgody na galerię nadanej wcześniej w aplikacji.
+Future<Uint8List?> backgroundSource(String assetId) async {
+  await PhotoManager.setIgnorePermissionCheck(true);
+  final asset = await AssetEntity.fromId(assetId);
+  return asset == null ? null : imageBytes(asset, 1600, quality: 92);
+}
+
 /// PNG 480×480 dla zegarka z kadrem; źródło 1600 px, żeby przybliżony kadr był ostry
 Future<Uint8List> watchPng(AssetEntity a, CropBox crop) async {
   final source = await imageBytes(a, 1600, quality: 92);

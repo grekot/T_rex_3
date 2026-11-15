@@ -1,6 +1,6 @@
 // Sterowanie pulą: szuka zdjęć z aparatu, analizuje tylko nowe, daje je do oceny Gemini (gdy jest klucz),
 // układa pulę 20 zdjęć, kadruje i publikuje gotowe PNG w plikach (published.json), skąd most w usłudze
-// w tle podaje je zegarkowi. Ten sam kod działa w aplikacji i bez ekranu w usłudze w tle (headless);
+// w tle podaje je zegarkowi (a z danych kadru robi też JPEG-i dla zegarów HomeAutomation). Ten sam kod działa w aplikacji i bez ekranu w usłudze w tle (headless);
 // blokada w plikach pilnuje, żeby nie odświeżały naraz.
 import 'dart:io';
 import 'dart:math' as math;
@@ -460,9 +460,19 @@ class PoolController extends ChangeNotifier {
           size: i.png.length,
           taken: i.taken,
           caption: i.watchCaption,
+          memory: i.isMemory,
+          // Do kadrów prostokątnych (zegary HomeAutomation) robionych przez most w usłudze w tle
+          assetId: i.scored.analysis.assetId,
+          frame: CropFrame.of(
+            i.scored.analysis,
+            subject: i.rating?.subject,
+            focus: i.rating?.focus,
+            manual: i.manualCrop ? i.crop : null,
+          ),
         ),
     ]);
     await _store.prunePngs({for (final i in items) _store.pngFile(i.id, i.crop).path});
+    await _store.pruneJpegs({for (final i in items) i.watchId});
     _set(PoolPhase.ready);
   }
 

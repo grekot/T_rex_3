@@ -1,6 +1,7 @@
 // Przygotowanie zdjęcia dla zegarka: kwadratowy kadr (CropBox), 480×480, czarne narożniki
 // (okrągły ekran i tak ich nie pokaże, a jednolity kolor lepiej się kompresuje), PNG.
 // Zegarek (image.convert w aplikacji Zepp) przyjmuje tylko PNG i nie zmienia rozmiaru.
+// Zegary HomeAutomation (ESP32, prostokątne ekrany) dostają JPEG baseline w zamówionym rozmiarze.
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -69,10 +70,68 @@ Uint8List preparePng(Uint8List source, {CropBox crop = CropBox.full}) {
   return img.encodePng(square, level: 6);
 }
 
+// --- JPEG dla zegarów HomeAutomation (prostokątne ekrany ESP32) ---
+
+/// Największy JPEG dla zegara (zegar odrzuca większe)
+const int maxJpegBytes = 96 * 1024;
+
+/// Jakość JPEG: zwykle [jpegQuality], przy zbyt dużym pliku kolejne niższe
+const int jpegQuality = 88;
+const List<int> jpegFallbackQualities = [80, 72, 64, 56, 48, 40, 32, 24];
+
+/// Najmniejszy i największy bok kadru zamawianego przez zegar
+const int minJpegSide = 64;
+const int maxJpegSide = 800;
+
+class JpegJob {
+  const JpegJob(this.source, this.rect, this.width, this.height);
+
+  final Uint8List source;
+  final RectBox rect;
+  final int width;
+  final int height;
+}
+
+/// Dla `compute` (osobny wątek) - jeden argument.
+Uint8List prepareJpegJob(JpegJob job) => prepareJpeg(job.source, rect: job.rect, width: job.width, height: job.height);
+
+/// Kadr prostokątny przeskalowany dokładnie do [width] × [height], obróbka jak w PNG (na całym obrazie,
+/// bez czarnych narożników), JPEG baseline (dekoder TJpgDec na ESP32 nie zna progresywnego), 4:2:0,
+/// bez EXIF, najwyżej [maxJpegBytes] - w razie potrzeby niższa jakość.
+Uint8List prepareJpeg(Uint8List source, {required RectBox rect, required int width, required int height}) {
+  final decoded = img.decodeImage(source);
+  if (decoded == null) {
+    throw const FormatException('Nie udało się odczytać zdjęcia');
+  }
+  final upright = img.bakeOrientation(decoded);
+  final r = rectPixels(rect, upright.width, upright.height, outWidth: width, outHeight: height);
+  var out = img.copyResize(
+    img.copyCrop(upright, x: r.x, y: r.y, width: r.w, height: r.h),
+    width: width,
+    height: height,
+    interpolation: img.Interpolation.average,
+  );
+  if (out.numChannels != 3) out = out.convert(numChannels: 3);
+  vivid(out, circle: false);
+  out.exif = img.ExifData(); // bez EXIF (data, miejsce, model telefonu)
+  for (final quality in [jpegQuality, ...jpegFallbackQualities]) {
+    final jpg = img.encodeJpg(out, quality: quality, chroma: img.JpegChroma.yuv420);
+    if (jpg.length <= maxJpegBytes) return jpg;
+  }
+  // Bardzo drobny wzór w dużym kadrze (np. 800×800): sama jakość nie wystarcza - lekkie rozmycie
+  for (final radius in [1, 2, 4]) {
+    final soft = img.gaussianBlur(out.clone(), radius: radius);
+    final jpg = img.encodeJpg(soft, quality: jpegFallbackQualities[2], chroma: img.JpegChroma.yuv420);
+    if (jpg.length <= maxJpegBytes) return jpg;
+  }
+  throw StateError('JPEG ${width}x$height większy niż ${maxJpegBytes ~/ 1024} KB');
+}
+
 double _luma(num r, num g, num b) => 0.299 * r + 0.587 * g + 0.114 * b;
 
 /// Średnia jasność (0..1) i udział prawie białych pikseli (jasność ≥ 235) w kole widocznym na zegarku
-({double mean, double nearWhite}) lumaStats(img.Image image) {
+/// (a przy [circle] = false - na całym prostokątnym obrazie)
+({double mean, double nearWhite}) lumaStats(img.Image image, {bool circle = true}) {
   final cx = image.width / 2, cy = image.height / 2;
   final r2 = cx * cx;
   var sum = 0.0;
@@ -80,7 +139,7 @@ double _luma(num r, num g, num b) => 0.299 * r + 0.587 * g + 0.114 * b;
   var white = 0;
   for (final p in image) {
     final dx = p.x + 0.5 - cx, dy = p.y + 0.5 - cy;
-    if (dx * dx + dy * dy > r2) continue;
+    if (circle && dx * dx + dy * dy > r2) continue;
     final y = _luma(p.r, p.g, p.b);
     sum += y;
     if (y >= 235) white++;
@@ -106,8 +165,9 @@ double _saturationFor(double y, double maxD, double minD) {
 
 /// Własna obróbka zamiast img.adjustColor (tam przy nasyconych kolorach kanały zawijały się 0 ↔ 255):
 /// krzywa tonów dobrana do zdjęcia, potem nasycenie względem jasności piksela (jak „saturate” w CSS).
-void vivid(img.Image image) {
-  final stats = lumaStats(image);
+/// [circle]: jasność zdjęcia liczona tylko w kole (okrągły zegarek) albo na całym obrazie (prostokątny ekran).
+void vivid(img.Image image, {bool circle = true}) {
+  final stats = lumaStats(image, circle: circle);
   final lut = toneLut(toneGamma(stats.mean, stats.nearWhite));
   for (final p in image) {
     final r = lut[p.r.toInt()].toDouble(), g = lut[p.g.toInt()].toDouble(), b = lut[p.b.toInt()].toDouble();

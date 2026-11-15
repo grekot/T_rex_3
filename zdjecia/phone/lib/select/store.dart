@@ -90,6 +90,9 @@ class PoolPrefs {
       );
 }
 
+/// Wersja JPEG-ów dla zegarów: obróbka kolorów i liczenie kadru prostokątnego
+const String jpegStyleKey = 's${pngStyleVersion}r$rectCropVersion';
+
 /// Blokada odświeżania starsza niż to jest porzucona
 const Duration staleLock = Duration(minutes: 45);
 
@@ -104,6 +107,9 @@ class PublishedPhoto {
     required this.taken,
     this.caption = '',
     this.photoId = '',
+    this.memory = false,
+    this.assetId = '',
+    this.frame,
   });
 
   final String id;
@@ -115,6 +121,14 @@ class PublishedPhoto {
   final DateTime taken;
   final String caption;
 
+  /// Wspomnienie (starsze zdjęcie z historii galerii)
+  final bool memory;
+
+  /// Id w galerii i dane kadru - z nich most robi JPEG w dowolnych proporcjach (zegary HomeAutomation).
+  /// Pule sprzed 0.10.0 ich nie mają (wtedy most bierze je z analysis.json / ratings.json / prefs.json).
+  final String assetId;
+  final CropFrame? frame;
+
   Map<String, Object> toJson() => {
         'id': id,
         'path': path,
@@ -122,6 +136,9 @@ class PublishedPhoto {
         'taken': taken.millisecondsSinceEpoch,
         if (caption.isNotEmpty) 'caption': caption,
         if (photoId.isNotEmpty) 'photo': photoId,
+        if (memory) 'memory': true,
+        if (assetId.isNotEmpty) 'asset': assetId,
+        if (frame != null) 'frame': frame!.toJson(),
       };
 
   factory PublishedPhoto.fromJson(Map<String, dynamic> j) => PublishedPhoto(
@@ -132,6 +149,9 @@ class PublishedPhoto {
         caption: j['caption'] as String? ?? '',
         // Pule z wersji < 0.6.0 nie mają tego pola: id na zegarku = id zdjęcia + "_" + 7 znaków kadru
         photoId: j['photo'] as String? ?? _photoIdFromWatchId(j['id'] as String),
+        memory: j['memory'] as bool? ?? false,
+        assetId: j['asset'] as String? ?? '',
+        frame: j['frame'] is Map ? CropFrame.fromJson((j['frame'] as Map).cast<String, dynamic>()) : null,
       );
 
   static String _photoIdFromWatchId(String id) => id.length > 8 ? id.substring(0, id.length - 8) : id;
@@ -303,6 +323,27 @@ class SelectStore {
 
   /// Gotowy PNG dla zegarka (zależy od kadru, więc kadr jest w nazwie)
   File pngFile(String id, CropBox crop) => File('${pngDir.path}/${id}_${crop.key}_s$pngStyleVersion.png');
+
+  Directory get jpegDir => Directory('${dir.path}/jpg');
+
+  /// JPEG dla zegara HomeAutomation: id na zegarku (zależy od kadru ręcznego), rozmiar i wersje obróbki
+  File jpegFile(String id, int width, int height) =>
+      File('${jpegDir.path}/${id}_${width}x${height}_$jpegStyleKey.jpg');
+
+  /// Usuwa JPEG-i zdjęć spoza puli i ze starszych wersji obróbki
+  Future<void> pruneJpegs(Set<String> keepIds) async {
+    if (!await jpegDir.exists()) return;
+    await for (final f in jpegDir.list()) {
+      if (f is! File) continue;
+      final m = _jpegName.firstMatch(f.uri.pathSegments.last);
+      if (m != null && keepIds.contains(m.group(1)) && m.group(2) == jpegStyleKey) continue;
+      try {
+        await f.delete();
+      } catch (_) {}
+    }
+  }
+
+  static final _jpegName = RegExp(r'^(.+)_\d+x\d+_([A-Za-z0-9]+)\.jpg$');
 
   /// Usuwa PNG zdjęć, których nie ma już w puli
   Future<void> prunePngs(Set<String> keepPaths) async {

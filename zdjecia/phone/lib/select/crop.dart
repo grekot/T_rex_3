@@ -1,6 +1,7 @@
 // Kadr pod okrągły ekran: kwadrat, w którym bohaterowie zdjęcia mieszczą się w KOLE (narożniki kwadratu
 // zegarek obcina). Z twarzami - twarze z ramionami w środku koła; bez twarzy - główny motyw wskazany
-// przez AI, a bez niego najciekawszy pas zdjęcia.
+// przez AI, a bez niego najciekawszy pas zdjęcia. Na końcu kadr prostokątny (dowolne proporcje) dla zegarów
+// z poziomymi ekranami - ta sama kolejność, ale prostokąt zamiast koła.
 import 'dart:math' as math;
 
 import 'analysis.dart';
@@ -197,3 +198,223 @@ CropBox _clamped(double cxPx, double cyPx, double side, double w, double h) {
 }
 
 double _r(double v) => (v * 1000).roundToDouble() / 1000;
+
+// --- Kadr prostokątny (zegary HomeAutomation z poziomymi ekranami, np. 320×240) ---
+
+/// Wersja liczenia kadru prostokątnego - zmiana daje nowe pliki JPEG w pamięci podręcznej
+const int rectCropVersion = 1;
+
+/// Zapas wokół fragmentu od AI (jak w kadrze okrągłym: dłuższy bok fragmentu +8%)
+const double rectFocusPad = 1.08;
+
+/// Zapas wokół twarzy z ramionami i wokół głównego motywu (6% z każdej strony)
+const double rectPad = 1.12;
+
+/// Kadr prostokątny w ułamkach zdjęcia: środek oraz szerokość / wysokość (ułamek szerokości / wysokości zdjęcia)
+class RectBox {
+  const RectBox({required this.cx, required this.cy, required this.w, required this.h});
+
+  final double cx;
+  final double cy;
+  final double w;
+  final double h;
+
+  static const full = RectBox(cx: 0.5, cy: 0.5, w: 1, h: 1);
+
+  double get left => cx - w / 2;
+  double get top => cy - h / 2;
+
+  @override
+  String toString() => 'RectBox(cx: $cx, cy: $cy, w: $w, h: $h)';
+}
+
+/// Wszystko, czego potrzeba do kadru o dowolnych proporcjach - zapisywane przy publikowaniu puli
+/// (published.json), żeby usługa w tle mogła kadrować bez analizy i bez ocen.
+class CropFrame {
+  const CropFrame({
+    required this.aspect,
+    this.faces = const [],
+    this.profile = const [],
+    this.subject,
+    this.focus,
+    this.manual,
+  });
+
+  factory CropFrame.of(PhotoAnalysis a, {List<double>? subject, List<double>? focus, CropBox? manual}) => CropFrame(
+        aspect: a.aspect,
+        faces: mainFaces(a.faces),
+        profile: a.quality.profile,
+        subject: subject,
+        focus: focus,
+        manual: manual,
+      );
+
+  /// Szerokość / wysokość zdjęcia (już obróconego)
+  final double aspect;
+
+  /// Wyraźne twarze (ułamki zdjęcia)
+  final List<FaceBox> faces;
+
+  /// Ciekawość w pasach wzdłuż dłuższego boku (jak [QualityMetrics.profile])
+  final List<double> profile;
+
+  /// Główny motyw i najciekawszy fragment od AI: left, top, width, height (ułamki zdjęcia)
+  final List<double>? subject;
+  final List<double>? focus;
+
+  /// Ręczny kadr kwadratowy użytkownika
+  final CropBox? manual;
+
+  Map<String, Object> toJson() => {
+        'a': (aspect * 10000).roundToDouble() / 10000,
+        if (faces.isNotEmpty) 'faces': [for (final f in faces) f.toJson()],
+        if (profile.isNotEmpty) 'p': [for (final v in profile) _r(v)],
+        if (subject != null) 'subject': [for (final v in subject!) _r(v)],
+        if (focus != null) 'focus': [for (final v in focus!) _r(v)],
+        if (manual != null) 'manual': manual!.toJson(),
+      };
+
+  factory CropFrame.fromJson(Map<String, dynamic> j) {
+    List<double>? box(Object? v) => v is List && v.length == 4 ? [for (final x in v) (x as num).toDouble()] : null;
+    return CropFrame(
+      aspect: (j['a'] as num).toDouble(),
+      faces: [for (final f in (j['faces'] as List? ?? const [])) FaceBox.fromJson((f as Map).cast<String, dynamic>())],
+      profile: [for (final v in (j['p'] as List? ?? const [])) (v as num).toDouble()],
+      subject: box(j['subject']),
+      focus: box(j['focus']),
+      manual: j['manual'] is Map ? CropBox.fromJson((j['manual'] as Map).cast<String, dynamic>()) : null,
+    );
+  }
+}
+
+/// Kadr o proporcjach [ratio] (szerokość / wysokość) wybrany tą samą kolejnością co kadr okrągły:
+/// ręczny (ten sam środek, kwadrat rozszerzony do proporcji) → fragment od AI (o ile nie ucina twarzy) →
+/// twarze → główny motyw → najciekawszy pas. Bez koła: prostokąt obejmuje sam motyw z małym zapasem.
+({RectBox box, CropSource source}) rectCropWithSource(CropFrame f, double ratio) {
+  final manual = f.manual;
+  if (manual != null) return (box: _rectFromSquare(manual, f.aspect, ratio), source: CropSource.manual);
+  final faceBoxes = [for (final face in f.faces) _faceWithShoulders(face)];
+  final focus = f.focus;
+  if (focus != null && focus.length == 4) {
+    final r = _rectAround([focus], f.aspect, ratio, pad: rectFocusPad, minShort: minFocusSide);
+    if (faceBoxes.every((b) => _insideRect(b, r.box))) return (box: r.box, source: CropSource.ai);
+    // Fragment ucina twarz: kadr obejmie jedno i drugie, o ile zmieści się w zdjęciu
+    final both = _rectAround([focus, ...faceBoxes], f.aspect, ratio, pad: 1, minShort: minSide);
+    if (both.fits) return (box: both.box, source: CropSource.ai);
+    // Nie zmieści się: wyraźna twarz wygrywa, malutka w tle nie przeszkadza wyborowi AI
+    if (!f.faces.any((face) => face.area >= majorFaceArea)) return (box: r.box, source: CropSource.ai);
+  }
+  if (faceBoxes.isNotEmpty) {
+    return (box: _rectAround(faceBoxes, f.aspect, ratio, pad: rectPad, minShort: minSide).box, source: CropSource.faces);
+  }
+  final subject = f.subject;
+  if (subject != null && subject.length == 4) {
+    return (box: _rectAround([subject], f.aspect, ratio, pad: rectPad, minShort: minSide).box, source: CropSource.subject);
+  }
+  return (box: _rectBand(f.profile, f.aspect, ratio), source: CropSource.band);
+}
+
+RectBox rectCrop(CropFrame f, double ratio) => rectCropWithSource(f, ratio).box;
+
+/// Największy prostokąt o proporcjach [ratio] mieszczący się w zdjęciu (jednostki: krótszy bok = 1)
+({double w, double h}) _maxFit(double pw, double ph, double ratio) =>
+    ratio >= pw / ph ? (w: pw, h: pw / ratio) : (w: ph * ratio, h: ph);
+
+/// Prostokąt o proporcjach [ratio] obejmujący prostokąty (ułamki zdjęcia) z zapasem [pad], krótszy bok
+/// co najmniej [minShort]; środek na środku objętych prostokątów, przesunięty w granice zdjęcia.
+/// [fits] = objęte prostokąty (bez zapasu i minimum) mieszczą się w zdjęciu w tych proporcjach.
+({RectBox box, bool fits}) _rectAround(List<List<double>> boxes, double aspect, double ratio,
+    {required double pad, required double minShort}) {
+  final pw = math.max(aspect, 1.0), ph = math.max(1 / aspect, 1.0);
+  var left = double.infinity, top = double.infinity, right = -double.infinity, bottom = -double.infinity;
+  for (final b in boxes) {
+    left = math.min(left, b[0] * pw);
+    right = math.max(right, (b[0] + b[2]) * pw);
+    top = math.min(top, b[1] * ph);
+    bottom = math.max(bottom, (b[1] + b[3]) * ph);
+  }
+  final max = _maxFit(pw, ph, ratio);
+  final needed = math.max(right - left, (bottom - top) * ratio);
+  var w = needed * pad;
+  final short = math.min(w, w / ratio);
+  if (short < minShort) w *= minShort / short;
+  w = math.min(w, max.w);
+  return (
+    box: _rectClamped((left + right) / 2, (top + bottom) / 2, w, w / ratio, pw, ph),
+    fits: needed <= max.w * 1.0001,
+  );
+}
+
+/// Ręczny kadr kwadratowy jako prostokąt: ten sam środek, kwadrat rozszerzony wzdłuż dłuższego boku
+/// prostokąta (cały kwadrat zostaje w kadrze), a gdy się nie mieści - pomniejszony do granic zdjęcia.
+RectBox _rectFromSquare(CropBox c, double aspect, double ratio) {
+  final pw = math.max(aspect, 1.0), ph = math.max(1 / aspect, 1.0);
+  final w = math.min(ratio >= 1 ? c.side * ratio : c.side, _maxFit(pw, ph, ratio).w);
+  return _rectClamped(c.cx * pw, c.cy * ph, w, w / ratio, pw, ph);
+}
+
+/// Najciekawszy pas: największy prostokąt w proporcjach, przesuwany wzdłuż dłuższego boku zdjęcia
+/// (wzdłuż niego liczony jest profil ciekawości), z lekką premią za środek - jak przy kadrze kwadratowym.
+RectBox _rectBand(List<double> profile, double aspect, double ratio) {
+  final pw = math.max(aspect, 1.0), ph = math.max(1 / aspect, 1.0);
+  final max = _maxFit(pw, ph, ratio);
+  final length = math.max(pw, ph);
+  final extent = pw >= ph ? max.w : max.h;
+  var center = length / 2;
+  final bins = profile.length;
+  if (bins > 0 && extent < length - 1e-4) {
+    final window = math.max(1, (bins * extent / length).round());
+    var bestStart = (bins - window) / 2, bestValue = -double.infinity;
+    for (var start = 0; start <= bins - window; start++) {
+      var value = 0.0;
+      for (var i = start; i < start + window; i++) {
+        value += profile[i];
+      }
+      value -= 0.15 * ((start + window / 2) / bins - 0.5).abs();
+      if (value > bestValue) {
+        bestValue = value;
+        bestStart = start.toDouble();
+      }
+    }
+    center = (bestStart + window / 2) / bins * length;
+  }
+  return pw >= ph
+      ? _rectClamped(center, ph / 2, max.w, max.h, pw, ph)
+      : _rectClamped(pw / 2, center, max.w, max.h, pw, ph);
+}
+
+/// Czy prostokąt (ułamki zdjęcia) mieści się w kadrze
+bool _insideRect(List<double> b, RectBox r) {
+  const eps = 1e-4;
+  return b[0] >= r.left - eps &&
+      b[1] >= r.top - eps &&
+      b[0] + b[2] <= r.left + r.w + eps &&
+      b[1] + b[3] <= r.top + r.h + eps;
+}
+
+RectBox _rectClamped(double cxPx, double cyPx, double w, double h, double pw, double ph) {
+  w = math.min(w, pw);
+  h = math.min(h, ph);
+  final cx = cxPx.clamp(w / 2, pw - w / 2);
+  final cy = cyPx.clamp(h / 2, ph - h / 2);
+  return RectBox(cx: cx / pw, cy: cy / ph, w: w / pw, h: h / ph);
+}
+
+/// Prostokąt kadru w pikselach konkretnego obrazu: x, y, szerokość, wysokość. Gdy obraz na to pozwala,
+/// kadr nie jest mniejszy niż [outWidth] × [outHeight] (wtedy powiększony wokół tego samego środka).
+({int x, int y, int w, int h}) rectPixels(RectBox box, int width, int height,
+    {required int outWidth, required int outHeight}) {
+  var w = box.w * width, h = box.h * height;
+  if (w < outWidth || h < outHeight) {
+    final want = math.max(outWidth / w, outHeight / h);
+    final grow = math.min(want, math.min(width / w, height / h));
+    if (grow > 1) {
+      w *= grow;
+      h *= grow;
+    }
+  }
+  final iw = w.round().clamp(1, width), ih = h.round().clamp(1, height);
+  final x = (box.cx * width - iw / 2).round().clamp(0, width - iw);
+  final y = (box.cy * height - ih / 2).round().clamp(0, height - ih);
+  return (x: x, y: y, w: iw, h: ih);
+}

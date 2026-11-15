@@ -1,5 +1,6 @@
 // Most lokalny: serwer HTTP tylko pod 127.0.0.1 (niewidoczny w Wi-Fi). Side Service aplikacji Zepp
-// na tym samym telefonie pobiera z niego listę zdjęć (/manifest.json) i pliki PNG (/p/<id>.png).
+// na tym samym telefonie pobiera z niego listę zdjęć (/manifest.json) i pliki PNG (/p/<id>.png),
+// a aplikacja HomeAutomation - JPEG-i w rozmiarze ekranu zegara ESP32 (/p/<id>.jpg?w=320&h=240).
 // Zdjęcia bierze przy każdym zapytaniu ze źródła - w usłudze w tle jest nim opublikowana pula w plikach,
 // więc nowa pula po odświeżeniu jest od razu widoczna dla zegarka.
 import 'dart:async';
@@ -7,16 +8,34 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'photo_prep.dart';
+
 const int bridgePort = 8765;
 
+/// JPEG kadru o podanym rozmiarze; null = nie da się go zrobić (np. zdjęcia nie ma już w galerii)
+typedef JpegReader = Future<List<int>?> Function(int width, int height);
+
 class BridgePhoto {
-  BridgePhoto({required this.id, required Uint8List png, required this.taken, this.caption = ''})
-      : size = png.length,
+  BridgePhoto({
+    required this.id,
+    required Uint8List png,
+    required this.taken,
+    this.caption = '',
+    this.memory = false,
+    this.jpeg,
+  })  : size = png.length,
         read = (() async => png);
 
   /// Zdjęcie czytane z pliku dopiero, gdy zegarek o nie poprosi
-  BridgePhoto.file({required this.id, required File file, required this.size, required this.taken, this.caption = ''})
-      : read = file.readAsBytes;
+  BridgePhoto.file({
+    required this.id,
+    required File file,
+    required this.size,
+    required this.taken,
+    this.caption = '',
+    this.memory = false,
+    this.jpeg,
+  }) : read = file.readAsBytes;
 
   final String id;
   final int size;
@@ -24,7 +43,13 @@ class BridgePhoto {
 
   /// Podpis od AI (zegarek pokazuje go pod zdjęciem)
   final String caption;
+
+  /// Wspomnienie z historii galerii (zegary HomeAutomation opisują je inaczej niż świeże zdjęcia)
+  final bool memory;
   final Future<List<int>> Function() read;
+
+  /// Kadr prostokątny w JPEG (null = most go nie robi)
+  final JpegReader? jpeg;
 }
 
 typedef PhotoSource = Future<List<BridgePhoto>> Function();
@@ -74,9 +99,16 @@ Map<String, Object> manifestOf(List<BridgePhoto> photos) => {
             'size': p.size,
             'taken': p.taken.millisecondsSinceEpoch,
             if (p.caption.isNotEmpty) 'caption': p.caption,
+            'memory': p.memory,
           },
       ],
     };
+
+/// Bok kadru JPEG z zapytania ([minJpegSide]..[maxJpegSide]); null = brak albo poza zakresem
+int? jpegSide(String? value) {
+  final v = int.tryParse(value ?? '');
+  return v != null && v >= minJpegSide && v <= maxJpegSide ? v : null;
+}
 
 class BridgeServer {
   BridgeServer({required this.source, this.port = bridgePort});
@@ -132,6 +164,23 @@ class BridgeServer {
         } else {
           body = await photo.read();
           type = ContentType('image', 'png');
+        }
+      } else if (path.startsWith('/p/') && path.endsWith('.jpg')) {
+        final id = path.substring(3, path.length - 4);
+        final w = jpegSide(req.uri.queryParameters['w']), h = jpegSide(req.uri.queryParameters['h']);
+        final photo = (await source()).where((p) => p.id == id).firstOrNull;
+        if (w == null || h == null) {
+          status = HttpStatus.badRequest;
+        } else if (photo == null || photo.jpeg == null) {
+          status = HttpStatus.notFound;
+        } else {
+          final jpg = await photo.jpeg!(w, h);
+          if (jpg == null) {
+            status = HttpStatus.notFound;
+          } else {
+            body = jpg;
+            type = ContentType('image', 'jpeg');
+          }
         }
       } else {
         status = HttpStatus.notFound;

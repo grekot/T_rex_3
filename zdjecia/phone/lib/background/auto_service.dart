@@ -1,5 +1,6 @@
 // Usługa w tle (Android foreground service, typ specialUse - bez limitu czasu i z uruchomieniem po restarcie):
-//  - most 127.0.0.1 dla zegarka działa cały czas, także przy zamkniętej aplikacji,
+//  - most 127.0.0.1 dla zegarka działa cały czas, także przy zamkniętej aplikacji (PNG dla zegarka Zepp,
+//    JPEG-i dla zegarów HomeAutomation robione na żądanie z galerii),
 //  - co [autoRefreshEvery] pula odświeża się sama (nowe zdjęcia, analiza, ocena Gemini, kadry).
 // Android wymaga stałego powiadomienia - kanał jest cichy i można go zwinąć w ustawieniach.
 import 'dart:async';
@@ -9,6 +10,7 @@ import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import '../bridge/bridge_server.dart';
 import '../bridge/format.dart';
 import '../bridge/published_source.dart';
+import '../media/gallery.dart';
 import '../pool_controller.dart';
 import '../select/store.dart';
 
@@ -93,7 +95,9 @@ class AutoTaskHandler extends TaskHandler {
   Future<void> onStart(DateTime timestamp, TaskStarter starter) async {
     final store = await openSelectStore();
     _store = store;
-    final server = BridgeServer(source: () => publishedPhotos(store));
+    // JPEG-i dla zegarów HomeAutomation: kadr z danych w published.json, zdjęcie prosto z galerii
+    final jpeg = JpegMaker(store, loadSource: backgroundSource);
+    final server = BridgeServer(source: () => publishedPhotos(store, jpeg: jpeg));
     try {
       await server.start();
       _server = server;
