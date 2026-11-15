@@ -19,7 +19,9 @@ class FakeClock extends FakeDevice {
     bool withThemePacks = true,
     bool withBubbles = true,
     bool withAlarms = true,
+    bool withPhotos = true,
   }) : _name = name,
+       photoCfg = withPhotos ? {'caption': true, 'showS': 0} : null,
        alarms = withAlarms
            ? [
                {
@@ -88,6 +90,26 @@ class FakeClock extends FakeDevice {
     wifiApSupported = true; // zegar fw 0.7.0: punkt sieci mesh (pkt 9.6)
   }
 
+  /// Zdjęcia (Config `photos`, `GET/PUT/DELETE /api/photos`); null = zegar sprzed zdjęć (bez pola i ekranu `photo`).
+  Map<String, dynamic>? photoCfg;
+
+  /// Zapisane zdjęcia: id → `{id, size, taken, memory, caption}` (jak `GET /api/photos`), treść w [photoBytes].
+  final photos = <String, Map<String, dynamic>>{};
+  final photoBytes = <String, List<int>>{};
+  int photoW = 320, photoH = 240, photoMax = 20, photoMaxBytes = 98304;
+
+  /// Tyle następnych PUT / DELETE dostanie `503 busy` (zapis w tle jeszcze trwa).
+  int photoBusy = 0;
+
+  /// Naprawdę mieści tyle (mniej niż zgłoszone `max` - np. większe pliki): potem `507 full`.
+  int? photoFullAt;
+
+  /// Żądania zdjęć: `GET`, `PUT <id>`, `DELETE <id>`, `PUT <id> busy` … (testy).
+  final photoLog = <String>[];
+
+  /// Surowe zapytania PUT (sprawdzenie kodowania podpisu).
+  final photoQueries = <String>[];
+
   /// Budziki (`alarms`, fw 0.8.0); null = zegar sprzed budzika. Stan: dzwoni [alarmRinging] (id), drzemka do
   /// [snoozeUntil] (unix), [snoozes], wyłącznik czasowy radia [sleepUntil] (unix, 0 = brak).
   List<Map<String, dynamic>>? alarms;
@@ -134,8 +156,9 @@ class FakeClock extends FakeDevice {
         continue;
       }
       if (x.containsKey('on') && x['on'] is! bool) e['$k.on'] = 'value';
-      if (x.containsKey('time') && !RegExp(r'^([01]\d|2[0-3]):[0-5]\d$').hasMatch('${x['time']}'))
+      if (x.containsKey('time') && !RegExp(r'^([01]\d|2[0-3]):[0-5]\d$').hasMatch('${x['time']}')) {
         e['$k.time'] = 'value';
+      }
       if (x.containsKey('days') &&
           (x['days'] is! List || (x['days'] as List).any((d) => d is! int || d < 1 || d > 7))) {
         e['$k.days'] = 'value';
@@ -144,8 +167,9 @@ class FakeClock extends FakeDevice {
       if (x.containsKey('station') && x['station'] is! String) e['$k.station'] = 'value';
       if (x.containsKey('vol') && !(x['vol'] is int && _num(x['vol'], 5, 100))) e['$k.vol'] = 'range';
       if (x.containsKey('rampS') && !(x['rampS'] is int && _num(x['rampS'], 0, 120))) e['$k.rampS'] = 'range';
-      if (x.containsKey('snoozeMin') && !(x['snoozeMin'] is int && _num(x['snoozeMin'], 1, 30)))
+      if (x.containsKey('snoozeMin') && !(x['snoozeMin'] is int && _num(x['snoozeMin'], 1, 30))) {
         e['$k.snoozeMin'] = 'range';
+      }
     }
     return e;
   }
@@ -343,6 +367,7 @@ class FakeClock extends FakeDevice {
       },
     },
     if (themeInstall != null) 'themeInstall': themeInstall,
+    if (photoCfg != null) 'photos': photos.length,
     if (bubbles != null) ...{
       'meeting': meetingUntil != null,
       'meetingUntil': meetingUntil == 0 ? null : meetingUntil,
@@ -370,6 +395,7 @@ class FakeClock extends FakeDevice {
     if (radio != null) 'radio': radio,
     if (bubbles != null) ...{'bubbles': bubbles, 'fun': fun},
     if (alarms != null) 'alarms': alarms,
+    if (photoCfg != null) 'photos': photoCfg,
   };
 
   /// Dymki (`bubbles`, `fun`); null = zegar sprzed dymków.
@@ -600,7 +626,109 @@ class FakeClock extends FakeDevice {
 
   static const _builtInOld = {'main', 'hours', 'days', 'chart', 'calendar', 'air'};
 
-  Set<String> get _builtIn => {..._builtInOld, if (news != null) 'news'};
+  Set<String> get _builtIn => {..._builtInOld, if (news != null) 'news', if (photoCfg != null) 'photo'};
+
+  /// `photos` jak Config zegara: `caption` true/false, `showS` 0 albo 5-300.
+  void _applyPhotos(Map<String, dynamic> v, Map<String, String> errors) {
+    final p = v['photos'];
+    if (p == null || photoCfg == null) return;
+    if (p is! Map) {
+      errors['photos'] = 'value';
+    } else if (p.containsKey('caption') && p['caption'] is! bool) {
+      errors['photos.caption'] = 'value';
+    } else if (p.containsKey('showS') && !(p['showS'] == 0 || _num(p['showS'], 5, 300))) {
+      errors['photos.showS'] = 'range';
+    } else {
+      photoCfg = {...photoCfg!, ...p.cast<String, dynamic>()};
+    }
+  }
+
+  /// Wymiary z nagłówka SOF0 (JPEG baseline); null = nie JPEG albo inny SOF (np. progresywny FFC2).
+  static (int, int)? _jpegSize(List<int> b) {
+    if (b.length < 4 || b[0] != 0xFF || b[1] != 0xD8) return null;
+    var i = 2;
+    while (i + 9 < b.length) {
+      if (b[i] != 0xFF) return null;
+      final m = b[i + 1], len = (b[i + 2] << 8) | b[i + 3];
+      if (m == 0xC0) return ((b[i + 7] << 8) | b[i + 8], (b[i + 5] << 8) | b[i + 6]);
+      if (m >= 0xC1 && m <= 0xCF && m != 0xC4 && m != 0xC8 && m != 0xCC) return null;
+      i += 2 + len;
+    }
+    return null;
+  }
+
+  @override
+  void _extraRoutes(Router r) {
+    if (photoCfg == null) return;
+    r
+      ..get(
+        '/api/photos',
+        _auth((req) {
+          photoLog.add('GET');
+          return _json({
+            'ok': true,
+            'w': photoW,
+            'h': photoH,
+            'max': photoMax,
+            'maxBytes': photoMaxBytes,
+            'busy': photoBusy > 0,
+            'photos': photos.values.toList(),
+          });
+        }, 'control'),
+      )
+      ..put(
+        '/api/photos/<id>',
+        _auth((Request req) async {
+          final id = req.params['id']!;
+          final body = await req.read().expand((x) => x).toList();
+          if (photoBusy > 0) {
+            photoBusy--;
+            photoLog.add('PUT $id busy');
+            return _json({'ok': false, 'error': 'busy'}, status: 503);
+          }
+          photoLog.add('PUT $id');
+          photoQueries.add(req.url.query);
+          final size = _jpegSize(body);
+          if (!RegExp(r'^[A-Za-z0-9_-]{1,40}$').hasMatch(id) ||
+              req.headers['content-type'] != 'image/jpeg' ||
+              size == null ||
+              size != (photoW, photoH)) {
+            return _json({'ok': false, 'error': 'invalid'}, status: 400);
+          }
+          if (body.length > photoMaxBytes) return _json({'ok': false, 'error': 'too_large'}, status: 413);
+          if (!photos.containsKey(id) && photos.length >= (photoFullAt ?? photoMax)) {
+            return _json({'ok': false, 'error': 'full'}, status: 507);
+          }
+          final q = req.url.queryParameters;
+          photos[id] = {
+            'id': id,
+            'size': body.length,
+            'taken': int.tryParse(q['taken'] ?? '') ?? 0,
+            'memory': q['memory'] == '1',
+            'caption': q['caption'] ?? '',
+          };
+          photoBytes[id] = body;
+          _broadcastState();
+          return _json({'ok': true});
+        }, 'control'),
+      )
+      ..delete(
+        '/api/photos/<id>',
+        _auth((Request req) {
+          final id = req.params['id']!;
+          if (photoBusy > 0) {
+            photoBusy--;
+            photoLog.add('DELETE $id busy');
+            return _json({'ok': false, 'error': 'busy'}, status: 503);
+          }
+          photoLog.add('DELETE $id');
+          photos.remove(id);
+          photoBytes.remove(id);
+          _broadcastState();
+          return _json({'ok': true});
+        }, 'control'),
+      );
+  }
 
   /// Błędy `news` jak `applyNews` w DeskConfig.cpp (kanał: nazwa 1-24 B, `url` http(s) albo `imgw` 4 cyfry).
   Map<String, String> _newsErrors(Map n) {
@@ -821,6 +949,7 @@ class FakeClock extends FakeDevice {
     }
     _applyRadioAndPacks(v, errors);
     _applyBubbles(v, errors);
+    _applyPhotos(v, errors);
     if (v['identify'] == true) identifies++;
     if (v['ext'] case final List list) {
       for (final e in list) {

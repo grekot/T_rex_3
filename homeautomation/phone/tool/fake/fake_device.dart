@@ -151,14 +151,14 @@ abstract class FakeDevice {
     }
     _ota = {'state': 'done', 'progress': 100};
     otaCount++;
-    this.log('OTA z adresu: pobrano, restart');
+    log('OTA z adresu: pobrano, restart');
     Timer(otaRestart, () {
       fw = version ?? '$_baseFw+ota$otaCount';
       _ota = {'state': 'idle', 'progress': 0};
       for (final c in _clients.toList()) {
         c.sink.close();
       }
-      this.log('OTA: „restart” - nowa wersja $fw');
+      log('OTA: „restart” - nowa wersja $fw');
     });
   }
 
@@ -201,7 +201,7 @@ abstract class FakeDevice {
     if (server is String) notifyServer = server.isEmpty ? 'https://ntfy.sh' : server;
     if (v['test'] == true && notifyEnabled) {
       notifyTests++;
-      this.log('ntfy: próbne powiadomienie na $notifyServer/$notifyTopic');
+      log('ntfy: próbne powiadomienie na $notifyServer/$notifyTopic');
     }
     _broadcastConfig();
     return const {};
@@ -375,7 +375,7 @@ abstract class FakeDevice {
     final before = phones.length;
     phones.removeWhere((p) => p.token.startsWith(id) && id.length == 8);
     if (phones.length == before) return _json({'ok': false, 'error': 'not_found'}, status: 404);
-    this.log('Telefon $id usunięty');
+    log('Telefon $id usunięty');
     return _json({'ok': true});
   }
 
@@ -389,7 +389,7 @@ abstract class FakeDevice {
     final p = phones.where((p) => p.token.startsWith(id) && id.length == 8).firstOrNull;
     if (p == null) return _json({'ok': false, 'error': 'not_found'}, status: 404);
     p.access = access as String;
-    this.log('Telefon $id: poziom $access');
+    log('Telefon $id: poziom $access');
     return _json({'ok': true});
   }
 
@@ -481,10 +481,10 @@ abstract class FakeDevice {
           ..uid = uid
           ..access = level
           ..verified = true;
-        this.log('Telefon $client potwierdzony: $uid → $level');
+        log('Telefon $client potwierdzony: $uid → $level');
       });
     }
-    this.log('Sparowano: $client');
+    log('Sparowano: $client');
     return _json({
       'ok': true,
       'token': phone.token,

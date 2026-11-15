@@ -15,6 +15,7 @@ import 'package:homeautomation/data/cloud_access.dart';
 import 'package:homeautomation/data/connection_manager.dart';
 import 'package:homeautomation/data/device_store.dart';
 import 'package:homeautomation/data/discovery.dart';
+import 'package:homeautomation/data/photo_sync.dart';
 import 'package:homeautomation/data/radio_browser.dart';
 import 'package:homeautomation/data/thermostat_connection.dart';
 import 'package:homeautomation/models/clock.dart';
@@ -30,6 +31,7 @@ import 'package:homeautomation/controllers/field_errors.dart';
 import 'package:homeautomation/ui/clock_alarms.dart';
 import 'package:homeautomation/ui/clock_buttons.dart';
 import 'package:homeautomation/ui/clock_pages.dart';
+import 'package:homeautomation/ui/clock_photos.dart';
 import 'package:homeautomation/ui/clock_section.dart';
 import 'package:homeautomation/ui/automations_screen.dart';
 import 'package:homeautomation/ui/clock_settings.dart';
@@ -1561,6 +1563,91 @@ void main() {
     expect(find.byKey(const Key('clockScreen-news')), findsNothing);
     expect(find.byKey(const Key('clockScreen-air')), findsOneWidget);
     hub.dispose();
+  });
+
+  testWidgets('zdjęcia: kafelek, dodanie ekranu, podpis, czas pokazu, ekran na liście; bez photos ukryte', (
+    tester,
+  ) async {
+    final log = MemoryPhotoSyncLog()..lastBridge = (at: 1, ok: false);
+    ClockPhotoSync.logFactory = () => log;
+    addTearDown(() => ClockPhotoSync.logFactory = PrefsPhotoSyncLog.new);
+    final (hub, conns, fake) = await _home();
+    final conn = conns['zegar-ab12cd']!;
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    await tester.pumpWidget(
+      _app(
+        Scaffold(
+          body: SingleChildScrollView(
+            child: ClockSection(controller: c, hub: hub),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Ekran „Zdjęcia” wyłączony - włącz go w pokazie'), findsOneWidget);
+    await tester.ensureVisible(find.byKey(const Key('clockPhotos')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockPhotos')));
+    await tester.pumpAndSettle();
+    // Przez chmurę (atrapa połączenia) - bez synchronizacji, a mostu w telefonie brak.
+    expect(
+      find.text('Zainstaluj aplikację Zdjęcia i włącz jej usługę w tle\nSynchronizacja działa tylko w sieci domowej'),
+      findsOneWidget,
+    );
+    expect(tester.widget<IconButton>(find.byKey(const Key('clockPhotosSync'))).onPressed, isNull);
+    await tester.tap(find.text('Dodaj'));
+    await tester.pumpAndSettle();
+    expect((conn.sent.last['screens'] as Map)['list'], ['main', 'hours', 'days', 'chart', 'photo']);
+    expect(find.byKey(const Key('clockPhotosAddScreen')), findsNothing);
+    // Zmiany Config przychodzą strumieniem połączenia otwartego w runAsync - zapis kończy się w prawdziwym czasie.
+    await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 20)));
+    expect(log.clocks['zegar-ab12cd']!.photoOn, isTrue);
+    await tester.tap(find.byKey(const Key('clockPhotoCaption')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'photos': {'caption': false, 'showS': 0},
+    });
+    expect(find.text('Jak inne ekrany (15 s)'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('clockPhotoShowS')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('30 s').last);
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'photos': {'caption': false, 'showS': 30},
+    });
+    expect(find.text('30 s na każde zdjęcie'), findsOneWidget);
+    expect(
+      fake.applySet({
+        'photos': {'showS': 3},
+      }),
+      {'photos.showS': 'range'},
+    );
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_app(ClockScreensPage(controller: c)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clockScreen-photo')), findsOneWidget);
+    hub.dispose();
+
+    final (hub2, _, _) = await _home(clock: FakeClock(withPhotos: false));
+    final c2 = hub2.controller('zegar-ab12cd')!;
+    await tester.runAsync(c2.connect);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(
+      _app(
+        Scaffold(
+          body: SingleChildScrollView(
+            child: ClockSection(controller: c2, hub: hub2),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clockPhotos')), findsNothing);
+    await tester.pumpWidget(_app(ClockScreensPage(controller: c2)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clockScreen-photo')), findsNothing);
+    hub2.dispose();
   });
 
   testWidgets('edytor strony: przeniesienie widżetu w siatce, ikony stanu wł. / wył.', (tester) async {

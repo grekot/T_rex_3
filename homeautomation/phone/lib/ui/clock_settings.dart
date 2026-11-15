@@ -20,6 +20,7 @@ import '../models/describe.dart';
 import '../models/device_type.dart';
 import '../models/json_utils.dart';
 import 'clock_pages.dart' show clockKnownDevices;
+import 'clock_photos.dart' show ClockPhotoSync;
 import 'clock_section.dart' show clockScreenList;
 import 'format.dart';
 import 'widget_editor.dart' show pointsOf;
@@ -102,7 +103,10 @@ class _ClockScreensPageState extends State<ClockScreensPage> with _ClockConfig {
     final on = clockScreenList(cfg);
     final all = [
       ...clockScreens.keys.where(
-        (k) => (k != 'news' || clockHasNews(cfg)) && (k != 'radio' || clockHasRadioScreen(cfg)),
+        (k) =>
+            (k != 'news' || clockHasNews(cfg)) &&
+            (k != 'radio' || clockHasRadioScreen(cfg)) &&
+            (k != 'photo' || clockHasPhotos(cfg)),
       ),
       for (final p in ClockPage.listFrom(cfg)) 'page:${p.id}',
     ];
@@ -2490,6 +2494,120 @@ class _LogoPreview extends StatelessWidget {
             : Image.network(url!, fit: BoxFit.contain, errorBuilder: broken),
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------- Zdjęcia
+
+/// Zdjęcia z aplikacji „Zdjęcia” (Config `photos`, ekran `photo`, lib/data/photo_sync.dart): stan synchronizacji,
+/// podpis pod zdjęciem i czas pokazu.
+class ClockPhotosPage extends StatefulWidget {
+  const ClockPhotosPage({super.key, required this.controller});
+
+  final DeviceController<Object?, Object?> controller;
+
+  @override
+  State<ClockPhotosPage> createState() => _ClockPhotosPageState();
+}
+
+class _ClockPhotosPageState extends State<ClockPhotosPage> with _ClockConfig {
+  late final ClockPhotoSync _sync = ClockPhotoSync(c);
+
+  @override
+  DeviceController<Object?, Object?> get c => widget.controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _sync.addListener(_changed);
+    unawaited(_sync.load());
+  }
+
+  @override
+  void dispose() {
+    _sync.dispose();
+    super.dispose();
+  }
+
+  Future<void> _addScreen() async {
+    final list = clockScreenList(cfg);
+    if (list.length >= clockMaxScreens) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Najwyżej $clockMaxScreens ekranów w pokazie.')));
+      return;
+    }
+    await setIn('screens', {
+      'list': [...list, 'photo'],
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = obj('photos');
+    final caption = p['caption'] != false;
+    final showS = (p['showS'] as num?)?.toInt() ?? 0;
+    final interval = (obj('screens')['intervalS'] as num?)?.toInt() ?? 15;
+    final on = clockScreenList(cfg).contains('photo');
+    return page('Zdjęcia', [
+      const Text(
+        'Zdjęcia wybiera aplikacja „Zdjęcia” na tym telefonie. HomeAutomation przenosi je na zegar w sieci domowej: '
+        'w tle co ok. 15 min, przy otwarciu aplikacji i ekranu zegara - najwyżej 6 naraz, najnowsze najpierw.',
+      ),
+      if (!on)
+        ListTile(
+          key: const Key('clockPhotosAddScreen'),
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.add_to_queue),
+          title: const Text('Ekran „Zdjęcia” nie jest w pokazie'),
+          subtitle: const Text('Bez niego zdjęcia nie trafiają na zegar'),
+          trailing: TextButton(onPressed: _addScreen, child: const Text('Dodaj')),
+        ),
+      ListTile(
+        key: const Key('clockPhotosStatus'),
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.sync),
+        title: const Text('Synchronizacja'),
+        subtitle: Text(_sync.canRun ? _sync.text : '${_sync.text}\nSynchronizacja działa tylko w sieci domowej'),
+        trailing: _sync.running
+            ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+            : IconButton(
+                key: const Key('clockPhotosSync'),
+                tooltip: 'Synchronizuj teraz',
+                icon: const Icon(Icons.refresh),
+                onPressed: _sync.canRun && on ? () => _sync.run() : null,
+              ),
+      ),
+      const SectionHeader('Na zegarze'),
+      SwitchListTile(
+        key: const Key('clockPhotoCaption'),
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Podpis pod zdjęciem'),
+        subtitle: const Text('Opis od AI i kiedy zrobione: „wczoraj”, „15 listopada”, „wspomnienie · sierpień 2019”'),
+        value: caption,
+        onChanged: (v) => setIn('photos', {'caption': v}),
+      ),
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Czas pokazu zdjęcia'),
+        subtitle: Text(
+          showS != 0
+              ? '$showS s na każde zdjęcie'
+              : interval == 0
+              ? 'Jak inne ekrany'
+              : 'Jak inne ekrany ($interval s)',
+        ),
+        trailing: DropdownButton<int>(
+          key: const Key('clockPhotoShowS'),
+          value: showS,
+          items: [
+            for (final v in {...clockPhotoShowOptions, showS})
+              DropdownMenuItem(value: v, child: Text(v == 0 ? 'jak inne' : '$v s')),
+          ],
+          onChanged: (v) => setIn('photos', {'showS': v}),
+        ),
+      ),
+    ]);
   }
 }
 

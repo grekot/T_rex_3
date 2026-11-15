@@ -12,6 +12,7 @@ import 'clock_alarms.dart';
 import 'clock_bubble.dart';
 import 'clock_buttons.dart';
 import 'clock_pages.dart';
+import 'clock_photos.dart';
 import 'clock_settings.dart';
 import 'dashboard_tiles.dart' show weatherIconAt, weatherLabel;
 import 'format.dart';
@@ -404,6 +405,7 @@ class ClockSection extends StatelessWidget {
               subtitle: Text(_radioText(cfg, c.stateJson)),
               onTap: () => _open(context, ClockRadioPage(controller: c)),
             ),
+          ClockPhotosTile(controller: c),
           if (clockHasBubbles(cfg)) ...[
             ListTile(
               key: const Key('clockBubbles'),
@@ -457,6 +459,8 @@ class ClockSection extends StatelessWidget {
             onTap: () => _open(context, ClockButtonsScreen(controller: c, hub: hub!)),
           ),
         ],
+        // Bez poziomu `config` nie ma ustawień, ale zdjęcia i tak przenosimy (wystarczy `control`).
+        if (!c.canConfig) ClockPhotosTile(controller: c, showTile: false),
       ],
     );
   }

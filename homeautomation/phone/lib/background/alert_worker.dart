@@ -4,7 +4,6 @@
 import 'dart:convert';
 
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +15,7 @@ import '../data/firmware_catalog.dart';
 import '../data/notifications.dart';
 import '../firebase_options.dart';
 import 'alerts.dart';
+import 'photo_worker.dart';
 import 'update_check.dart';
 
 const _taskName = 'termostat-alerts';
@@ -31,15 +31,20 @@ const _channel = AndroidNotificationDetails(
 );
 
 /// Na razie tylko Android (iOS wymaga osobnej konfiguracji BGTaskScheduler).
-bool get alertsSupported => !kIsWeb && defaultTargetPlatform == TargetPlatform.android && firebaseConfigured;
+bool get alertsSupported => backgroundSupported && firebaseConfigured;
 
+/// Jeden dyspozytor WorkManager dla obu zadań: powiadomień i zdjęć na zegarach (photo_worker.dart).
 @pragma('vm:entry-point')
 void alertCallbackDispatcher() {
   Workmanager().executeTask((task, input) async {
     try {
-      await runAlertCheck();
+      if (task == photoSyncTaskName) {
+        await runPhotoSyncInBackground();
+      } else {
+        await runAlertCheck();
+      }
     } on Object catch (e) {
-      debugPrint('Alarmy termostatu: $e');
+      debugPrint('Zadanie w tle $task: $e');
     }
     // true także po błędzie - następna próba i tak za 15 min.
     return true;
@@ -160,8 +165,9 @@ Future<FlutterLocalNotificationsPlugin> _notifications() async {
 
 /// Sterowanie z aplikacji: włączanie/wyłączanie i rejestracja zadania.
 class AlertScheduler {
+  /// WorkManager dla wszystkich zadań w tle - także bez Firebase (zdjęcia na zegarach działają bez konta).
   static Future<void> init() async {
-    if (!alertsSupported) return;
+    if (!backgroundSupported) return;
     await Workmanager().initialize(alertCallbackDispatcher);
   }
 

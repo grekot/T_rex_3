@@ -17,6 +17,7 @@ const clockScreens = {
   'air': 'Powietrze',
   'news': 'Wiadomości',
   'radio': 'Radio',
+  'photo': 'Zdjęcia',
 };
 
 /// Opisy ekranów wbudowanych.
@@ -29,6 +30,7 @@ const clockScreenHints = {
   'air': 'AQI, pyły, pyłki, UV (z huba)',
   'news': 'kanały RSS i ostrzeżenia IMGW',
   'radio': 'stacja, logo, tytuł utworu, głośność (gdy radio gra)',
+  'photo': 'zdjęcia z aplikacji Zdjęcia na telefonie (bez zdjęć pomijany)',
 };
 
 /// Po ręcznej zmianie ekranu pokaz stoi (`screens.holdS`, fw 0.7.3): 0 = do środkowego przycisku.
@@ -381,6 +383,14 @@ String clockThemeLabel(String name, List<ClockPack> packs) {
 String clockBytesText(int bytes) => bytes >= 1024 * 1024
     ? '${(bytes / (1024 * 1024)).toStringAsFixed(1).replaceAll('.', ',')} MB'
     : '${(bytes / 1024).round()} KB';
+
+// ---------------------------------------------------------------- Zdjęcia (Config `photos`, pkt 10.2 „Zdjęcia”)
+
+/// Zegar ze zdjęciami (Config `photos` i ekran `photo`); starszy firmware nie zna ani pola, ani ekranu.
+bool clockHasPhotos(Map<String, dynamic>? cfg) => cfg?['photos'] is Map;
+
+/// Czas pokazu zdjęcia (`photos.showS`): 0 = jak inne ekrany (`screens.intervalS`), inaczej 5-300 s.
+const clockPhotoShowOptions = [0, 5, 10, 15, 20, 30, 45, 60, 120, 300];
 
 // ---------------------------------------------------------------- Radio (Config `radio`, pkt 10.2 „Radio”)
 

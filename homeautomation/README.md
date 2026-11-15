@@ -23,6 +23,9 @@ Firmware, kontrakt API v2 (`docs/API.md`) i konfiguracja Firebase (`docs/firebas
 - **Chmura bez hasła w urządzeniu**: urządzenie zakłada anonimowe konto Firebase, a aplikacja właściciela przypisuje je
   do domu (w konsoli trzeba włączyć logowanie anonimowe).
 - **Powiadomienia** o awarii czujnika i braku kontaktu (WorkManager, bez Cloud Functions).
+- **Zdjęcia na zegarach** (od 1.29.0): pulę z aplikacji „Zdjęcia” (most `127.0.0.1:8765` na tym samym telefonie)
+  aplikacja przenosi na zegary z ekranem „Zdjęcia” w pokazie - w sieci domowej, osobnym zadaniem WorkManager co ~15 min
+  (także bez konta), przy otwarciu aplikacji i ekranu zegara; tylko różnice, najwyżej 6 zdjęć na przebieg.
 - Wydanie do Sklepu rodzinnego: tag `homeautomation-vX.Y.Z`.
 
 Szczegóły, uruchomienie i testy: [phone/README.md](phone/README.md).
