@@ -25,16 +25,33 @@ Stan na 2026-11-16 (Zdjęcia 0.11.0 i HomeAutomation 1.31.0 w sklepie):
 - przegląd ma objąć **4000 kandydatów** (decyzja właściciela),
 - Takeout jeszcze niepobrany (`C:\TMP\Takeout` pusty) - pierwszy krok to krok 1 niżej.
 
-**W toku - Zdjęcia telefon 0.12.0:** kod jest w repo (zacommitowany, testy przechodzą: 102 telefon + 18 Python),
-ale **niewydany** - tag `zdjecia-v0.12.0` nie istnieje, więc w sklepie jest 0.11.0. Telefon 0.12.0 sam dokłada
-do archiwum najlepsze nowe zdjęcia (ocena Gemini 7+, po 3 dniach, `lib/archive/archive_add.dart`, opis:
-[../../README.md](../../README.md#nowe-zdjęcia-z-telefonu-do-archiwum-telefon-0120)), a `wyslij` z tej wersji
-narzędzia te zdjęcia zachowuje (scalanie spisu z warunkiem wersji). Co dalej:
-1. Wydanie, gdy właściciel zdecyduje: `git tag zdjecia-v0.12.0 <commit z 0.12.0>` i `git push origin zdjecia-v0.12.0`
-   (sekret `FIREBASE_OPTIONS_ZDJECIA_B64` jest ustawiony; CI zbuduje i wstawi do sklepu). Na telefonie nie było
-   jeszcze sprawdzane.
+**W toku - Zdjęcia telefon 0.12.0:** kod jest na `main` (commit d975059, wypchnięty; testy przechodzą:
+102 telefon + 18 Python), ale **niewydany** - tag `zdjecia-v0.12.0` nie istnieje, więc w sklepie jest 0.11.0.
+Telefon 0.12.0 sam dokłada do archiwum najlepsze nowe zdjęcia (ocena Gemini 7+, po 3 dniach,
+`lib/archive/archive_add.dart`, opis: [../../README.md](../../README.md#nowe-zdjęcia-z-telefonu-do-archiwum-telefon-0120)),
+a `wyslij` z tej wersji narzędzia te zdjęcia zachowuje (scalanie spisu z warunkiem wersji). Co dalej:
+1. Wydanie, **gdy właściciel zdecyduje** (pytanie było otwarte): `git tag zdjecia-v0.12.0 d975059` i
+   `git push origin zdjecia-v0.12.0` (sekret `FIREBASE_OPTIONS_ZDJECIA_B64` jest ustawiony; CI zbuduje i wstawi
+   do sklepu, wersja = tag). Na telefonie nie było jeszcze sprawdzane.
 2. Archiwum z Takeoutu - kroki niżej. `wyslij` zawsze z aktualnej wersji narzędzia (starsza nadpisałaby spis
    bez zdjęć dodanych z telefonu).
+
+## Ustalenia z właścicielem (2026-11-15/16)
+
+Problem: zdjęcia na zegarku i zegarach biurkowych zmieniały się za rzadko i nie sięgały w starszą historię.
+Cała biblioteka jest w Zdjęciach Google, a telefon ma tylko jej część.
+
+| Temat | Ustalenie |
+|---|---|
+| Źródło całej historii | **jednorazowy Google Takeout** (Library API od 31.03.2025 nie daje dostępu do biblioteki; Picker = ręczny wybór pojedynczych zdjęć) |
+| Kto wybiera | **Claude z arkuszy miniatur**, lokalnie - nie Gemini ani inne API; skrypt na PC robi tylko odsiew techniczny |
+| Ile | **1000** zdjęć w archiwum, przegląd **4000 kandydatów** (~134 arkusze; koszt tokenów zaakceptowany) |
+| Gdzie | **Firestore** (projekt `zakupy-8ec54`, plan Spark) - nie Google Drive i nie kopia na telefonie; Storage wymaga Blaze |
+| Rozdzielczość | **≤ 800×600** (zegar salonowy ma 480×272) |
+| Szybsza wymiana (0.11.0) | wspomnienie 1–2 dni, świeże 1–2 dni, odświeżanie w tle co 6 h; zegary biurkowe - osobna lista `/clocks.json` (pula + 4 zdjęcia z archiwum na godzinę, 6–23) |
+| Nowe zdjęcia (0.12.0) | telefon sam dokłada do archiwum: ocena Gemini 7+ (ta, którą zdjęcie już ma - płatny klucz właściciela), po 3 dniach, ≤ 2 z wydarzenia, ≤ 3 z dnia, przypięte zawsze, przycisk „Dodaj do archiwum”, przełącznik na ekranie „Archiwum zdjęć” |
+| Kroki właściciela | pobranie Takeoutu, hasło w `zaloguj`, sekrety GitHuba (sekret Zdjęć już ustawiony), sprawdzenie na telefonie |
+| Commity i wydania | commit / push / tag tylko na prośbę właściciela; wydanie aplikacji = tag `zdjecia-vX.Y.Z` (wersja z tagu) |
 
 ## Zasady, które obowiązują cały czas
 
