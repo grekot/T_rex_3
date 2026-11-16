@@ -1,7 +1,9 @@
 """Archiwum zdjęć z Google Takeout dla aplikacji „Zdjęcia” (format: ../../ARCHIWUM.md, opis: README.md).
 
   python archiwum.py skanuj C:\\TMP\\Takeout          ZIP-y (albo rozpakowane foldery): katalog + miniatury
+                    [--ponow-bledy]                  ponownie zdjęcia z błędem odczytu (np. HEIC po pip install pillow-heif)
   python archiwum.py kandydaci [--ile 4000]          odsiew, wydarzenia, serie -> arkusze do przeglądu
+                    [--od-nowa]                      gdy są już oceny (przenosi je do oceny_stare_<data>)
   python archiwum.py stan                            ile arkuszy ocenionych, ile wybranych
   python archiwum.py wybierz [--ile 1000]            wybór końcowy z ocen przeglądu
   python archiwum.py eksport                         JPEG-i ≤ 800×600 bez EXIF + spis
@@ -113,6 +115,15 @@ def cmd_skanuj(args) -> None:
     finally:
         reader.close()
     katalog = p(work, "katalog.jsonl")
+    if args.ponow_bledy:
+        recs = load_jsonl(katalog)
+        ok = [r for r in recs if not r.get("error")]
+        if len(ok) < len(recs):
+            with open(katalog + ".tmp", "w", encoding="utf-8") as f:
+                for r in ok:
+                    f.write(json.dumps(r, ensure_ascii=False) + "\n")
+            os.replace(katalog + ".tmp", katalog)
+            print(f"Ponowny skan {len(recs) - len(ok)} zdjęć z błędem odczytu")
     done = {e["id"] for e in load_jsonl(katalog)}
     todo = [ph for ph in photos if ph.id not in done]
     print(f"Pliki: {len(entries)}, zdjęcia: {len(photos)} (już w katalogu: {len(photos) - len(todo)}, do skanu: {len(todo)})")
@@ -162,6 +173,17 @@ def cmd_kandydaci(args) -> None:
     entries = load_jsonl(p(work, "katalog.jsonl"))
     if not entries:
         sys.exit("Pusty katalog - najpierw: skanuj")
+    # Oceny wskazują kafelki po numerze arkusza - nowe arkusze unieważniłyby cały przegląd
+    oceny = p(work, "oceny")
+    if os.path.isdir(oceny) and any(f.startswith("arkusz_") for f in os.listdir(oceny)):
+        if not args.od_nowa:
+            sys.exit(
+                "Są już oceny przeglądu (oceny/arkusz_*.json) - nowe arkusze by je pomieszały.\n"
+                "Przegląd od nowa: kandydaci --od-nowa (stare oceny trafią do oceny_stare_<data>)."
+            )
+        old = p(work, "oceny_stare_" + datetime.now().strftime("%Y%m%d_%H%M%S"))
+        os.replace(oceny, old)
+        print(f"Stare oceny przeniesione do {old}")
     kept, rejected = wybor.score_all(entries)
     cands = wybor.candidates(kept, args.ile)
     print(f"Katalog {len(entries)}, po odsiewie {len(kept)}, kandydaci {len(cands)}")
@@ -250,6 +272,8 @@ def cmd_eksport(args) -> None:
     chosen = load_json(p(work, "wybrane.json"), [])
     if not chosen:
         sys.exit("Brak wybranych - najpierw: wybierz")
+    import metryki  # noqa: F401 - rejestruje HEIC w Pillow (gdy jest pillow-heif)
+
     out_dir = p(work, "eksport")
     os.makedirs(out_dir, exist_ok=True)
     reader = takeout.Reader()
@@ -339,9 +363,11 @@ def main() -> None:
     s = sub.add_parser("skanuj")
     s.add_argument("zrodla", nargs="+", help="ZIP-y Takeoutu albo foldery z nimi / rozpakowane")
     s.add_argument("--procesy", type=int, default=max(1, (os.cpu_count() or 2) - 1))
+    s.add_argument("--ponow-bledy", action="store_true", help="zeskanuj jeszcze raz zdjęcia z błędem (np. HEIC)")
     s.set_defaults(fn=cmd_skanuj)
     s = sub.add_parser("kandydaci")
     s.add_argument("--ile", type=int, default=4000)
+    s.add_argument("--od-nowa", action="store_true", help="nowe arkusze mimo ocen (stare oceny - do oceny_stare_*)")
     s.set_defaults(fn=cmd_kandydaci)
     sub.add_parser("stan").set_defaults(fn=cmd_stan)
     s = sub.add_parser("wybierz")

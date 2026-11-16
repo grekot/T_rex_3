@@ -4,6 +4,8 @@ Wybiera ~1000 najciekawszych zdjęć z całej biblioteki Zdjęć Google i wysył
 (format: [../../ARCHIWUM.md](../../ARCHIWUM.md)). Aplikacja „Zdjęcia” na telefonie bierze z nich wspomnienia
 dla zegarka i zdjęcia dla zegarów HomeAutomation. Bez Gemini: odsiew robi skrypt, wybór i podpisy - przegląd arkuszy.
 
+**Pełna instrukcja krok po kroku (także dla nowej sesji Claude): [INSTRUKCJA.md](INSTRUKCJA.md).**
+
 Wymagania: Python 3.10+, `pillow`, `numpy`, `opencv-python` (HEIC tylko z `pillow-heif`).
 Folder roboczy: `C:\TMP\Takeout\praca` (zmiana: `--praca` albo `ZDJECIA_PRACA`) - **poza repozytorium**,
 bo są w nim miniatury, zdjęcia i token konta.
@@ -13,8 +15,8 @@ bo są w nim miniatury, zdjęcia i token konta.
 1. **Takeout** (takeout.google.com): „Odznacz wszystko” → tylko **Zdjęcia Google** → w „Wszystkie albumy”
    zostaw foldery „Photos from RRRR” → plik .zip, 50 GB → pobierz ZIP-y do `C:\TMP\Takeout` (bez rozpakowywania).
 2. `python archiwum.py skanuj C:\TMP\Takeout` - katalog (`katalog.jsonl`) i miniatury. Można przerwać i wznowić;
-   kolejne ZIP-y (np. nowy eksport) dopisują się do katalogu.
-3. `python archiwum.py kandydaci` - odsiew (za małe, rozmazane, ciemne, zrzuty, komunikatory, grafiki, bez daty),
+   kolejne ZIP-y (np. nowy eksport) dopisują się do katalogu. `--ponow-bledy` - jeszcze raz zdjęcia z błędem odczytu.
+3. `python archiwum.py kandydaci` (gdy są już oceny - odmawia; `--od-nowa` przenosi je do `oceny_stare_<data>`) - odsiew (za małe, rozmazane, ciemne, zrzuty, komunikatory, grafiki, bez daty),
    serie → najlepsze ujęcie, kilka najlepszych z wydarzenia, lata wyrównane → ~4000 kandydatów
    na arkuszach `arkusze/arkusz_NNN.jpg` (30 miniatur, chronologicznie).
 4. **Przegląd** (Claude): każdy arkusz → `oceny/arkusz_NNN.json`, niżej. `python archiwum.py stan` pokazuje postęp.

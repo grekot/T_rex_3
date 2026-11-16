@@ -193,6 +193,8 @@ class EndToEnd(unittest.TestCase):
                 z2.writestr(folder + "DARK.jpg.json", sidecar("DARK.jpg", ms(2014, 8, 2)))
                 z1.writestr(folder + "Screenshot_20140801.png", jpeg(52))
                 z1.writestr(folder + "NOJSON.jpg", jpeg(53))
+                z1.writestr(folder + "BROKEN.jpg", bytes([0xFF, 0xD8]) + b" to nie jest JPEG")
+                z2.writestr(folder + "BROKEN.jpg.json", sidecar("BROKEN.jpg", ms(2014, 8, 3)))
             work = os.path.join(tmp, "praca")
 
             def run(*args):
@@ -210,12 +212,19 @@ class EndToEnd(unittest.TestCase):
             self.assertIn("oryginał (jest edytowana): 1", out)
             with open(os.path.join(work, "katalog.jsonl"), encoding="utf-8") as f:
                 katalog = [json.loads(line) for line in f]
-            self.assertEqual(len(katalog), 15)  # 12 - oryginał + edytowana + BLUR + DARK + NOJSON
+            self.assertEqual(len(katalog), 16)  # 12 - oryginał + edytowana + BLUR + DARK + NOJSON + BROKEN
+            self.assertEqual([e["title"] for e in katalog if e.get("error")], ["BROKEN.jpg"])
             edited = next(e for e in katalog if e["edited"])
             self.assertEqual(edited["taken"], photos["IMG_0001.jpg"][1])
             self.assertTrue(os.path.exists(os.path.join(work, "miniatury", f"{edited['id']}.jpg")))
             # Drugi skan nic nie dodaje
             self.assertIn("do skanu: 0", run("skanuj", src, "--procesy", "1"))
+            # Ponowienie błędów: zdjęcie z błędem skanowane jeszcze raz, bez dubli w katalogu
+            out = run("skanuj", src, "--procesy", "1", "--ponow-bledy")
+            self.assertIn("Ponowny skan 1", out)
+            self.assertIn("do skanu: 1", out)
+            with open(os.path.join(work, "katalog.jsonl"), encoding="utf-8") as f:
+                self.assertEqual(len(f.readlines()), 16)
 
             out = run("kandydaci", "--ile", "100")
             self.assertIn("bez daty: 1", out)
@@ -229,6 +238,14 @@ class EndToEnd(unittest.TestCase):
                 review = {"1": {"s": 9, "c": "Plaża w Dębkach", "f": [0.2, 0.2, 0.5, 0.5]}, "3": {"s": 7, "c": "Zachód słońca"}, "4": {"s": 4}}
                 json.dump({"arkusz": 1, "wybrane": review}, f)
             self.assertIn("ocenione 1/1", run("stan").replace("Arkusze ocenione: ", "ocenione "))
+            # Nowe arkusze unieważniłyby oceny - kandydaci odmawia bez --od-nowa
+            env = {**os.environ, "PYTHONIOENCODING": "utf-8"}
+            r = subprocess.run(
+                [sys.executable, os.path.join(HERE, "archiwum.py"), "--praca", work, "kandydaci", "--ile", "100"],
+                capture_output=True, text=True, encoding="utf-8", cwd=HERE, env=env,
+            )
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("--od-nowa", r.stderr)
             self.assertIn("Wybrane: 2", run("wybierz", "--ile", "10"))
             self.assertIn("Eksport: 2", run("eksport"))
             with open(os.path.join(work, "eksport", "spis.json"), encoding="utf-8") as f:
@@ -239,6 +256,9 @@ class EndToEnd(unittest.TestCase):
                 self.assertEqual(im.size, (800, 600))
                 self.assertFalse(im.info.get("progressive"))
                 self.assertEqual(len(im.getexif()), 0)
+            self.assertIn("Stare oceny przeniesione", run("kandydaci", "--ile", "100", "--od-nowa"))
+            self.assertFalse(os.path.exists(os.path.join(work, "oceny")))
+            self.assertTrue(any(d.startswith("oceny_stare_") for d in os.listdir(work)))
 
 
 if __name__ == "__main__":
