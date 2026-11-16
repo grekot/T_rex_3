@@ -25,14 +25,12 @@ Stan na 2026-11-16 (Zdjęcia 0.11.0 i HomeAutomation 1.31.0 w sklepie):
 - przegląd ma objąć **4000 kandydatów** (decyzja właściciela),
 - Takeout jeszcze niepobrany (`C:\TMP\Takeout` pusty) - pierwszy krok to krok 1 niżej.
 
-**W toku - Zdjęcia telefon 0.12.0:** kod jest na `main` (commit d975059, wypchnięty; testy przechodzą:
-102 telefon + 18 Python), ale **niewydany** - tag `zdjecia-v0.12.0` nie istnieje, więc w sklepie jest 0.11.0.
-Telefon 0.12.0 sam dokłada do archiwum najlepsze nowe zdjęcia (ocena Gemini 7+, po 3 dniach,
+**Zdjęcia telefon 0.12.0 wydane** (2026-11-16, tag `zdjecia-v0.12.0` na d975059, w sklepie 0.12.0):
+telefon sam dokłada do archiwum najlepsze nowe zdjęcia (ocena Gemini 7+, po 3 dniach,
 `lib/archive/archive_add.dart`, opis: [../../README.md](../../README.md#nowe-zdjęcia-z-telefonu-do-archiwum-telefon-0120)),
 a `wyslij` z tej wersji narzędzia te zdjęcia zachowuje (scalanie spisu z warunkiem wersji). Co dalej:
-1. Wydanie, **gdy właściciel zdecyduje** (pytanie było otwarte): `git tag zdjecia-v0.12.0 d975059` i
-   `git push origin zdjecia-v0.12.0` (sekret `FIREBASE_OPTIONS_ZDJECIA_B64` jest ustawiony; CI zbuduje i wstawi
-   do sklepu, wersja = tag). Na telefonie nie było jeszcze sprawdzane.
+1. Właściciel sprawdza na telefonie (nie było jeszcze sprawdzane): aktualizacja ze sklepu, logowanie
+   w „Archiwum zdjęć”, po kilku dniach liczba „Z telefonu w archiwum” rośnie, przycisk „Dodaj do archiwum”.
 2. Archiwum z Takeoutu - kroki niżej. `wyslij` zawsze z aktualnej wersji narzędzia (starsza nadpisałaby spis
    bez zdjęć dodanych z telefonu).
 
