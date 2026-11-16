@@ -23,7 +23,7 @@ Stan na 2026-11-16 (Zdjęcia 0.11.0 i HomeAutomation 1.31.0 w sklepie):
 - reguły Firestore `archiwum` są opublikowane,
 - narzędzie jest gotowe i przetestowane (18 testów),
 - przegląd ma objąć **4000 kandydatów** (decyzja właściciela),
-- Takeout jeszcze niepobrany (`C:\TMP\Takeout` pusty) - pierwszy krok to krok 1 niżej.
+- Takeout pobrany i przetworzony - patrz „Stan na 2026-11-16 (wieczór)” niżej.
 
 **Zdjęcia telefon 0.12.0 wydane** (2026-11-16, tag `zdjecia-v0.12.0` na d975059, w sklepie 0.12.0):
 telefon sam dokłada do archiwum najlepsze nowe zdjęcia (ocena Gemini 7+, po 3 dniach,
@@ -33,6 +33,16 @@ a `wyslij` z tej wersji narzędzia te zdjęcia zachowuje (scalanie spisu z warun
    w „Archiwum zdjęć”, po kilku dniach liczba „Z telefonu w archiwum” rośnie, przycisk „Dodaj do archiwum”.
 2. Archiwum z Takeoutu - kroki niżej. `wyslij` zawsze z aktualnej wersji narzędzia (starsza nadpisałaby spis
    bez zdjęć dodanych z telefonu).
+
+**Stan na 2026-11-16 (wieczór): archiwum z Takeoutu WYSŁANE.**
+- Takeout: 2 ZIP-y (34 + 33 GB), komplet (JSON-y i zdjęcia parują się między paczkami).
+- Skan: katalog **24 996 zdjęć**, 0 błędów odczytu (pominięte: zrzuty/komunikatory 367, bez JSON-a 165, duplikaty albumów 32).
+- Kandydaci: 4000 (po odsiewie 22 885; odpadły głównie rozmazane - 1872), 134 arkusze.
+- Przegląd: 134/134 arkusze, **1629** zdjęć z oceną ≥ 6 (6: 521, 7: 672, 8: 365, 9–10: 71).
+  Stare aparaty (2005–2008) bywają bez orientacji - doszło pole oceny `o` (obrót, opis w README.md).
+- Wybór: **1000**, eksport 96 MB; wysłane **1000** zdjęć + spis (113 KB, z telefonu 0).
+- Folder roboczy `C:\TMP\Takeout\praca` (oceny, wybrane, eksport, sesja) zostaje do późniejszych zmian.
+- Do zrobienia przez właściciela: krok 8 (sprawdzenie na telefonie).
 
 ## Ustalenia z właścicielem (2026-11-15/16)
 
