@@ -400,6 +400,17 @@ bool clockHasPhotos(Map<String, dynamic>? cfg) => cfg?['photos'] is Map;
 /// Czas pokazu zdjęcia (`photos.showS`): 0 = jak inne ekrany (`screens.intervalS`), inaczej 5-300 s.
 const clockPhotoShowOptions = [0, 5, 10, 15, 20, 30, 45, 60, 120, 300];
 
+/// Zmiana zdjęcia (`photos.changeMin`, zegar biurkowy 0.9.2+): 0 = przy każdym pojawieniu się ekranu, inaczej 1-1440
+/// min - do tego czasu po powrocie na ekran to samo zdjęcie. Starszy firmware nie ma pola.
+const clockPhotoChangeOptions = [0, 1, 5, 10, 15, 30, 60, 120, 240, 720, 1440];
+
+String clockPhotoChangeLabel(int min) => switch (min) {
+  0 => 'przy każdym pokazaniu',
+  1440 => 'raz na dobę',
+  _ when min >= 60 && min % 60 == 0 => 'co ${min ~/ 60} h',
+  _ => 'co $min min',
+};
+
 // ---------------------------------------------------------------- Radio (Config `radio`, pkt 10.2 „Radio”)
 
 const clockMaxStations = 12;

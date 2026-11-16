@@ -1374,7 +1374,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('auto-device-zegar-ab12cd')));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.byKey(const Key('auto-point-bubbleReply')));   // lista punktów dłuższa niż ekran
+    await tester.ensureVisible(find.byKey(const Key('auto-point-bubbleReply'))); // lista punktów dłuższa niż ekran
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('auto-point-bubbleReply')));
     await tester.pumpAndSettle();
@@ -1644,7 +1644,7 @@ void main() {
     await tester.tap(find.byKey(const Key('clockPhotoCaption')));
     await tester.pumpAndSettle();
     expect(conn.sent.last, {
-      'photos': {'caption': false, 'showS': 0},
+      'photos': {'caption': false, 'showS': 0, 'changeMin': 15},
     });
     expect(find.text('Jak inne ekrany (15 s)'), findsOneWidget);
     await tester.tap(find.byKey(const Key('clockPhotoShowS')));
@@ -1652,9 +1652,27 @@ void main() {
     await tester.tap(find.text('30 s').last);
     await tester.pumpAndSettle();
     expect(conn.sent.last, {
-      'photos': {'caption': false, 'showS': 30},
+      'photos': {'caption': false, 'showS': 30, 'changeMin': 15},
     });
     expect(find.text('30 s na każde zdjęcie'), findsOneWidget);
+    // Zmiana zdjęcia (photos.changeMin): do tego czasu po powrocie na ekran to samo zdjęcie
+    expect(find.text('co 15 min'), findsOneWidget);
+    tester.state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger)).removeCurrentSnackBar();
+    await tester.ensureVisible(find.byKey(const Key('clockPhotoChangeMin')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockPhotoChangeMin')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('co 2 h').last);
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'photos': {'caption': false, 'showS': 30, 'changeMin': 120},
+    });
+    expect(
+      fake.applySet({
+        'photos': {'changeMin': 1441},
+      }),
+      {'photos.changeMin': 'range'},
+    );
     expect(
       fake.applySet({
         'photos': {'showS': 3},

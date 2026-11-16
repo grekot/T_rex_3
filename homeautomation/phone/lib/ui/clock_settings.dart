@@ -2540,6 +2540,7 @@ class _ClockPhotosPageState extends State<ClockPhotosPage> with _ClockConfig {
     final p = obj('photos');
     final caption = p['caption'] != false;
     final showS = (p['showS'] as num?)?.toInt() ?? 0;
+    final changeMin = (p['changeMin'] as num?)?.toInt();
     final interval = (obj('screens')['intervalS'] as num?)?.toInt() ?? 15;
     final on = clockScreenList(cfg).contains('photo');
     return page('Zdjęcia', [
@@ -2625,6 +2626,25 @@ class _ClockPhotosPageState extends State<ClockPhotosPage> with _ClockConfig {
           onChanged: (v) => setIn('photos', {'showS': v}),
         ),
       ),
+      if (changeMin != null)
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Zmiana zdjęcia'),
+          subtitle: Text(
+            changeMin == 0
+                ? 'Następne przy każdym pokazaniu ekranu'
+                : 'Do tego czasu po powrocie na ekran to samo zdjęcie',
+          ),
+          trailing: DropdownButton<int>(
+            key: const Key('clockPhotoChangeMin'),
+            value: changeMin,
+            items: [
+              for (final v in {...clockPhotoChangeOptions, changeMin})
+                DropdownMenuItem(value: v, child: Text(clockPhotoChangeLabel(v))),
+            ],
+            onChanged: (v) => setIn('photos', {'changeMin': v}),
+          ),
+        ),
     ]);
   }
 }

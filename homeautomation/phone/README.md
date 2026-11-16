@@ -401,6 +401,8 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   Przeglądanie (1.30.0, Set `photo`: `next` / `prev`): ◀ ▶ „Przeglądaj na zegarze” na stronie „Zdjęcia”, pozycje
   w „Pokaż ekran” i akcje przycisków zdalnych `photo:next` / `photo:prev` (`clockPhotoCommands`, `clockActionSet`) -
   tylko gdy ekran `photo` jest w pokazie.
+  Zmiana zdjęcia (1.32.0, Config `photos.changeMin`, zegar biurkowy 0.9.2+): lista „Zmiana zdjęcia” na stronie
+  „Zdjęcia” (`clockPhotoChangeOptions`; ukryta, gdy firmware nie ma pola).
   Kafelki: „Zegar - pokój” (ikona pogody z zegara), wykres temperatury, ciśnienie, na zewnątrz. Atrapa:
   `dart run tool/fake_device.dart --type clock`.
 - **Kalendarz domu** (☰ → Kalendarz, z kontem; `calendar_screen.dart`, `homes/{h}/calendar/{id}`, pkt 11): wywóz śmieci

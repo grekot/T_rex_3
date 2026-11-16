@@ -21,7 +21,7 @@ class FakeClock extends FakeDevice {
     bool withAlarms = true,
     bool withPhotos = true,
   }) : _name = name,
-       photoCfg = withPhotos ? {'caption': true, 'showS': 0} : null,
+       photoCfg = withPhotos ? {'caption': true, 'showS': 0, 'changeMin': 15} : null,
        alarms = withAlarms
            ? [
                {
@@ -631,7 +631,7 @@ class FakeClock extends FakeDevice {
 
   Set<String> get _builtIn => {..._builtInOld, if (news != null) 'news', if (photoCfg != null) 'photo'};
 
-  /// `photos` jak Config zegara: `caption` true/false, `showS` 0 albo 5-300.
+  /// `photos` jak Config zegara: `caption` true/false, `showS` 0 albo 5-300, `changeMin` 0-1440.
   void _applyPhotos(Map<String, dynamic> v, Map<String, String> errors) {
     final p = v['photos'];
     if (p == null || photoCfg == null) return;
@@ -641,6 +641,8 @@ class FakeClock extends FakeDevice {
       errors['photos.caption'] = 'value';
     } else if (p.containsKey('showS') && !(p['showS'] == 0 || _num(p['showS'], 5, 300))) {
       errors['photos.showS'] = 'range';
+    } else if (p.containsKey('changeMin') && !(p['changeMin'] is int && _num(p['changeMin'], 0, 1440))) {
+      errors['photos.changeMin'] = 'range';
     } else {
       photoCfg = {...photoCfg!, ...p.cast<String, dynamic>()};
     }

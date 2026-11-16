@@ -30,6 +30,8 @@ Firmware, kontrakt API v2 (`docs/API.md`) i konfiguracja Firebase (`docs/firebas
   i jako akcja przycisku zdalnego (pilot, przycisk węzła) - Set `photo`.
   Od 1.31.0 lista `/clocks.json` (Zdjęcia 0.11.0+: pula + co godzinę kilka zdjęć z archiwum całej biblioteki,
   z czasem dodania) - zegar trzyma najpóźniej dodane, więc zdjęcia wymieniają się przez cały dzień.
+  Od 1.32.0 „Zmiana zdjęcia” (zegar biurkowy 0.9.2+): co ile minut zegar bierze następne zdjęcie - do tego czasu
+  po powrocie na ekran „Zdjęcia” jest to samo.
 - Wydanie do Sklepu rodzinnego: tag `homeautomation-vX.Y.Z`.
 
 Szczegóły, uruchomienie i testy: [phone/README.md](phone/README.md).
