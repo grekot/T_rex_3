@@ -253,9 +253,15 @@ def cmd_wybierz(args) -> None:
     print("  lata: " + ", ".join(f"{y}: {c}" for y, c in sorted(years.items())))
 
 
-def export_jpeg(data: bytes) -> tuple[bytes, int, int]:
+# "o" w ocenie: o ile stopni w prawo obrócić zdjęcie (stare aparaty nie zapisywały orientacji)
+ROTATIONS = {90: Image.Transpose.ROTATE_270, 180: Image.Transpose.ROTATE_180, 270: Image.Transpose.ROTATE_90}
+
+
+def export_jpeg(data: bytes, rotate: int = 0) -> tuple[bytes, int, int]:
     img = Image.open(io.BytesIO(data))
     img = ImageOps.exif_transpose(img).convert("RGB")
+    if rotate in ROTATIONS:
+        img = img.transpose(ROTATIONS[rotate])
     w, h = wybor.export_size(*img.size)
     if (w, h) != img.size:
         img = img.resize((w, h), Image.LANCZOS)
@@ -281,12 +287,14 @@ def cmd_eksport(args) -> None:
     try:
         for i, e in enumerate(chosen, 1):
             path = p(out_dir, f"{e['id']}.jpg")
+            rotate = wybor.clean_rotation((e.get("review") or {}).get("o"))
             try:
                 if os.path.exists(path) and not args.od_nowa:
                     with Image.open(path) as im:
                         w, h = im.size
                 else:
-                    jpg, w, h = export_jpeg(reader.read(takeout.Entry(e["container"], e["member"], e["size"])))
+                    data = reader.read(takeout.Entry(e["container"], e["member"], e["size"]))
+                    jpg, w, h = export_jpeg(data, rotate)
                     with open(path, "wb") as f:
                         f.write(jpg)
             except Exception as err:  # noqa: BLE001

@@ -48,6 +48,9 @@ albo ze zmiennych `ZDJECIA_API_KEY` i `ZDJECIA_PROJECT`.
   (imiona tylko z podpisu kafelka - osoby rozpoznane przez Zdjęcia Google).
 - `f` - opcjonalnie najciekawszy fragment (left, top, width, height - ułamki zdjęcia), gdy wyraźnie nie jest
   w środku albo jest mały. `m` - opcjonalnie główny motyw. Bez nich kadr robi telefon (twarze, pasy ciekawości).
+- `o` - opcjonalnie obrót: 90, 180 albo 270 stopni w prawo, gdy zdjęcie na kafelku leży bokiem albo do góry nogami
+  (stare aparaty nie zapisywały orientacji). `eksport` obraca zdjęcie, `f`/`m` liczy się względem zdjęcia
+  już obróconego. Zmiana `o` po eksporcie: usuń `eksport/<id>.jpg` (albo `eksport --od-nowa`).
 
 Co wybierać (jak polecenie dla Gemini w telefonie): ludzie i ich chwile (twarze, emocje, rodzina, spotkania),
 podróże i krajobrazy, święta i wydarzenia, zwierzęta, ładne światło i kolory - zdjęcia, które miło zobaczyć po latach.

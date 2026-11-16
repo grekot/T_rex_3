@@ -204,6 +204,10 @@ jako ułamki 0-1 SAMEGO ZDJĘCIA (miniatura jest wpasowana i wyśrodkowana w kwa
 zajmuje tylko jego środek, liczysz względem zdjęcia, nie kwadratu). m - opcjonalnie główny motyw, ten sam format.
 Bez f/m telefon sam kadruje (twarze, ciekawe pasy) - dawaj je tylko, gdy to wyraźnie pomoże.
 
+o - obrót, gdy zdjęcie na kafelku leży bokiem albo do góry nogami (stare aparaty nie zapisywały orientacji):
+90 = obrócić o 90° w prawo (zgodnie z zegarem), 270 = w lewo, 180 = do góry nogami. Np. {"s": 7, "c": "…", "o": 90}.
+Oceniaj takie zdjęcie tak, jakby było już obrócone; f/m licz względem zdjęcia po obrocie.
+
 <uwagi właściciela z kalibracji, jeśli są>
 
 Na koniec odpowiedz krótko: jedna linia na arkusz „arkusz_NNN: K wybranych, s 9-10: X” i ewentualne problemy

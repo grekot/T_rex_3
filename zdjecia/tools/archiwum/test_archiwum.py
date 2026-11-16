@@ -153,6 +153,19 @@ class Selection(unittest.TestCase):
         self.assertEqual(wybor.export_size(1920, 1080), (800, 450))
         self.assertEqual(wybor.export_size(640, 480), (640, 480))
 
+    def test_rotation(self):
+        self.assertEqual([wybor.clean_rotation(v) for v in (90, "180", 270, -90, 45, None, "x")], [90, 180, 270, 270, 0, 0, 0])
+        import archiwum
+        src = Image.new("RGB", (1600, 1200), (200, 30, 30))
+        src.paste((30, 30, 200), (0, 0, 100, 100))  # niebieski róg: lewy górny
+        buf = io.BytesIO()
+        src.save(buf, "JPEG")
+        jpg, w, h = archiwum.export_jpeg(buf.getvalue(), 90)
+        self.assertEqual((w, h), (600, 800))
+        out = Image.open(io.BytesIO(jpg)).convert("RGB")
+        r, g, b = out.getpixel((w - 10, 10))  # po obrocie w prawo róg jest w prawym górnym
+        self.assertGreater(b, r)
+
     def test_caption_and_boxes(self):
         self.assertEqual(wybor.clean_caption("  Nad   jeziorem "), "Nad jeziorem")
         long = "Wieczorne ognisko nad jeziorem z przyjaciółmi"

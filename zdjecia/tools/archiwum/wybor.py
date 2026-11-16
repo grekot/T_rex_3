@@ -259,6 +259,15 @@ def clean_box(box) -> list[float] | None:
     return [round(l, 3), round(t, 3), round(w, 3), round(h, 3)]
 
 
+def clean_rotation(value) -> int:
+    """Obrót z oceny ("o"): 90, 180 albo 270 stopni w prawo; inne wartości = 0."""
+    try:
+        v = int(value) % 360
+    except (TypeError, ValueError):
+        return 0
+    return v if v in (90, 180, 270) else 0
+
+
 def index_entry(e: dict, w: int, h: int) -> dict:
     """Wpis spisu w Firestore (ARCHIWUM.md)."""
     r = e.get("review") or {}
