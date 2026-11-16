@@ -1,6 +1,7 @@
 // Konto i Firestore przez REST (bez wtyczek Firebase - działa tak samo w aplikacji i w usłudze w tle):
 // logowanie e-mailem i hasłem (to samo konto co w Zakupach / Wadze), w bezpiecznym magazynie zostaje
-// tylko token odświeżania; Firestore - odczyt dokumentu (archiwum zdjęć, ARCHIWUM.md).
+// tylko token odświeżania; Firestore - odczyt i zapis dokumentów (archiwum zdjęć, ARCHIWUM.md), zapis spisu
+// z warunkiem wersji (narzędzie na PC może go w tym czasie nadpisać).
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -10,10 +11,13 @@ import 'package:http/http.dart' as http;
 import 'firebase_config.dart';
 
 class CloudException implements Exception {
-  const CloudException(this.message, {this.status = 0});
+  const CloudException(this.message, {this.status = 0, this.conflict = false});
 
   final String message;
   final int status;
+
+  /// Dokument zmienił się od odczytu (zapis z warunkiem wersji) - trzeba odczytać i scalić jeszcze raz
+  final bool conflict;
 
   bool get unauthorized => status == 401 || status == 403;
 
@@ -181,7 +185,11 @@ class FirebaseRest {
   String _docUrl(String path) => 'https://firestore.googleapis.com/v1/projects/$projectId/databases/(default)/documents/$path';
 
   /// Pola dokumentu ([mask] = tylko te pola); null = nie ma dokumentu
-  Future<Map<String, Object?>?> getDocument(String path, {List<String> mask = const []}) async {
+  Future<Map<String, Object?>?> getDocument(String path, {List<String> mask = const []}) async =>
+      (await getDoc(path, mask: mask))?.fields;
+
+  /// Dokument z wersją (`updateTime`, do zapisu z warunkiem); null = nie ma dokumentu
+  Future<FirestoreDoc?> getDoc(String path, {List<String> mask = const []}) async {
     final token = await idToken();
     final query = mask.map((m) => 'mask.fieldPaths=${Uri.encodeQueryComponent(m)}').join('&');
     final http.Response res;
@@ -199,15 +207,84 @@ class FirebaseRest {
       final err = j['error'];
       throw CloudException('Firestore: HTTP ${res.statusCode} ${err is Map ? err['message'] : ''}'.trim(), status: res.statusCode);
     }
-    final fields = j['fields'];
-    return {
-      if (fields is Map)
-        for (final e in fields.entries) e.key as String: firestoreValue(e.value),
-    };
+    return FirestoreDoc.fromJson(j);
+  }
+
+  /// Zapis dokumentu: [fields] (String, int, double, bool, Uint8List, DateTime = znacznik czasu).
+  /// [updateMask] - zmieniane tylko te pola (inaczej cały dokument). Warunek: [ifUpdateTime] - dokument
+  /// w tej wersji, [ifMissing] - dokumentu jeszcze nie ma; niespełniony = [CloudException.conflict].
+  Future<FirestoreDoc> setDocument(
+    String path,
+    Map<String, Object> fields, {
+    List<String>? updateMask,
+    String? ifUpdateTime,
+    bool ifMissing = false,
+  }) async {
+    final token = await idToken();
+    final query = [
+      for (final m in updateMask ?? const <String>[]) 'updateMask.fieldPaths=${Uri.encodeQueryComponent(m)}',
+      if (ifUpdateTime != null)
+        'currentDocument.updateTime=${Uri.encodeQueryComponent(ifUpdateTime)}'
+      else if (ifMissing)
+        'currentDocument.exists=false',
+    ].join('&');
+    final http.Response res;
+    try {
+      res = await _client
+          .patch(Uri.parse(query.isEmpty ? _docUrl(path) : '${_docUrl(path)}?$query'),
+              headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+              body: jsonEncode({'fields': firestoreFields(fields)}))
+          .timeout(const Duration(seconds: 60));
+    } catch (e) {
+      throw CloudException('Brak połączenia: $e');
+    }
+    final j = _decode(res);
+    if (res.statusCode != 200) {
+      final err = j['error'];
+      final status = err is Map ? '${err['status']}' : '';
+      throw CloudException(
+        'Firestore: HTTP ${res.statusCode} ${err is Map ? err['message'] : ''}'.trim(),
+        status: res.statusCode,
+        conflict: res.statusCode == 409 || (res.statusCode == 400 && status == 'FAILED_PRECONDITION'),
+      );
+    }
+    return FirestoreDoc.fromJson(j);
   }
 
   void close() => _client.close();
 }
+
+class FirestoreDoc {
+  const FirestoreDoc(this.fields, this.updateTime);
+
+  final Map<String, Object?> fields;
+
+  /// Wersja dokumentu (RFC 3339) - do zapisu z warunkiem
+  final String? updateTime;
+
+  factory FirestoreDoc.fromJson(Map<String, dynamic> j) {
+    final fields = j['fields'];
+    return FirestoreDoc({
+      if (fields is Map)
+        for (final e in fields.entries) e.key as String: firestoreValue(e.value),
+    }, j['updateTime'] as String?);
+  }
+}
+
+/// Pola do zapisu w REST Firestore
+Map<String, Object> firestoreFields(Map<String, Object> fields) => {
+      for (final e in fields.entries) e.key: _toValue(e.value),
+    };
+
+Map<String, Object> _toValue(Object v) => switch (v) {
+      final bool b => {'booleanValue': b},
+      final int i => {'integerValue': '$i'},
+      final double d => {'doubleValue': d},
+      final Uint8List bytes => {'bytesValue': base64Encode(bytes)},
+      final DateTime t => {'timestampValue': t.toUtc().toIso8601String()},
+      final String s => {'stringValue': s},
+      _ => throw ArgumentError('Typ pola: ${v.runtimeType}'),
+    };
 
 /// Wartość pola z REST Firestore (bez map i list - archiwum ich nie używa)
 Object? firestoreValue(Object? v) {

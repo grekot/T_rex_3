@@ -28,6 +28,8 @@ class ArchiveEntry {
     this.height = 0,
     this.focus,
     this.subject,
+    this.name,
+    this.fromPhone = false,
   });
 
   final String id;
@@ -38,6 +40,12 @@ class ArchiveEntry {
   final int height;
   final List<double>? focus;
   final List<double>? subject;
+
+  /// Nazwa pliku (`n`) - po niej telefon i PC rozpoznają to samo zdjęcie
+  final String? name;
+
+  /// Dodane z telefonu (`src: "tel"`), nie z Takeoutu
+  final bool fromPhone;
 
   /// Id w puli (bez kadru)
   String get photoId => 'a_$id';
@@ -76,6 +84,8 @@ class ArchiveEntry {
       height: j['h'] is num ? (j['h'] as num).toInt() : 0,
       focus: box(j['f']),
       subject: box(j['m']),
+      name: j['n'] is String ? j['n'] as String : null,
+      fromPhone: j['src'] == 'tel',
     );
   }
 
@@ -88,6 +98,8 @@ class ArchiveEntry {
         if (height > 0) 'h': height,
         'f': ?focus,
         'm': ?subject,
+        'n': ?name,
+        if (fromPhone) 'src': 'tel',
       };
 }
 

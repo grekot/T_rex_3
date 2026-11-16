@@ -1,12 +1,14 @@
 // Archiwum w Firestore widziane z telefonu: spis zapamiętany w pliku (sprawdzany w bazie najwyżej co
 // [indexCheckEvery] jednym małym odczytem), zdjęcia ściągane dopiero, gdy są potrzebne, i trzymane w plikach
-// tylko dopóki są w puli / strumieniu (plus kilkadziesiąt ostatnich na zapas).
+// tylko dopóki są w puli / strumieniu (plus kilkadziesiąt ostatnich na zapas). Od 0.12.0 telefon dokłada też
+// do archiwum swoje nowe zdjęcia (archive_add.dart): zdjęcie, potem wpis w spisie zapisany z warunkiem wersji.
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import '../cloud/firebase_rest.dart';
 import 'archive.dart';
+import 'archive_add.dart';
 
 const Duration indexCheckEvery = Duration(hours: 1);
 
@@ -41,6 +43,7 @@ class ArchiveSource {
 
   File get _indexFile => File('${dir.path}/spis.json');
   File get _shownFile => File('${dir.path}/pokazane.json');
+  File get _addedFile => File('${dir.path}/dodane.json');
   Directory get photoDir => Directory('${dir.path}/zdjecia');
   File photoFile(String id) => File('${photoDir.path}/$id.jpg');
 
@@ -135,6 +138,53 @@ class ArchiveSource {
 
   Future<void> saveShown(Map<String, DateTime> shown) =>
       _writeJson(_shownFile, {for (final e in shown.entries) e.key: e.value.millisecondsSinceEpoch});
+
+  /// Zdjęcia z telefonu już dodane do archiwum: id w puli -> id w archiwum
+  Future<Map<String, String>> loadAdded() async {
+    final j = await _readJson(_addedFile);
+    return {
+      for (final e in (j ?? const {}).entries)
+        if (e.value is String) e.key: e.value as String,
+    };
+  }
+
+  Future<void> saveAdded(Map<String, String> added) => _writeJson(_addedFile, added);
+
+  /// Zdjęcie do archiwum (przed wpisem w spisie - telefon nie zobaczy wpisu bez zdjęcia)
+  Future<void> uploadPhoto(String id, Uint8List jpeg, DateTime taken) async {
+    final account = await cloud.account();
+    if (account == null) throw const CloudException('Nie zalogowano', status: 401);
+    await cloud.setDocument('archiwum/${account.uid}/zdjecia/$id', {'jpeg': jpeg, 't': taken.millisecondsSinceEpoch});
+  }
+
+  /// Dopisuje wpisy do spisu: odczyt, scalenie i zapis z warunkiem wersji (gdy w tym czasie spis zapisze PC -
+  /// jeszcze raz). Spis w pamięci telefonu od razu nowy. Zwraca liczbę wpisów w spisie.
+  Future<int> appendToIndex(List<Map<String, Object>> add, {int attempts = 4}) async {
+    final account = await cloud.account();
+    if (account == null) throw const CloudException('Nie zalogowano', status: 401);
+    final path = 'archiwum/${account.uid}';
+    for (var attempt = 1;; attempt++) {
+      final doc = await cloud.getDoc(path);
+      final merged = mergeItems(doc?.fields['items'] as String? ?? '[]', add);
+      try {
+        final saved = await cloud.setDocument(
+          path,
+          {'v': 1, 'count': merged.count, 'items': merged.json, 'updatedAt': _now()},
+          ifUpdateTime: doc?.updateTime,
+          ifMissing: doc == null,
+        );
+        await _writeJson(_indexFile, {
+          'uid': account.uid,
+          'updatedAt': saved.fields['updatedAt'] as String?,
+          'items': merged.json,
+          'checked': _now().millisecondsSinceEpoch,
+        });
+        return merged.count;
+      } on CloudException catch (e) {
+        if (!e.conflict || attempt >= attempts) rethrow;
+      }
+    }
+  }
 
   Future<ArchiveStatus> signIn(String email, String password) async {
     await cloud.signIn(email, password);

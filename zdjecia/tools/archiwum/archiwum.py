@@ -344,16 +344,36 @@ def cmd_wyslij(args) -> None:
             done += 1
             if done % 50 == 0 or done == len(todo):
                 print(f"  {done}/{len(todo)}", flush=True)
-    # Spis na końcu: telefon nie zobaczy wpisów bez zdjęć
-    items = json.dumps(spis, ensure_ascii=False, separators=(",", ":"))
-    cloud.set(base, {"v": 1, "count": len(spis), "items": items, "updatedAt": chmura.Timestamp()})
-    print(f"Spis: {len(spis)} zdjęć ({len(items.encode()) / 1024:.0f} KB)")
+    # Spis na końcu (telefon nie zobaczy wpisów bez zdjęć), scalony ze zdjęciami dodanymi z telefonu.
+    # Zapis z warunkiem wersji: gdy telefon w tym czasie coś dopisze - odczyt i scalenie jeszcze raz.
+    for attempt in range(5):
+        doc = cloud.get_doc(base)
+        try:
+            old = json.loads(doc[0].get("items") or "[]") if doc else []
+        except ValueError:
+            old = []
+        merged, dropped = wybor.merge_spis(spis, old if isinstance(old, list) else [])
+        items = json.dumps(merged, ensure_ascii=False, separators=(",", ":"))
+        fields = {"v": 1, "count": len(merged), "items": items, "updatedAt": chmura.Timestamp()}
+        try:
+            cloud.set(base, fields, if_update_time=doc[1] if doc else None, if_missing=doc is None)
+            break
+        except chmura.Conflict:
+            time.sleep(1 + attempt)
+    else:
+        sys.exit("Spis zmieniał się w trakcie zapisu (telefon dopisywał zdjęcia) - uruchom wyslij jeszcze raz")
+    phone = sum(1 for x in merged if x.get("src") == wybor.PHONE_SOURCE)
+    print(f"Spis: {len(merged)} zdjęć, w tym z telefonu {phone} ({len(items.encode()) / 1024:.0f} KB)")
+    for x in dropped:
+        cloud.delete(f"{base}/zdjecia/{x}")
+    if dropped:
+        print(f"Zdjęcia z telefonu zastąpione wersją z Takeoutu: {len(dropped)}")
     if args.usun_stare:
-        wanted = {s["id"] for s in spis}
-        old = [x for x in have if x not in wanted]
-        for x in old:
+        wanted = {s["id"] for s in merged}
+        old_ids = [x for x in have if x not in wanted and x not in dropped]
+        for x in old_ids:
             cloud.delete(f"{base}/zdjecia/{x}")
-        print(f"Usunięte spoza spisu: {len(old)}")
+        print(f"Usunięte spoza spisu: {len(old_ids)}")
 
 
 def main() -> None:

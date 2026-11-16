@@ -268,4 +268,41 @@ def index_entry(e: dict, w: int, h: int) -> dict:
         out["f"] = f
     if m:
         out["m"] = m
+    if e.get("title"):
+        out["n"] = e["title"]  # nazwa pliku - telefon nie doda drugi raz tego samego zdjęcia
     return out
+
+
+# Zdjęcia dodane z telefonu (src "tel", ARCHIWUM.md) - to samo ujęcie co w Takeoucie: ta sama nazwa pliku
+# i czas do 14 h różnicy (Zdjęcia Google i telefon potrafią inaczej liczyć strefę czasową)
+PHONE_SOURCE = "tel"
+SAME_SHOT_MS = 14 * 3600 * 1000
+
+
+def same_shot(a: dict, b: dict) -> bool:
+    na, nb = str(a.get("n") or "").casefold(), str(b.get("n") or "").casefold()
+    if not na or na != nb:
+        return False
+    try:
+        return abs(int(a["t"]) - int(b["t"])) <= SAME_SHOT_MS
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def merge_spis(new: list[dict], old: list[dict]) -> tuple[list[dict], list[str]]:
+    """Spis z PC ([new]) + zdjęcia dodane z telefonu, które już są w bazie ([old] z src "tel").
+    Zdjęcie z telefonu, które jest też w Takeoucie, ustępuje wersji z przeglądu (jego id - do usunięcia).
+    Zwraca (spis chronologicznie, id zdjęć z telefonu do usunięcia z bazy)."""
+    ids = {x["id"] for x in new}
+    merged = list(new)
+    dropped = []
+    for x in old:
+        if not isinstance(x, dict) or x.get("src") != PHONE_SOURCE or not x.get("id") or x["id"] in ids:
+            continue
+        if any(same_shot(x, y) for y in new):
+            dropped.append(x["id"])
+            continue
+        ids.add(x["id"])
+        merged.append(x)
+    merged.sort(key=lambda x: (int(x.get("t", 0)), x["id"]))
+    return merged, dropped

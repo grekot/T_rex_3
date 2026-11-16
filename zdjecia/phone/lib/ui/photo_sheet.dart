@@ -15,6 +15,8 @@ Future<void> showPhotoSheet(BuildContext context, PoolController pool, PoolItem 
       final size = (MediaQuery.of(sheetContext).size.width * 0.7).clamp(160.0, 320.0);
       final pinned = pool.pinned.contains(item.id);
       final s = item.scored;
+      final canArchive = pool.archiveStatus.signedIn && !item.fromArchive;
+      final archived = pool.archivedPhotoIds.contains(item.id);
       return SafeArea(
         child: SingleChildScrollView(
           child: Padding(
@@ -75,6 +77,21 @@ Future<void> showPhotoSheet(BuildContext context, PoolController pool, PoolItem 
                         );
                       },
                     ),
+                    if (canArchive)
+                      FilledButton.tonalIcon(
+                        icon: Icon(archived ? Icons.cloud_done_outlined : Icons.cloud_upload_outlined),
+                        label: Text(archived ? 'W archiwum' : 'Dodaj do archiwum'),
+                        onPressed: archived
+                            ? null
+                            : () async {
+                                Navigator.pop(sheetContext);
+                                final messenger = ScaffoldMessenger.of(context);
+                                final error = await pool.addToArchive(item.id);
+                                messenger.showSnackBar(SnackBar(
+                                  content: Text(error ?? 'Dodane do archiwum - wróci jako wspomnienie za kilka tygodni'),
+                                ));
+                              },
+                      ),
                     FilledButton.tonalIcon(
                       icon: const Icon(Icons.delete_outline),
                       label: const Text('Usuń z puli'),

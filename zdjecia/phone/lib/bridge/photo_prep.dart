@@ -127,6 +127,47 @@ Uint8List prepareJpeg(Uint8List source, {required RectBox rect, required int wid
   throw StateError('JPEG ${width}x$height większy niż ${maxJpegBytes ~/ 1024} KB');
 }
 
+// --- JPEG do archiwum w Firestore (ARCHIWUM.md) - jak eksport z PC ---
+
+/// Dłuższy bok ≤ 800, krótszy ≤ 600, bez powiększania (jak export_size w narzędziu na PC)
+({int width, int height}) archiveSize(int w, int h, {int maxLong = 800, int maxShort = 600}) {
+  final long = math.max(w, h), short = math.min(w, h);
+  final scale = math.min(1.0, math.min(maxLong / long, maxShort / short));
+  return (width: math.max(1, (w * scale).round()), height: math.max(1, (h * scale).round()));
+}
+
+/// Największy JPEG w archiwum (reguły Firestore: 300 KB)
+const int maxArchiveJpegBytes = 300 * 1024;
+
+class ArchiveJpeg {
+  const ArchiveJpeg(this.bytes, this.width, this.height);
+
+  final Uint8List bytes;
+  final int width;
+  final int height;
+}
+
+/// Całe zdjęcie zmniejszone do [archiveSize], bez obróbki kolorów (robi ją dopiero kadr dla zegarka / zegara),
+/// JPEG baseline 4:2:0 bez EXIF (bez GPS), najwyżej [maxArchiveJpegBytes]. Dla `compute`.
+ArchiveJpeg prepareArchiveJpeg(Uint8List source) {
+  final decoded = img.decodeImage(source);
+  if (decoded == null) {
+    throw const FormatException('Nie udało się odczytać zdjęcia');
+  }
+  final upright = img.bakeOrientation(decoded);
+  final size = archiveSize(upright.width, upright.height);
+  var out = size.width == upright.width && size.height == upright.height
+      ? upright
+      : img.copyResize(upright, width: size.width, height: size.height, interpolation: img.Interpolation.average);
+  if (out.numChannels != 3) out = out.convert(numChannels: 3);
+  out.exif = img.ExifData();
+  for (final quality in [85, 78, 70, 60]) {
+    final jpg = img.encodeJpg(out, quality: quality, chroma: img.JpegChroma.yuv420);
+    if (jpg.length <= maxArchiveJpegBytes) return ArchiveJpeg(jpg, out.width, out.height);
+  }
+  throw StateError('JPEG do archiwum większy niż ${maxArchiveJpegBytes ~/ 1024} KB');
+}
+
 double _luma(num r, num g, num b) => 0.299 * r + 0.587 * g + 0.114 * b;
 
 /// Średnia jasność (0..1) i udział prawie białych pikseli (jasność ≥ 235) w kole widocznym na zegarku

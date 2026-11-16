@@ -27,6 +27,7 @@ class PoolPrefs {
     this.preferences = '',
     this.autoEnabled = true,
     this.memoryShare = 50,
+    this.archiveAuto = true,
   })  : pinned = pinned ?? {},
         removed = removed ?? {},
         crops = crops ?? {},
@@ -59,6 +60,9 @@ class PoolPrefs {
   /// Jaka część puli (procent) to wspomnienia - starsze zdjęcia z losowych okresów
   int memoryShare;
 
+  /// Telefon sam dokłada najlepsze nowe zdjęcia do archiwum w Firestore (gdy zalogowano)
+  bool archiveAuto;
+
   Map<String, Object> toJson() => {
         'days': days,
         'size': size,
@@ -71,6 +75,7 @@ class PoolPrefs {
         'preferences': preferences,
         'auto': autoEnabled,
         'memoryShare': memoryShare,
+        'archiveAuto': archiveAuto,
       };
 
   factory PoolPrefs.fromJson(Map<String, dynamic> j) => PoolPrefs(
@@ -88,6 +93,7 @@ class PoolPrefs {
         preferences: j['preferences'] as String? ?? '',
         autoEnabled: j['auto'] as bool? ?? true,
         memoryShare: j['memoryShare'] as int? ?? 50,
+        archiveAuto: j['archiveAuto'] as bool? ?? true,
       );
 }
 

@@ -21,8 +21,20 @@ Co robi kto:
 
 Stan na 2026-11-16 (Zdjęcia 0.11.0 i HomeAutomation 1.31.0 w sklepie):
 - reguły Firestore `archiwum` są opublikowane,
-- narzędzie jest gotowe i przetestowane,
-- przegląd ma objąć **4000 kandydatów** (decyzja właściciela).
+- narzędzie jest gotowe i przetestowane (18 testów),
+- przegląd ma objąć **4000 kandydatów** (decyzja właściciela),
+- Takeout jeszcze niepobrany (`C:\TMP\Takeout` pusty) - pierwszy krok to krok 1 niżej.
+
+**W toku - Zdjęcia telefon 0.12.0:** kod jest w repo (zacommitowany, testy przechodzą: 102 telefon + 18 Python),
+ale **niewydany** - tag `zdjecia-v0.12.0` nie istnieje, więc w sklepie jest 0.11.0. Telefon 0.12.0 sam dokłada
+do archiwum najlepsze nowe zdjęcia (ocena Gemini 7+, po 3 dniach, `lib/archive/archive_add.dart`, opis:
+[../../README.md](../../README.md#nowe-zdjęcia-z-telefonu-do-archiwum-telefon-0120)), a `wyslij` z tej wersji
+narzędzia te zdjęcia zachowuje (scalanie spisu z warunkiem wersji). Co dalej:
+1. Wydanie, gdy właściciel zdecyduje: `git tag zdjecia-v0.12.0 <commit z 0.12.0>` i `git push origin zdjecia-v0.12.0`
+   (sekret `FIREBASE_OPTIONS_ZDJECIA_B64` jest ustawiony; CI zbuduje i wstawi do sklepu). Na telefonie nie było
+   jeszcze sprawdzane.
+2. Archiwum z Takeoutu - kroki niżej. `wyslij` zawsze z aktualnej wersji narzędzia (starsza nadpisałaby spis
+   bez zdjęć dodanych z telefonu).
 
 ## Zasady, które obowiązują cały czas
 
@@ -45,7 +57,7 @@ Narzędzie: `C:\TMP\My_GIT\T_rex_3\zdjecia\tools\archiwum` (Python 3.10+).
 ```bash
 cd /c/TMP/My_GIT/T_rex_3/zdjecia/tools/archiwum
 python -c "import PIL, numpy, cv2; print('ok')"     # brakuje? pip install pillow numpy opencv-python
-PYTHONIOENCODING=utf-8 python -m unittest test_archiwum   # 14 testów, ok. 10 s
+PYTHONIOENCODING=utf-8 python -m unittest test_archiwum   # 18 testów, ok. 10 s
 python -c "import chmura; chmura.load_config(); print('konfiguracja Firebase ok')"
 ```
 
@@ -231,7 +243,11 @@ PYTHONIOENCODING=utf-8 python archiwum.py wyslij
 
 - Najpierw wysyła zdjęcia, których jeszcze nie ma w bazie (4 naraz, postęp co 50), **na końcu spis**,
   bo telefon nie może zobaczyć wpisów bez zdjęć.
-- Ponowne uruchomienie wysyła tylko brakujące. Spis jest zawsze nadpisywany.
+- Ponowne uruchomienie wysyła tylko brakujące. Spis jest układany od nowa, ale **zostają w nim zdjęcia dodane
+  z telefonu** (Zdjęcia 0.12.0+ same dokładają najlepsze nowe zdjęcia, wpisy `src: "tel"`). Jeśli takie zdjęcie
+  jest też w wyborze z Takeoutu, zostaje wersja z przeglądu. Wypisze się „Spis: N zdjęć, w tym z telefonu K”.
+- Spis zapisuje się z warunkiem wersji. Gdy telefon dopisze coś w trakcie, `wyslij` sam odczyta i scali jeszcze raz;
+  po 5 nieudanych próbach kończy się komunikatem - wystarczy uruchomić `wyslij` ponownie.
 - **Limity** Firestore (plan Spark, projekt dzielony z innymi aplikacjami) mieszczą się z zapasem:
   - ok. 1001 zapisów przy limicie 20 tys./dzień;
   - ok. 150 MB przy limicie 1 GiB;
@@ -239,7 +255,7 @@ PYTHONIOENCODING=utf-8 python archiwum.py wyslij
 
 ## 8. Sprawdzenie na telefonie [TY]
 
-1. Zdjęcia 0.11.0 → ikona **„Archiwum zdjęć”** (u góry) → zaloguj się tym samym kontem.
+1. Zdjęcia 0.11.0+ → ikona **„Archiwum zdjęć”** (u góry) → zaloguj się tym samym kontem.
 2. Ekran pokazuje „Zdjęć w archiwum: …” (ok. 1000). „Sprawdź teraz” odświeża spis.
 3. Wspomnienia z archiwum wchodzą przy najbliższym odświeżeniu puli (do 6 h albo przycisk „Odśwież”).
    Na zegary HomeAutomation trafiają 4 zdjęcia z archiwum na godzinę (6–23).
@@ -249,6 +265,9 @@ PYTHONIOENCODING=utf-8 python archiwum.py wyslij
 - **Zmiana podpisu albo oceny:** popraw `praca/oceny/arkusz_NNN.json` → `wybierz` → `eksport` → `wyslij`.
   Zdjęcia nie są wysyłane drugi raz, zmienia się tylko spis.
 - **Usunięcie zdjęcia:** usuń jego kafelek z pliku ocen → `wybierz` → `eksport` → `wyslij --usun-stare`.
+  (`--usun-stare` nie rusza zdjęć dodanych z telefonu.)
+- **Nowe zdjęcia z telefonu:** nic nie trzeba robić - od Zdjęć 0.12.0 telefon sam dokłada najlepsze
+  (ocena Gemini 7+, 3 dni po zrobieniu, przełącznik na ekranie „Archiwum zdjęć”).
 - **Więcej albo mniej zdjęć:** `wybierz --ile N` → `eksport` → `wyslij` (przy zmniejszaniu z `--usun-stare`).
 - **Nowy Takeout po latach:** nowe ZIP-y → `skanuj` (dopisuje) → `kandydaci --od-nowa` → pełny przegląd od nowa
   (koszt jak za pierwszym razem) → dalej jak wyżej z `wyslij --usun-stare`.

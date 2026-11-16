@@ -298,6 +298,26 @@ i reguł `archiwum` w Firestore (App_storage, publikowane przez CI po wypchnięc
 Testy: `phone/test/archive_test.dart` (spis, losowanie, strumień zegarów, logowanie i Firestore przez REST na atrapie,
 pamięć podręczna), `phone/test/bridge_server_test.dart` (`/clocks.json`, JPEG z archiwum), `tools/archiwum/test_archiwum.py`.
 
+## Nowe zdjęcia z telefonu do archiwum (telefon 0.12.0)
+
+Gdy archiwum jest, wspomnienia biorą się tylko z niego - zdjęcia zrobione po eksporcie Takeout nigdy by nie wróciły.
+Dlatego telefon sam dokłada do archiwum najlepsze nowe zdjęcia ([ARCHIWUM.md](ARCHIWUM.md#dwóch-piszących-pc-i-telefon)):
+
+- **które**: ocena Gemini ≥ 7 i „warte zachowania” - ta, którą zdjęcie dostało przy wyborze puli (bez nowych
+  zapytań), co najmniej 3 dni po zrobieniu (czas na usunięcie nieudanych), najwyżej 2 z wydarzenia (zdjęcia w odstępie
+  do 3 h) i 3 z dnia, licząc to, co już jest w archiwum; przypięte zawsze; najwyżej 12 przy jednym odświeżeniu;
+- **ręcznie**: „Dodaj do archiwum” na karcie zdjęcia (od razu, bez limitów; potem „W archiwum”);
+- **jak**: usługa w tle przy odświeżeniu puli (co 6 h): JPEG ≤ 800×600 bez EXIF jak z PC, zdjęcie do
+  `archiwum/{uid}/zdjecia/{id}`, potem wpis w spisie (`src: "tel"`, nazwa pliku `n`) zapisany z warunkiem wersji -
+  wysyłka z PC w tym czasie niczego nie zgubi; narzędzie na PC zachowuje te wpisy (a gdy to samo zdjęcie przyjdzie
+  w Takeoucie - zostaje wersja z przeglądu);
+- **kiedy wraca**: jako wspomnienie i na zegary dopiero po okresie świeżych zdjęć (domyślnie 30 dni);
+- **wyłączenie**: przełącznik „Dokładaj nowe zdjęcia z telefonu” na ekranie „Archiwum zdjęć” (tam też liczba
+  zdjęć z telefonu w archiwum i ostatni błąd). Bez klucza Gemini dokładają się tylko przypięte i ręcznie dodane.
+
+Testy: `phone/test/archive_test.dart` (grupa „dokładanie zdjęć z telefonu”: wybór, id, wpis, scalanie spisu, JPEG,
+zapis REST z warunkiem wersji i ponowienie po zapisie z PC), `tools/archiwum/test_archiwum.py` (`PhoneMerge`).
+
 ## Wydanie do Sklepu rodzinnego
 
 Tag `zdjecia-vX.Y.Z` uruchamia [release-zdjecia.yml](../.github/workflows/release-zdjecia.yml)

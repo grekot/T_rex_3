@@ -1,5 +1,5 @@
 // Archiwum z biblioteki Zdjęć Google w Firestore (ARCHIWUM.md): logowanie tym samym kontem co w Zakupach / Wadze,
-// stan spisu, sprawdzenie po nowej wysyłce z PC i wylogowanie.
+// stan spisu, sprawdzenie po nowej wysyłce z PC, dokładanie nowych zdjęć z telefonu i wylogowanie.
 import 'package:flutter/material.dart';
 
 import '../pool_controller.dart';
@@ -73,8 +73,8 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
             children: [
               Text(
                 'Najciekawsze zdjęcia z całej biblioteki Zdjęć Google, wybrane na komputerze z eksportu Takeout '
-                'i zapisane w bazie. Z nich biorą się wspomnienia dla zegarka i zdjęcia dla zegarów w domu - '
-                'telefon ściąga tylko te, które akurat są potrzebne. Nie idą do Gemini.',
+                'i zapisane w bazie, plus najlepsze nowe zdjęcia z telefonu. Z nich biorą się wspomnienia dla '
+                'zegarka i zdjęcia dla zegarów w domu - telefon ściąga tylko te, które akurat są potrzebne.',
               ),
               const SizedBox(height: 16),
               if (!s.configured)
@@ -90,6 +90,21 @@ class _ArchiveScreenState extends State<ArchiveScreen> {
                 ),
                 if (s.error != null)
                   Text(s.error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Dokładaj nowe zdjęcia z telefonu'),
+                  subtitle: Text(
+                    'Najlepsze według Gemini (ocena 7+), 3 dni po zrobieniu, najwyżej 2 z wydarzenia i 3 z dnia; '
+                    'przypięte zawsze. Wracają jako wspomnienia po ${widget.pool.prefs.days} dniach. '
+                    'Z telefonu w archiwum: ${widget.pool.archivePhoneCount}.',
+                    style: small,
+                  ),
+                  value: widget.pool.prefs.archiveAuto,
+                  onChanged: _working ? null : (v) => widget.pool.setArchiveAuto(v),
+                ),
+                if (widget.pool.archiveAddError != null)
+                  Text('Dokładanie: ${widget.pool.archiveAddError}',
+                      style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 const SizedBox(height: 8),
                 Wrap(
                   spacing: 12,

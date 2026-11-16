@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 import zipfile
 from datetime import datetime
 
@@ -163,6 +164,105 @@ class Selection(unittest.TestCase):
         self.assertIsNone(wybor.clean_box("x"))
         e = {"id": "abc", "taken": 1000, "review": {"s": 9, "c": "Las", "f": [0.1, 0.1, 0.5, 0.5]}}
         self.assertEqual(wybor.index_entry(e, 800, 600), {"id": "abc", "t": 1000, "c": "Las", "s": 9, "w": 800, "h": 600, "f": [0.1, 0.1, 0.5, 0.5]})
+
+
+class PhoneMerge(unittest.TestCase):
+    """Zdjęcia dodane z telefonu (src "tel") zostają w spisie po wysyłce z PC, chyba że są też w Takeoucie."""
+
+    def test_same_shot(self):
+        a = {"id": "a", "n": "IMG_20261101_120000.jpg", "t": ms(2026, 11, 1)}
+        self.assertTrue(wybor.same_shot(a, {"n": "img_20261101_120000.JPG", "t": ms(2026, 11, 1, 13)}))  # strefa czasowa
+        self.assertFalse(wybor.same_shot(a, {"n": "IMG_20261101_120000.jpg", "t": ms(2026, 11, 3)}))
+        self.assertFalse(wybor.same_shot(a, {"n": "inne.jpg", "t": ms(2026, 11, 1)}))
+        self.assertFalse(wybor.same_shot({"id": "x", "t": 1}, {"id": "y", "t": 1}))  # bez nazw
+
+    def test_merge(self):
+        new = [{"id": "t1", "t": ms(2014, 7, 1), "n": "DSC_1.jpg"}, {"id": "t2", "t": ms(2026, 11, 2), "n": "IMG_2.jpg"}]
+        old = [
+            {"id": "t9", "t": ms(2013, 1, 1)},  # stary wpis z PC - wypada (nowy wybór)
+            {"id": "p1", "t": ms(2026, 11, 5), "n": "IMG_5.jpg", "src": "tel", "x": 1},  # zostaje, z nieznanym polem
+            {"id": "p2", "t": ms(2026, 11, 2, 14), "n": "img_2.jpg", "src": "tel"},  # jest w Takeoucie - ustępuje
+            {"id": "t1", "t": ms(2014, 7, 1), "src": "tel"},  # to samo id co z PC - bez dubla
+            "zepsuty",
+        ]
+        merged, dropped = wybor.merge_spis(new, old)
+        self.assertEqual([x["id"] for x in merged], ["t1", "t2", "p1"])
+        self.assertEqual(merged[2]["x"], 1)
+        self.assertEqual(dropped, ["p2"])
+
+    def test_index_entry_name(self):
+        e = {"id": "abc", "taken": ms(2014, 7, 1), "title": "DSC_1.jpg", "review": {"s": 8, "c": "Plaża"}}
+        self.assertEqual(wybor.index_entry(e, 800, 600)["n"], "DSC_1.jpg")
+
+    def test_wyslij_merges_and_retries(self):
+        import types
+
+        import archiwum
+        import chmura
+
+        class FakeCloud:
+            docs: dict = {}
+            deleted: list = []
+            conflicts = 1
+
+            def __init__(self, session_path):
+                self.uid, self.email = "u1", "ja@example.com"
+
+            def token(self):
+                return "t"
+
+            def list_ids(self, collection):
+                return [k.rsplit("/", 1)[1] for k in self.docs if k.startswith(collection + "/")]
+
+            def get_doc(self, path):
+                d = self.docs.get(path)
+                return (dict(d[0]), d[1]) if d else None
+
+            def set(self, path, fields, if_update_time=None, if_missing=False):
+                cur = self.docs.get(path)
+                if FakeCloud.conflicts and path == "archiwum/u1":
+                    # W międzyczasie telefon dopisał zdjęcie - pierwszy zapis spisu odrzucony
+                    FakeCloud.conflicts -= 1
+                    items = json.loads(cur[0]["items"]) + [{"id": "p3", "t": ms(2026, 11, 9), "n": "IMG_9.jpg", "src": "tel"}]
+                    self.docs[path] = ({**cur[0], "items": json.dumps(items)}, "v2")
+                    raise chmura.Conflict("HTTP 400: FAILED_PRECONDITION")
+                if (if_update_time and (not cur or cur[1] != if_update_time)) or (if_missing and cur):
+                    raise chmura.Conflict("HTTP 409")
+                self.docs[path] = (fields, "v3")
+
+            def delete(self, path):
+                self.deleted.append(path)
+                self.docs.pop(path, None)
+
+        FakeCloud.docs = {
+            "archiwum/u1": ({"items": json.dumps([
+                {"id": "p1", "t": ms(2026, 11, 5), "n": "IMG_5.jpg", "src": "tel"},
+                {"id": "p2", "t": ms(2014, 7, 1), "n": "DSC_1.jpg", "src": "tel"},
+            ])}, "v1"),
+            "archiwum/u1/zdjecia/p1": ({}, "v1"),
+            "archiwum/u1/zdjecia/p2": ({}, "v1"),
+            "archiwum/u1/zdjecia/old": ({}, "v1"),
+        }
+        with tempfile.TemporaryDirectory() as work:
+            os.makedirs(os.path.join(work, "eksport"))
+            spis = [{"id": "t1", "t": ms(2014, 7, 1, 13), "n": "DSC_1.jpg", "s": 8}]
+            with open(os.path.join(work, "eksport", "spis.json"), "w", encoding="utf-8") as f:
+                json.dump(spis, f)
+            with open(os.path.join(work, "eksport", "t1.jpg"), "wb") as f:
+                f.write(jpeg(1, 80, 60))
+            real = chmura.Cloud
+            chmura.Cloud = FakeCloud
+            try:
+                with unittest.mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+                    archiwum.cmd_wyslij(types.SimpleNamespace(praca=work, wszystkie=False, usun_stare=True))
+            finally:
+                chmura.Cloud = real
+        fields = FakeCloud.docs["archiwum/u1"][0]
+        self.assertEqual([x["id"] for x in json.loads(fields["items"])], ["t1", "p1", "p3"])
+        self.assertEqual(fields["count"], 3)
+        self.assertIn("w tym z telefonu 2", out.getvalue())
+        # p2 to to samo zdjęcie co t1 z Takeoutu; „old” - spoza spisu (--usun-stare); p3 dodany w trakcie - zostaje
+        self.assertEqual(sorted(FakeCloud.deleted), ["archiwum/u1/zdjecia/old", "archiwum/u1/zdjecia/p2"])
 
 
 class EndToEnd(unittest.TestCase):

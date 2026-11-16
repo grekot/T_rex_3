@@ -205,6 +205,8 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         line = 'Szukam wspomnień w starszych zdjęciach: okres ${p.done + 1} z ${p.total}';
       case PoolPhase.archive:
         line = 'Pobieram wspomnienia z archiwum: ${p.done} z ${p.total}';
+      case PoolPhase.archiveUpload:
+        line = 'Dokładam nowe zdjęcia do archiwum: ${p.done} z ${p.total}';
       case PoolPhase.preparing:
         line = 'Kadruję zdjęcia dla zegarka: ${p.done} z ${p.total}';
       case PoolPhase.noAccess:

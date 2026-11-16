@@ -24,8 +24,10 @@ bo są w nim miniatury, zdjęcia i token konta.
 6. `python archiwum.py eksport` - JPEG ≤ 800×600 (krótszy bok ≤ 600), bez EXIF/GPS, + `eksport/spis.json`.
 7. `python archiwum.py zaloguj` - **wpisujesz sam** e-mail i hasło konta (tego co w Zakupach / Wadze);
    w `sesja.json` zostaje tylko token odświeżania.
-8. `python archiwum.py wyslij` - zdjęcia, których jeszcze nie ma w bazie, potem spis.
-   `--usun-stare` usuwa z bazy zdjęcia spoza nowego spisu (po ponownym wyborze).
+8. `python archiwum.py wyslij` - zdjęcia, których jeszcze nie ma w bazie, potem spis - scalony ze zdjęciami
+   dodanymi z telefonu (`src: "tel"`, Zdjęcia 0.12.0+) i zapisany z warunkiem wersji (gdy telefon w tym czasie
+   coś dopisze - jeszcze raz). Zdjęcie z telefonu, które jest też w nowym wyborze z Takeoutu, ustępuje wersji
+   z przeglądu. `--usun-stare` usuwa z bazy zdjęcia spoza nowego spisu (po ponownym wyborze; zdjęć z telefonu nie).
 
 Klucz API i projekt bierze z `phone/lib/cloud/firebase_config.dart` (plik poza repo, jak w aplikacji)
 albo ze zmiennych `ZDJECIA_API_KEY` i `ZDJECIA_PROJECT`.

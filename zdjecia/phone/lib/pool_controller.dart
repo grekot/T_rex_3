@@ -3,6 +3,7 @@
 // w tle podaje je zegarkowi (a z danych kadru robi też JPEG-i dla zegarów HomeAutomation). Wspomnienia biorą się
 // z archiwum w Firestore (najciekawsze zdjęcia z całej biblioteki, ARCHIWUM.md), a bez niego - z historii galerii.
 // Strumień dla zegarów (clocks.json) dostaje nowe zdjęcia puli i co godzinę kilka z archiwum.
+// Najlepsze nowe zdjęcia z telefonu (ocena Gemini ≥ 7, po 3 dniach) same trafiają do archiwum (archive_add.dart).
 // Ten sam kod działa w aplikacji i bez ekranu w usłudze w tle (headless); blokada w plikach pilnuje,
 // żeby nie odświeżały naraz.
 import 'dart:io';
@@ -18,8 +19,10 @@ import 'ai/key_store.dart';
 import 'ai/photo_rating.dart';
 import 'ai/rater.dart';
 import 'archive/archive.dart';
+import 'archive/archive_add.dart';
 import 'archive/archive_source.dart';
 import 'bridge/photo_prep.dart';
+import 'cloud/firebase_rest.dart';
 import 'media/analyzer.dart';
 import 'media/gallery.dart';
 import 'select/analysis.dart';
@@ -32,7 +35,7 @@ import 'select/pool.dart';
 import 'select/scoring.dart';
 import 'select/store.dart';
 
-enum PoolPhase { starting, scanning, analyzing, rating, memories, archive, preparing, ready, noAccess, failed }
+enum PoolPhase { starting, scanning, analyzing, rating, memories, archive, archiveUpload, preparing, ready, noAccess, failed }
 
 /// Najwięcej zdjęć wysyłanych do oceny w jednym odświeżeniu (reszta przy następnym)
 const int maxRatingsPerRefresh = 400;
@@ -93,6 +96,15 @@ class PoolController extends ChangeNotifier {
   /// Konto i spis archiwum (do ekranu „Archiwum”)
   ArchiveStatus archiveStatus = const ArchiveStatus();
   bool _archiveReady = false;
+
+  /// Zdjęcia z tego telefonu już dodane do archiwum (id w puli)
+  Set<String> archivedPhotoIds = {};
+
+  /// Ostatni problem z dokładaniem zdjęć do archiwum (brak sieci, wygasła sesja)
+  String? archiveAddError;
+
+  /// Ile zdjęć z telefonu jest w spisie archiwum (z tego i innych telefonów)
+  int get archivePhoneCount => _archiveEntries.where((e) => e.fromPhone).length;
 
   @override
   void dispose() {
@@ -224,6 +236,7 @@ class PoolController extends ChangeNotifier {
         _forgetOld();
         await _store.saveAnalyses(_analyses);
         await _rateMissing();
+        await _addToArchive();
         await _refreshMemories();
         _rescore();
         await _preparePool(swap: swap ? freshSwapOnRefresh : 0);
@@ -237,6 +250,7 @@ class PoolController extends ChangeNotifier {
       final r = await _archive.index(check: check, force: force);
       _archiveEntries = r.entries;
       archiveStatus = r.status;
+      archivedPhotoIds = r.status.signedIn ? (await _archive.loadAdded()).keys.toSet() : {};
     } catch (e) {
       archiveStatus = ArchiveStatus(email: archiveStatus.email, count: _archiveEntries.length, error: '$e');
     }
@@ -378,6 +392,96 @@ class PoolController extends ChangeNotifier {
       ...stream.archiveIds,
       for (final p in published) ?archiveIdOf(p.assetId),
     });
+  }
+
+  /// Najlepsze nowe zdjęcia z telefonu do archiwum ([chooseAdditions]): ocena Gemini, którą zdjęcie już ma
+  /// (bez nowych zapytań), po [addAfter], z limitami na wydarzenie i dzień; przypięte i [manual] - też.
+  /// Najpierw zdjęcia, potem wpisy w spisie (zapis z warunkiem wersji). Błąd nie przerywa odświeżania.
+  Future<void> _addToArchive({Set<String> manual = const {}}) async {
+    if (!archiveStatus.signedIn || (!prefs.archiveAuto && manual.isEmpty)) return;
+    archiveAddError = null;
+    try {
+      final added = await _archive.loadAdded();
+      final now = DateTime.now();
+      final window = Duration(days: prefs.days);
+      final candidates = <AddCandidate>[];
+      for (final e in _assets.entries) {
+        final id = e.key;
+        if (added.containsKey(id)) continue;
+        final isManual = manual.contains(id);
+        final pinned = prefs.pinned.contains(id);
+        final r = _ratings[id];
+        final taken = _analyses[id]?.taken ?? e.value.createDateTime;
+        // Same z siebie tylko nowe zdjęcia (nie wspomnienia z historii galerii)
+        final good = r != null && r.keep && r.score >= addMinScore && now.difference(taken) <= window;
+        if (!isManual && !pinned && !good) continue;
+        var name = e.value.title ?? '';
+        if (name.isEmpty) name = await e.value.titleAsync;
+        candidates.add(AddCandidate(
+          photoId: id,
+          assetId: e.value.id,
+          name: name,
+          taken: taken,
+          rating: r,
+          pinned: pinned,
+          manual: isManual,
+        ));
+      }
+      final chosen = chooseAdditions(candidates,
+          existing: _archiveEntries, added: added.keys.toSet(), removed: prefs.removed, now: now);
+      if (chosen.isEmpty) return;
+      _set(PoolPhase.archiveUpload, total: chosen.length);
+      final entries = <Map<String, Object>>[];
+      final ids = <String, String>{};
+      for (final c in chosen) {
+        try {
+          final source = await imageBytes(_assets[c.photoId]!, 1600, quality: 92);
+          if (source == null) throw StateError('System nie oddał danych zdjęcia');
+          final jpeg = await compute(prepareArchiveJpeg, source);
+          final id = phoneArchiveId(c.name, c.taken);
+          await _archive.uploadPhoto(id, jpeg.bytes, c.taken);
+          entries.add(phoneEntry(c, id, jpeg.width, jpeg.height));
+          ids[c.photoId] = id;
+        } on CloudException catch (e) {
+          archiveAddError = e.message;
+          if (e.unauthorized) break;
+        } catch (e) {
+          debugPrint('Archiwum, dodawanie ${c.photoId}: $e');
+        }
+        done++;
+        notifyListeners();
+      }
+      if (entries.isEmpty) return;
+      await _archive.appendToIndex(entries);
+      await _archive.saveAdded({...added, ...ids});
+      await _loadArchive(check: false);
+    } on CloudException catch (e) {
+      archiveAddError = e.message;
+    } catch (e) {
+      archiveAddError = '$e';
+    }
+  }
+
+  /// „Dodaj do archiwum” na karcie zdjęcia: od razu, bez limitów. null = dodane, inaczej komunikat.
+  Future<String?> addToArchive(String id) async {
+    if (_busy) return 'Trwa odświeżanie - spróbuj za chwilę';
+    await _run(() async {
+      await _loadArchive();
+      await _addToArchive(manual: {id});
+      _set(PoolPhase.ready);
+    });
+    if (archivedPhotoIds.contains(id)) return null;
+    if (lockedOut) return 'Trwa odświeżanie w tle - spróbuj za chwilę';
+    return archiveAddError ?? error ?? 'Nie udało się dodać zdjęcia';
+  }
+
+  /// Zapamiętany wybór: czy telefon sam dokłada nowe zdjęcia do archiwum
+  Future<void> setArchiveAuto(bool enabled) async {
+    final p = await _store.loadPrefs();
+    p.archiveAuto = enabled;
+    await _store.savePrefs(p);
+    prefs.archiveAuto = enabled;
+    notifyListeners();
   }
 
   /// Usługa w tle co kwadrans: strumień zegarów (zdjęcia z archiwum dochodzą co godzinę)

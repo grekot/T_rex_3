@@ -10,6 +10,8 @@ Takeout (ZIP-y na PC) → tools/archiwum (skan, odsiew, arkusze do przeglądu, e
 Firestore archiwum/{uid}  +  archiwum/{uid}/zdjecia/{id}
         ↓ telefon: spis raz na odświeżenie, pojedyncze zdjęcia na żądanie (pamięć podręczna w plikach)
 Pula zegarka (wspomnienia)  +  strumień zegarów biurkowych (/clocks.json)
+
+Telefon (od 0.12.0): najlepsze nowe zdjęcia z aparatu → archiwum/{uid}/zdjecia/{id} + wpis w spisie (src "tel")
 ```
 
 ## Dokumenty
@@ -39,6 +41,8 @@ Wpis w `items`:
 | `w`, `h` | wymiary JPEG-a po zmniejszeniu |
 | `f`   | opcjonalnie: najciekawszy fragment - left, top, width, height (ułamki zdjęcia) - jak `focus` od Gemini |
 | `m`   | opcjonalnie: główny motyw - jak `subject` od Gemini |
+| `n`   | nazwa pliku (np. `20261115_123456.jpg`) - po niej i czasie (do 14 h różnicy) PC i telefon rozpoznają to samo zdjęcie |
+| `src` | `"tel"` = dodane z telefonu (nie z Takeoutu); brak = wybór z PC |
 
 `archiwum/{uid}/zdjecia/{id}`:
 
@@ -50,10 +54,24 @@ Wpis w `items`:
 Reguły (`App_storage/firebase/firestore.rules`): czyta, zapisuje i usuwa tylko właściciel (`uid`),
 `items` musi być tekstem, `jpeg` bajtami do 300 KB.
 
+## Dwóch piszących: PC i telefon
+
+Spis zapisują dwie strony, więc obie zapisują go **z warunkiem wersji** (`currentDocument.updateTime`, a gdy
+spisu nie ma - `currentDocument.exists=false`): odczyt, scalenie, zapis; gdy w tym czasie zapisała druga strona -
+Firestore odrzuca zapis (400 `FAILED_PRECONDITION` / 409) i całość idzie jeszcze raz. Żaden wpis nie ginie.
+
+- **Telefon** dopisuje swoje wpisy (`src: "tel"`) i nie rusza pozostałych (zachowuje też pola, których nie zna);
+  pomija zdjęcie, które już jest w spisie (ta sama nazwa i czas). Id: 12 znaków hex z nazwy pliku i czasu
+  (stałe - ponowna wysyłka nadpisuje to samo zdjęcie).
+- **PC** (`wyslij`) układa spis od nowa z eksportu, ale zostawia wpisy `src: "tel"`; wpis z telefonu, który jest
+  też w nowym wyborze z Takeoutu, ustępuje wersji z przeglądu (jego zdjęcie jest usuwane). `--usun-stare`
+  nie usuwa zdjęć z telefonu.
+
 ## Limity planu Spark
 
 1000 zdjęć po ~100 KB = ~100 MB z 1 GiB na cały projekt. Wysyłka = ~1000 zapisów (limit 20 000 dziennie).
-Telefon: 1 odczyt spisu na odświeżenie + 1 odczyt na każde nowe zdjęcie (kilkadziesiąt dziennie).
+Telefon: 1 odczyt spisu na odświeżenie + 1 odczyt na każde nowe zdjęcie (kilkadziesiąt dziennie);
+dokładanie z telefonu - kilkadziesiąt zdjęć miesięcznie (kilka MB, po 2 zapisy na zdjęcie i spis).
 
 ## Telefon
 
@@ -62,3 +80,7 @@ Telefon: 1 odczyt spisu na odświeżenie + 1 odczyt na każde nowe zdjęcie (kil
   ale **nie idzie do Gemini**: ocena, podpis i fragment są ze spisu.
 - Wspomnienia biorą się z archiwum, gdy jest spis; bez konta / bez spisu - jak dotąd z historii galerii.
 - Zdjęcie wraca do puli najwcześniej po `archiveRest` (pokazane dawno - pierwsze w kolejce).
+- Od 0.12.0 telefon sam dokłada nowe zdjęcia (`lib/archive/archive_add.dart`): ocena Gemini ≥ 7 (ta, którą zdjęcie
+  już ma - bez nowych zapytań), 3 dni po zrobieniu, najwyżej 2 z wydarzenia (3 h) i 3 z dnia, przypięte zawsze,
+  „Dodaj do archiwum” na karcie zdjęcia - od razu. JPEG jak z PC (≤ 800×600, bez EXIF, bez obróbki kolorów).
+  Wspomnieniem zostaje dopiero po okresie świeżych zdjęć (domyślnie 30 dni).

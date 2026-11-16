@@ -19,6 +19,10 @@ class CloudError(Exception):
     pass
 
 
+class Conflict(CloudError):
+    """Dokument zmienił się od odczytu (zapis z warunkiem wersji) - trzeba odczytać i scalić jeszcze raz."""
+
+
 def load_config(path: str = CONFIG_DART) -> tuple[str, str]:
     """Klucz API i projekt: zmienne ZDJECIA_API_KEY / ZDJECIA_PROJECT albo plik konfiguracji aplikacji na telefon."""
     key, project = os.environ.get("ZDJECIA_API_KEY"), os.environ.get("ZDJECIA_PROJECT")
@@ -57,11 +61,15 @@ def _request(method: str, url: str, body: dict | None = None, token: str | None 
             if e.code in (429, 500, 502, 503, 504) and attempt < 3:
                 time.sleep(2 ** attempt * 2)
                 continue
+            status = ""
             try:
-                msg = json.loads(text).get("error", {})
-                msg = msg.get("message") if isinstance(msg, dict) else msg
+                err = json.loads(text).get("error", {})
+                msg = err.get("message") if isinstance(err, dict) else err
+                status = err.get("status", "") if isinstance(err, dict) else ""
             except ValueError:
                 msg = text[:200]
+            if e.code == 409 or (e.code == 400 and status == "FAILED_PRECONDITION"):
+                raise Conflict(f"HTTP {e.code}: {msg}") from None
             raise CloudError(f"HTTP {e.code}: {msg}") from None
         except urllib.error.URLError as e:
             if attempt < 3:
@@ -155,17 +163,30 @@ class Cloud:
         self._token, self._token_until = j["id_token"], time.time() + int(j.get("expires_in", 3600)) - 120
         return self._token
 
-    def set(self, path: str, fields: dict) -> None:
-        _request("PATCH", f"{self.base}/{path}", {"fields": {k: to_value(v) for k, v in fields.items()}}, token=self.token())
+    def set(self, path: str, fields: dict, if_update_time: str | None = None, if_missing: bool = False) -> None:
+        """Zapis całego dokumentu. [if_update_time] / [if_missing] - tylko gdy dokument się nie zmienił
+        od odczytu (inaczej [Conflict]); telefon w tym czasie mógł dopisać zdjęcia do spisu."""
+        q = ""
+        if if_update_time:
+            q = "?" + urllib.parse.urlencode({"currentDocument.updateTime": if_update_time})
+        elif if_missing:
+            q = "?currentDocument.exists=false"
+        body = {"fields": {k: to_value(v) for k, v in fields.items()}}
+        _request("PATCH", f"{self.base}/{path}{q}", body, token=self.token())
 
-    def get(self, path: str) -> dict | None:
+    def get_doc(self, path: str) -> tuple[dict, str] | None:
+        """Pola dokumentu i jego wersja (updateTime); None = nie ma dokumentu."""
         try:
             j = _request("GET", f"{self.base}/{path}", token=self.token())
         except CloudError as e:
             if str(e).startswith("HTTP 404"):
                 return None
             raise
-        return {k: from_value(v) for k, v in j.get("fields", {}).items()}
+        return {k: from_value(v) for k, v in j.get("fields", {}).items()}, j.get("updateTime", "")
+
+    def get(self, path: str) -> dict | None:
+        doc = self.get_doc(path)
+        return doc[0] if doc else None
 
     def list_ids(self, collection: str, mask: tuple[str, ...] = ("t",)) -> list[str]:
         out, page = [], None
