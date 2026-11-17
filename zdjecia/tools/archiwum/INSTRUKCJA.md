@@ -36,8 +36,8 @@ a `wyslij` z tej wersji narzędzia te zdjęcia zachowuje (scalanie spisu z warun
 
 **Zdjęcia telefon 0.13.0 wydane** (2026-11-17, tag `zdjecia-v0.13.0` na f3ecc6d): kolaże z archiwum (wpisy `k`)
 idą tylko na zegary biurkowe, nie do wspomnień na okrągły zegarek. 150 kolaży gotowych w `praca/kolaze`
-(`archiwum.py kolaze`, opis w [README.md](README.md#kolaże)) - **czekają na wysyłkę** (`wyslij`), aż właściciel
-potwierdzi, że telefon ma już 0.13.0 (starsza wersja dałaby kolaże też jako wspomnienia na zegarek).
+(`archiwum.py kolaze`, opis w [README.md](README.md#kolaże)) - **WYSŁANE** 2026-11-17 po potwierdzeniu, że telefon
+ma 0.13.0. Spis w bazie: 1159 wpisów (1000 zdjęć z Takeoutu + 150 kolaży + 9 z telefonu, 137 KB).
 
 **Stan na 2026-11-16 (wieczór): archiwum z Takeoutu WYSŁANE.**
 - Takeout: 2 ZIP-y (34 + 33 GB), komplet (JSON-y i zdjęcia parują się między paczkami).
