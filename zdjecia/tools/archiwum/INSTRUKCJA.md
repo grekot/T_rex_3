@@ -251,6 +251,16 @@ PYTHONIOENCODING=utf-8 python archiwum.py eksport
 - Jako kontrolę obejrzyj 3–4 losowe pliki z `eksport`: orientacja i kolory.
 - Pokaż właścicielowi rozkład na lata i rozmiar.
 
+### Kolaże (opcjonalnie)
+
+```bash
+PYTHONIOENCODING=utf-8 python archiwum.py kolaze --proba 12   # próbki do praca/kolaze_proba - obejrzyj
+PYTHONIOENCODING=utf-8 python archiwum.py kolaze              # 150 kolaży do praca/kolaze, wysyła je wyslij
+```
+
+Kolaże idą tylko na zegary biurkowe - wymagają Zdjęć na telefonie **0.13.0+** (starsza wersja pokazałaby je też
+jako wspomnienie na okrągłym zegarku). Opis układów: [README.md](README.md#kolaże).
+
 ## 6. Logowanie [TY]
 
 W **swoim** terminalu (PowerShell), bo Claude nie wpisuje hasła, a skrypt pyta interaktywnie:

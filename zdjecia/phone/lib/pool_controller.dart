@@ -302,7 +302,7 @@ class PoolController extends ChangeNotifier {
     final shown = await _archive.loadShown();
     final clocks = await _store.loadClockStream();
     final picks = pickArchive(
-      _archiveEntries,
+      [for (final e in _archiveEntries) if (!e.isCollage) e], // kolaże 16:9 tylko na zegary biurkowe
       count: need + 3, // zapas na zdjęcia, których nie uda się pobrać
       now: now,
       random: _random,

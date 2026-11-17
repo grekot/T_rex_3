@@ -75,6 +75,16 @@ void main() {
       expect(ArchiveEntry.fromJson(a.toJson())!.toJson(), a.toJson());
     });
 
+    test('kolaż z PC (k): rozpoznany i zachowany przy zapisie', () {
+      final k = ArchiveEntry.fromJson({
+        'id': 'c0ffee123456', 't': 1, 'w': 800, 'h': 450, 'k': ['3f9a0c1d2e4b', 'abcdef12', 5],
+      })!;
+      expect(k.isCollage, isTrue);
+      expect(k.parts, ['3f9a0c1d2e4b', 'abcdef12']);
+      expect(k.toJson()['k'], ['3f9a0c1d2e4b', 'abcdef12']);
+      expect(ArchiveEntry.fromJson({'id': 'abcdef12', 't': 1})!.isCollage, isFalse);
+    });
+
     test('ocena ze spisu zamiast Gemini', () {
       final r = entry('abcdef', DateTime(2014), score: 9, caption: 'Las').rating;
       expect((r.score, r.keep, r.caption, r.category), (9, true, 'Las', 'archiwum'));

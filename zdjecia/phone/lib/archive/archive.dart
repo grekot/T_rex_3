@@ -30,6 +30,7 @@ class ArchiveEntry {
     this.subject,
     this.name,
     this.fromPhone = false,
+    this.parts = const [],
   });
 
   final String id;
@@ -46,6 +47,10 @@ class ArchiveEntry {
 
   /// Dodane z telefonu (`src: "tel"`), nie z Takeoutu
   final bool fromPhone;
+
+  /// Kolaż z PC (`k`: id zdjęć w kolażu) - płótno 16:9 tylko dla zegarów biurkowych, nie na okrągły zegarek
+  final List<String> parts;
+  bool get isCollage => parts.isNotEmpty;
 
   /// Id w puli (bez kadru)
   String get photoId => 'a_$id';
@@ -86,6 +91,7 @@ class ArchiveEntry {
       subject: box(j['m']),
       name: j['n'] is String ? j['n'] as String : null,
       fromPhone: j['src'] == 'tel',
+      parts: j['k'] is List ? [for (final x in j['k'] as List) if (x is String) x] : const [],
     );
   }
 
@@ -100,6 +106,7 @@ class ArchiveEntry {
         'm': ?subject,
         'n': ?name,
         if (fromPhone) 'src': 'tel',
+        if (parts.isNotEmpty) 'k': parts,
       };
 }
 

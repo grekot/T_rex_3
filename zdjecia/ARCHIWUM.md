@@ -43,6 +43,7 @@ Wpis w `items`:
 | `m`   | opcjonalnie: główny motyw - jak `subject` od Gemini |
 | `n`   | nazwa pliku (np. `20261115_123456.jpg`) - po niej i czasie (do 14 h różnicy) PC i telefon rozpoznają to samo zdjęcie |
 | `src` | `"tel"` = dodane z telefonu (nie z Takeoutu); brak = wybór z PC |
+| `k`   | kolaż z PC (`tools/archiwum` → `kolaze`): lista id zdjęć z archiwum, z których powstał. Płótno 800×450 (16:9), ważna treść w środkowym pasie 4:3, `f` = ten pas. Telefon (od 0.13.0) daje kolaże tylko na zegary biurkowe, nie do wspomnień na okrągły zegarek |
 
 `archiwum/{uid}/zdjecia/{id}`:
 

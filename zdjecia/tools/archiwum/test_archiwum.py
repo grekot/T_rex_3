@@ -153,6 +153,42 @@ class Selection(unittest.TestCase):
         self.assertEqual(wybor.export_size(1920, 1080), (800, 450))
         self.assertEqual(wybor.export_size(640, 480), (640, 480))
 
+    def test_collages(self):
+        import kolaze
+
+        def e(i, t, s=7, c="Ognisko"):
+            return {"id": f"{i:012x}", "taken": t, "review": {"s": s, "c": c}, "faces": [[0.4, 0.2, 0.1, 0.1]]}
+
+        chosen = [e(1, ms(2015, 7, 1, 10)), e(2, ms(2015, 7, 1, 11), 9, "Tort urodzinowy"), e(3, ms(2015, 7, 1, 12)),
+                  e(4, ms(2016, 12, 24, 18)), e(5, ms(2016, 12, 24, 19)), e(6, ms(2017, 3, 1))]
+        grp = kolaze.groups(chosen, 10)
+        self.assertEqual(len(grp), 2)  # samotne zdjęcie z 2017 nie tworzy kolażu
+        used = [x["id"] for g in grp for x in g]
+        self.assertEqual(len(used), len(set(used)))
+        entry = kolaze.index_entry(grp[0])
+        self.assertEqual((entry["w"], entry["h"], entry["s"], entry["c"]), (800, 450, 9, "Tort urodzinowy"))
+        self.assertEqual(entry["k"], [x["id"] for x in grp[0]])
+        self.assertEqual(entry["f"], [0.125, 0.0, 0.75, 1.0])
+        imgs = [Image.new("RGB", (800, 600), (200, 40, 40)), Image.new("RGB", (450, 800), (40, 200, 40)),
+                Image.new("RGB", (800, 600), (40, 40, 200))]
+        for g in grp:
+            img, kind = kolaze.render(g, imgs[: len(g)])
+            self.assertEqual(img.size, (800, 450))
+            self.assertLessEqual(len(kolaze.save_jpeg(img)), kolaze.MAX_JPEG)
+            self.assertEqual(kolaze.render(g, imgs[: len(g)])[1], kind)  # deterministycznie
+        rng = __import__("random").Random(1)
+        for name, fn in kolaze.LAYOUTS[2] + kolaze.LAYOUTS[3]:  # każdy układ się rysuje
+            n = 3 if (name, fn) in kolaze.LAYOUTS[3] else 2
+            bg = kolaze.background("papier", imgs, rng)
+            if name == "wstawka":
+                spot = kolaze.wstawka_spot(imgs, [(0.2, 0.3)] * n, [[[0.1, 0.2, 0.1, 0.1]], []])
+                self.assertIsNotNone(spot)
+                fn(bg, imgs, [(0.2, 0.3)] * n, rng, spot)
+            else:
+                fn(bg, imgs, [(0.5, 0.4)] * n, rng)
+        for theme in ("rozmyte", "papier", "zima", "urodziny", "wiosna", "lato", "jesien"):
+            self.assertEqual(kolaze.background(theme, imgs, rng).size, (800, 450))
+
     def test_rotation(self):
         self.assertEqual([wybor.clean_rotation(v) for v in (90, "180", 270, -90, 45, None, "x")], [90, 180, 270, 270, 0, 0, 0])
         import archiwum

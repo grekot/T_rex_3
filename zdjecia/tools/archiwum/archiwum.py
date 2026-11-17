@@ -314,6 +314,47 @@ def cmd_eksport(args) -> None:
     print(f"Eksport: {len(spis)} zdjęć, {size / 1024 / 1024:.1f} MB w {out_dir}")
 
 
+def cmd_kolaze(args) -> None:
+    import kolaze
+
+    work = args.praca
+    spis = load_json(p(work, "eksport", "spis.json"), [])
+    if not spis:
+        sys.exit("Brak eksportu - najpierw: eksport")
+    have = {s["id"] for s in spis}
+    chosen = [e for e in load_json(p(work, "wybrane.json"), []) if e["id"] in have]
+    grp = kolaze.groups(chosen, args.ile)
+    out_dir = p(work, "kolaze_proba" if args.proba else "kolaze")
+    os.makedirs(out_dir, exist_ok=True)
+    if args.proba:
+        rnd = __import__("random").Random(args.proba)
+        grp = rnd.sample(grp, min(args.proba, len(grp)))
+    entries, kinds = [], Counter()
+    for i, g in enumerate(grp, 1):
+        e = kolaze.index_entry(g)
+        path = p(out_dir, f"{e['id']}.jpg")
+        img, kind = kolaze.render(g, [kolaze.open_rgb(p(work, "eksport", f"{x['id']}.jpg")) for x in g])
+        with open(path, "wb") as f:
+            f.write(kolaze.save_jpeg(img))
+        kinds[kind.split("/")[0]] += 1
+        kinds[kind.split("/")[1]] += 1
+        entries.append(e)
+        if args.proba:
+            print(f"  {e['id']}.jpg  {kind}  „{e['c']}”")
+        elif i % 50 == 0:
+            print(f"  {i}/{len(grp)}", flush=True)
+    keep = {f"{e['id']}.jpg" for e in entries}
+    for f in os.listdir(out_dir):
+        if f.endswith(".jpg") and f not in keep:
+            os.remove(p(out_dir, f))
+    save_json(p(out_dir, "spis.json"), entries)
+    size = sum(os.path.getsize(p(out_dir, f"{e['id']}.jpg")) for e in entries)
+    years = Counter(datetime.fromtimestamp(e["t"] / 1000).year for e in entries)
+    print(f"Kolaże: {len(entries)}, {size / 1024 / 1024:.1f} MB w {out_dir}")
+    print("  " + ", ".join(f"{k}: {v}" for k, v in sorted(kinds.items())))
+    print("  lata: " + ", ".join(f"{y}: {c}" for y, c in sorted(years.items())))
+
+
 # ------------------------------------------------------------------ chmura
 
 
@@ -334,6 +375,13 @@ def cmd_wyslij(args) -> None:
     spis = load_json(p(work, "eksport", "spis.json"), [])
     if not spis:
         sys.exit("Brak eksportu - najpierw: eksport")
+    folder = {s["id"]: "eksport" for s in spis}
+    # Kolaże (kolaze) - tylko te, których wszystkie zdjęcia są w eksporcie (po nowym wyborze: kolaze jeszcze raz)
+    collages = [k for k in load_json(p(work, "kolaze", "spis.json"), []) if all(x in folder for x in k.get("k", []))]
+    if collages:
+        print(f"Kolaże: {len(collages)}")
+        folder.update({k["id"]: "kolaze" for k in collages})
+        spis = spis + collages
     cloud = chmura.Cloud(p(work, "sesja.json"))
     cloud.token()
     base = f"archiwum/{cloud.uid}"
@@ -342,7 +390,7 @@ def cmd_wyslij(args) -> None:
     print(f"Konto {cloud.email}: w bazie {len(have)}, do wysłania {len(todo)}")
 
     def send(s: dict) -> None:
-        with open(p(work, "eksport", f"{s['id']}.jpg"), "rb") as f:
+        with open(p(work, folder[s["id"]], f"{s['id']}.jpg"), "rb") as f:
             cloud.set(f"{base}/zdjecia/{s['id']}", {"jpeg": f.read(), "t": int(s["t"])})
 
     done = 0
@@ -404,6 +452,10 @@ def main() -> None:
     s = sub.add_parser("eksport")
     s.add_argument("--od-nowa", action="store_true")
     s.set_defaults(fn=cmd_eksport)
+    s = sub.add_parser("kolaze")
+    s.add_argument("--ile", type=int, default=150)
+    s.add_argument("--proba", type=int, default=0, help="tylko N losowych kolaży do obejrzenia (folder kolaze_proba)")
+    s.set_defaults(fn=cmd_kolaze)
     sub.add_parser("zaloguj").set_defaults(fn=cmd_zaloguj)
     s = sub.add_parser("wyslij")
     s.add_argument("--wszystkie", action="store_true", help="wyślij też te, które już są w bazie")

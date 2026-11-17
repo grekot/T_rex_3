@@ -32,6 +32,21 @@ bo są w nim miniatury, zdjęcia i token konta.
 Klucz API i projekt bierze z `phone/lib/cloud/firebase_config.dart` (plik poza repo, jak w aplikacji)
 albo ze zmiennych `ZDJECIA_API_KEY` i `ZDJECIA_PROJECT`.
 
+## Kolaże
+
+`python archiwum.py kolaze [--ile 150] [--proba N]` - kolaże 2-3 zdjęć z jednego wydarzenia (z eksportu, czyli ze zdjęć,
+które są w archiwum) do `praca/kolaze/` + `spis.json`; `wyslij` wysyła je razem ze zdjęciami (wpisy z `k`, ARCHIWUM.md).
+`--proba N` robi tylko N losowych do `praca/kolaze_proba/` (do obejrzenia, nie idą do bazy).
+
+- Płótno 800×450 (zegar 480×272); zdjęcia w środkowym pasie 4:3 (x 100-700), bo zegar 320×240 obetnie boki.
+- Układy (`kolaze.py`, losowane stale dla danej grupy): obok siebie (polaroidy / cienka ramka), wstawka (jedno
+  na całe płótno, drugie w wolnym rogu - tylko gdy róg nie zasłania twarzy ani motywu), duże i małe zachodzące
+  na siebie, okno (zaokrąglone + drugie w kółku), trójka (duże + dwa małe), polaroidy w wachlarzu.
+- Tła: rozmyte zdjęcie, papier, a okazjonalnie motyw - zima / święta (grudzień, choinka), urodziny (tort, świeczki),
+  wiosna (Wielkanoc), lato, jesień.
+- Podpis, ocena i czas najlepszego zdjęcia z grupy. Lata wyrównane jak przy wyborze, jedno zdjęcie w jednym kolażu.
+- Po zmianie wyboru (`wybierz` / `eksport`) uruchom `kolaze` jeszcze raz; `wyslij` pomija kolaże ze zdjęciami spoza eksportu.
+
 ## Oceny przeglądu
 
 `oceny/arkusz_012.json` - tylko wybrane kafelki (numer z arkusza), reszta = odrzucone:
