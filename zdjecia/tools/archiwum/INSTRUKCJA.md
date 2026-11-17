@@ -34,6 +34,11 @@ a `wyslij` z tej wersji narzędzia te zdjęcia zachowuje (scalanie spisu z warun
 2. Archiwum z Takeoutu - kroki niżej. `wyslij` zawsze z aktualnej wersji narzędzia (starsza nadpisałaby spis
    bez zdjęć dodanych z telefonu).
 
+**Zdjęcia telefon 0.13.0 wydane** (2026-11-17, tag `zdjecia-v0.13.0` na f3ecc6d): kolaże z archiwum (wpisy `k`)
+idą tylko na zegary biurkowe, nie do wspomnień na okrągły zegarek. 150 kolaży gotowych w `praca/kolaze`
+(`archiwum.py kolaze`, opis w [README.md](README.md#kolaże)) - **czekają na wysyłkę** (`wyslij`), aż właściciel
+potwierdzi, że telefon ma już 0.13.0 (starsza wersja dałaby kolaże też jako wspomnienia na zegarek).
+
 **Stan na 2026-11-16 (wieczór): archiwum z Takeoutu WYSŁANE.**
 - Takeout: 2 ZIP-y (34 + 33 GB), komplet (JSON-y i zdjęcia parują się między paczkami).
 - Skan: katalog **24 996 zdjęć**, 0 błędów odczytu (pominięte: zrzuty/komunikatory 367, bez JSON-a 165, duplikaty albumów 32).
