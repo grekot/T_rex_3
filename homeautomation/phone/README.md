@@ -403,6 +403,9 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   tylko gdy ekran `photo` jest w pokazie.
   Zmiana zdjęcia (1.32.0, Config `photos.changeMin`, zegar biurkowy 0.9.2+): lista „Zmiana zdjęcia” na stronie
   „Zdjęcia” (`clockPhotoChangeOptions`; ukryta, gdy firmware nie ma pola).
+  Spalone (1.33.0, `seen` w `GET /api/photos`, zegar biurkowy 0.9.3+): zdjęcie obejrzane przy przeglądaniu na zegarze
+  `planPhotoSync` stawia na końcu kolejki (`burned` w `photo_sync_<id>`, póki jest w liście mostu) - zegar dostaje
+  w jego miejsce kolejne z listy; bez zamienników zostaje.
   Kafelki: „Zegar - pokój” (ikona pogody z zegara), wykres temperatury, ciśnienie, na zewnątrz. Atrapa:
   `dart run tool/fake_device.dart --type clock`.
 - **Kalendarz domu** (☰ → Kalendarz, z kontem; `calendar_screen.dart`, `homes/{h}/calendar/{id}`, pkt 11): wywóz śmieci

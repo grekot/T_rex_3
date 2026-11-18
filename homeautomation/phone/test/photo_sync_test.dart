@@ -112,8 +112,18 @@ void main() {
       final pool = [
         _b('wczoraj', 14, added: hour),
         _b('przedwczoraj', 13, added: hour + 1),
-        BridgePhoto(id: 'z_2014', taken: DateTime(2014, 7, 3).millisecondsSinceEpoch, memory: true, added: hour + 3600000),
-        BridgePhoto(id: 'z_2009', taken: DateTime(2009, 5, 1).millisecondsSinceEpoch, memory: true, added: hour + 3600001),
+        BridgePhoto(
+          id: 'z_2014',
+          taken: DateTime(2014, 7, 3).millisecondsSinceEpoch,
+          memory: true,
+          added: hour + 3600000,
+        ),
+        BridgePhoto(
+          id: 'z_2009',
+          taken: DateTime(2009, 5, 1).millisecondsSinceEpoch,
+          memory: true,
+          added: hour + 3600001,
+        ),
       ];
       final plan = planPhotoSync(
         pool: pool,
@@ -122,6 +132,20 @@ void main() {
       // Zegar na 3 zdjęcia: dwa z archiwum (dodane godzinę później) i jedno z puli; najstarsze dodane - usunięte
       expect(plan.delete, ['wczoraj']);
       expect([for (final p in plan.upload) p.id], ['z_2009', 'z_2014']);
+    });
+
+    test('spalone (obejrzane przy przeglądaniu) ustępują kolejnym z listy; bez zamienników zostają', () {
+      final pool = [for (var d = 1; d <= 5; d++) _b('p$d', d)];
+      final clock = ClockPhotos(max: 3, photos: [_c(pool[4]), _c(pool[3]), _c(pool[2])]);
+      final plan = planPhotoSync(pool: pool, clock: clock, burned: {'p5', 'p4'});
+      expect(plan.delete, ['p5', 'p4']);
+      expect([for (final p in plan.upload) p.id], ['p2', 'p1']);
+      // Wszystkie spalone: zegar pełny, nic się nie zmienia (najpóźniej dodane spalone zostają)
+      expect(planPhotoSync(pool: pool, clock: clock, burned: {for (final p in pool) p.id}).isEmpty, isTrue);
+      // Jeden zamiennik: wymiana najstarszego dodanego spośród spalonych
+      final one = planPhotoSync(pool: pool.sublist(1), clock: clock, burned: {'p5', 'p4', 'p3'});
+      expect(one.delete, ['p3']);
+      expect([for (final p in one.upload) p.id], ['p2']);
     });
 
     test('złe i powtórzone id z manifestu pominięte', () {
@@ -263,13 +287,43 @@ void main() {
       final at = DateTime(2026, 11, 15, 9);
       bridge
         ..add('p1', DateTime(2026, 11, 14), added: at)
-        ..add('z_a', DateTime(2014, 7, 3), caption: 'Nad morzem · 2014', memory: true, added: at.add(const Duration(hours: 1)));
+        ..add(
+          'z_a',
+          DateTime(2014, 7, 3),
+          caption: 'Nad morzem · 2014',
+          memory: true,
+          added: at.add(const Duration(hours: 1)),
+        );
       final r = await sync().run();
       expect(r.sent, 2);
       expect(bridge.requests.first, 'clocks');
       expect(bridge.requests, isNot(contains('manifest')));
       expect(clock.photoLog, ['GET', 'PUT z_a', 'PUT p1']);
       expect(clock.photos['z_a']!['caption'], 'Nad morzem');
+    });
+
+    test('zegar zgłasza spalone (seen): wymienione na kolejne z puli i pamiętane, póki są w puli', () async {
+      clock.photoMax = 2;
+      for (var d = 1; d <= 4; d++) {
+        bridge.add('p$d', DateTime(2026, 11, d, 10));
+      }
+      await sync().run();
+      expect(clock.photos.keys, unorderedEquals(['p4', 'p3']));
+      clock.photos['p4']!['seen'] = true;
+      clock.photoLog.clear();
+      final r = await sync().run();
+      expect(clock.photoLog, ['GET', 'DELETE p4', 'PUT p2']);
+      expect((r.sent, r.deleted), (1, 1));
+      expect(log.clocks[clock.id]!.burned, {'p4'});
+      // Kolejny przebieg: p4 nie wraca, choć zegar już go nie zgłasza
+      clock.photoLog.clear();
+      await sync().run();
+      expect(clock.photoLog, ['GET']);
+      // Zniknęło z puli - zapomniane
+      bridge.photos.removeWhere((p) => p['id'] == 'p4');
+      await sync().run();
+      expect(log.clocks[clock.id]!.burned, isEmpty);
+      expect(PhotoSyncStatus.fromJson(log.clocks[clock.id]!.copyWith(burned: {'x'}).toJson())!.burned, {'x'});
     });
 
     test('nowy podpis - wysłane jeszcze raz; zdjęcie zniknęło z puli - usunięte z zegara', () async {

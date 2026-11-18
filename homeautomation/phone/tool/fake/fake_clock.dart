@@ -93,7 +93,7 @@ class FakeClock extends FakeDevice {
   /// Zdjęcia (Config `photos`, `GET/PUT/DELETE /api/photos`); null = zegar sprzed zdjęć (bez pola i ekranu `photo`).
   Map<String, dynamic>? photoCfg;
 
-  /// Zapisane zdjęcia: id → `{id, size, taken, memory, caption}` (jak `GET /api/photos`), treść w [photoBytes].
+  /// Zapisane zdjęcia: id → `{id, size, taken, memory, caption, seen?}` (jak `GET /api/photos`), treść w [photoBytes].
   final photos = <String, Map<String, dynamic>>{};
 
   /// Polecenia Set `photo` (przeglądanie), po kolei.

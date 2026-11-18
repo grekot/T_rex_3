@@ -2,6 +2,8 @@
 // tylko pod 127.0.0.1:8765 listę dla zegarów (`/clocks.json`: pula zegarka + co godzinę kilka zdjęć z archiwum, każde
 // z czasem dodania; starsze wersje - tylko `/manifest.json` z pulą ~20 zdjęć), a HomeAutomation przenosi je do zegarów
 // z ekranem `photo` w pokazie. Zegar trzyma najnowsze wg czasu dodania, więc przez dzień zdjęcia wymieniają się po kilka.
+// Zdjęcia „spalone” na zegarze (obejrzane przy przeglądaniu, `seen` w `GET /api/photos`, zegar biurkowy 0.9.3+)
+// ustępują miejsca kolejnym z listy - o ile są czym je zastąpić.
 // Najpierw czysta logika różnic ([planPhotoSync]), potem wykonanie po HTTP ([PhotoSync]). Gdy nic się nie zmieniło,
 // przebieg kończy się na trzech małych GET-ach do zegara - bez pobierania zdjęć z mostu.
 
@@ -71,15 +73,23 @@ class BridgePhoto {
   }
 }
 
-/// Zdjęcie zapisane w zegarze (`GET /api/photos`): [taken] w sekundach.
+/// Zdjęcie zapisane w zegarze (`GET /api/photos`): [taken] w sekundach; [seen] - obejrzane przy przeglądaniu.
 class ClockPhoto {
-  const ClockPhoto({required this.id, this.size = 0, this.taken, this.caption = '', this.memory = false});
+  const ClockPhoto({
+    required this.id,
+    this.size = 0,
+    this.taken,
+    this.caption = '',
+    this.memory = false,
+    this.seen = false,
+  });
 
   final String id;
   final int size;
   final int? taken;
   final String caption;
   final bool memory;
+  final bool seen;
 
   String get signature => photoSignature(taken ?? -1, memory, caption);
 
@@ -91,6 +101,7 @@ class ClockPhoto {
       taken: j['taken'] is num ? (j['taken'] as num).toInt() : null,
       caption: j['caption'] is String ? j['caption'] as String : '',
       memory: j['memory'] == true,
+      seen: j['seen'] == true,
     );
   }
 }
@@ -144,18 +155,26 @@ class PhotoPlan {
 /// - [sent]: podpis wysłany ostatnio do tego zegara. Gdy zegar odda podpis inaczej (np. przycięty), nie wysyłamy
 ///   w kółko: zmiana liczy się tylko, gdy podpis z puli różni się też od wysłanego.
 /// - [rejected]: podpisy, których zegar nie przyjął (`400`, `413`) albo most nie dał - pomijane, dopóki się nie zmienią.
+/// - [burned]: „spalone” (obejrzane przy przeglądaniu na zegarze) - idą na koniec kolejki: na zegarze zostają tylko,
+///   gdy w liście nie ma dość innych zdjęć.
 PhotoPlan planPhotoSync({
   required List<BridgePhoto> pool,
   required ClockPhotos clock,
   Map<String, String> sent = const {},
   Map<String, String> rejected = const {},
+  Set<String> burned = const {},
   int maxUploads = photoUploadsPerRun,
 }) {
-  final seen = <String>{};
-  final valid = [
-    for (final p in pool)
-      if (_photoId.hasMatch(p.id) && seen.add(p.id)) p,
-  ]..sort((a, b) => b.order != a.order ? b.order.compareTo(a.order) : a.id.compareTo(b.id));
+  final ids = <String>{};
+  final valid =
+      [
+        for (final p in pool)
+          if (_photoId.hasMatch(p.id) && ids.add(p.id)) p,
+      ]..sort((a, b) {
+        final ba = burned.contains(a.id), bb = burned.contains(b.id);
+        if (ba != bb) return ba ? 1 : -1;
+        return b.order != a.order ? b.order.compareTo(a.order) : a.id.compareTo(b.id);
+      });
   final wanted = valid.take(clock.max < 0 ? 0 : clock.max).toList();
   final wantedIds = {for (final p in wanted) p.id};
   final onClock = {for (final p in clock.photos) p.id: p};
@@ -222,6 +241,7 @@ class PhotoSyncStatus {
     this.detail,
     this.sent = const {},
     this.rejected = const {},
+    this.burned = const {},
   });
 
   /// Ostatnia próba (ms od epoki).
@@ -235,6 +255,9 @@ class PhotoSyncStatus {
   final String? detail;
   final Map<String, String> sent, rejected;
 
+  /// Zdjęcia „spalone” na tym zegarze (`seen` z `GET /api/photos`) - pamiętane, dopóki są w liście mostu.
+  final Set<String> burned;
+
   PhotoSyncStatus copyWith({
     int? at,
     PhotoSyncResult? result,
@@ -244,6 +267,7 @@ class PhotoSyncStatus {
     String? detail,
     Map<String, String>? sent,
     Map<String, String>? rejected,
+    Set<String>? burned,
   }) => PhotoSyncStatus(
     at: at ?? this.at,
     result: result ?? this.result,
@@ -253,6 +277,7 @@ class PhotoSyncStatus {
     detail: detail,
     sent: sent ?? this.sent,
     rejected: rejected ?? this.rejected,
+    burned: burned ?? this.burned,
   );
 
   Json toJson() => {
@@ -264,6 +289,7 @@ class PhotoSyncStatus {
     'detail': ?detail,
     if (sent.isNotEmpty) 'sent': sent,
     if (rejected.isNotEmpty) 'rejected': rejected,
+    if (burned.isNotEmpty) 'burned': burned.toList(),
   };
 
   static PhotoSyncStatus? fromJson(Object? j) {
@@ -282,6 +308,7 @@ class PhotoSyncStatus {
       detail: j['detail'] is String ? j['detail'] as String : null,
       sent: map(j['sent']),
       rejected: map(j['rejected']),
+      burned: {if (j['burned'] is List) ...(j['burned'] as List).whereType<String>()},
     );
   }
 }
@@ -509,6 +536,7 @@ class PhotoSync {
     var count = prev?.count;
     final sentSigs = {...status.sent};
     final rejected = {...status.rejected};
+    final burned = {...status.burned};
     try {
       // To ten zegar? (stary adres mógł dostać inny sprzęt - tokenu nie wysyłamy w ciemno).
       final info = await _clock(client, 'GET', ep, '/api/info', timeout: const Duration(seconds: 2));
@@ -535,8 +563,14 @@ class PhotoSync {
       final poolIds = {for (final p in pool) p.id};
       sentSigs.removeWhere((id, _) => !poolIds.contains(id));
       rejected.removeWhere((id, _) => !poolIds.contains(id));
+      burned
+        ..addAll([
+          for (final p in photos.photos)
+            if (p.seen) p.id,
+        ])
+        ..removeWhere((id) => !poolIds.contains(id));
 
-      final plan = planPhotoSync(pool: pool, clock: photos, sent: sentSigs, rejected: rejected);
+      final plan = planPhotoSync(pool: pool, clock: photos, sent: sentSigs, rejected: rejected, burned: burned);
       final have = {for (final p in photos.photos) p.id};
 
       for (final id in plan.delete) {
@@ -575,13 +609,27 @@ class PhotoSync {
       }
       count = have.length;
       return (
-        status: status.copyWith(result: PhotoSyncResult.ok, okAt: at, count: count, sent: sentSigs, rejected: rejected),
+        status: status.copyWith(
+          result: PhotoSyncResult.ok,
+          okAt: at,
+          count: count,
+          sent: sentSigs,
+          rejected: rejected,
+          burned: burned,
+        ),
         sent: sent,
         deleted: deleted,
       );
     } on _Stop catch (s) {
       return (
-        status: status.copyWith(result: s.result, detail: s.detail, count: count, sent: sentSigs, rejected: rejected),
+        status: status.copyWith(
+          result: s.result,
+          detail: s.detail,
+          count: count,
+          sent: sentSigs,
+          rejected: rejected,
+          burned: burned,
+        ),
         sent: sent,
         deleted: deleted,
       );
@@ -594,6 +642,7 @@ class PhotoSync {
           count: count,
           sent: sentSigs,
           rejected: rejected,
+          burned: burned,
         ),
         sent: sent,
         deleted: deleted,

@@ -32,6 +32,8 @@ Firmware, kontrakt API v2 (`docs/API.md`) i konfiguracja Firebase (`docs/firebas
   z czasem dodania) - zegar trzyma najpóźniej dodane, więc zdjęcia wymieniają się przez cały dzień.
   Od 1.32.0 „Zmiana zdjęcia” (zegar biurkowy 0.9.2+): co ile minut zegar bierze następne zdjęcie - do tego czasu
   po powrocie na ekran „Zdjęcia” jest to samo.
+  Od 1.33.0 zdjęcia obejrzane przy przeglądaniu na zegarze (zegar biurkowy 0.9.3+) są „spalone” - przy najbliższej
+  synchronizacji zegar dostaje w ich miejsce kolejne z listy aplikacji Zdjęcia.
 - Wydanie do Sklepu rodzinnego: tag `homeautomation-vX.Y.Z`.
 
 Szczegóły, uruchomienie i testy: [phone/README.md](phone/README.md).
