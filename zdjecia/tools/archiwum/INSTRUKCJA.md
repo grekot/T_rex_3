@@ -11,8 +11,8 @@ Zapisujemy je jako JPEG-i ≤ 800×600 bez EXIF w Firestore:
 - zdjęcia: `archiwum/{uid}/zdjecia/{id}`,
 - kontrakt danych: [../../ARCHIWUM.md](../../ARCHIWUM.md).
 
-Aplikacja „Zdjęcia” na telefonie (od 0.11.0) bierze z archiwum wspomnienia dla zegarka i co godzinę 4 zdjęcia
-dla zegarów HomeAutomation.
+Aplikacja „Zdjęcia” na telefonie (od 0.11.0) bierze z archiwum wspomnienia dla zegarka i co godzinę kilka zdjęć
+dla zegarów HomeAutomation (od 0.14.0: 8 na godzinę, lista 150 pozycji).
 
 Co robi kto:
 - **Skrypt na PC** odsiewa technicznie i robi arkusze miniatur. Nie zużywa tokenów.
@@ -302,7 +302,7 @@ PYTHONIOENCODING=utf-8 python archiwum.py wyslij
 1. Zdjęcia 0.11.0+ → ikona **„Archiwum zdjęć”** (u góry) → zaloguj się tym samym kontem.
 2. Ekran pokazuje „Zdjęć w archiwum: …” (ok. 1000). „Sprawdź teraz” odświeża spis.
 3. Wspomnienia z archiwum wchodzą przy najbliższym odświeżeniu puli (do 6 h albo przycisk „Odśwież”).
-   Na zegary HomeAutomation trafiają 4 zdjęcia z archiwum na godzinę (6–23).
+   Na zegary HomeAutomation trafia 8 zdjęć z archiwum na godzinę (6–23; do 0.13.0 - 4).
 
 ## Później: zmiany w archiwum
 

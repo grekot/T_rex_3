@@ -174,7 +174,9 @@ void main() {
     test('dokładanie z archiwum: najnowsze na końcu, przycięcie do rozmiaru, zapis i odczyt', () {
       final s = ClockStream();
       syncPoolSlots(s, [for (var i = 0; i < 20; i++) (id: 'p$i', taken: DateTime(2026, 11, 1))], now);
-      for (var h = 1; h <= 8; h++) {
+      // Tyle godzin, żeby archiwum przepełniło listę (pula wypada z jej początku)
+      final hours = clockStreamSize ~/ clockArchivePerHour + 2;
+      for (var h = 1; h <= hours; h++) {
         final at = now.add(Duration(hours: h));
         addArchiveSlots(s, [
           for (var k = 0; k < clockArchivePerHour; k++)
@@ -190,17 +192,17 @@ void main() {
         ], at);
       }
       expect(s.slots.length, clockStreamSize);
-      expect(s.slots.last.ref, 'a8x3');
-      // Zegar (np. 20 miejsc) bierze najnowsze - same zdjęcia z archiwum z ostatnich 5 godzin
+      expect(s.slots.last.ref, 'a${hours}x${clockArchivePerHour - 1}');
+      // Zegar (np. 20 miejsc) bierze najnowsze - same zdjęcia z archiwum z ostatnich godzin
       final newest = s.slots.reversed.take(20).toList();
       expect(newest.every((x) => x.archive), isTrue);
-      expect(s.shown['a8x0'], now.add(const Duration(hours: 8)));
-      expect(s.lastArchive, now.add(const Duration(hours: 8)));
+      expect(s.shown['a${hours}x0'], now.add(Duration(hours: hours)));
+      expect(s.lastArchive, now.add(Duration(hours: hours)));
 
       final back = ClockStream.fromJson(jsonDecode(jsonEncode(s.toJson())) as Map<String, dynamic>);
       expect(back.slots.length, s.slots.length);
       expect(back.slots.last.frame?.focus, [0.1, 0.1, 0.5, 0.5]);
-      expect(back.slots.last.caption, 'Las · 2018');
+      expect(back.slots.last.caption, 'Las · ${2010 + hours}');
       expect(back.archiveIds, s.archiveIds);
       expect(back.poolSeen, s.poolSeen);
       expect(back.lastArchive, s.lastArchive);

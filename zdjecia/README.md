@@ -318,6 +318,23 @@ Dlatego telefon sam dokłada do archiwum najlepsze nowe zdjęcia ([ARCHIWUM.md](
 Testy: `phone/test/archive_test.dart` (grupa „dokładanie zdjęć z telefonu”: wybór, id, wpis, scalanie spisu, JPEG,
 zapis REST z warunkiem wersji i ponowienie po zapisie z PC), `tools/archiwum/test_archiwum.py` (`PhoneMerge`).
 
+## Częściej nowe zdjęcia na zegarach (telefon 0.14.0)
+
+HomeAutomation 1.33.0 z zegarem biurkowym 0.9.3+ wymienia zdjęcia „spalone” (obejrzane przy przeglądaniu na zegarze)
+na kolejne z listy `/clocks.json` - ale tylko, gdy lista ma czym je zastąpić. Dlatego lista dla zegarów jest dłuższa
+i szybciej się odnawia (`lib/select/clock_stream.dart`, bez zmian w interfejsie mostu):
+
+| | do 0.13.0 | od 0.14.0 |
+|---|---|---|
+| długość listy (`clockStreamSize`) | 40 | **150** (~20 najnowszych na zegarze + ~130 zamienników) |
+| zdjęcia z archiwum na godzinę, 6–23 (`clockArchivePerHour`) | 4 | **8** (~136 dziennie; zaległość najwyżej 2 godziny) |
+| powrót tego samego zdjęcia na zegary (`clockRest`) | 45 dni | **7 dni** (przy ~1100 wpisach archiwum przewija się mniej więcej co 9 dni) |
+
+Koszt: każde nowe zdjęcie listy to jedno pobranie z Firestore (~100-150 KB) i analiza kadru na telefonie przy dokładaniu
+(~136 odczytów i ~20 MB dziennie - w limitach planu Spark); w pamięci podręcznej telefonu do ~190 zdjęć archiwum
+(~25 MB). Zegar bierze z listy najpóźniej dodane, więc bez przeglądania nic się dla niego nie zmienia poza tym,
+że nowe zdjęcia przychodzą dwa razy częściej.
+
 ## Wydanie do Sklepu rodzinnego
 
 Tag `zdjecia-vX.Y.Z` uruchamia [release-zdjecia.yml](../.github/workflows/release-zdjecia.yml)

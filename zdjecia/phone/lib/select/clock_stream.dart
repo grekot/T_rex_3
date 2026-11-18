@@ -2,19 +2,23 @@
 // i bierze te, które najpóźniej trafiły do strumienia ([ClockSlot.added]), więc:
 //  - nowe zdjęcia puli zegarka (świeże i wspomnienia) wchodzą od razu,
 //  - co godzinę (w dzień) dochodzi [clockArchivePerHour] zdjęć z archiwum - zegar wymienia je po kilka,
-//    w ciągu dnia przewija się kilkadziesiąt różnych zdjęć zamiast tych samych 20.
+//    w ciągu dnia przewija się ponad sto różnych zdjęć zamiast tych samych 20.
+// Od 0.14.0 lista jest długa ([clockStreamSize]): HomeAutomation 1.33.0+ wymienia zdjęcia „spalone” na zegarze
+// (obejrzane przy przeglądaniu) na kolejne z listy, więc reszta listy to zapas zamienników.
 // Czysta logika (testy).
 import 'crop.dart';
 
-const int clockStreamSize = 40;
-const int clockArchivePerHour = 4;
+/// Długość listy: ~20 najnowszych na zegarze + zapas na zdjęcia „spalone” przy przeglądaniu
+const int clockStreamSize = 150;
+const int clockArchivePerHour = 8;
 
 /// Archiwum dokłada zdjęcia tylko w tych godzinach (w nocy zegary i tak nikt nie ogląda)
 const int clockFromHour = 6;
 const int clockToHour = 23;
 
-/// Zdjęcie z archiwum wraca na zegary najwcześniej po tylu dniach
-const Duration clockRest = Duration(days: 45);
+/// Zdjęcie z archiwum wraca na zegary najwcześniej po tylu dniach (przy ~130 dziennie i ~1100 w archiwum
+/// całe archiwum przewija się mniej więcej co 9 dni; gdy wszystkie odpoczywają - najdawniej pokazane pierwsze)
+const Duration clockRest = Duration(days: 7);
 
 class ClockSlot {
   const ClockSlot({
