@@ -604,6 +604,41 @@ sklep przypisz homeautomation --grupa Rodzina
 Lokalnie [`build_apk.cmd`](build_apk.cmd) buduje `build\app\outputs\flutter-apk\app-arm64-v8a-release.apk`.
 Podpisuje go kluczem z `android/key.properties` (poza gitem).
 
+## Wersja na komputer (Windows)
+
+Ten sam kod (`windows/`, `lib/platform.dart`).
+- **W domu:** sieć lokalna, tylko połączenia wychodzące. Zapora komputera może blokować wykrywanie mDNS, wtedy zostaje adres ręcznie albo hub.
+- **W pracy:** sama chmura.
+
+Logowanie:
+- to samo konto e-mail/hasło co w telefonie, uprawnienia z `access` domu;
+- każdy komputer paruje się z urządzeniami osobno („Urządzenie już działa w sieci domowej”: kod z ekranu albo PoP) i dostaje własny token (nazwa „Komputer <nazwa komputera>”).
+
+Na komputerze nie ma (`canSetUpDevices`, `hasPhoneLocation`):
+- dodawania nowych urządzeń (Bluetooth, SoftAP, kod QR aparatem), czujnika WiFi, zmiany sieci WiFi urządzenia;
+- „Wyślij token do komputera”, położenia „Z telefonu”;
+- powiadomień i zdjęć w tle (WorkManager), widżetów ekranu i szybkich kafli.
+
+Obsługa myszy i klawiatury:
+- przeciąganie myszą przewija i zmienia pulpit;
+- prawy przycisk na kafelku = przytrzymanie (timery, menu);
+- skróty: Ctrl+1…9 - pulpit, Ctrl+Tab / Ctrl+Shift+Tab - następny / poprzedni, F5 - odśwież, Esc - wstecz (także okna i menu).
+
+Szerokie okno (od 900 px, `wide_layout.dart`):
+- sekcje pulpitu w 2–4 kolumnach, każda do najniższej;
+- edycja pulpitu w jednej kolumnie do 600 px, bo układ kafelków jest wspólny z telefonem.
+
+Linki (ntfy, strony) otwiera kanał `links` w `windows/runner/flutter_window.cpp`: tylko `http(s)://` i `ntfy://`.
+
+Wydanie i aktualizacja:
+- wydanie: plik `homeautomation-windows.zip` w GitHub Release tagu `homeautomation-vX.Y.Z`, z runtime VC++ obok exe;
+- instalacja: rozpakować np. do `%LOCALAPPDATA%\Programs\HomeAutomation` i uruchomić `homeautomation.exe`;
+- aktualizacja: kompilacja z `--dart-define=APP_VERSION=X.Y.Z` przy starcie sprawdza wydania (`lib/data/app_update.dart`) i pokazuje baner „Pobierz”; kompilacja lokalna (bez `APP_VERSION`) nie sprawdza.
+
+Budowanie lokalnie: `flutter build windows --release` (wynik w `build\windows\x64\runner\Release`).
+- Wymaga Visual Studio 2022 **17.14+** (MSVC 14.44) z „Desktop development with C++”.
+- Firebase C++ SDK 14.1.0 z FlutterFire na starszym MSVC kończy się błędem linkera (`__std_find_first_of_trivial_pos_1`, `_Avx2WmemEnabled`).
+
 ## Atrapy urządzeń (bez sprzętu)
 
 `tool/fake_device.dart` uruchamia serwer zgodny z kontraktem v2.

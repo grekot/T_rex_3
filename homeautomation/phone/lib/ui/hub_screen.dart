@@ -19,6 +19,7 @@ import '../models/hub.dart';
 import '../models/hub_weather.dart';
 import '../models/json_utils.dart';
 import '../models/thermostat_config.dart';
+import '../platform.dart';
 import '../services.dart';
 import 'automations_screen.dart';
 import 'ble_wifi_sensor_screen.dart';
@@ -211,7 +212,7 @@ class _HubScreenState extends State<HubScreen> {
                 'Automatyki o godzinie i od słońca czekają. Hub weźmie czas z internetu, RTC albo termostatu.',
                 style: TextStyle(color: cs.onErrorContainer),
               ),
-              trailing: local && c.canConfig ? TextButton(onPressed: _setTime, child: const Text('Z telefonu')) : null,
+              trailing: local && c.canConfig ? TextButton(onPressed: _setTime, child: Text(fromThisDevice)) : null,
             ),
           ),
         const SectionHeader('Hub'),
@@ -442,17 +443,18 @@ class _LocationDialogState extends State<_LocationDialog> {
             onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: OutlinedButton.icon(
-              key: const Key('locationGps'),
-              icon: _locating
-                  ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.my_location),
-              label: const Text('Z telefonu'),
-              onPressed: _locating ? null : _fromPhone,
+          if (hasPhoneLocation)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                key: const Key('locationGps'),
+                icon: _locating
+                    ? const SizedBox.square(dimension: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.my_location),
+                label: const Text('Z telefonu'),
+                onPressed: _locating ? null : _fromPhone,
+              ),
             ),
-          ),
           if (_error != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -659,7 +661,7 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
               icon: const Icon(Icons.bluetooth_searching),
               onPressed: _ble,
             ),
-          if (_api != null)
+          if (_api != null && canSetUpDevices)
             IconButton(
               key: const Key('hubBleWifi'),
               tooltip: 'Dodaj czujnik WiFi (zasilanie USB)',

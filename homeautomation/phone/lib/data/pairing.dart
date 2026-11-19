@@ -126,7 +126,7 @@ class PairingService {
   }
 }
 
-/// Np. „Google Pixel 8” albo „iPhone Kasi”.
+/// Np. „Google Pixel 8”, „iPhone Kasi” albo „Komputer DOM-PC”.
 Future<String> defaultClientName() async {
   try {
     final plugin = DeviceInfoPlugin();
@@ -138,6 +138,8 @@ Future<String> defaultClientName() async {
         return '$brand${a.model}'.trim();
       case TargetPlatform.iOS:
         return (await plugin.iosInfo).name;
+      case TargetPlatform.windows:
+        return 'Komputer ${(await plugin.windowsInfo).computerName}';
       default:
         return 'Telefon';
     }

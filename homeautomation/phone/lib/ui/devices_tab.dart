@@ -7,6 +7,7 @@ import '../controllers/home_session.dart';
 import '../data/device_store.dart';
 import '../data/updates.dart';
 import '../models/room.dart';
+import '../platform.dart';
 import '../services.dart';
 import 'account_menu.dart';
 import 'add_device_screen.dart';
@@ -193,12 +194,13 @@ class _DevicesTabState extends State<DevicesTab> {
                     context,
                   ).push(MaterialPageRoute<void>(builder: (_) => UpdatesScreen(backend: DeviceHubUpdates(hub)))),
                 ),
-              IconButton(
-                key: const Key('pcToken'),
-                tooltip: 'Wyślij token do komputera',
-                icon: const Icon(Icons.computer_outlined),
-                onPressed: () => sendTokenToComputer(context),
-              ),
+              if (canSetUpDevices)
+                IconButton(
+                  key: const Key('pcToken'),
+                  tooltip: 'Wyślij token do komputera',
+                  icon: const Icon(Icons.computer_outlined),
+                  onPressed: () => sendTokenToComputer(context),
+                ),
               AccountMenu(session: widget.session),
             ],
           ),

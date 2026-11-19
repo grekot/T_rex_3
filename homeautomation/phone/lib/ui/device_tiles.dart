@@ -111,6 +111,7 @@ class _TileFrame extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         onLongPress: onLongPress,
+        onSecondaryTap: onLongPress,
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(

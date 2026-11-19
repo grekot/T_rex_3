@@ -9,6 +9,7 @@ import '../data/errors.dart';
 import '../data/local_api.dart';
 import '../models/device_info.dart';
 import '../models/device_type.dart';
+import '../platform.dart';
 import '../services.dart';
 import 'ble_setup_screen.dart';
 import 'cloud_link_screen.dart';
@@ -360,8 +361,12 @@ class _DeviceAdminSectionState extends State<DeviceAdminSection> {
             key: const Key('changeWifi'),
             leading: const Icon(Icons.wifi_find),
             title: const Text('Zmień sieć WiFi'),
-            subtitle: Text(_canAdmin ? 'Przez Bluetooth, telefon obok urządzenia' : _adminHint),
-            enabled: _canAdmin,
+            subtitle: Text(
+              !canSetUpDevices
+                  ? 'W aplikacji na telefonie (Bluetooth)'
+                  : (_canAdmin ? 'Przez Bluetooth, telefon obok urządzenia' : _adminHint),
+            ),
+            enabled: _canAdmin && canSetUpDevices,
             onTap: _changeWifi,
           ),
           if (_wifiAp)

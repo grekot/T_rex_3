@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/device_store.dart';
+import '../platform.dart';
 import '../services.dart';
 import '../provisioning/prov_qr.dart';
 import 'ble_setup_screen.dart';
@@ -33,49 +34,66 @@ class AddDeviceScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ble = Services.of(context).provisioning.supported;
+    // Komputer: nowe urządzenia (Bluetooth, sieć WiFi urządzenia, kod QR) tylko z telefonu.
+    final setUp = canSetUpDevices;
     return Scaffold(
       appBar: AppBar(title: const Text('Dodaj urządzenie')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          _Option(
-            key: const Key('addQr'),
-            icon: Icons.qr_code_scanner,
-            title: 'Skanuj kod QR',
-            text:
-                'Najprościej: kod z naklejki albo ekranu nowego urządzenia. Aplikacja sama wybierze Bluetooth '
-                'albo sieć WiFi urządzenia i użyje kodu PoP - nic nie trzeba przepisywać.',
-            onTap: () => _scan(context, camera: scannerCamera),
-          ),
-          const SizedBox(height: 12),
-          _Option(
-            key: const Key('addBle'),
-            icon: Icons.bluetooth,
-            title: 'Nowe urządzenie',
-            text: ble
-                ? 'Pierwsze uruchomienie albo po resecie: telefon łączy się z urządzeniem przez Bluetooth, '
-                      'przekazuje mu sieć WiFi i od razu je paruje. Potrzebny kod z ekranu urządzenia.'
-                : 'Konfiguracja przez Bluetooth działa tylko w aplikacji na telefonie.',
-            onTap: ble ? () => _go(context, const BleSetupScreen()) : null,
-          ),
-          const SizedBox(height: 12),
-          _Option(
-            key: const Key('addSoftAp'),
-            icon: Icons.wifi_tethering,
-            title: 'Nowe urządzenie bez Bluetootha',
-            text:
-                'Np. przełącznik światła bez ekranu: telefon łączy się na chwilę z jego siecią WiFi HA_… '
-                '(hasło = kod z naklejki), przekazuje mu sieć domową i od razu je paruje.',
-            onTap: () => _go(context, const BleSetupScreen(softAp: true)),
-          ),
-          const SizedBox(height: 12),
+          if (!setUp) ...[
+            const _Option(
+              key: Key('addPhoneOnly'),
+              icon: Icons.smartphone,
+              title: 'Nowe urządzenie',
+              text:
+                  'Nowe urządzenia (Bluetooth, sieć WiFi urządzenia, kod QR z naklejki) dodaje się w aplikacji '
+                  'na telefonie. Tutaj możesz połączyć się z urządzeniem, które już działa w sieci domowej.',
+            ),
+            const SizedBox(height: 12),
+          ],
+          if (setUp) ...[
+            _Option(
+              key: const Key('addQr'),
+              icon: Icons.qr_code_scanner,
+              title: 'Skanuj kod QR',
+              text:
+                  'Najprościej: kod z naklejki albo ekranu nowego urządzenia. Aplikacja sama wybierze Bluetooth '
+                  'albo sieć WiFi urządzenia i użyje kodu PoP - nic nie trzeba przepisywać.',
+              onTap: () => _scan(context, camera: scannerCamera),
+            ),
+            const SizedBox(height: 12),
+            _Option(
+              key: const Key('addBle'),
+              icon: Icons.bluetooth,
+              title: 'Nowe urządzenie',
+              text: ble
+                  ? 'Pierwsze uruchomienie albo po resecie: telefon łączy się z urządzeniem przez Bluetooth, '
+                        'przekazuje mu sieć WiFi i od razu je paruje. Potrzebny kod z ekranu urządzenia.'
+                  : 'Konfiguracja przez Bluetooth działa tylko w aplikacji na telefonie.',
+              onTap: ble ? () => _go(context, const BleSetupScreen()) : null,
+            ),
+            const SizedBox(height: 12),
+            _Option(
+              key: const Key('addSoftAp'),
+              icon: Icons.wifi_tethering,
+              title: 'Nowe urządzenie bez Bluetootha',
+              text:
+                  'Np. przełącznik światła bez ekranu: telefon łączy się na chwilę z jego siecią WiFi HA_… '
+                  '(hasło = kod z naklejki), przekazuje mu sieć domową i od razu je paruje.',
+              onTap: () => _go(context, const BleSetupScreen(softAp: true)),
+            ),
+            const SizedBox(height: 12),
+          ],
           _Option(
             key: const Key('addCode'),
             icon: Icons.pin,
             title: 'Urządzenie już działa w sieci domowej',
-            text:
-                'Na przykład dla kolejnego telefonu w domu. Telefon w tej samej sieci WiFi, '
-                'potem 6-cyfrowy kod z ekranu urządzenia (bez ekranu - kod z naklejki).',
+            text: setUp
+                ? 'Na przykład dla kolejnego telefonu w domu. Telefon w tej samej sieci WiFi, '
+                      'potem 6-cyfrowy kod z ekranu urządzenia (bez ekranu - kod z naklejki).'
+                : 'Komputer w sieci domowej, potem 6-cyfrowy kod z ekranu urządzenia (bez ekranu - kod '
+                      'z naklejki). Każdy komputer dostaje własny token.',
             onTap: () => _go(context, const PairingScreen()),
           ),
         ],

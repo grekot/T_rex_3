@@ -19,6 +19,7 @@ import '../models/dashboard.dart' show reorder;
 import '../models/describe.dart';
 import '../models/device_type.dart';
 import '../models/json_utils.dart';
+import '../platform.dart';
 import 'clock_pages.dart' show clockKnownDevices;
 import 'clock_photos.dart' show ClockPhotoSync;
 import 'clock_section.dart' show clockScreenList;
@@ -731,12 +732,13 @@ class _ClockWeatherPageState extends State<ClockWeatherPage> with _ClockConfig {
               label: const Text('Jak hub'),
               onPressed: _fromHub,
             ),
-          OutlinedButton.icon(
-            key: const Key('clockWeatherFromPhone'),
-            icon: const Icon(Icons.my_location),
-            label: const Text('Z telefonu'),
-            onPressed: _fromPhone,
-          ),
+          if (hasPhoneLocation)
+            OutlinedButton.icon(
+              key: const Key('clockWeatherFromPhone'),
+              icon: const Icon(Icons.my_location),
+              label: const Text('Z telefonu'),
+              onPressed: _fromPhone,
+            ),
         ],
       ),
       const SectionHeader('Jednostki na ekranie'),

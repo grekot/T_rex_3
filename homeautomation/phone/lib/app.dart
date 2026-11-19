@@ -1,7 +1,9 @@
 import 'dart:async';
 
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/gestures.dart' show PointerDeviceKind;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:wspolne/wspolne.dart';
 
@@ -32,14 +34,32 @@ class TermostatApp extends StatelessWidget {
       locale: const Locale('pl', 'PL'),
       supportedLocales: const [Locale('pl', 'PL')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      // Komputer: przeciąganie myszą przewija i przełącza pulpity jak palec.
+      scrollBehavior: const _AppScrollBehavior(),
+      navigatorKey: _navigator,
       // Zegar 24-godzinny w wybieraniu godzin harmonogramu niezależnie od ustawień telefonu.
-      builder: (context, child) => MediaQuery(
-        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
-        child: aboveSystemBars(context, child!),
+      // Komputer: Esc - wstecz (zamyka też okna i menu), jak przycisk „wstecz” w telefonie.
+      builder: (context, child) => CallbackShortcuts(
+        bindings: {
+          const SingleActivator(LogicalKeyboardKey.escape): () => unawaited(_navigator.currentState?.maybePop()),
+        },
+        child: MediaQuery(
+          data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+          child: aboveSystemBars(context, child!),
+        ),
       ),
       home: home ?? (useLogin ? const AuthGate() : const MainScreen()),
     );
   }
+}
+
+final _navigator = GlobalKey<NavigatorState>();
+
+class _AppScrollBehavior extends MaterialScrollBehavior {
+  const _AppScrollBehavior();
+
+  @override
+  Set<PointerDeviceKind> get dragDevices => {...super.dragDevices, PointerDeviceKind.mouse};
 }
 
 /// Logowanie ekranem z pakietu `wspolne`; po zalogowaniu wybór domu i ekran główny (pkt 12).

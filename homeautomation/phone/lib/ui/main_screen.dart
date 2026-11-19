@@ -1,10 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../controllers/device_hub.dart';
 import '../controllers/home_session.dart';
+import '../data/app_update.dart';
 import '../data/home_repository.dart';
 import '../data/home_widget_store.dart';
+import '../data/links.dart';
 import '../models/home_widget.dart';
+import '../platform.dart';
 import '../services.dart';
 import 'dashboard_screen.dart';
 import 'device_tiles.dart';
@@ -109,6 +114,38 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       sceneStore: services.scenes,
     )..start();
     _openFromWidget();
+    unawaited(_checkAppUpdate());
+  }
+
+  static bool _updateChecked = false;
+
+  /// Komputer: raz na uruchomienie - nowsza wersja w GitHub Release → baner „Pobierz”.
+  Future<void> _checkAppUpdate() async {
+    if (_updateChecked || !isDesktop || appVersion.isEmpty) return;
+    _updateChecked = true;
+    final r = await checkAppUpdate();
+    if (r == null || !mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.showMaterialBanner(
+      MaterialBanner(
+        key: const Key('appUpdate'),
+        leading: const Icon(Icons.system_update),
+        content: Text(
+          'Nowa wersja aplikacji: ${r.version} (masz $appVersion). Pobierz plik zip, zamknij aplikację '
+          'i rozpakuj go w miejsce obecnej wersji.',
+        ),
+        actions: [
+          TextButton(onPressed: messenger.hideCurrentMaterialBanner, child: const Text('Później')),
+          FilledButton(
+            onPressed: () {
+              messenger.hideCurrentMaterialBanner();
+              unawaited(openExternalUrl(r.download));
+            },
+            child: const Text('Pobierz'),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Dotknięcie widżetu termostatu na ekranie telefonu: otwiera jego ekran (także w innym domu konta).

@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../controllers/device_hub.dart';
 import '../controllers/home_session.dart';
@@ -29,6 +31,7 @@ import 'notifications_screen.dart';
 import 'tile_settings.dart';
 import 'updates_screen.dart';
 import 'watch_screen.dart';
+import 'wide_layout.dart';
 import 'widget_editor.dart';
 import 'widgets.dart';
 
@@ -381,10 +384,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     d.copyWith(
       widgets: [
         for (final w in d.widgets)
-          if (at[w.id] case (final r, final c))
-            (w.id == id ? w.patch({'section': section}) : w).pinnedAt(c, r)
-          else
-            w,
+          if (at[w.id] case (final r, final c)) (w.id == id ? w.patch({'section': section}) : w).pinnedAt(c, r) else w,
       ],
     ),
   );
@@ -654,44 +654,79 @@ class _DashboardScreenState extends State<DashboardScreen> {
       onPopInvokedWithResult: (didPop, _) {
         if (!didPop && _editing) setState(() => _editing = false);
       },
-      child: Scaffold(
-        body: SafeArea(
-          bottom: false,
-          child: Column(
-            children: [
-              if (d != null && _editing) _editBar(context, d) else _topBar(context, list ?? const [], d),
-              Expanded(
-                child: list == null
-                    ? const Center(child: CircularProgressIndicator())
-                    : d == null
-                    ? _empty(context)
-                    : PageView.builder(
-                        key: const Key('dashboardPages'),
-                        controller: _pages,
-                        physics: _editing ? const NeverScrollableScrollPhysics() : null,
-                        itemCount: list.length,
-                        onPageChanged: (i) {
-                          if (_animatingPage || i >= list.length) return;
-                          setState(() => _selected = list[i].id);
-                          _showTab(list[i].id);
-                        },
-                        itemBuilder: (context, i) =>
-                            _editing && list[i].id == d.id ? _editor(context, list[i]) : _view(context, list[i]),
-                      ),
-              ),
-            ],
-          ),
-        ),
-        floatingActionButton: d != null && _editing
-            ? FloatingActionButton.extended(
-                heroTag: null,
-                key: const Key('addWidget'),
-                onPressed: () => _addWidget(d),
-                icon: const Icon(Icons.add),
-                label: const Text('Kafelek'),
-              )
-            : null,
+      child: CallbackShortcuts(
+        bindings: _shortcuts(list ?? const [], index),
+        child: Focus(autofocus: true, child: _scaffold(context, list, d)),
       ),
+    );
+  }
+
+  /// Klawiatura (komputer): Ctrl+1…9 - pulpit, Ctrl+Tab / Ctrl+Shift+Tab - następny / poprzedni, F5 - odśwież.
+  Map<ShortcutActivator, VoidCallback> _shortcuts(List<Dashboard> list, int index) {
+    void go(int i) {
+      if (_editing || list.isEmpty) return;
+      _select(list[i.clamp(0, list.length - 1)].id);
+    }
+
+    const digits = [
+      LogicalKeyboardKey.digit1,
+      LogicalKeyboardKey.digit2,
+      LogicalKeyboardKey.digit3,
+      LogicalKeyboardKey.digit4,
+      LogicalKeyboardKey.digit5,
+      LogicalKeyboardKey.digit6,
+      LogicalKeyboardKey.digit7,
+      LogicalKeyboardKey.digit8,
+      LogicalKeyboardKey.digit9,
+    ];
+    return {
+      for (var i = 0; i < digits.length; i++)
+        if (i < list.length) SingleActivator(digits[i], control: true): () => go(i),
+      const SingleActivator(LogicalKeyboardKey.tab, control: true): () => go((index + 1) % math.max(1, list.length)),
+      const SingleActivator(LogicalKeyboardKey.tab, control: true, shift: true): () =>
+          go((index - 1 + list.length) % math.max(1, list.length)),
+      const SingleActivator(LogicalKeyboardKey.f5): () => unawaited(widget.hub.load()),
+    };
+  }
+
+  Widget _scaffold(BuildContext context, List<Dashboard>? list, Dashboard? d) {
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            if (d != null && _editing) _editBar(context, d) else _topBar(context, list ?? const [], d),
+            Expanded(
+              child: list == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : d == null
+                  ? _empty(context)
+                  : PageView.builder(
+                      key: const Key('dashboardPages'),
+                      controller: _pages,
+                      physics: _editing ? const NeverScrollableScrollPhysics() : null,
+                      itemCount: list.length,
+                      onPageChanged: (i) {
+                        if (_animatingPage || i >= list.length) return;
+                        setState(() => _selected = list[i].id);
+                        _showTab(list[i].id);
+                      },
+                      itemBuilder: (context, i) =>
+                          _editing && list[i].id == d.id ? _editor(context, list[i]) : _view(context, list[i]),
+                    ),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: d != null && _editing
+          ? FloatingActionButton.extended(
+              heroTag: null,
+              key: const Key('addWidget'),
+              onPressed: () => _addWidget(d),
+              icon: const Icon(Icons.add),
+              label: const Text('Kafelek'),
+            )
+          : null,
     );
   }
 
@@ -860,42 +895,74 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _view(BuildContext context, Dashboard d) {
     return RefreshIndicator(
       onRefresh: widget.hub.load,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
-        children: [
-          DashSummary(hub: widget.hub),
-          if (d.scope == DashboardScope.shared && !_owner)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: Text(
-                'Wspólny pulpit domu - zmienia go właściciel. „Kopiuj do moich”, aby ułożyć po swojemu.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ),
-          if (d.widgets.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                children: [
-                  const Text('Pulpit jest pusty.'),
-                  if (_canEdit(d))
-                    TextButton(onPressed: () => setState(() => _editing = true), child: const Text('Dodaj widżety')),
-                ],
-              ),
-            )
-          else
-            for (final (s, list) in _grouped(d))
-              if (s != null || list.isNotEmpty) ...[
-                if (s != null) _SectionHeader(title: s.title, count: list.length),
-                DashGrid(
-                  grid: d.grid,
-                  widgets: list,
-                  builder: (w) => DashTile(widget: w, hub: widget.hub, history: _history, rooms: _rooms),
-                ),
-                const SizedBox(height: 4),
-              ],
-        ],
+      child: LayoutBuilder(builder: (context, box) => _viewList(context, d, dashSectionColumns(box.maxWidth))),
+    );
+  }
+
+  Widget _section(DashSection? s, List<DashWidget> list, Dashboard d) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      if (s != null) _SectionHeader(title: s.title, count: list.length),
+      DashGrid(
+        grid: d.grid,
+        widgets: list,
+        builder: (w) => DashTile(widget: w, hub: widget.hub, history: _history, rooms: _rooms),
       ),
+      const SizedBox(height: 4),
+    ],
+  );
+
+  /// [columns] > 1 (szerokie okno): sekcje w kolumnach, każda z własną siatką szerokości kolumny.
+  Widget _viewList(BuildContext context, Dashboard d, int columns) {
+    final sections = [
+      for (final (s, list) in _grouped(d))
+        if (s != null || list.isNotEmpty) (s, list),
+    ];
+    final spread = columns > 1
+        ? spreadSections([for (final (_, list) in sections) dashSectionHeight(list, d.grid)], columns)
+        : null;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+      children: [
+        DashSummary(hub: widget.hub),
+        if (d.scope == DashboardScope.shared && !_owner)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Wspólny pulpit domu - zmienia go właściciel. „Kopiuj do moich”, aby ułożyć po swojemu.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+        if (d.widgets.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: [
+                const Text('Pulpit jest pusty.'),
+                if (_canEdit(d))
+                  TextButton(onPressed: () => setState(() => _editing = true), child: const Text('Dodaj widżety')),
+              ],
+            ),
+          )
+        else if (spread != null)
+          Row(
+            key: const Key('dashColumns'),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (var c = 0; c < spread.length; c++) ...[
+                if (c > 0) const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [for (final i in spread[c]) _section(sections[i].$1, sections[i].$2, d)],
+                  ),
+                ),
+              ],
+            ],
+          )
+        else
+          for (final (s, list) in sections) _section(s, list, d),
+      ],
     );
   }
 
@@ -908,7 +975,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // Także gdy kafelek, z którego zaczęto, zniknął z listy przy przewijaniu (wtedy nie zgłosi końca).
       onPointerUp: (_) => _endDrag(),
       onPointerCancel: (_) => _endDrag(),
-      child: _editorList(context, d, byId),
+      // Szerokie okno: edycja w jednej kolumnie szerokości dużego telefonu (układ kafelków jest wspólny).
+      child: WideLimit(maxWidth: 600, child: _editorList(context, d, byId)),
     );
   }
 

@@ -2078,6 +2078,7 @@ class TileShell extends StatelessWidget {
         customBorder: const CircleBorder(),
         onTap: onIcon ?? onTap,
         onLongPress: onLongPress,
+        onSecondaryTap: onLongPress,
         child: SizedBox.square(
           dimension: iconBox,
           child: busy
@@ -2256,6 +2257,8 @@ class TileShell extends StatelessWidget {
         child: InkWell(
           onTap: onTap,
           onLongPress: onLongPress,
+          // Komputer: prawy przycisk myszy = przytrzymanie (timery, menu kafelka).
+          onSecondaryTap: onLongPress,
           child: Padding(
             padding: tiny
                 ? const EdgeInsets.symmetric(horizontal: 10, vertical: 8)
