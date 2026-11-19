@@ -21,6 +21,7 @@ class HubWeatherNow {
     this.tMin24h,
     this.place,
     this.age,
+    this.source,
   });
 
   final double? temp;
@@ -38,6 +39,9 @@ class HubWeatherNow {
   /// Sekundy od pobrania przez hub.
   final int? age;
 
+  /// Źródło danych (`openmeteo` / `metno`, hub 0.3.43+); null = starszy hub (Open-Meteo).
+  final String? source;
+
   static HubWeatherNow? fromJson(Object? j) {
     if (j is! Map) return null;
     return HubWeatherNow(
@@ -53,6 +57,7 @@ class HubWeatherNow {
       tMin24h: _num(j['tMin24h']),
       place: j['place'] is String && (j['place'] as String).isNotEmpty ? j['place'] as String : null,
       age: _int(j['age']),
+      source: j['source'] is String ? j['source'] as String : null,
     );
   }
 }
@@ -65,9 +70,10 @@ typedef DayForecast = ({DateTime date, double? tMax, double? tMin, int? icon, in
 
 /// Prognoza: 48 h co godzinę i 7 dni.
 class HubForecast {
-  const HubForecast({this.place, this.at, this.current, this.hourly = const [], this.daily = const []});
+  const HubForecast({this.place, this.at, this.current, this.hourly = const [], this.daily = const [], this.source});
 
   final String? place;
+  final String? source;
   final DateTime? at;
   final HubWeatherNow? current;
   final List<HourForecast> hourly;
@@ -83,6 +89,7 @@ class HubForecast {
     if (j is! Map) return null;
     return HubForecast(
       place: j['place'] is String ? j['place'] as String : null,
+      source: j['source'] is String ? j['source'] as String : null,
       at: _time(j['at']),
       current: HubWeatherNow.fromJson(j['current']),
       hourly: [

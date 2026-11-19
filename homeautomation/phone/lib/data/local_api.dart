@@ -481,9 +481,17 @@ class LocalApi {
       // Odpowiedzi z `ok` (także 400 z `errors`, 403/409 przy parowaniu, 503 `busy`) ocenia wołający.
       if (res.statusCode < 300 || pairing || decoded.containsKey('ok')) return decoded;
     }
+    if (res.statusCode == 404 && decoded is Map && decoded['error'] == 'weather_off') {
+      throw const WeatherOffException();
+    }
     if (res.statusCode == 404) {
       throw ThermostatException('Urządzenie nie zna $path - może ma za starą wersję oprogramowania.');
     }
     throw ThermostatException('Urządzenie zwróciło błąd HTTP ${res.statusCode}.');
   }
+}
+
+/// `404 {"error":"weather_off"}` huba (pkt 11): pogoda wyłączona, bez położenia domu albo jeszcze nie pobrana.
+class WeatherOffException extends ThermostatException {
+  const WeatherOffException() : super('Hub nie ma pogody - włącz ją i ustaw położenie domu.');
 }

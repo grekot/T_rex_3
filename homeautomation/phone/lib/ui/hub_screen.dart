@@ -19,6 +19,7 @@ import '../models/hub.dart';
 import '../models/hub_weather.dart';
 import '../models/json_utils.dart';
 import '../models/thermostat_config.dart';
+import '../models/weather_compare.dart';
 import '../platform.dart';
 import '../services.dart';
 import 'automations_screen.dart';
@@ -27,6 +28,7 @@ import 'dashboard_tiles.dart' show weatherLabel;
 import 'device_admin_section.dart';
 import 'format.dart';
 import 'hub_ble_screen.dart';
+import 'weather_compare_screen.dart';
 import 'widget_editor.dart';
 import 'widgets.dart';
 
@@ -89,19 +91,24 @@ class _HubScreenState extends State<HubScreen> {
   }
 
   /// Pogoda w hubie (pkt 11): włączenie i nazwa miejsca; bez położenia domu - od razu okno położenia.
-  Future<void> _weather(Json? current, Json? location) async {
-    final r = await showDialog<(bool, String)>(
+  Future<void> _weather(Json? current, Json? location, {String? active}) async {
+    final r = await showDialog<(bool, String, String?)>(
       context: context,
       builder: (_) => _WeatherDialog(
         enabled: current?['enabled'] == true,
         place: current?['place'] is String ? current!['place'] as String : '',
         hasLocation: location != null,
+        // Wybór źródła - hub 0.3.43+ (pole `source` w Config albo w State `weather`).
+        source: current?['source'] is String
+            ? current!['source'] as String
+            : (active != null ? weatherSourceOpenMeteo : null),
+        active: active,
       ),
     );
     if (r == null || !mounted) return;
-    final (enabled, place) = r;
+    final (enabled, place, source) = r;
     final res = await c.sendJson({
-      'weather': {'enabled': enabled, if (place.isNotEmpty) 'place': place},
+      'weather': {'enabled': enabled, if (place.isNotEmpty) 'place': place, 'source': ?source},
     });
     if (!mounted) return;
     showSaveResult(context, res.errors, describeErrors);
@@ -268,7 +275,30 @@ class _HubScreenState extends State<HubScreen> {
             title: const Text('Pogoda'),
             subtitle: Text(_weatherText(s, asObjectOrNull(cfg?['weather'], 'weather'), location)),
             enabled: c.canConfig,
-            onTap: () => _weather(asObjectOrNull(cfg?['weather'], 'weather'), location),
+            onTap: () => _weather(
+              asObjectOrNull(cfg?['weather'], 'weather'),
+              location,
+              active: HubWeatherNow.fromJson(s['weather'])?.source,
+            ),
+          ),
+        // Dwa źródła (hub 0.3.43+): porównanie prognoz - tylko w sieci domowej (`GET /api/weather/compare`
+        // nie ma lustra w chmurze).
+        if (_hasSources(s, cfg))
+          ListTile(
+            key: const Key('hubWeatherCompare'),
+            leading: const Icon(Icons.compare_arrows),
+            title: const Text('Porównanie prognoz'),
+            subtitle: Text(
+              c.localApi == null
+                  ? 'Tylko w sieci domowej'
+                  : 'Open-Meteo i MET Norway obok siebie - które lepiej trafia',
+            ),
+            enabled: c.localApi != null,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => WeatherCompareScreen(load: () => HubApi(c.localApi!).weatherCompare()),
+              ),
+            ),
           ),
         // Kalendarz domu (pkt 11): godzina przypomnień „jutro: Plastik” - hub z polem `calendarNotifyAt` w Config.
         if (cfg?.containsKey('calendarNotifyAt') ?? false)
@@ -290,6 +320,12 @@ class _HubScreenState extends State<HubScreen> {
   }
 }
 
+/// Hub z dwoma źródłami pogody (0.3.43+): `source` w Config `weather` albo w State `weather`.
+bool _hasSources(Json s, Json? cfg) {
+  final w = cfg?['weather'];
+  return (w is Map && w.containsKey('source')) || HubWeatherNow.fromJson(s['weather'])?.source != null;
+}
+
 /// Opis pogody na liście: bieżąca pogoda albo dlaczego jej nie ma.
 String _weatherText(Json s, Json? cfg, Json? location) {
   final now = HubWeatherNow.fromJson(s['weather']);
@@ -298,6 +334,7 @@ String _weatherText(Json s, Json? cfg, Json? location) {
       if (now.temp != null) fmtTemp(now.temp),
       weatherLabel(now.icon),
       ?now.place,
+      if (now.source != null) weatherSourceName(now.source),
       if ((now.age ?? 0) > 3600) 'sprzed ${now.age! ~/ 60} min',
     ].join(' · ');
   }
@@ -307,11 +344,23 @@ String _weatherText(Json s, Json? cfg, Json? location) {
 }
 
 class _WeatherDialog extends StatefulWidget {
-  const _WeatherDialog({required this.enabled, required this.place, required this.hasLocation});
+  const _WeatherDialog({
+    required this.enabled,
+    required this.place,
+    required this.hasLocation,
+    this.source,
+    this.active,
+  });
 
   final bool enabled;
   final String place;
   final bool hasLocation;
+
+  /// Wybrane źródło (`openmeteo` / `metno`); null = hub bez wyboru źródła (przed 0.3.43).
+  final String? source;
+
+  /// Źródło, z którego hub teraz podaje dane (pole `source` w State `weather`).
+  final String? active;
 
   @override
   State<_WeatherDialog> createState() => _WeatherDialogState();
@@ -321,6 +370,7 @@ class _WeatherDialogState extends State<_WeatherDialog> {
   // Pierwsze otwarcie (bez nazwy miejsca) - od razu włączona.
   late bool _enabled = widget.enabled || widget.place.isEmpty;
   late final _place = TextEditingController(text: widget.place);
+  late String? _source = widget.source;
 
   @override
   void dispose() {
@@ -342,10 +392,43 @@ class _WeatherDialogState extends State<_WeatherDialog> {
             key: const Key('weatherEnabled'),
             contentPadding: EdgeInsets.zero,
             title: const Text('Pobieraj pogodę'),
-            subtitle: const Text('Open-Meteo co 15 min, prognoza co godzinę - dla kafelków, automatyk i zegara'),
+            subtitle: Text(
+              _source == null
+                  ? 'Open-Meteo co 15 min, prognoza co godzinę - dla kafelków, automatyk i zegara'
+                  : 'Hub pobiera z obu źródeł - dla kafelków, automatyk i zegarów idzie wybrane',
+            ),
             value: _enabled,
             onChanged: (v) => setState(() => _enabled = v),
           ),
+          if (_source != null) ...[
+            const SizedBox(height: 8),
+            Text('Źródło dla zegarów i kafelków', style: Theme.of(context).textTheme.labelLarge),
+            RadioGroup<String>(
+              groupValue: _source,
+              onChanged: (v) => setState(() => _source = v),
+              child: Column(
+                children: [
+                  for (final s in weatherSources)
+                    RadioListTile<String>(
+                      key: Key('weatherSource-$s'),
+                      contentPadding: EdgeInsets.zero,
+                      dense: true,
+                      enabled: _enabled,
+                      value: s,
+                      title: Text(weatherSourceName(s)),
+                      subtitle: widget.active == s ? const Text('teraz używane') : null,
+                    ),
+                ],
+              ),
+            ),
+            if (widget.active != null && widget.source != null && widget.active != widget.source)
+              Text(
+                key: const Key('weatherSourceFallback'),
+                'Wybrane ${weatherSourceName(widget.source)} nie ma świeżych danych - hub używa '
+                '${weatherSourceName(widget.active)}.',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+          ],
           TextField(
             key: const Key('weatherPlace'),
             controller: _place,
@@ -367,7 +450,7 @@ class _WeatherDialogState extends State<_WeatherDialog> {
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Anuluj')),
         FilledButton(
           key: const Key('weatherOk'),
-          onPressed: tooLong ? null : () => Navigator.pop(context, (_enabled, _place.text.trim())),
+          onPressed: tooLong ? null : () => Navigator.pop(context, (_enabled, _place.text.trim(), _source)),
           child: const Text('Zapisz'),
         ),
       ],

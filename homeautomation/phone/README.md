@@ -381,6 +381,13 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   do 32 B); bez położenia domu po zapisie od razu okno położenia. W edytorze automatyk hub z pogodą jest na liście
   urządzeń warunków / wyzwalaczy stanu - tylko punkty `weather.*`, `astro.*`, `air.*` (np. „najniższa temperatura w 24 h
   < 0”, „AQI > 60”); `calendarNotifyAt` (Config) - godzina przypomnień z kalendarza;
+- **Dwa źródła pogody** (hub 0.3.43+, `source` w Config `weather` albo w State `weather`; `weather_compare.dart`):
+  - wybór w oknie „Pogoda”: Open-Meteo / MET Norway (yr.no), Set `weather {…, source}`; „teraz używane” i ostrzeżenie,
+    gdy hub jedzie na zapasowym źródle (`source` w State ≠ wybrane); na liście źródło przy bieżącej pogodzie;
+  - **Porównanie prognoz** (`WeatherCompareScreen`, `GET /api/weather/compare`, tylko w sieci domowej - bez lustra
+    w chmurze): bieżąca obu źródeł, różnica temperatur w 24 h (średnia, największa), opad 24 h, wykres temperatur
+    i opadu, tabela 24 h i 7 dni (min / max, opad, szansa opadu - MET jej nie podaje, ikona); szerokie okno - 24 h
+    i 7 dni w dwóch kolumnach; `404 weather_off` → `WeatherOffException` z komunikatem;
 - **Ostatni odczyt** (pod paskiem połączenia na ekranie urządzenia, `RouteChip`, `DeviceController.lastInfoAt`):
   `seenAt` od huba (pkt 11, urządzenia huba), `lastSeen` z chmury (urządzenia bez huba), lokalnie - ostatni stan
   z WebSocketu; „12:31 · 3 min temu”, „wczoraj 23:05”. Nie służy do oceny offline (to `online` / `lastSeen`).

@@ -4,6 +4,7 @@ import '../models/hub_timer.dart';
 import '../models/json_utils.dart';
 import '../models/remote.dart';
 import '../models/scene.dart';
+import '../models/weather_compare.dart';
 import 'errors.dart';
 import 'local_api.dart';
 
@@ -209,6 +210,16 @@ class HubApi {
     final j = await api.request('DELETE', '/api/timers/$id');
     if (j is Map && j['ok'] == false && j['error'] is String) throw HubTimerException(j['error'] as String);
     _ok(j);
+  }
+
+  // ---- pogoda (pkt 11)
+
+  /// `GET /api/weather/compare` (hub 0.3.43+): Open-Meteo i MET Norway obok siebie. Pogoda wyłączona →
+  /// [WeatherOffException]; starszy hub → [ThermostatException] „nie zna”.
+  Future<WeatherCompare> weatherCompare() async {
+    final c = WeatherCompare.fromJson(await api.request('GET', '/api/weather/compare'));
+    if (c == null) throw const ThermostatException('Hub zwrócił nieczytelne porównanie pogody.');
+    return c;
   }
 
   // ---- aktualizacje węzłów (pkt 3e)

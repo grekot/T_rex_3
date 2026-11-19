@@ -504,4 +504,68 @@ void main() {
     expect(conn.sent.last, {'calendarNotifyAt': '18:30'});
     hub.dispose();
   });
+
+  testWidgets('dwa źródła (hub 0.3.43+): wybór MET Norway, zapas widoczny, porównanie tylko w sieci domowej', (
+    tester,
+  ) async {
+    final (hub, conn, store) = await _hub(
+      {
+        'id': 'hub1',
+        'weather': {..._weather, 'source': 'openmeteo'},
+      },
+      {
+        'name': 'Hub',
+        'location': {'lat': 50.06, 'lon': 19.94},
+        'weather': {'enabled': true, 'place': 'Kraków', 'source': 'metno'},
+      },
+    );
+    await tester.runAsync(hub.load);
+    await tester.pumpWidget(_app(store, hub, HubScreen(controller: hub.controller('hub1')!, hub: hub)));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('hubWeather')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Kraków · Open-Meteo'), findsOneWidget, reason: 'źródło, z którego są dane');
+    // Hub przez chmurę: porównanie (`GET /api/weather/compare`) nie ma lustra - tylko w domu.
+    final compare = tester.widget<ListTile>(find.byKey(const Key('hubWeatherCompare')));
+    expect((compare.enabled, (compare.subtitle! as Text).data), (false, 'Tylko w sieci domowej'));
+
+    await tester.tap(find.byKey(const Key('hubWeather')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('weatherSourceFallback')), findsOneWidget, reason: 'wybrane MET, używane Open-Meteo');
+    expect(find.text('teraz używane'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('weatherSource-openmeteo')));
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('weatherOk')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'weather': {'enabled': true, 'place': 'Kraków', 'source': 'openmeteo'},
+    });
+    hub.dispose();
+  });
+
+  testWidgets('hub przed 0.3.43: bez wyboru źródła i bez porównania; zapis bez pola source', (tester) async {
+    final (hub, conn, store) = await _hub(
+      {'id': 'hub1', 'weather': _weather},
+      {
+        'name': 'Hub',
+        'location': {'lat': 50.06, 'lon': 19.94},
+        'weather': {'enabled': true, 'place': 'Kraków'},
+      },
+    );
+    await tester.runAsync(hub.load);
+    await tester.pumpWidget(_app(store, hub, HubScreen(controller: hub.controller('hub1')!, hub: hub)));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const Key('hubWeather')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('hubWeatherCompare')), findsNothing);
+    await tester.tap(find.byKey(const Key('hubWeather')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('weatherSource-metno')), findsNothing);
+    await tester.tap(find.byKey(const Key('weatherOk')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'weather': {'enabled': true, 'place': 'Kraków'},
+    });
+    hub.dispose();
+  });
 }
