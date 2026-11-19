@@ -1,8 +1,9 @@
 // „Dodaj czujnik WiFi (zasilanie USB)” (kontrakt pkt 15.7): czujnik `btsensor` 1.3.0+ pracuje prosto przez WiFi
 // do huba (0.3.35+), bez bramki Bluetooth. Przebieg: najpierw ekran, potem zasilanie czujnika (okno konfiguracji 3 min)
 // → `HA_ble-*` z sygnałem ≥ −60 dBm → sesja security 1 bez PoP → `ha-pair` z adresem huba → sieć i hasło → po
-// `connected` dopiero szukanie w hubie (`POST /api/ble/scan`) → nowy czujnik w `paired` (nazwa, `POST /api/devices`)
-// albo już dodany z `link: "wifi"` (klucz bez zmian).
+// `connected` dopiero szukanie w hubie (`POST /api/ble/scan`) → czujnik w `paired`: nowy - nazwa i `POST /api/devices`,
+// już dodany - `POST /api/devices` z dotychczasową nazwą (nowy klucz, ten sam wpis); albo już dodany z `link: "wifi"`
+// bez `error: "key"` (klucz bez zmian).
 
 import 'dart:async';
 
@@ -74,7 +75,7 @@ class _BleWifiSensorScreenState extends State<BleWifiSensorScreen> {
   final _password = TextEditingController();
   final _name = TextEditingController();
 
-  /// Czujnik był już w hubie - przeszedł na WiFi z tym samym kluczem.
+  /// Czujnik był już w hubie (po `paired` dopisywany ponownie z dotychczasową nazwą).
   bool _existing = false;
   String? _existingName;
   BlePaired? _paired;
@@ -215,16 +216,17 @@ class _BleWifiSensorScreenState extends State<BleWifiSensorScreen> {
       _hubScanning = true;
       final deadline = DateTime.now().add(widget.hubTimeout);
       while (mounted) {
+        // Czujnik po provisioningu zwykle paruje się od nowa (0x13 z nowym kluczem) - także już dodany: hub trzyma
+        // wtedy klucz jako oczekujący (`error: "key"`), dopóki aplikacja nie dopisze czujnika ponownie.
+        final seen = await widget.api.bleSeen();
+        final p = seen.paired.where((p) => _norm(p.mac) == _norm(pair.mac)).firstOrNull;
+        if (p != null) {
+          _paired = p;
+          break;
+        }
         if (_existing) {
           final d = (await widget.api.devices()).where((d) => d.id == pair.id).firstOrNull;
-          if (d?.state['link'] == 'wifi') break;
-        } else {
-          final seen = await widget.api.bleSeen();
-          final p = seen.paired.where((p) => _norm(p.mac) == _norm(pair.mac)).firstOrNull;
-          if (p != null) {
-            _paired = p;
-            break;
-          }
+          if (d != null && d.state['link'] == 'wifi' && d.error != 'key') break;
         }
         if (DateTime.now().isAfter(deadline)) {
           throw const ThermostatException(
@@ -236,6 +238,11 @@ class _BleWifiSensorScreenState extends State<BleWifiSensorScreen> {
       }
       _hubScanning = false;
       await widget.api.bleStop().catchError((_) {});
+      // Już dodany z nowym kluczem: ten sam wpis (to samo id) z dotychczasową nazwą - historia, pulpity
+      // i automatyki zostają; bez pytania o nazwę.
+      if (_existing && _paired != null && mounted) {
+        await _register(_existingName ?? pair.id, index: false);
+      }
     } on ThermostatException catch (e) {
       if (!mounted) return;
       setState(() {
@@ -255,23 +262,28 @@ class _BleWifiSensorScreenState extends State<BleWifiSensorScreen> {
   Future<void> _add() async {
     final name = _name.text.trim();
     if (name.isEmpty) return;
-    final cloud = Services.of(context).cloud;
     setState(() => _error = null);
     try {
-      final id = await widget.api.addDevice({
-        'adapter': HubAdapter.ble.wire,
-        'deviceId': _paired!.mac,
-        'paired': true,
-        'name': name,
-      });
-      if (widget.canLink) {
-        await writeDeviceIndex(cloud.store, cloud.homeId!, id, DeviceType.sensor, name, via: widget.hubId);
-      }
-      _added = true;
+      await _register(name);
       if (mounted) setState(() => _step = _Step.done);
     } on ThermostatException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
+  }
+
+  /// Dopisanie czujnika z `paired` do huba (`POST /api/devices`); [index] - wpis w `deviceIndex` (nowy czujnik).
+  Future<void> _register(String name, {bool index = true}) async {
+    final cloud = Services.of(context).cloud;
+    final id = await widget.api.addDevice({
+      'adapter': HubAdapter.ble.wire,
+      'deviceId': _paired!.mac,
+      'paired': true,
+      'name': name,
+    });
+    if (index && widget.canLink) {
+      await writeDeviceIndex(cloud.store, cloud.homeId!, id, DeviceType.sensor, name, via: widget.hubId);
+    }
+    _added = true;
   }
 
   @override

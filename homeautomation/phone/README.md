@@ -337,8 +337,9 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   ok. 2-3 tygodnie); `HA_ble-*` tylko z sygnałem ≥ −60 dBm (jeden - od razu, kilka - wybór), security 1 bez PoP,
   `ha-pair` `{"client","hub":{"id","ip"}}` (`Provisioner.haPairSensor`, odpowiedź bez tokenu), sieć i hasło
   (`WifiChooser`, wspólny z „Nowe urządzenie”), dopiero po `connected` `POST /api/ble/scan` i `GET /api/ble/seen`:
-  nowy czujnik w `paired` → nazwa i `POST /api/devices {"adapter":"ble","deviceId","paired":true,"name"}`, już dodany -
-  czeka na `link: "wifi"` w `GET /api/devices`. Ekran czujnika z `link: "wifi"`: „Wróć na Bluetooth” (Set `link: "bt"`);
+  nowy czujnik w `paired` → nazwa i `POST /api/devices {"adapter":"ble","deviceId","paired":true,"name"}`, już dodany
+  w `paired` (nowy klucz, w hubie `error: "key"`) → to samo `POST` z dotychczasową nazwą, bez pytania (ten sam wpis),
+  albo `link: "wifi"` bez `error: "key"` w `GET /api/devices` (klucz bez zmian). Ekran czujnika z `link: "wifi"`: „Wróć na Bluetooth” (Set `link: "bt"`);
   **Bramka Bluetooth** (węzeł `btnode`, `DeviceType.btnode`, ikona Bluetooth): „Przypisz do huba” daje hubowi token
   `config` (jak inne węzły; `control` tylko termostat). Ekran bramki (`BtNodeSection` zamiast listy z `describe` -
   `scanAll` przełącza hub): układ Bluetooth (`bleOk`, `bleFw`, `bleUptime`), połączenia zegarków teraz (`bleConns`),

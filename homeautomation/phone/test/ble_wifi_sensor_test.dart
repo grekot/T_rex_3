@@ -1,6 +1,6 @@
 // „Dodaj czujnik WiFi (zasilanie USB)” (pkt 15.7): `HA_ble-*` z sygnałem ≥ −60 dBm, sesja bez PoP, `ha-pair` z adresem
 // huba (bez tokenu), sieć i hasło, dopiero po `connected` szukanie w hubie; nowy czujnik z `paired` → nazwa i dodanie,
-// już dodany → `link: "wifi"`. Hub w pamięci, urządzenie - atrapa protokołu provisioningu.
+// już dodany → po `paired` ponowne dodanie ze starą nazwą albo `link: "wifi"`. Hub w pamięci, urządzenie - atrapa protokołu provisioningu.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -56,12 +56,15 @@ class _Ble extends ProvisioningBackend {
   }
 }
 
-/// Hub w pamięci: czujnik pojawia się po drugim odpytaniu (nowy w `paired`, dodany - `link: wifi`).
+/// Hub w pamięci: czujnik pojawia się po drugim odpytaniu - z nowym kluczem w `paired` ([newKey]; już dodany ma wtedy
+/// `error: "key"`), a bez nowego klucza już dodany dostaje `link: wifi`.
 class _Hub extends HubApi {
-  _Hub(this.device, {this.existing = false}) : super(LocalApi(const LocalEndpoint('192.168.68.125')));
+  _Hub(this.device, {this.existing = false, this.newKey = true})
+    : super(LocalApi(const LocalEndpoint('192.168.68.125')));
 
   final FakeProvDevice device;
   final bool existing;
+  final bool newKey;
   final added = <Json>[];
   var scans = 0, stops = 0, polls = 0;
 
@@ -81,7 +84,10 @@ class _Hub extends HubApi {
   @override
   Future<BleSeen> bleSeen() async {
     polls++;
-    return BleSeen(scanning: true, paired: polls < 2 ? const [] : const [BlePaired(mac: '88:56:a6:77:b8:36')]);
+    return BleSeen(
+      scanning: true,
+      paired: newKey && polls >= 2 ? const [BlePaired(mac: '88:56:a6:77:b8:36')] : const [],
+    );
   }
 
   @override
@@ -93,7 +99,8 @@ class _Hub extends HubApi {
         'adapter': 'ble',
         'host': '',
         'name': 'Salon czerwony',
-        'state': {'link': scans > 0 && polls++ >= 1 ? 'wifi' : 'bt'},
+        if (newKey && scans > 0) ...{'online': false, 'error': 'key'},
+        'state': {'link': scans > 0 && polls >= 2 ? 'wifi' : 'bt'},
       }),
   ];
 
@@ -193,9 +200,27 @@ void main() {
     expect(find.textContaining('Dodano Salon czerwony'), findsOneWidget);
   });
 
-  testWidgets('już dodany czujnik: po połączeniu czeka na link wifi, bez ponownego dodawania', (tester) async {
+  testWidgets('już dodany czujnik z nowym kluczem: po paired dopisany ponownie ze starą nazwą, bez pytania', (
+    tester,
+  ) async {
     final dev = _sensor();
     final hub = _Hub(dev, existing: true);
+    await _pump(tester, hub, _Ble(const [ProvCandidate('HA_ble-8856a677b836', -45)], dev));
+    await _toWifi(tester);
+    await _waitFor(tester, find.text('Salon czerwony pracuje teraz przez WiFi.'));
+    expect(find.byKey(const Key('bleWifiName')), findsNothing, reason: 'bez pytania o nazwę');
+    expect(hub.added.single, {
+      'adapter': 'ble',
+      'deviceId': '88:56:a6:77:b8:36',
+      'paired': true,
+      'name': 'Salon czerwony',
+    });
+    expect(hub.stops, 1);
+  });
+
+  testWidgets('już dodany czujnik bez nowego klucza: czeka na link wifi, bez ponownego dodawania', (tester) async {
+    final dev = _sensor();
+    final hub = _Hub(dev, existing: true, newKey: false);
     await _pump(tester, hub, _Ble(const [ProvCandidate('HA_ble-8856a677b836', -45)], dev));
     await _toWifi(tester);
     await _waitFor(tester, find.text('Salon czerwony pracuje teraz przez WiFi.'));
