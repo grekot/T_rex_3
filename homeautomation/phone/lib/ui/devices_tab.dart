@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../controllers/device_controller.dart';
 import '../controllers/device_hub.dart';
 import '../controllers/home_session.dart';
 import '../data/device_store.dart';
@@ -213,52 +214,111 @@ class _DevicesTabState extends State<DevicesTab> {
           ),
           body: !hub.loaded
               ? const Center(child: CircularProgressIndicator())
-              : RefreshIndicator(
-                  onRefresh: hub.load,
-                  child: ListView(
-                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
-                    children: [
-                      if (hub.cloudLoading) const LinearProgressIndicator(),
-                      if (devices.isEmpty && !hub.cloudLoading) _Empty(onAdd: _add),
-                      for (final s in sections)
-                        if (s.room != null || s.deviceIds.isNotEmpty) ...[
-                          _RoomHeader(
-                            room: s.room,
-                            onAction: s.room == null || !_canEditRooms ? null : (a) => _roomMenu(s.room!, a),
-                          ),
-                          if (s.deviceIds.isEmpty && _canEditRooms)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-                              child: Text(
-                                'Pusty pokój - przytrzymaj kafelek urządzenia, aby go tu przenieść.',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
+              : _split(
+                  RefreshIndicator(
+                    onRefresh: hub.load,
+                    child: ListView(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 96),
+                      children: [
+                        if (hub.cloudLoading) const LinearProgressIndicator(),
+                        if (devices.isEmpty && !hub.cloudLoading) _Empty(onAdd: _add),
+                        for (final s in sections)
+                          if (s.room != null || s.deviceIds.isNotEmpty) ...[
+                            _RoomHeader(
+                              room: s.room,
+                              onAction: s.room == null || !_canEditRooms ? null : (a) => _roomMenu(s.room!, a),
                             ),
-                          TileGrid(
-                            children: [
-                              for (final id in s.deviceIds)
-                                DeviceTile(
-                                  device: byId[id]!,
-                                  controller: hub.controller(id),
-                                  hub: hub,
-                                  onLongPress: () => _deviceMenu(byId[id]!, s.room),
+                            if (s.deviceIds.isEmpty && _canEditRooms)
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                                child: Text(
+                                  'Pusty pokój - przytrzymaj kafelek urządzenia, aby go tu przenieść.',
+                                  style: Theme.of(context).textTheme.bodySmall,
                                 ),
-                            ],
+                              ),
+                            TileGrid(
+                              children: [
+                                for (final id in s.deviceIds)
+                                  DeviceTile(
+                                    device: byId[id]!,
+                                    controller: hub.controller(id),
+                                    hub: hub,
+                                    onLongPress: () => _deviceMenu(byId[id]!, s.room),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        if (hub.cloudError != null)
+                          ListTile(
+                            leading: Icon(Icons.cloud_off, color: Theme.of(context).colorScheme.error),
+                            title: Text(hub.cloudError!),
+                            subtitle: const Text('Pociągnij w dół, aby spróbować ponownie.'),
                           ),
-                        ],
-                      if (hub.cloudError != null)
-                        ListTile(
-                          leading: Icon(Icons.cloud_off, color: Theme.of(context).colorScheme.error),
-                          title: Text(hub.cloudError!),
-                          subtitle: const Text('Pociągnij w dół, aby spróbować ponownie.'),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
         );
       },
     );
   }
+
+  /// Szerokie okno: lista po lewej, szczegóły wybranego urządzenia po prawej (własny stos ekranów panelu).
+  Widget _split(Widget list) => LayoutBuilder(
+    builder: (context, box) {
+      if (box.maxWidth < deviceSplitMinWidth) return list;
+      return Row(
+        key: const Key('devicesSplit'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          SizedBox(
+            width: deviceListWidth,
+            child: DeviceDetailsScope(show: _showDetails, child: list),
+          ),
+          const VerticalDivider(width: 1),
+          Expanded(
+            child: Navigator(
+              key: _pane,
+              onGenerateInitialRoutes: (_, _) => [MaterialPageRoute<void>(builder: (_) => const _NoSelection())],
+            ),
+          ),
+        ],
+      );
+    },
+  );
+
+  final _pane = GlobalKey<NavigatorState>();
+
+  void _showDetails(DeviceController<Object?, Object?> c, DeviceHub? hub) {
+    unawaited(
+      _pane.currentState?.pushAndRemoveUntil(
+        MaterialPageRoute<void>(builder: (_) => deviceScreen(c, hub: hub ?? this.hub)),
+        (r) => r.isFirst,
+      ),
+    );
+  }
+}
+
+/// Od tej szerokości „Urządzenia” mają panel szczegółów obok listy.
+const deviceSplitMinWidth = 1000.0;
+const deviceListWidth = 460.0;
+
+class _NoSelection extends StatelessWidget {
+  const _NoSelection();
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    body: Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.touch_app_outlined, size: 56, color: Theme.of(context).colorScheme.outline),
+          const SizedBox(height: 12),
+          const Text('Wybierz urządzenie z listy.'),
+        ],
+      ),
+    ),
+  );
 }
 
 class _RoomHeader extends StatelessWidget {

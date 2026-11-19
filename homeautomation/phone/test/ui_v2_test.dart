@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:homeautomation/app.dart';
 import 'package:homeautomation/data/cloud_access.dart';
@@ -30,6 +31,7 @@ import 'package:homeautomation/ui/add_device_screen.dart';
 import 'package:homeautomation/provisioning/prov_qr.dart';
 import 'package:homeautomation/models/dashboard.dart';
 import 'package:homeautomation/ui/main_screen.dart';
+import 'package:homeautomation/ui/thermostat_screen.dart';
 import 'package:homeautomation/ui/dashboard_tiles.dart' show packGrid4;
 import 'package:homeautomation/ui/app_icons.dart';
 import 'package:homeautomation/ui/device_tiles.dart';
@@ -312,6 +314,61 @@ void main() {
     await tester.pumpAndSettle();
     expect(DeviceIcons.instance.of('swiatlo-1'), 'ceiling');
     expect(find.descendant(of: lampTile, matching: find.byIcon(Icons.light)), findsOneWidget);
+  });
+
+  testWidgets('Urządzenia w szerokim oknie: lista i szczegóły obok, Esc zamyka szczegóły', (tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    DeviceIcons.instance = DeviceIcons(cache: MemoryTextCache());
+    final store = MemoryDeviceStore();
+    await store.saveDevice(const PairedDevice(id: 'termostat-ab12cd', name: 'Salon'));
+    await store.saveDevice(const PairedDevice(id: 'swiatlo-1', name: 'Lampa', type: DeviceType.onOff));
+    final light = _MemConnection<LightState, LightConfig>(
+      'swiatlo-1',
+      lightCodec,
+      {'id': 'swiatlo-1', 'on': false},
+      {'name': 'Lampa'},
+    );
+    final thermo = _MemConnection<ThermostatState, ThermostatConfig>(
+      'termostat-ab12cd',
+      thermostatCodec,
+      jsonDecode(stateJson) as Json,
+      jsonDecode(configJson) as Json,
+    );
+    await tester.pumpWidget(
+      _app(
+        store: store,
+        manager: _StubManager({'swiatlo-1': light, 'termostat-ab12cd': thermo}),
+        rooms: _MemRooms(),
+        home: const MainScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('panel')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('panel-devices')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('devicesSplit')), findsOneWidget);
+    expect(find.text('Wybierz urządzenie z listy.'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('tile-termostat-ab12cd')));
+    await tester.pumpAndSettle();
+    expect(find.text('Wybierz urządzenie z listy.'), findsNothing);
+    expect(find.byKey(const Key('tile-swiatlo-1')), findsOneWidget, reason: 'lista zostaje obok szczegółów');
+    expect(find.byType(ThermostatScreen), findsOneWidget);
+
+    // Inne urządzenie zastępuje szczegóły (bez stosu ekranów w panelu).
+    await tester.tap(
+      find.descendant(of: find.byKey(const Key('tile-swiatlo-1')), matching: find.byTooltip('Szczegóły')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(ThermostatScreen), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await tester.pumpAndSettle();
+    expect(find.text('Wybierz urządzenie z listy.'), findsOneWidget);
+    expect(find.byKey(const Key('devicesSplit')), findsOneWidget, reason: 'Esc zamknął tylko szczegóły');
   });
 
   testWidgets('Pulpit: startowy z urządzeń, sterowanie, widżet w 3 krokach, scena', (tester) async {

@@ -40,9 +40,7 @@ class TermostatApp extends StatelessWidget {
       // Zegar 24-godzinny w wybieraniu godzin harmonogramu niezależnie od ustawień telefonu.
       // Komputer: Esc - wstecz (zamyka też okna i menu), jak przycisk „wstecz” w telefonie.
       builder: (context, child) => CallbackShortcuts(
-        bindings: {
-          const SingleActivator(LogicalKeyboardKey.escape): () => unawaited(_navigator.currentState?.maybePop()),
-        },
+        bindings: {const SingleActivator(LogicalKeyboardKey.escape): () => unawaited(_back())},
         child: MediaQuery(
           data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
           child: aboveSystemBars(context, child!),
@@ -54,6 +52,14 @@ class TermostatApp extends StatelessWidget {
 }
 
 final _navigator = GlobalKey<NavigatorState>();
+
+/// Esc: najpierw nawigator, w którym jest fokus (np. panel szczegółów obok listy urządzeń), potem główny.
+Future<void> _back() async {
+  final ctx = FocusManager.instance.primaryFocus?.context;
+  final nav = ctx == null || !ctx.mounted ? null : Navigator.maybeOf(ctx);
+  if (nav != null && nav != _navigator.currentState && await nav.maybePop()) return;
+  await _navigator.currentState?.maybePop();
+}
 
 class _AppScrollBehavior extends MaterialScrollBehavior {
   const _AppScrollBehavior();

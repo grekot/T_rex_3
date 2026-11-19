@@ -47,17 +47,29 @@ class DeviceTile extends StatelessWidget {
   }
 }
 
-/// Szczegóły urządzenia: termostat - jego ekran, hub - ekran huba (z [hub]), inne typy - ekran z `describe`.
-Future<void> openDevice(BuildContext context, DeviceController<Object?, Object?> c, {DeviceHub? hub}) =>
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => c is ThermostatController
-            ? ThermostatScreen(controller: c)
-            : c.device.type == DeviceType.hub && hub != null
-            ? HubScreen(controller: c, hub: hub)
-            : GenericDeviceScreen(controller: c, hub: hub),
-      ),
-    );
+/// Ekran szczegółów: termostat - jego ekran, hub - ekran huba (z [hub]), inne typy - ekran z `describe`.
+Widget deviceScreen(DeviceController<Object?, Object?> c, {DeviceHub? hub}) => c is ThermostatController
+    ? ThermostatScreen(controller: c)
+    : c.device.type == DeviceType.hub && hub != null
+    ? HubScreen(controller: c, hub: hub)
+    : GenericDeviceScreen(controller: c, hub: hub);
+
+/// Szczegóły urządzenia: nowy ekran albo - pod [DeviceDetailsScope] (szerokie okno „Urządzenia”) - panel obok listy.
+Future<void> openDevice(BuildContext context, DeviceController<Object?, Object?> c, {DeviceHub? hub}) async {
+  final pane = context.getInheritedWidgetOfExactType<DeviceDetailsScope>();
+  if (pane != null) return pane.show(c, hub);
+  await Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => deviceScreen(c, hub: hub)));
+}
+
+/// Szerokie okno „Urządzenia”: kafelki pod tym widżetem otwierają szczegóły w panelu, a nie na nowym ekranie.
+class DeviceDetailsScope extends InheritedWidget {
+  const DeviceDetailsScope({super.key, required this.show, required super.child});
+
+  final void Function(DeviceController<Object?, Object?> c, DeviceHub? hub) show;
+
+  @override
+  bool updateShouldNotify(DeviceDetailsScope oldWidget) => false;
+}
 
 /// Ikona urządzenia: wybrana przez użytkownika albo domyślna dla typu.
 IconData deviceIcon(PairedDevice d) => (appIcon(DeviceIcons.instance.of(d.id)) ?? appIcon(deviceIconKey(d.type))!).icon;

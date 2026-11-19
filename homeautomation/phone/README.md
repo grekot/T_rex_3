@@ -626,7 +626,10 @@ Obsługa myszy i klawiatury:
 
 Szerokie okno (od 900 px, `wide_layout.dart`):
 - sekcje pulpitu w 2–4 kolumnach, każda do najniższej;
-- edycja pulpitu w jednej kolumnie do 600 px, bo układ kafelków jest wspólny z telefonem.
+- edycja pulpitu w jednej kolumnie do 600 px, bo układ kafelków jest wspólny z telefonem;
+- „Urządzenia” od 1000 px: lista (460 px) i szczegóły obok, z własnym stosem ekranów (`DeviceDetailsScope`, zagnieżdżony `Navigator`); Esc zamyka najpierw szczegóły.
+
+Okno ma najmniej 380 × 520 px (`WM_GETMINMAXINFO` w runnerze), ikona `app_icon.ico` jest z ikony aplikacji (`web/icons/Icon-512.png`).
 
 Linki (ntfy, strony) otwiera kanał `links` w `windows/runner/flutter_window.cpp`: tylko `http(s)://` i `ntfy://`.
 
