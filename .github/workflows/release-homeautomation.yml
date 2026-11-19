@@ -5,6 +5,7 @@ name: Release HomeAutomation
 # stała nazwa homeautomation.apk + app.json w GitHub Release tego repo.
 # Wersja = tag bez prefiksu `homeautomation-v`. versionCode = (run_number + 10), a przy
 # --split-per-abi Flutter dodaje 2000 dla arm64 – więcej niż lokalne buildy 1.0.0+1.
+# Job windows dokłada homeautomation-windows.zip (wersja na komputer) do tego samego wydania.
 # Firmware urządzeń (repo grekot/SmartTermostatOLED) i zegarek nie są częścią wydania.
 on:
   push:
@@ -41,3 +42,50 @@ jobs:
       KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
       FIREBASE_OPTIONS_DART_B64: ${{ secrets.FIREBASE_OPTIONS_HOMEAUTOMATION_B64 }}
       FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+  # Wersja na komputer (Windows): homeautomation-windows.zip w tym samym GitHub Release (po androidzie, który je
+  # tworzy). Aplikacja z APP_VERSION sprawdza wydania i pokazuje baner „Pobierz” (lib/data/app_update.dart).
+  # Runtime VC++ obok exe - na komputerze nic nie trzeba instalować. Firebase C++ SDK wymaga VS 2022 17.14+.
+  windows:
+    needs: [meta, android]
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: homeautomation/phone
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.9'
+          channel: stable
+          cache: true
+      - name: Konfiguracja Firebase (firebase_options.dart)
+        env:
+          FIREBASE_OPTIONS_DART_B64: ${{ secrets.FIREBASE_OPTIONS_HOMEAUTOMATION_B64 }}
+        run: |
+          if (-not $env:FIREBASE_OPTIONS_DART_B64) { throw 'Brak sekretu FIREBASE_OPTIONS_HOMEAUTOMATION_B64' }
+          [IO.File]::WriteAllBytes("$PWD/lib/firebase_options.dart", [Convert]::FromBase64String($env:FIREBASE_OPTIONS_DART_B64.Trim()))
+      - name: Build
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          flutter pub get
+          flutter build windows --release --build-name=$env:VERSION --dart-define=APP_VERSION=$env:VERSION
+      - name: Zip z runtime VC++
+        run: |
+          # Bez bibliotek statycznych wtyczek (.lib/.exp), które build kopiuje obok exe.
+          $out = "build/windows-zip"
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Get-ChildItem build/windows/x64/runner/Release | Where-Object { $_.Extension -notin '.lib', '.exp' } |
+            Copy-Item -Destination $out -Recurse
+          foreach ($dll in 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll') {
+            Copy-Item "$env:SystemRoot/System32/$dll" $out
+          }
+          Compress-Archive -Path "$out/*" -DestinationPath homeautomation-windows.zip -Force
+          Remove-Item lib/firebase_options.dart
+      - name: Plik w GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: homeautomation/phone/homeautomation-windows.zip
