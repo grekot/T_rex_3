@@ -71,6 +71,22 @@ class _GenericDeviceScreenState extends State<GenericDeviceScreen> {
   }
 
   /// „Pokaż, który to”: dioda na płytce miga 10 s (pkt 10.1).
+  /// Set `link: "bt"` (pkt 15.7): czujnik zapomina sieć przy najbliższym cyklu; State `link` zmienia się dopiero
+  /// po pierwszym pakiecie przez bramkę.
+  Future<void> _linkBt() async {
+    final r = await c.sendJson({'link': 'bt'});
+    if (!mounted) return;
+    if (r.errors.isNotEmpty) {
+      showSaveResult(context, r.errors, describeErrors);
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Czujnik przejdzie na Bluetooth przy najbliższym odczycie (do minuty), jeśli słyszy go bramka.'),
+      ),
+    );
+  }
+
   Future<void> _identify() async {
     final r = await c.sendJson(const LightSet(identify: true).toJson());
     if (!mounted) return;
@@ -301,6 +317,15 @@ class _GenericDeviceScreenState extends State<GenericDeviceScreen> {
             controller: c,
             hub: widget.hub,
             channels: state['channels'] is int ? state['channels'] as int : 1,
+          ),
+        // Czujnik btsensor przez WiFi (pkt 15.7): powrót na Bluetooth - hub wysyła polecenie przy najbliższym cyklu.
+        if (state['link'] == 'wifi' && c.canConfig)
+          ListTile(
+            key: const Key('sensorLinkBt'),
+            leading: const Icon(Icons.wifi),
+            title: const Text('Pracuje przez WiFi'),
+            subtitle: const Text('Prosto do huba, przy zasilaniu USB. Na baterii lepiej przez Bluetooth (bramka).'),
+            trailing: TextButton(onPressed: _linkBt, child: const Text('Wróć na Bluetooth')),
           ),
         DeviceAdminSection(
           controller: c,

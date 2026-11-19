@@ -14,6 +14,7 @@ import '../provisioning/messages.dart';
 import '../provisioning/prov_qr.dart';
 import '../provisioning/provisioner.dart';
 import '../services.dart';
+import 'wifi_chooser.dart';
 
 enum _Step { scan, pop, connecting, wifi, joining, finding, done }
 
@@ -58,7 +59,6 @@ class _BleSetupScreenState extends State<BleSetupScreen> {
   WifiNetwork? _network;
   final _ssid = TextEditingController();
   final _password = TextEditingController();
-  bool _showPassword = false;
 
   @override
   void initState() {
@@ -413,57 +413,20 @@ class _BleSetupScreenState extends State<BleSetupScreen> {
         return [?progress];
 
       case _Step.wifi:
-        final custom = _network == null;
         return [
           Text('Sieć WiFi dla ${_pair!.id}', style: t.titleMedium),
           const SizedBox(height: 4),
           Text('Urządzenie obsługuje sieci 2,4 GHz.', style: t.bodySmall),
           const SizedBox(height: 8),
-          for (final n in _networks)
-            ListTile(
-              key: Key('wifi-${n.ssid}'),
-              selected: _network?.ssid == n.ssid,
-              onTap: () => setState(() => _network = n),
-              leading: Icon(_network?.ssid == n.ssid ? Icons.radio_button_checked : Icons.radio_button_unchecked),
-              title: Text(n.ssid),
-              subtitle: Text('${n.rssi} dBm${n.secured ? '' : ' · otwarta'}'),
-              trailing: Icon(n.secured ? Icons.wifi_lock : Icons.wifi),
-            ),
-          ListTile(
-            key: const Key('wifi-custom'),
-            selected: custom,
-            onTap: () => setState(() => _network = null),
-            leading: Icon(custom ? Icons.radio_button_checked : Icons.radio_button_unchecked),
-            title: Text(_canScan ? 'Inna sieć (ukryta)' : 'Nazwa sieci'),
+          WifiChooser(
+            networks: _networks,
+            network: _network,
+            onNetwork: (n) => setState(() => _network = n),
+            ssid: _ssid,
+            password: _password,
+            onSubmit: _join,
+            canScan: _canScan,
           ),
-          if (custom)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: TextField(
-                key: const Key('ssid'),
-                controller: _ssid,
-                decoration: const InputDecoration(labelText: 'Nazwa sieci (SSID)'),
-              ),
-            ),
-          if (custom || _network!.secured)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: TextField(
-                key: const Key('wifiPassword'),
-                controller: _password,
-                obscureText: !_showPassword,
-                autocorrect: false,
-                enableSuggestions: false,
-                decoration: InputDecoration(
-                  labelText: 'Hasło WiFi',
-                  suffixIcon: IconButton(
-                    icon: Icon(_showPassword ? Icons.visibility_off : Icons.visibility),
-                    onPressed: () => setState(() => _showPassword = !_showPassword),
-                  ),
-                ),
-                onSubmitted: (_) => _join(),
-              ),
-            ),
           ?error,
           FilledButton(key: const Key('wifiJoin'), onPressed: _join, child: const Text('Połącz')),
         ];

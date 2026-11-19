@@ -45,6 +45,31 @@ class HaPairResult {
   }
 }
 
+/// Wynik `ha-pair` czujnika `btsensor` przez WiFi (pkt 15.7): bez tokenu - czujnik nie ma API HTTP.
+class SensorPairResult {
+  const SensorPairResult({required this.id, this.type = 'sensor', this.fwId, this.fw});
+
+  /// `ble-<mac, 12 hex>`.
+  final String id;
+  final String type;
+  final String? fwId;
+  final String? fw;
+
+  /// Adres MAC z identyfikatora (`ble-8856a677b836` → `8856a677b836`).
+  String get mac => id.startsWith('ble-') ? id.substring(4) : id;
+
+  factory SensorPairResult.fromJson(Map<String, dynamic> j) {
+    final id = j['id'];
+    if (id is! String || id.isEmpty) throw const ProvisioningException('Czujnik nie zwrócił identyfikatora.');
+    return SensorPairResult(
+      id: id,
+      type: j['type'] is String ? j['type'] as String : 'sensor',
+      fwId: j['fwId'] is String ? j['fwId'] as String : null,
+      fw: j['fw'] is String ? j['fw'] as String : null,
+    );
+  }
+}
+
 /// Konfiguracja urządzenia przez Bluetooth (kontrakt pkt 9): sesja security 1, `ha-pair`,
 /// skan sieci, zapis SSID/hasła, oczekiwanie na połączenie.
 class Provisioner {
@@ -65,11 +90,21 @@ class Provisioner {
 
   /// Własny kanał `ha-pair`: `{"client":…}` → `{"id","type","token","api"}`.
   /// [uid] - konto Firebase właściciela tokenu (pkt 9.2), null bez konta.
-  Future<HaPairResult> haPair(String clientName, {String? uid}) async {
-    final res = await _secure(
-      'ha-pair',
-      Uint8List.fromList(utf8.encode(jsonEncode({'client': clientName, 'uid': ?uid}))),
-    );
+  Future<HaPairResult> haPair(String clientName, {String? uid}) async =>
+      HaPairResult.fromJson(await _pairRequest({'client': clientName, 'uid': ?uid}));
+
+  /// `ha-pair` czujnika `btsensor` (pkt 15.7): `{"client","hub":{"id","ip"}}` - czujnik zapisuje adres huba, do którego
+  /// będzie wysyłał datagramy; odpowiedź `{"id","type","fwId","fw","api"}` bez tokenu.
+  Future<SensorPairResult> haPairSensor(String clientName, {required String hubId, required String hubIp}) async =>
+      SensorPairResult.fromJson(
+        await _pairRequest({
+          'client': clientName,
+          'hub': {'id': hubId, 'ip': hubIp},
+        }),
+      );
+
+  Future<Map<String, dynamic>> _pairRequest(Map<String, Object?> body) async {
+    final res = await _secure('ha-pair', Uint8List.fromList(utf8.encode(jsonEncode(body))));
     final Object? j;
     try {
       j = jsonDecode(utf8.decode(res));
@@ -77,7 +112,7 @@ class Provisioner {
       throw const ProvisioningException('Urządzenie zwróciło nieczytelną odpowiedź parowania.');
     }
     if (j is! Map<String, dynamic>) throw const ProvisioningException('Zła odpowiedź parowania.');
-    return HaPairResult.fromJson(j);
+    return j;
   }
 
   /// Sieci widoczne dla urządzenia: bez pustych nazw, każda nazwa raz (najsilniejszy sygnał), od najsilniejszej.

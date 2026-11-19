@@ -29,7 +29,11 @@ class FakeProvDevice implements ProvTransport {
     this.networks = const [],
     this.ip = '192.168.1.77',
     this.connectPolls = 2,
+    this.pairResponse,
   });
+
+  /// Własna odpowiedź `ha-pair` (np. czujnik `btsensor` przez WiFi, pkt 15.7 - bez tokenu).
+  final Map<String, Object?>? pairResponse;
 
   final String pop;
   final String id;
@@ -50,6 +54,9 @@ class FakeProvDevice implements ProvTransport {
 
   String? pairedClient;
   String? pairedUid;
+
+  /// `hub` z żądania `ha-pair` czujnika (pkt 15.7).
+  Map<dynamic, dynamic>? pairedHub;
   String? ssid;
   String? passphrase;
   bool applied = false;
@@ -112,8 +119,9 @@ class FakeProvDevice implements ProvTransport {
     final req = jsonDecode(utf8.decode(plain)) as Map;
     pairedClient = req['client'] as String?;
     pairedUid = req['uid'] as String?;
+    pairedHub = req['hub'] as Map?;
     return Uint8List.fromList(
-      utf8.encode(jsonEncode({'id': id, 'type': type, 'token': token, 'api': 2, 'access': 'config'})),
+      utf8.encode(jsonEncode(pairResponse ?? {'id': id, 'type': type, 'token': token, 'api': 2, 'access': 'config'})),
     );
   }
 

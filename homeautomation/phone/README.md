@@ -332,6 +332,13 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   `deviceId` = MAC; właściciel wpisuje `deviceIndex` z `type: sensor` (nowy `DeviceType.sensor`). Na liście: węzeł,
   bateria, „Zły klucz urządzenia” z poprawieniem klucza. Przyciski czujnika (`kind: button` w `describe`) - wyzwalacz
   automatyk: krótko / podwójnie / potrójnie / długo;
+  **Czujnik WiFi (zasilanie USB)** (pkt 15.7, `btsensor` 1.3.0+, hub 0.3.35+): ikona USB na liście urządzeń huba
+  (`BleWifiSensorScreen`) - instrukcja (najpierw ekran, potem zasilanie; okno 3 min) i ostrzeżenie o baterii (2 × AAA
+  ok. 2-3 tygodnie); `HA_ble-*` tylko z sygnałem ≥ −60 dBm (jeden - od razu, kilka - wybór), security 1 bez PoP,
+  `ha-pair` `{"client","hub":{"id","ip"}}` (`Provisioner.haPairSensor`, odpowiedź bez tokenu), sieć i hasło
+  (`WifiChooser`, wspólny z „Nowe urządzenie”), dopiero po `connected` `POST /api/ble/scan` i `GET /api/ble/seen`:
+  nowy czujnik w `paired` → nazwa i `POST /api/devices {"adapter":"ble","deviceId","paired":true,"name"}`, już dodany -
+  czeka na `link: "wifi"` w `GET /api/devices`. Ekran czujnika z `link: "wifi"`: „Wróć na Bluetooth” (Set `link: "bt"`);
   **Bramka Bluetooth** (węzeł `btnode`, `DeviceType.btnode`, ikona Bluetooth): „Przypisz do huba” daje hubowi token
   `config` (jak inne węzły; `control` tylko termostat). Ekran bramki (`BtNodeSection` zamiast listy z `describe` -
   `scanAll` przełącza hub): układ Bluetooth (`bleOk`, `bleFw`, `bleUptime`), połączenia zegarków teraz (`bleConns`),

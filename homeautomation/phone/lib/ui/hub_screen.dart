@@ -21,6 +21,7 @@ import '../models/json_utils.dart';
 import '../models/thermostat_config.dart';
 import '../services.dart';
 import 'automations_screen.dart';
+import 'ble_wifi_sensor_screen.dart';
 import 'dashboard_tiles.dart' show weatherLabel;
 import 'device_admin_section.dart';
 import 'format.dart';
@@ -580,6 +581,20 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
     }
   }
 
+  /// Czujnik `btsensor` prosto przez WiFi (pkt 15.7, hub 0.3.35+).
+  Future<void> _bleWifi() async {
+    final added = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (_) =>
+            BleWifiSensorScreen(api: _api!, hubId: _hubId, hubIp: _api.api.endpoint.host, canLink: _canLink),
+      ),
+    );
+    if (added == true) {
+      _reload();
+      unawaited(widget.hub.load());
+    }
+  }
+
   Future<void> _discover() async {
     final added = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
@@ -643,6 +658,13 @@ class _HubDevicesScreenState extends State<HubDevicesScreen> {
               tooltip: 'Dodaj czujnik Bluetooth',
               icon: const Icon(Icons.bluetooth_searching),
               onPressed: _ble,
+            ),
+          if (_api != null)
+            IconButton(
+              key: const Key('hubBleWifi'),
+              tooltip: 'Dodaj czujnik WiFi (zasilanie USB)',
+              icon: const Icon(Icons.usb),
+              onPressed: _bleWifi,
             ),
           IconButton(tooltip: 'Odśwież', icon: const Icon(Icons.refresh), onPressed: _reload),
         ],
