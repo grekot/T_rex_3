@@ -406,6 +406,16 @@ class ClockSection extends StatelessWidget {
               ),
               onTap: () => _open(context, ClockAlarmsPage(controller: c)),
             ),
+          // Poranne podsumowanie (zegar z polem `morning` w Config; ostrzeżenia, alerty i dzień liturgiczny
+          // daje hub 0.3.44+).
+          if (cfg?.containsKey('morning') ?? false)
+            ListTile(
+              key: const Key('clockMorning'),
+              leading: const Icon(Icons.wb_twilight_outlined),
+              title: const Text('Poranne podsumowanie'),
+              subtitle: Text(clockMorningText(cfg)),
+              onTap: () => _open(context, ClockMorningPage(controller: c)),
+            ),
           if (clockHasRadio(cfg))
             ListTile(
               key: const Key('clockRadio'),

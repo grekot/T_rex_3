@@ -20,6 +20,7 @@ import 'package:homeautomation/data/thermostat_connection.dart';
 import 'package:homeautomation/models/dashboard.dart';
 import 'package:homeautomation/models/device_type.dart';
 import 'package:homeautomation/models/hub.dart';
+import 'package:homeautomation/models/hub_warnings.dart';
 import 'package:homeautomation/models/hub_weather.dart';
 import 'package:homeautomation/models/json_utils.dart';
 import 'package:homeautomation/models/room.dart';
@@ -30,6 +31,7 @@ import 'package:homeautomation/services.dart';
 import 'package:homeautomation/ui/automations_screen.dart';
 import 'package:homeautomation/ui/dashboard_tiles.dart';
 import 'package:homeautomation/ui/hub_screen.dart';
+import 'package:homeautomation/ui/hub_warnings_screen.dart';
 import 'package:homeautomation/ui/widget_editor.dart';
 
 class _NoDiscovery extends ThermostatDiscovery {
@@ -565,6 +567,160 @@ void main() {
     await tester.pumpAndSettle();
     expect(conn.sent.last, {
       'weather': {'enabled': true, 'place': 'Kraków'},
+    });
+    expect(find.byKey(const Key('hubWarnings')), findsNothing, reason: 'hub przed 0.3.44 - bez ostrzeżeń');
+    hub.dispose();
+  });
+
+  test('ostrzeżenia IMGW, alerty i dzień liturgiczny: model, domyślne alerty, TERYT, czas obowiązywania', () {
+    final now = DateTime(2026, 11, 20, 10);
+    int unix(DateTime t) => t.millisecondsSinceEpoch ~/ 1000;
+    final w = hubWarnings([
+      {
+        'id': 'Wr1',
+        'event': 'Silny wiatr',
+        'level': 2,
+        'prob': 80,
+        'from': unix(DateTime(2026, 11, 20, 6)),
+        'to': unix(DateTime(2026, 11, 20, 18)),
+        'active': true,
+        'text': 'Prognozowany jest silny wiatr',
+      },
+      {
+        'id': 'Wr2',
+        'event': 'Przymrozki',
+        'level': 1,
+        'from': unix(DateTime(2026, 11, 21, 0)),
+        'to': unix(DateTime(2026, 11, 21, 8)),
+      },
+      'śmieci',
+    ])!;
+    expect([for (final x in w) (x.id, x.level, x.active)], [('Wr1', 2, true), ('Wr2', 1, false)]);
+    expect(warningWhen(w[0], now), 'do 18:00');
+    expect(warningWhen(w[1], now), 'od jutro 00:00 do jutro 08:00');
+    expect(hubWarnings(null), isNull);
+    expect(hubWarnings(const []), isEmpty);
+
+    final a = hubAlerts([
+      {'id': 'frost-2026-11-20', 'kind': 'frost', 'text': 'Dziś w nocy przymrozek −3 °C', 't': -3.0},
+      {'id': 'x'},
+    ])!;
+    expect((a.single.kind, a.single.t), ('frost', -3.0));
+    final today = HubToday.fromJson({
+      'date': '2026-11-20',
+      'saint': 'Św. Rafał Kalinowski',
+      'day': 'Piątek XXXIII tygodnia Okresu Zwykłego',
+      'readings': ['Ap 10,8-11', 'Łk 19,45-48'],
+    })!;
+    expect(today.readings, hasLength(2));
+
+    final d = alertSettings(null);
+    expect((d.frost, d.frostBelow, d.rain, d.rainMm, d.rainDryH), (true, 0.0, true, 0.1, 2));
+    expect([validTeryt(''), validTeryt('1261'), validTeryt('126'), validTeryt('12a1')], [true, true, false, false]);
+    expect(hubHasWarnings({'name': 'Hub'}), isFalse);
+    expect(hubHasWarnings({'today': {'enabled': true}}), isTrue);
+  });
+
+  final warningsList = find.descendant(of: find.byType(HubWarningsScreen), matching: find.byType(Scrollable)).first;
+
+  testWidgets('ekran huba: ostrzeżenia, alert i dzień liturgiczny; ustawienia - alerty, TERYT, dzień', (
+    tester,
+  ) async {
+    final now = DateTime.now();
+    int unix(DateTime t) => t.millisecondsSinceEpoch ~/ 1000;
+    final (hub, conn, store) = await _hub(
+      {
+        'id': 'hub1',
+        'weather': _weather,
+        'warnings': [
+          {
+            'id': 'Wr1',
+            'event': 'Silny wiatr',
+            'level': 3,
+            'prob': 80,
+            'from': unix(now.subtract(const Duration(hours: 1))),
+            'to': unix(now.add(const Duration(hours: 3))),
+            'active': true,
+            'text': 'Prognozowany jest silny wiatr',
+          },
+        ],
+        'alerts': [
+          {
+            'id': 'rain-1',
+            'kind': 'rain',
+            'text': 'Za 25 min deszcz – zamknij okna',
+            'at': unix(now.add(const Duration(minutes: 25))),
+            'until': unix(now.add(const Duration(minutes: 55))),
+            'mm': 0.4,
+          },
+        ],
+        'today': {
+          'date': '2026-11-20',
+          'saint': 'Św. Rafał Kalinowski',
+          'day': 'Piątek XXXIII tygodnia Okresu Zwykłego',
+          'readings': ['Ap 10,8-11', 'Łk 19,45-48'],
+        },
+      },
+      {
+        'name': 'Hub',
+        'location': {'lat': 50.06, 'lon': 19.94},
+        'weather': {'enabled': true, 'place': 'Kraków'},
+        'warnings': {'enabled': true, 'teryt': ''},
+        'county': '1261',
+        'countyName': 'powiat Kraków',
+        'alerts': {'frost': true, 'frostBelow': 0, 'rain': true, 'rainMm': 0.1, 'rainDryH': 2},
+        'today': {'enabled': true},
+      },
+    );
+    await tester.runAsync(hub.load);
+    await tester.pumpWidget(_app(store, hub, HubScreen(controller: hub.controller('hub1')!, hub: hub)));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.byKey(const Key('hubToday')), 200, scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
+    expect(find.text('Silny wiatr - stopień 3'), findsOneWidget);
+    expect(find.text('Za 25 min deszcz – zamknij okna'), findsOneWidget);
+    expect(find.text('Św. Rafał Kalinowski'), findsOneWidget);
+    expect(find.textContaining('Ap 10,8-11 · Łk 19,45-48'), findsOneWidget);
+
+    final hubList = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.byKey(const Key('hubWarnings')), -200, scrollable: hubList);
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('IMGW: 1 ostrzeżenie · przymrozek < 0,0 °C, deszcz · dzień liturgiczny'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('hubWarnings')));
+    await tester.pumpAndSettle();
+    expect(find.text('powiat Kraków (1261)'), findsOneWidget);
+
+    await tester.scrollUntilVisible(find.byKey(const Key('alertsFrost')), 200, scrollable: warningsList);
+    await tester.tap(find.byKey(const Key('alertsFrost')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'alerts': {'frost': false, 'frostBelow': 0, 'rain': true, 'rainMm': 0.1, 'rainDryH': 2},
+    });
+
+    await tester.scrollUntilVisible(find.byKey(const Key('warningsTeryt')), -200, scrollable: warningsList);
+    await tester.enterText(find.byKey(const Key('warningsTeryt')), '12a');
+    await tester.pump();
+    expect(find.text('Cztery cyfry albo puste'), findsOneWidget);
+    expect(tester.widget<FilledButton>(find.byKey(const Key('warningsTerytSave'))).onPressed, isNull);
+    await tester.enterText(find.byKey(const Key('warningsTeryt')), '1206');
+    await tester.pump();
+    await tester.tap(find.byKey(const Key('warningsTerytSave')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'warnings': {'enabled': true, 'teryt': '1206'},
+    });
+
+    await tester.scrollUntilVisible(find.byKey(const Key('todayEnabled')), 300, scrollable: warningsList);
+    // Komunikat „Zapisano” zasłania dół ekranu.
+    tester.state<ScaffoldMessengerState>(find.byType(ScaffoldMessenger)).removeCurrentSnackBar();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('todayEnabled')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'today': {'enabled': false},
     });
     hub.dispose();
   });

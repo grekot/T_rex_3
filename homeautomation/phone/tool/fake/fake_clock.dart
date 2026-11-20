@@ -269,6 +269,9 @@ class FakeClock extends FakeDevice {
     'screen': 'clock',
   };
   Map<String, dynamic> clockCfg = {'seconds': false, 'dateFormat': 'long'};
+
+  /// Poranne podsumowanie (`morning`, hub 0.3.44+): `mode` off|alarm|time|both, `at` HH:MM, `min` 1-60.
+  Map<String, dynamic> morning = {'mode': 'off', 'at': '07:00', 'min': 10};
   Map<String, dynamic> units = {'temp': 'C', 'press': 'hPa', 'wind': 'kmh'};
   Map<String, dynamic> weather = {'lat': 49.894, 'lon': 20.609, 'place': 'Kraków'};
   Map<String, dynamic> sensor = {'tempOffset': 0.0, 'humOffset': 0, 'comp': true};
@@ -389,6 +392,7 @@ class FakeClock extends FakeDevice {
     'display': display,
     'night': night,
     'clock': clockCfg,
+    'morning': morning,
     'units': units,
     'weather': weather,
     'sensor': sensor,
@@ -873,6 +877,18 @@ class FakeClock extends FakeDevice {
       }
     }
     if (v['clock'] case final Map c) clockCfg = {...clockCfg, ...c.cast<String, dynamic>()};
+    if (v['morning'] case final Map m) {
+      final at = m['at'];
+      if (m.containsKey('mode') && !const ['off', 'alarm', 'time', 'both'].contains(m['mode'])) {
+        errors['morning.mode'] = 'value';
+      } else if (m.containsKey('at') && !(at is String && RegExp(r'^([01]\d|2[0-3]):[0-5]\d$').hasMatch(at))) {
+        errors['morning.at'] = 'value';
+      } else if (m.containsKey('min') && !(m['min'] is int && (m['min'] as int) >= 1 && (m['min'] as int) <= 60)) {
+        errors['morning.min'] = 'range';
+      } else {
+        morning = {...morning, ...m.cast<String, dynamic>()};
+      }
+    }
     if (v['units'] case final Map u) units = {...units, ...u.cast<String, dynamic>()};
     if (v['weather'] case final Map w) {
       if (w.containsKey('lat') && !_num(w['lat'], -90, 90) || w.containsKey('lon') && !_num(w['lon'], -180, 180)) {

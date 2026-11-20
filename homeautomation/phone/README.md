@@ -388,6 +388,14 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
     w chmurze): bieżąca obu źródeł, różnica temperatur w 24 h (średnia, największa), opad 24 h, wykres temperatur
     i opadu, tabela 24 h i 7 dni (min / max, opad, szansa opadu - MET jej nie podaje, ikona); szerokie okno - 24 h
     i 7 dni w dwóch kolumnach; `404 weather_off` → `WeatherOffException` z komunikatem;
+- **Ostrzeżenia i alerty** (hub 0.3.44+, któreś z pól `warnings` / `alerts` / `today` w Config; `hub_warnings.dart`,
+  `hub_warnings_screen.dart`; lokalnie i przez chmurę - State i Config huba):
+  - na ekranie huba pod pogodą bieżące ostrzeżenia IMGW ze State `warnings` (karta w kolorze stopnia 1-3, „do 18:00”
+    / „od jutro 06:00 do …”, prawdopodobieństwo, treść), alerty `alerts` (przymrozek / deszcz, do kiedy) i dzień
+    liturgiczny `today` (święty, nazwa dnia, sigla czytań);
+  - „Ostrzeżenia i alerty”: IMGW włącz / wyłącz, użyty powiat (`county`, `countyName`), TERYT 4 cyfry albo puste (powiat
+    z położenia); przymrozek (`frostBelow` -10…5 °C co 0,5), deszcz (`rainMm` 0,05…5 mm w 15 min, `rainDryH` 0-12 h);
+    dzień liturgiczny. Każda zmiana - Set całego obiektu (`warnings`, `alerts`, `today`);
 - **Ostatni odczyt** (pod paskiem połączenia na ekranie urządzenia, `RouteChip`, `DeviceController.lastInfoAt`):
   `seenAt` od huba (pkt 11, urządzenia huba), `lastSeen` z chmury (urządzenia bez huba), lokalnie - ostatni stan
   z WebSocketu; „12:31 · 3 min temu”, „wczoraj 23:05”. Nie służy do oceny offline (to `online` / `lastSeen`).
@@ -402,6 +410,9 @@ Kafelek huba pokazuje „Hub · 3/4 urządzeń”; dotknięcie otwiera **ekran h
   zapisie `label`, `unit`, `decimals`, `labels`, `min`/`max` z `describe`, `room` → `items` + `members`, `thermostat` /
   `hub` → `points`; limity 10 widżetów, 24 pary, 6 kB; nowa strona trafia do `screens.list`), **Przyciski zdalne**
   (automatyki huba z `owner` = zegar: wejście / przycisk → krótko / podwójnie / długo → ekran albo polecenie).
+  **Poranne podsumowanie** (zegar z `morning` w Config, `ClockMorningPage`): `mode` `off|alarm|time|both`, `at` „HH:MM”,
+  `min` 1-60; zegar bez budzika (salonowy, brak `alarms`) - tylko wyłączone / o godzinie (`alarm` z Config pokazane
+  jako wyłączone, `both` jako o godzinie). Dane podsumowania (ostrzeżenia, alerty, dzień liturgiczny) daje hub 0.3.44+.
   **Zdjęcia** (`photo_sync.dart`, `clock_photos.dart`, pkt 10.2 „Zdjęcia”): ekran `photo` w pokazie, „Podpis pod
   zdjęciem” (`photos.caption`), czas pokazu (`photos.showS`: 0 = jak inne ekrany, 5-300 s), stan „N zdjęć na zegarze ·
   ostatnio HH:MM” albo „Zainstaluj aplikację Zdjęcia…”. Synchronizacja: lista mostu aplikacji „Zdjęcia”

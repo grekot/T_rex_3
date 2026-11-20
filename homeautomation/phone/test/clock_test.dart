@@ -1884,6 +1884,59 @@ void main() {
     expect(find.textContaining('Parter · in3 · podwójnie'), findsOneWidget);
     hub.dispose();
   });
+
+  testWidgets('poranne podsumowanie: zegar biurkowy - cztery tryby, godzina, czas; salonowy - bez budzika', (
+    tester,
+  ) async {
+    final fake = FakeClock();
+    final (hub, conns, _) = await _home(clock: fake);
+    final conn = conns['zegar-ab12cd']!;
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    expect(clockMorningText(c.config! as Json), 'Wyłączone');
+    await tester.pumpWidget(_app(ClockMorningPage(controller: c)));
+    await tester.pumpAndSettle();
+    for (final m in ['off', 'alarm', 'time', 'both']) {
+      expect(find.byKey(Key('clockMorning-$m')), findsOneWidget, reason: m);
+    }
+    expect(tester.widget<ListTile>(find.byKey(const Key('clockMorningAt'))).enabled, isFalse);
+    await tester.tap(find.byKey(const Key('clockMorning-both')));
+    await tester.pumpAndSettle();
+    expect(conn.sent.last, {
+      'morning': {'mode': 'both', 'at': '07:00', 'min': 10},
+    });
+    expect(fake.morning['mode'], 'both');
+    conn.push(fake.configJson());
+    await tester.pumpAndSettle();
+    expect(tester.widget<ListTile>(find.byKey(const Key('clockMorningAt'))).enabled, isTrue);
+    expect(clockMorningText(fake.configJson()), 'Po budziku i o 07:00, 10 min');
+    // Zła wartość z menu zegara / starszej aplikacji - atrapa odrzuca jak firmware.
+    expect(
+      fake.applySet({
+        'morning': {'min': 0},
+      }),
+      {'morning.min': 'range'},
+    );
+    hub.dispose();
+
+    // Zegar salonowy (bez budzika): tylko wyłączone albo o godzinie; „po budziku” z Config pokazane jako
+    // wyłączone.
+    final salon = FakeClock(withAlarms: false)..morning = {'mode': 'alarm', 'at': '06:30', 'min': 5};
+    final (hub2, conns2, _) = await _home(clock: salon);
+    final c2 = hub2.controller('zegar-ab12cd')!;
+    await tester.runAsync(c2.connect);
+    expect(clockMorningText(c2.config! as Json), 'Wyłączone');
+    await tester.pumpWidget(_app(ClockMorningPage(controller: c2)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clockMorning-alarm')), findsNothing);
+    expect(find.byKey(const Key('clockMorning-both')), findsNothing);
+    await tester.tap(find.byKey(const Key('clockMorning-time')));
+    await tester.pumpAndSettle();
+    expect(conns2['zegar-ab12cd']!.sent.last, {
+      'morning': {'mode': 'time', 'at': '06:30', 'min': 5},
+    });
+    hub2.dispose();
+  });
 }
 
 /// Prawidłowy PNG 1×1 (podgląd w testach) i ten sam obraz z dopiskiem za IEND (inny plik, ten sam nagłówek).

@@ -16,6 +16,7 @@ import '../data/local_api.dart';
 import '../models/device_type.dart';
 import '../models/home.dart';
 import '../models/hub.dart';
+import '../models/hub_warnings.dart';
 import '../models/hub_weather.dart';
 import '../models/json_utils.dart';
 import '../models/thermostat_config.dart';
@@ -28,6 +29,7 @@ import 'dashboard_tiles.dart' show weatherLabel;
 import 'device_admin_section.dart';
 import 'format.dart';
 import 'hub_ble_screen.dart';
+import 'hub_warnings_screen.dart';
 import 'weather_compare_screen.dart';
 import 'widget_editor.dart';
 import 'widgets.dart';
@@ -300,6 +302,19 @@ class _HubScreenState extends State<HubScreen> {
               ),
             ),
           ),
+        // Ostrzeżenia IMGW, alerty i dzień liturgiczny (hub 0.3.44+): ustawienia i bieżące dane ze State.
+        if (hubHasWarnings(cfg)) ...[
+          ListTile(
+            key: const Key('hubWarnings'),
+            leading: const Icon(Icons.warning_amber_outlined),
+            title: const Text('Ostrzeżenia i alerty'),
+            subtitle: Text(hubWarningsSummary(cfg!, s)),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => HubWarningsScreen(controller: c))),
+          ),
+          HubWarningsStatus(state: s),
+        ],
         // Kalendarz domu (pkt 11): godzina przypomnień „jutro: Plastik” - hub z polem `calendarNotifyAt` w Config.
         if (cfg?.containsKey('calendarNotifyAt') ?? false)
           ListTile(

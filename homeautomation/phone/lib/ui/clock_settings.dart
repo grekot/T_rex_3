@@ -1292,6 +1292,116 @@ class _ClockTimePageState extends State<ClockTimePage> with _ClockConfig {
   }
 }
 
+// ---------------------------------------------------------------- Poranne podsumowanie
+
+/// Tryby porannego podsumowania (Config `morning.mode`); `alarm`/`both` tylko zegar z budzikiem.
+const clockMorningModes = {
+  'off': 'Wyłączone',
+  'alarm': 'Po wyłączeniu budzika',
+  'time': 'Codziennie o godzinie',
+  'both': 'Po budziku i o godzinie',
+};
+
+/// Opis na liście ustawień zegara.
+String clockMorningText(Json? cfg) {
+  final m = cfg?['morning'] is Map ? cfg!['morning'] as Map : const {};
+  final alarm = clockAlarms(cfg) != null;
+  var mode = m['mode'] as String? ?? 'off';
+  if (!alarm && mode == 'alarm') mode = 'off';
+  if (!alarm && mode == 'both') mode = 'time';
+  final at = m['at'] as String? ?? '07:00';
+  return switch (mode) {
+    'off' => 'Wyłączone',
+    'alarm' => 'Po budziku, ${m['min'] ?? 10} min',
+    'time' => 'Codziennie o $at, ${m['min'] ?? 10} min',
+    _ => 'Po budziku i o $at, ${m['min'] ?? 10} min',
+  };
+}
+
+/// Poranne podsumowanie (Config `morning {mode, at, min}`): data, pogoda na dziś, ostrzeżenia i alerty, kalendarz,
+/// dzień liturgiczny na jednym ekranie. Zegar salonowy (bez budzika) - tylko wyłączone albo o godzinie.
+class ClockMorningPage extends StatefulWidget {
+  const ClockMorningPage({super.key, required this.controller});
+
+  final DeviceController<Object?, Object?> controller;
+
+  @override
+  State<ClockMorningPage> createState() => _ClockMorningPageState();
+}
+
+class _ClockMorningPageState extends State<ClockMorningPage> with _ClockConfig {
+  @override
+  DeviceController<Object?, Object?> get c => widget.controller;
+
+  double? _min;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = obj('morning');
+    final alarm = clockAlarms(cfg) != null;
+    final modes = alarm ? clockMorningModes.keys.toList() : const ['off', 'time'];
+    var mode = m['mode'] as String? ?? 'off';
+    if (!modes.contains(mode)) mode = mode == 'both' ? 'time' : 'off';
+    final at = _parseHhmm(m['at'] as String? ?? '') ?? const TimeOfDay(hour: 7, minute: 0);
+    final min = _min ?? ((m['min'] as num?)?.toDouble() ?? 10).clamp(1, 60).toDouble();
+    return page('Poranne podsumowanie', [
+      Text(
+        'Jeden ekran na kilka minut: data, pogoda na dziś (min / max, pora opadu), ostrzeżenia IMGW i alerty, '
+        'kalendarz domu na dziś i jutro, święty i czytania dnia. Dowolny przycisk zamyka. Dane daje hub.',
+        style: Theme.of(context).textTheme.bodySmall,
+      ),
+      const SizedBox(height: 8),
+      RadioGroup<String>(
+        groupValue: mode,
+        onChanged: (v) => setIn('morning', {'mode': v}),
+        child: Column(
+          children: [
+            for (final k in modes)
+              RadioListTile<String>(
+                key: Key('clockMorning-$k'),
+                contentPadding: EdgeInsets.zero,
+                value: k,
+                title: Text(clockMorningModes[k]!),
+                subtitle: k == 'alarm' ? const Text('Nie po drzemce') : null,
+              ),
+          ],
+        ),
+      ),
+      ListTile(
+        key: const Key('clockMorningAt'),
+        contentPadding: EdgeInsets.zero,
+        enabled: mode == 'time' || mode == 'both',
+        leading: const Icon(Icons.schedule),
+        title: const Text('Godzina'),
+        subtitle: Text('${_hhmm(at)} - codziennie, także w trybie nocnym'),
+        onTap: () async {
+          final t = await _pickTime(context, at);
+          if (t != null) await setIn('morning', {'at': _hhmm(t)});
+        },
+      ),
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        enabled: mode != 'off',
+        leading: const Icon(Icons.timer_outlined),
+        title: Text('Jak długo: ${min.round()} min'),
+      ),
+      Slider(
+        key: const Key('clockMorningMin'),
+        min: 1,
+        max: 60,
+        divisions: 59,
+        label: '${min.round()} min',
+        value: min,
+        onChanged: mode == 'off' ? null : (v) => setState(() => _min = v),
+        onChangeEnd: (v) async {
+          await setIn('morning', {'min': v.round()});
+          if (mounted) setState(() => _min = null);
+        },
+      ),
+    ]);
+  }
+}
+
 // ---------------------------------------------------------------- Wiadomości
 
 /// „1 kanał”, „3 kanały”, „5 kanałów”.
