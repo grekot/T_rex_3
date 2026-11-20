@@ -350,6 +350,14 @@ class PoolController extends ChangeNotifier {
     final stream = await _store.loadClockStream();
     final published = await _store.loadPublished();
     syncPoolSlots(stream, [for (final p in published) (id: p.id, taken: p.taken)], now);
+    if (thisDayDue(stream, now)) {
+      // Raz dziennie „ten dzień X lat temu” (zegar trzyma je do północy); zdjęcia puli z tą datą - też
+      final picks = pickThisDay(_archiveEntries,
+          now: now, exclude: {..._removedArchive, for (final p in published) ?archiveIdOf(p.assetId)});
+      final slots = await _archiveClockSlots(picks, now);
+      // Gdy nic nie dało się pobrać (brak sieci) - jeszcze raz przy następnym odświeżeniu
+      if (picks.isEmpty || slots.isNotEmpty) markThisDay(stream, slots, now);
+    }
     final due = _archiveEntries.isEmpty ? 0 : archiveDue(stream, now);
     if (due > 0) {
       final picks = pickArchive(
@@ -362,29 +370,7 @@ class PoolController extends ChangeNotifier {
         recentDays: prefs.days,
         rest: clockRest,
       );
-      final slots = <ClockSlot>[];
-      final analyzer = PhotoAnalyzer(_tempDir);
-      try {
-        for (final e in picks) {
-          try {
-            final a = await _analyzeArchive(e, analyzer);
-            slots.add(ClockSlot(
-              id: clockArchiveId(e.id),
-              ref: e.id,
-              archive: true,
-              added: now,
-              taken: e.taken,
-              caption: memoryCaption(e.caption, e.taken),
-              frame: CropFrame.of(a, subject: e.subject, focus: e.focus),
-            ));
-          } catch (err) {
-            debugPrint('Zegary, archiwum ${e.id}: $err');
-          }
-        }
-      } finally {
-        await analyzer.close();
-      }
-      addArchiveSlots(stream, slots, now);
+      addArchiveSlots(stream, await _archiveClockSlots(picks, now), now);
     }
     await _store.saveClockStream(stream);
     await _store.pruneJpegs({for (final p in published) p.id, for (final s in stream.slots) s.id});
@@ -482,6 +468,34 @@ class PoolController extends ChangeNotifier {
     await _store.savePrefs(p);
     prefs.archiveAuto = enabled;
     notifyListeners();
+  }
+
+  /// Zdjęcia z archiwum dla zegarów: pobrane, z kadrem prostokątnym z analizy na telefonie; nieudane pominięte
+  Future<List<ClockSlot>> _archiveClockSlots(List<ArchiveEntry> picks, DateTime now) async {
+    if (picks.isEmpty) return const [];
+    final slots = <ClockSlot>[];
+    final analyzer = PhotoAnalyzer(_tempDir);
+    try {
+      for (final e in picks) {
+        try {
+          final a = await _analyzeArchive(e, analyzer);
+          slots.add(ClockSlot(
+            id: clockArchiveId(e.id),
+            ref: e.id,
+            archive: true,
+            added: now,
+            taken: e.taken,
+            caption: memoryCaption(e.caption, e.taken),
+            frame: CropFrame.of(a, subject: e.subject, focus: e.focus),
+          ));
+        } catch (err) {
+          debugPrint('Zegary, archiwum ${e.id}: $err');
+        }
+      }
+    } finally {
+      await analyzer.close();
+    }
+    return slots;
   }
 
   /// Usługa w tle co kwadrans: strumień zegarów (zdjęcia z archiwum dochodzą co godzinę)

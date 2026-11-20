@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import '../ai/photo_rating.dart';
+import '../select/clock_stream.dart';
 
 /// Prefiks id w galerii (assetId) dla zdjęć z archiwum
 const String archiveAssetPrefix = 'archiwum:';
@@ -135,6 +136,37 @@ int _yearDayDistance(DateTime a, DateTime b) {
   int day(DateTime d) => d.difference(DateTime(d.year)).inDays;
   final diff = (day(a) - day(b)).abs();
   return math.min(diff, 365 - diff);
+}
+
+/// „Ten dzień X lat temu” dla zegarów: zdjęcia z dokładnie tą datą co [now] (dzień i miesiąc, czas lokalny)
+/// z poprzednich lat - najlepsze oceny, najpierw różne lata, najwyżej [max]; bez [exclude] i bez odpoczynku
+/// (to święto dnia). Kolaż i zdjęcia, z których powstał, nie idą razem.
+List<ArchiveEntry> pickThisDay(
+  List<ArchiveEntry> entries, {
+  required DateTime now,
+  Set<String> exclude = const {},
+  int max = thisDayMax,
+}) {
+  final candidates = [
+    for (final e in entries)
+      if (!exclude.contains(e.id) && isThisDay(e.taken, now)) e,
+  ]..sort((a, b) => b.score != a.score ? b.score.compareTo(a.score) : a.id.compareTo(b.id));
+  final out = <ArchiveEntry>[];
+  final used = <String>{};
+  final years = <int>{};
+  bool fits(ArchiveEntry e) => !used.contains(e.id) && !e.parts.any(used.contains);
+  for (final firstYears in [true, false]) {
+    for (final e in candidates) {
+      if (out.length >= max) break;
+      if (!fits(e) || (firstYears && years.contains(e.taken.year))) continue;
+      out.add(e);
+      used
+        ..add(e.id)
+        ..addAll(e.parts);
+      years.add(e.taken.year);
+    }
+  }
+  return out;
 }
 
 /// Losuje [count] zdjęć z archiwum:

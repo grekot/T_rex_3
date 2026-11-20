@@ -335,6 +335,25 @@ Koszt: każde nowe zdjęcie listy to jedno pobranie z Firestore (~100-150 KB) i 
 (~25 MB). Zegar bierze z listy najpóźniej dodane, więc bez przeglądania nic się dla niego nie zmienia poza tym,
 że nowe zdjęcia przychodzą dwa razy częściej.
 
+## Ten dzień X lat temu na zegarach (telefon 0.15.0)
+
+Zegary biurkowe (SmartTermostatOLED, `docs/API.md` pkt 10.2 „Ten dzień X lat temu”) rozpoznają zdjęcie zrobione
+tego samego dnia i miesiąca w poprzednich latach po `taken` (czas lokalny), opisują je „20 listopada 2019 · 6 lat temu”
+i pokazują je w pierwszej kolejności. Telefon dba, żeby takie zdjęcia były na zegarze przez cały dzień
+(`lib/select/clock_stream.dart` `markThisDay`, `lib/archive/archive.dart` `pickThisDay`):
+
+- **raz dziennie**, przy pierwszym odświeżeniu listy od 6:00: z archiwum zdjęcia z dokładnie tą datą
+  z poprzednich lat, najwyżej 6 (`thisDayMax`), najlepsze oceny i najpierw różne lata; bez odpoczynku `clockRest`
+  (to święto dnia), bez usuniętych i bez tych, które są już w puli zegarka; kolaż nie idzie razem ze swoimi zdjęciami.
+  Zdjęcia puli zegarka z tą datą (wspomnienia z rocznic) - też, także gdy wejdą do puli w ciągu dnia;
+- **czas dodania** `added` = tuż przed północą, więc przez cały dzień są najnowsze w `/clocks.json` - HomeAutomation
+  trzyma na zegarze ~20 najpóźniej dodanych, a zwykłe dokładanie (8 na godzinę) i przycinanie listy ich nie wypycha;
+  pozycje mają `td: true` w `clocks.json` telefonu;
+- **nazajutrz** schodzą na czas dodania sprzed doby (pod wszystko z wczoraj i dziś) - zostają tylko jako zamienniki;
+- brak zdjęć z tą datą - zwykła lista; brak sieci przy pobieraniu - próba przy następnym odświeżeniu (co 15 min).
+
+Bez zmian w interfejsie mostu i w HomeAutomation. Testy: `phone/test/archive_test.dart`, grupa „ten dzień X lat temu”.
+
 ## Wydanie do Sklepu rodzinnego
 
 Tag `zdjecia-vX.Y.Z` uruchamia [release-zdjecia.yml](../.github/workflows/release-zdjecia.yml)

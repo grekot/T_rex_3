@@ -5,6 +5,9 @@
 //    w ciągu dnia przewija się ponad sto różnych zdjęć zamiast tych samych 20.
 // Od 0.14.0 lista jest długa ([clockStreamSize]): HomeAutomation 1.33.0+ wymienia zdjęcia „spalone” na zegarze
 // (obejrzane przy przeglądaniu) na kolejne z listy, więc reszta listy to zapas zamienników.
+// Od 0.15.0 „ten dzień X lat temu” ([markThisDay]): raz dziennie zdjęcia zrobione tego samego dnia i miesiąca
+// w poprzednich latach dostają czas dodania „koniec dzisiejszego dnia” - przez cały dzień są najnowsze, więc zegar
+// je trzyma (sam rozpoznaje je po `taken` i opisuje „20 listopada 2019 · 6 lat temu”), a od jutra schodzą same.
 // Czysta logika (testy).
 import 'crop.dart';
 
@@ -15,6 +18,9 @@ const int clockArchivePerHour = 8;
 /// Archiwum dokłada zdjęcia tylko w tych godzinach (w nocy zegary i tak nikt nie ogląda)
 const int clockFromHour = 6;
 const int clockToHour = 23;
+
+/// „Ten dzień X lat temu”: najwyżej tyle zdjęć z archiwum dziennie (do tego zdjęcia puli z tą datą)
+const int thisDayMax = 6;
 
 /// Zdjęcie z archiwum wraca na zegary najwcześniej po tylu dniach (przy ~130 dziennie i ~1100 w archiwum
 /// całe archiwum przewija się mniej więcej co 9 dni; gdy wszystkie odpoczywają - najdawniej pokazane pierwsze)
@@ -29,6 +35,7 @@ class ClockSlot {
     required this.taken,
     this.caption = '',
     this.frame,
+    this.thisDay = false,
   });
 
   /// Id dla zegara (w moście)
@@ -46,6 +53,12 @@ class ClockSlot {
   /// Dane kadru prostokątnego - tylko zdjęcia z archiwum (pula ma je w published.json)
   final CropFrame? frame;
 
+  /// „Ten dzień X lat temu” (czas dodania „koniec dnia”, [markThisDay])
+  final bool thisDay;
+
+  ClockSlot copy({required DateTime added, required bool thisDay}) => ClockSlot(
+      id: id, ref: ref, archive: archive, added: added, taken: taken, caption: caption, frame: frame, thisDay: thisDay);
+
   Map<String, Object> toJson() => {
         'id': id,
         'ref': ref,
@@ -54,6 +67,7 @@ class ClockSlot {
         'taken': taken.millisecondsSinceEpoch,
         if (caption.isNotEmpty) 'c': caption,
         if (frame != null) 'frame': frame!.toJson(),
+        if (thisDay) 'td': true,
       };
 
   static ClockSlot? fromJson(Object? j) {
@@ -66,12 +80,13 @@ class ClockSlot {
       taken: DateTime.fromMillisecondsSinceEpoch(j['taken'] as int? ?? 0),
       caption: j['c'] as String? ?? '',
       frame: j['frame'] is Map ? CropFrame.fromJson((j['frame'] as Map).cast<String, dynamic>()) : null,
+      thisDay: j['td'] == true,
     );
   }
 }
 
 class ClockStream {
-  ClockStream({List<ClockSlot>? slots, Set<String>? poolSeen, Map<String, DateTime>? shown, this.lastArchive})
+  ClockStream({List<ClockSlot>? slots, Set<String>? poolSeen, Map<String, DateTime>? shown, this.lastArchive, this.thisDay})
       : slots = slots ?? [],
         poolSeen = poolSeen ?? {},
         shown = shown ?? {};
@@ -85,6 +100,9 @@ class ClockStream {
   final Map<String, DateTime> shown;
   DateTime? lastArchive;
 
+  /// Dzień ([dayKey]), dla którego wybrano już zdjęcia „ten dzień X lat temu”
+  String? thisDay;
+
   Set<String> get archiveIds => {for (final s in slots) if (s.archive) s.ref};
 
   Map<String, Object?> toJson() => {
@@ -92,6 +110,7 @@ class ClockStream {
         'poolSeen': poolSeen.toList(),
         'shown': {for (final e in shown.entries) e.key: e.value.millisecondsSinceEpoch},
         'lastArchive': lastArchive?.millisecondsSinceEpoch,
+        'thisDay': ?thisDay,
       };
 
   factory ClockStream.fromJson(Map<String, dynamic> j) => ClockStream(
@@ -102,6 +121,7 @@ class ClockStream {
             if (e.value is int) e.key as String: DateTime.fromMillisecondsSinceEpoch(e.value as int),
         },
         lastArchive: j['lastArchive'] is int ? DateTime.fromMillisecondsSinceEpoch(j['lastArchive'] as int) : null,
+        thisDay: j['thisDay'] as String?,
       );
 }
 
@@ -112,10 +132,54 @@ void syncPoolSlots(ClockStream s, List<({String id, DateTime taken})> pool, Date
   s.slots.removeWhere((x) => !x.archive && !ids.contains(x.ref));
   s.poolSeen.removeWhere((id) => !ids.contains(id));
   var k = 0;
+  final today = s.thisDay == dayKey(now);
   for (final p in pool) {
     if (!s.poolSeen.add(p.id)) continue;
-    s.slots.add(ClockSlot(id: p.id, ref: p.id, archive: false, added: now.add(Duration(milliseconds: k++)), taken: p.taken));
+    // Zdjęcie z tą datą sprzed lat, które weszło do puli w ciągu dnia - też „ten dzień”
+    final special = today && isThisDay(p.taken, now);
+    final added = special ? thisDayAdded(now, 100 + k) : now.add(Duration(milliseconds: k));
+    k++;
+    s.slots.add(ClockSlot(id: p.id, ref: p.id, archive: false, added: added, taken: p.taken, thisDay: special));
   }
+  trimStream(s);
+}
+
+/// Ten sam dzień i miesiąc co [now] (czas lokalny), wcześniejszy rok - tak rozpoznaje je zegar
+bool isThisDay(DateTime taken, DateTime now) => taken.month == now.month && taken.day == now.day && taken.year < now.year;
+
+String dayKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
+
+/// Czy dziś trzeba jeszcze wybrać „ten dzień X lat temu” (raz dziennie, od [clockFromHour])
+bool thisDayDue(ClockStream s, DateTime now) => now.hour >= clockFromHour && s.thisDay != dayKey(now);
+
+/// Czas dodania „ten dzień”: tuż przed północą - przez cały dzień nowszy od wszystkiego, co dojdzie
+DateTime thisDayAdded(DateTime now, int k) =>
+    DateTime(now.year, now.month, now.day + 1).subtract(Duration(milliseconds: 1 + k));
+
+/// „Ten dzień X lat temu” na dziś:
+///  - poprzednie (z innego dnia) schodzą na czas dodania sprzed doby - pod wszystko, co dodano wczoraj i dziś,
+///    na zegarze zostają tylko jako zamienniki dla zdjęć „spalonych”,
+///  - zdjęcia puli z tą datą i [archiveSlots] (wybrane przez [pickThisDay], z kadrem; pierwsze = najlepsze)
+///    dostają czas dodania „koniec dnia”, więc zegar trzyma je cały dzień, a przycinanie listy ich nie wyrzuca.
+void markThisDay(ClockStream s, List<ClockSlot> archiveSlots, DateTime now) {
+  final dayBefore = DateTime(now.year, now.month, now.day - 1);
+  var old = 0, pool = 0;
+  s.slots = [
+    for (final x in s.slots)
+      if (x.thisDay && !isThisDay(x.taken, now))
+        x.copy(added: dayBefore.subtract(Duration(milliseconds: ++old)), thisDay: false)
+      else if (!x.archive && isThisDay(x.taken, now))
+        x.copy(added: thisDayAdded(now, 50 + pool++), thisDay: true)
+      else
+        x,
+  ];
+  var k = 0;
+  for (final slot in archiveSlots) {
+    s.slots.removeWhere((x) => x.archive && x.ref == slot.ref);
+    s.slots.add(slot.copy(added: thisDayAdded(now, k++), thisDay: true));
+    s.shown[slot.ref] = now;
+  }
+  s.thisDay = dayKey(now);
   trimStream(s);
 }
 

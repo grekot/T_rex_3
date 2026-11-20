@@ -596,4 +596,79 @@ void main() {
       }
     });
   });
+
+  group('ten dzień X lat temu (zegary)', () {
+    const frame = CropFrame(aspect: 4 / 3, focus: [0.1, 0.1, 0.5, 0.5]);
+    ClockSlot archiveSlot(String id, DateTime taken, DateTime at) => ClockSlot(
+        id: clockArchiveId(id), ref: id, archive: true, added: at, taken: taken, caption: 'Las · ${taken.year}', frame: frame);
+
+    test('wybór: ta sama data z poprzednich lat, najlepsze najpierw z różnych lat, kolaż bez swoich zdjęć', () {
+      final now = DateTime(2026, 11, 20, 7);
+      final picks = pickThisDay([
+        entry('a2019a', DateTime(2019, 11, 20, 10), score: 9),
+        entry('b2019b', DateTime(2019, 11, 20, 11), score: 8),
+        entry('c2015c', DateTime(2015, 11, 20, 23, 30), score: 6),
+        entry('d2020d', DateTime(2020, 11, 21, 0, 10), score: 10), // inny dzień
+        entry('e2026e', DateTime(2026, 11, 20, 6), score: 10), // ten rok - to nie „lata temu”
+        entry('f2018f', DateTime(2018, 11, 20), score: 7), // usunięte
+        ArchiveEntry(id: 'aaaa0001', taken: DateTime(2012, 11, 20), score: 10, parts: const ['a2019a']),
+      ], now: now, exclude: {'f2018f'});
+      // Kolaż (2012) wygrywa oceną, więc jego zdjęcie a2019a odpada; 2019 reprezentuje b2019b
+      expect([for (final e in picks) e.id], ['aaaa0001', 'b2019b', 'c2015c']);
+
+      final many = pickThisDay([
+        for (var i = 0; i < 9; i++) entry('${i}0000${2010 + i % 3}', DateTime(2010 + i % 3, 11, 20, 8 + i), score: 10 - i),
+      ], now: now);
+      expect(many.length, thisDayMax);
+      expect({for (final e in many.take(3)) e.taken.year}, {2010, 2011, 2012}); // najpierw różne lata
+      expect(pickThisDay([entry('a2019a', DateTime(2019, 11, 19), score: 9)], now: now), isEmpty);
+    });
+
+    test('raz dziennie od 6:00; przez cały dzień najnowsze mimo dokładania z archiwum; nazajutrz schodzą', () {
+      final s = ClockStream();
+      final night = DateTime(2026, 11, 19, 21);
+      List<({String id, DateTime taken})> pool(List<String> extra) => [
+            (id: 'p0', taken: DateTime(2026, 11, 19)),
+            (id: 'pAnn', taken: DateTime(2017, 11, 20, 15)),
+            for (final id in extra) (id: id, taken: DateTime(2016, 11, 20)),
+          ];
+      syncPoolSlots(s, pool([]), night);
+      final morning = DateTime(2026, 11, 20, 6, 5);
+      expect(thisDayDue(s, DateTime(2026, 11, 20, 5, 59)), isFalse);
+      expect(thisDayDue(s, morning), isTrue);
+      markThisDay(s, [archiveSlot('a2019a', DateTime(2019, 11, 20, 10), morning)], morning);
+      expect(thisDayDue(s, morning.add(const Duration(hours: 1))), isFalse);
+      Set<String> newest(int n) => {for (final x in s.slots.reversed.take(n)) x.id};
+      expect(newest(2), {'z_a2019a', 'pAnn'});
+      expect(s.slots.where((x) => x.thisDay).length, 2);
+      expect(s.shown['a2019a'], morning);
+
+      // Cały dzień dokładania (więcej niż mieści lista) - lista przycięta, „ten dzień” zostaje na górze
+      const perHour = clockStreamSize ~/ 16 + 2;
+      for (var h = 7; h < 23; h++) {
+        final at = DateTime(2026, 11, 20, h);
+        addArchiveSlots(s, [for (var k = 0; k < perHour; k++) archiveSlot('a${h}x$k', DateTime(2010), at)], at);
+      }
+      expect(s.slots.length, clockStreamSize);
+      expect(newest(2), {'z_a2019a', 'pAnn'});
+
+      // Zdjęcie z tą datą, które weszło do puli wieczorem - też „ten dzień”
+      syncPoolSlots(s, pool(['pAnn2']), DateTime(2026, 11, 20, 20));
+      expect(newest(3), {'z_a2019a', 'pAnn', 'pAnn2'});
+
+      final back = ClockStream.fromJson(jsonDecode(jsonEncode(s.toJson())) as Map<String, dynamic>);
+      expect(back.thisDay, s.thisDay);
+      expect(back.slots.where((x) => x.thisDay).length, 3);
+
+      // Nazajutrz: wczorajsze schodzą pod wszystko z wczoraj i dziś, zwykłe zdjęcia są nad nimi
+      final next = DateTime(2026, 11, 21, 6, 1);
+      expect(thisDayDue(back, next), isTrue);
+      markThisDay(back, const [], next);
+      final old = back.slots.firstWhere((x) => x.id == 'z_a2019a');
+      expect((old.thisDay, old.added.isBefore(DateTime(2026, 11, 20))), (false, true));
+      addArchiveSlots(back, [archiveSlot('bbbbbb', DateTime(2011), next)], next);
+      expect(back.slots.last.id, 'z_bbbbbb');
+      expect(back.slots.where((x) => x.thisDay), isEmpty);
+    });
+  });
 }
