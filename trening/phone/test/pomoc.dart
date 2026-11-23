@@ -1,0 +1,47 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:trening/dane/aplikacja.dart';
+import 'package:trening/dane/magazyn.dart';
+import 'package:trening/dane/stan.dart';
+import 'package:trening/plan/atlas.dart';
+import 'package:trening/plan/model.dart';
+
+final planTestowy = Plan.zJson(jsonDecode(File('assets/plan/plan.json').readAsStringSync()));
+final atlasTestowy = Atlas.zJson(jsonDecode(File('assets/plan/atlas.json').readAsStringSync()));
+
+/// Magazyn bez dysku (testy widżetów działają w udawanym czasie, prawdziwe IO by się zawiesiło).
+class MagazynWPamieci extends Magazyn {
+  MagazynWPamieci() : super(Directory('.'));
+
+  Stan? zapisany;
+  int zapisow = 0;
+
+  @override
+  Future<Stan> wczytaj() async => zapisany ?? Stan();
+
+  @override
+  Future<void> zapisz(Stan stan) async {
+    zapisany = stan;
+    zapisow++;
+  }
+}
+
+/// Zegar do testów: czas stoi, dopóki go nie przesuniesz.
+class Zegar {
+  Zegar(this.teraz);
+
+  DateTime teraz;
+
+  DateTime call() => teraz;
+
+  void przesun(Duration d) => teraz = teraz.add(d);
+}
+
+DaneAplikacji daneTestowe(DateTime Function() zegar, {Stan? stan}) => DaneAplikacji(
+      plan: planTestowy,
+      atlas: atlasTestowy,
+      stan: stan ?? Stan(),
+      magazyn: MagazynWPamieci(),
+      zegar: zegar,
+    );

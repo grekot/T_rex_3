@@ -100,11 +100,14 @@ sealed class Dawka {
     switch (typ) {
       case 'powtorzenia':
         final o = Odczyt(json, sciezka,
-            dozwolone: {'typ', 'serie', 'ile', 'naStrone', 'pauzaGoraS', 'trzymanieS', 'przerwaS'});
+            dozwolone: {'typ', 'serie', 'ile', 'naStrone', 'naZmiane', 'pauzaGoraS', 'trzymanieS', 'przerwaS'});
+        final naZmiane = o.flaga('naZmiane');
+        if (naZmiane && !o.flaga('naStrone')) throw BladPlanu(o.p('naZmiane'), 'naZmiane wymaga naStrone');
         return Powtorzenia(
           serie: o.zakresOpcja('serie') ?? const Zakres.jeden(1),
           ile: o.zakres('ile'),
           naStrone: o.flaga('naStrone'),
+          naZmiane: naZmiane,
           pauzaGoraS: o.zakresOpcja('pauzaGoraS'),
           trzymanieS: o.zakresOpcja('trzymanieS'),
           przerwaS: o.zakresOpcja('przerwaS'),
@@ -152,13 +155,19 @@ class Powtorzenia extends Dawka {
     required this.serie,
     required this.ile,
     super.naStrone = false,
+    this.naZmiane = false,
     this.pauzaGoraS,
     this.trzymanieS,
     this.przerwaS,
   });
 
   final Zakres serie;
+
+  /// Powtórzeń w serii (na stronę, gdy [naStrone]).
   final Zakres ile;
+
+  /// Strony na zmianę w jednej serii (bird dog, dead bug), a nie najpierw cała lewa, potem prawa.
+  final bool naZmiane;
   final Zakres? pauzaGoraS;
 
   /// Trzymanie każdego powtórzenia (bird dog 8 s): wtedy prowadzi timer.

@@ -58,6 +58,7 @@ git tag trening-v0.0.1 && git push origin trening-v0.0.1
 |---|---|
 | 0.0.1 | szkielet, ikona, sprawdzenie ścieżki wydań |
 | (M1) | `plan.json` etapu 1, atlas jako dane, silnik: kalendarz z etapami według kryteriów, flagi ćwiczeń; bez zmian w interfejsie |
+| (M2) | ekran Dziś, prowadzenie rutyny krok po kroku (rysunek, skrót techniki, arkusz „Technika”, liczniki, timery, przerwy, dźwięki, „Boli: pomiń”, dwie krótsze wersje), test kierunkowy, ekran bezpieczeństwa, zapis `stan.json` |
 | 0.1 | etap 1: kalendarz, rutyna 15 min, test kierunkowy, ocena bólu, przypomnienia |
 | 0.2 | etapy 2–3: sesje A/B/C, kryteria przejścia, dziennik tygodniowy |
 | 1.0 | eksport danych, głos (opcja) |

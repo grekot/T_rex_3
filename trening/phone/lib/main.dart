@@ -1,11 +1,22 @@
 import 'package:flutter/material.dart';
 
+import 'dane/aplikacja.dart';
+import 'ui/ekran_dzis.dart';
+
 void main() => runApp(const TreningApp());
 
-/// Wersja 0.0.1: tylko sprawdzenie ścieżki wydań (tag → CI → Sklep rodzinny).
-/// Kalendarz, prowadzenie treningu i przypomnienia przychodzą w wersji 0.1.
-class TreningApp extends StatelessWidget {
-  const TreningApp({super.key});
+class TreningApp extends StatefulWidget {
+  const TreningApp({super.key, this.dane});
+
+  /// Gotowe dane (testy); bez nich aplikacja wczytuje plan, atlas i stan sama.
+  final Future<DaneAplikacji>? dane;
+
+  @override
+  State<TreningApp> createState() => _TreningAppState();
+}
+
+class _TreningAppState extends State<TreningApp> {
+  late final Future<DaneAplikacji> _dane = widget.dane ?? DaneAplikacji.wczytaj();
 
   @override
   Widget build(BuildContext context) {
@@ -13,69 +24,26 @@ class TreningApp extends StatelessWidget {
       title: 'Trening',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1E88A8),
-          brightness: Brightness.dark,
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1E88A8), brightness: Brightness.dark),
         useMaterial3: true,
       ),
-      home: const StartScreen(),
-    );
-  }
-}
-
-class StartScreen extends StatelessWidget {
-  const StartScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Trening')),
-      body: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          Text('Wersja testowa', style: text.headlineSmall),
-          const SizedBox(height: 12),
-          Text(
-            'Ta wersja sprawdza tylko, czy aplikacja trafia do Sklepu '
-            'rodzinnego i aktualizuje się z niego.',
-            style: text.bodyLarge,
-          ),
-          const SizedBox(height: 24),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('W wersji 0.1', style: text.titleMedium),
-                  const SizedBox(height: 8),
-                  for (final item in _nextFeatures)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('•  '),
-                          Expanded(child: Text(item, style: text.bodyMedium)),
-                        ],
-                      ),
-                    ),
-                ],
+      home: FutureBuilder<DaneAplikacji>(
+        future: _dane,
+        builder: (context, s) {
+          if (s.hasError) {
+            return Scaffold(
+              body: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text('Nie udało się wczytać planu:\n${s.error}', textAlign: TextAlign.center),
+                ),
               ),
-            ),
-          ),
-        ],
+            );
+          }
+          if (!s.hasData) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return EkranDzis(dane: s.data!);
+        },
       ),
     );
   }
 }
-
-const _nextFeatures = [
-  'kalendarz z okienkiem na każdy dzień',
-  'rutyna „Kręgosłup 15 min” z licznikami i timerami',
-  'test kierunkowy',
-  'ocena bólu po treningu i sygnalizacja świetlna',
-  'przypomnienia o treningu i przerwach w siedzeniu',
-];

@@ -99,8 +99,8 @@
         { "kroki": [{ "c": "mostek-biodrowy", "dawka": { "typ": "powtorzenia", "serie": 2, "ile": 10, "pauzaGoraS": 2 } }] },
         { "kroki": [{ "c": "curl-up-mcgilla", "dawka": { "typ": "piramida", "serie": [5, 3, 1], "trzymanieS": [8, 10], "przerwaS": 20 } }] },
         { "kroki": [{ "c": "deska-boczna/kolana", "dawka": { "typ": "piramida", "serie": [5, 3, 1], "trzymanieS": 10, "przerwaS": 20, "naStrone": true } }] },
-        { "kroki": [{ "c": "bird-dog", "dawka": { "typ": "powtorzenia", "serie": 2, "ile": 6, "naStrone": true, "trzymanieS": 8 } }] },
-        { "kroki": [{ "c": "dead-bug", "dawka": { "typ": "powtorzenia", "serie": 2, "ile": 6, "naStrone": true } }] },
+        { "kroki": [{ "c": "bird-dog", "dawka": { "typ": "powtorzenia", "serie": 2, "ile": 6, "naStrone": true, "naZmiane": true, "trzymanieS": 8 } }] },
+        { "kroki": [{ "c": "dead-bug", "dawka": { "typ": "powtorzenia", "serie": 2, "ile": 6, "naStrone": true, "naZmiane": true } }] },
         { "kroki": [{ "c": "zginacze-biodra", "dawka": { "typ": "trzymanie", "serie": 2, "s": [30, 45], "naStrone": true } }] },
         { "kroki": [{ "c": "skret-w-lezeniu", "dawka": { "typ": "trzymanie", "serie": [2, 3], "s": [20, 30], "naStrone": true } }] },
         { "kroki": [{ "c": "slizgi-nerwu", "dawka": { "typ": "powtorzenia", "ile": 10, "naStrone": true } }] }

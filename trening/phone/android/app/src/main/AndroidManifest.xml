@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Bez uprawnienia INTERNET: dane zostają tylko na telefonie.
          allowBackup=false: bez automatycznej kopii Google, kopia tylko przez ręczny eksport. -->
+    <!-- Sygnały podczas treningu (zwykłe uprawnienie, bez pytania). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
     <application
         android:label="Trening"
         android:name="${applicationName}"
