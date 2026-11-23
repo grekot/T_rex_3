@@ -1,0 +1,22 @@
+name: trening
+description: "Trening - prowadzenie przez 12-tygodniowy plan: kręgosłup lędźwiowy + redukcja"
+publish_to: 'none'
+
+# versionName i versionCode ustawia wydanie z tagu trening-vX.Y.Z
+# (przy --split-per-abi Flutter dodaje 2000 dla arm64).
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
