@@ -20,3 +20,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    # plan.json (treść planu) i atlas.json + img/ (technika i rysunki,
+    # generowane przez tool/atlas_do_json.dart z atlasu ćwiczeń)
+    - assets/plan/
+    - assets/plan/img/

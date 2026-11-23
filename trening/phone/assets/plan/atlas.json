@@ -1,0 +1,1441 @@
+{
+  "format": "trening-atlas/1",
+  "zrodlo": "cwiczenia/atlas_cwiczen.md",
+  "zasadyWspolne": [
+    "**Neutralny kręgosłup:** zachowaj naturalne wygięcia pleców. Nie zaokrąglaj ich i nie wyginaj na siłę.",
+    "**Usztywnienie tułowia:** napnij brzuch dookoła na ok. 20–30% siły, jakby ktoś miał Cię szturchnąć. Nie wciągaj brzucha. Między seriami rozluźnij.",
+    "**Oddech:** oddychaj normalnie, wydychaj przy wysiłku. Nie wstrzymuj oddechu.",
+    "**Tempo:** powoli i pod kontrolą, ok. 2–3 s ruch w dół i 1–2 s w górę. Bez szarpania i odbijania.",
+    "**Ból:** obowiązuje sygnalizacja świetlna z planu. Jeśli ból schodzi do pośladka lub nogi, przerwij ćwiczenie."
+  ],
+  "cwiczenia": {
+    "oddychanie-90-90": {
+      "nazwa": "Oddychanie przeponowe 90/90",
+      "grupa": "Rutyna „Kręgosłup 15 min”",
+      "rysunki": {
+        "": {
+          "plik": "img/oddychanie_90_90.jpg",
+          "opis": "Oddychanie przeponowe 90/90"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "rozluźnia mięśnie brzucha i pleców i uczy oddychania „do brzucha”. To także najlepsza pozycja ulgi przy zaostrzeniu bólu."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "punkty": [
+            "Połóż się na plecach na macie. Łydki oprzyj na siedzisku krzesła, kanapie albo pufie.",
+            "Uda pionowo, kolana nad biodrami: biodra i kolana zgięte pod kątem prostym.",
+            "Jedna dłoń na brzuchu, druga na dolnych żebrach. Pod głowę możesz podłożyć cienką poduszkę."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Wdychaj nosem przez ok. 3–4 s. Dłoń na brzuchu się unosi, dolne żebra rozszerzają się na boki. Klatka piersiowa i barki prawie się nie ruszają.",
+            "Zrób krótką pauzę.",
+            "Wydychaj ustami przez ok. 5–6 s, powoli, jak przez słomkę. Brzuch opada, żebra „chowają się” w dół."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "gdzieCzujesz",
+          "tytul": "Gdzie czujesz",
+          "tekst": "rozluźnienie brzucha i dołu pleców."
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "unoszenie barków i klatki przy wdechu,",
+            "wciąganie brzucha na wdechu (powinno być odwrotnie),",
+            "szybkie, płytkie oddechy."
+          ],
+          "numerowane": false
+        }
+      ]
+    },
+    "wyprosty-w-lezeniu": {
+      "nazwa": "Wyprosty w leżeniu (sfinks i wyprost na dłoniach)",
+      "grupa": "Rutyna „Kręgosłup 15 min”",
+      "rysunki": {
+        "": {
+          "plik": "img/wyprosty_w_lezeniu.jpg",
+          "opis": "Leżenie na brzuchu, sfinks, wyprost na dłoniach"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "to ćwiczenie z testu kierunkowego. U wielu osób z problemem krążka wyprost łagodzi ból i „ściąga” go z pośladka z powrotem do kręgosłupa."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "tekst": "połóż się na brzuchu, ręce wzdłuż ciała, głowa obrócona w bok. Poleż swobodnie 1–2 minuty."
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "**Sfinks:** oprzyj się na przedramionach, łokcie pod barkami. Biodra i miednica zostają na macie, pośladki i brzuch są rozluźnione. Zostań tak 1–2 minuty.",
+            "**Wyprost na dłoniach:** połóż dłonie pod barkami, jak do pompki. Prostuj ręce i unoś górną część tułowia, ale biodra zostają na macie. Dół pleców ma swobodnie „zwisać”.",
+            "Na górze zrób wydech i zostań 1–2 s, potem powoli wróć.",
+            "Zrób 10 powtórzeń. Jeśli ból nie rośnie, z każdym powtórzeniem możesz unieść się trochę wyżej. Nie musisz prostować rąk do końca."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "gdzieCzujesz",
+          "tytul": "Gdzie czujesz",
+          "tekst": "lekki ucisk albo rozciąganie w dole pleców jest w porządku. Liczy się to, co dzieje się z bólem **po** ćwiczeniu (patrz test kierunkowy w planie)."
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "odrywanie bioder od maty,",
+            "napinanie pośladków, które blokuje ruch,",
+            "odrzucanie głowy do tyłu."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "przerwijJesli",
+          "tytul": "Przerwij, jeśli",
+          "tekst": "ból schodzi do pośladka lub nogi albo pojawia się mrowienie."
+        }
+      ]
+    },
+    "koci-grzbiet": {
+      "nazwa": "Koci grzbiet (kot–krowa)",
+      "grupa": "Rutyna „Kręgosłup 15 min”",
+      "rysunki": {
+        "": {
+          "plik": "img/koci_grzbiet.jpg",
+          "opis": "Koci grzbiet: zaokrąglenie i wygięcie"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "łagodnie rusza kręgosłup i rozluźnia mięśnie po siedzeniu."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "tekst": "klęk podparty. Dłonie pod barkami, kolana pod biodrami, na szerokość bioder."
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "**Kot (rysunek po lewej):** z wydechem zaokrąglij plecy w górę, jakbyś chciał dotknąć sufitu środkiem pleców. Głowa swobodnie opada, miednica się podwija.",
+            "**Krowa (rysunek po prawej):** z wdechem powoli przejdź do lekkiego wygięcia. Brzuch opada w stronę podłogi, mostek idzie do przodu, wzrok lekko przed siebie.",
+            "Zrób 8–10 powolnych cykli, po ok. 3–4 s w każdą stronę."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Zakres",
+          "tekst": "tylko taki, który jest komfortowy. Nie dociskaj do końca."
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "ruch tylko głową i barkami, a dół pleców stoi w miejscu,",
+            "zbyt szybkie tempo,",
+            "przesuwanie ciężaru na pięty."
+          ],
+          "numerowane": false
+        }
+      ]
+    },
+    "mostek-biodrowy": {
+      "nazwa": "Mostek biodrowy",
+      "grupa": "Rutyna „Kręgosłup 15 min”",
+      "rysunki": {
+        "": {
+          "plik": "img/mostek_biodrowy.jpg",
+          "opis": "Mostek biodrowy: start i górna pozycja"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "wzmacnia pośladki, które odciążają odcinek lędźwiowy."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "punkty": [
+            "Połóż się na plecach, kolana zgięte.",
+            "Stopy płasko na szerokość bioder, ok. 25–30 cm od pośladków.",
+            "Ręce wzdłuż ciała, dłonie w dół."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Opuść dolne żebra, lekko napnij brzuch i dociśnij pięty do podłogi.",
+            "Napinając pośladki, unieś biodra, aż kolana, biodra i barki utworzą jedną prostą linię.",
+            "Zatrzymaj się na 2 s i mocno ściśnij pośladki.",
+            "Powoli opuść biodra na matę."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "gdzieCzujesz",
+          "tytul": "Gdzie czujesz",
+          "tekst": "pośladki i tył ud. **Nie** dół pleców."
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "za wysoko uniesione biodra i wyginanie lędźwi na górze („wystające” żebra),",
+            "pchanie z palców zamiast z pięt,",
+            "kolana uciekają do środka albo na zewnątrz."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "trudniej",
+          "tytul": "Trudniej",
+          "tekst": "mostek jednonóż. Druga noga jest wyprostowana w przedłużeniu uda."
+        }
+      ]
+    },
+    "curl-up-mcgilla": {
+      "nazwa": "Curl-up McGilla",
+      "grupa": "Rutyna „Kręgosłup 15 min”",
+      "rysunki": {
+        "": {
+          "plik": "img/curl_up_mcgill.jpg",
+          "opis": "Curl-up McGilla: start i uniesienie głowy z barkami"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "wzmacnia mięśnie brzucha bez zginania odcinka lędźwiowego. To bezpieczna alternatywa dla brzuszków i część zestawu McGill Big 3."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "punkty": [
+            "Połóż się na plecach. Jedna noga jest zgięta, stopa na podłodze, druga prosta.",
+            "Wsuń dłonie płasko pod dół pleców, żeby podtrzymać jego naturalne wygięcie. Łokcie leżą na macie."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Lekko usztywnij brzuch, ale go nie wciągaj.",
+            "Unieś głowę i barki **tylko kilka centymetrów** nad matę, jako jedną sztywną całość. Wyobraź sobie, że głowa leży na wadze, a Ty chcesz, żeby pokazała mniej. Szyja się nie zgina, broda nie idzie do klatki.",
+            "Utrzymaj 8–10 s, oddychając spokojnie i płytko.",
+            "Opuść. Powtarzaj w piramidzie 5, 3 i 1 powtórzenie, z krótką przerwą między seriami. W połowie zmień nogę zgiętą."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "gdzieCzujesz",
+          "tytul": "Gdzie czujesz",
+          "tekst": "napięcie mięśni brzucha, bez ruchu w dole pleców."
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "zwijanie się jak w brzuszku,",
+            "przyciąganie brody do klatki,",
+            "dociskanie lędźwi do dłoni albo odrywanie ich od dłoni,",
+            "wstrzymywanie oddechu."
+          ],
+          "numerowane": false
+        }
+      ]
+    },
+    "deska-boczna": {
+      "nazwa": "Deska boczna (na kolanach i na stopach)",
+      "grupa": "Rutyna „Kręgosłup 15 min”",
+      "rysunki": {
+        "kolana": {
+          "plik": "img/deska_boczna_kolana.jpg",
+          "opis": "Deska boczna na kolanach",
+          "podpis": "Wersja na kolanach (start)",
+          "uwaga": "Rysunek pokazuje kolana zgięte mniej, ale liczy się prosta linia od barków przez biodra do kolan."
+        },
+        "stopy": {
+          "plik": "img/deska_boczna_stopy.jpg",
+          "opis": "Deska boczna na stopach",
+          "podpis": "Wersja na stopach (gdy na kolanach jest już łatwo)"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "wzmacnia boczne mięśnie tułowia, które stabilizują odcinek lędźwiowy. To część zestawu McGill Big 3."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "punkty": [
+            "Połóż się na boku, łokieć dokładnie pod barkiem, przedramię na macie.",
+            "**Na kolanach:** kolana zgięte ok. 90°, stopy za sobą, uda w jednej linii z tułowiem. Rysunek pokazuje kolana zgięte mniej, ale liczy się prosta linia od barków przez biodra do kolan.",
+            "**Na stopach:** nogi proste. Postaw stopy jedna przed drugą (łatwiej) albo jedna na drugiej (trudniej).",
+            "Wolna ręka spoczywa na biodrze."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Wypchnij podłogę łokciem i unieś biodra.",
+            "Głowa, barki, biodra i kolana (albo stopy) tworzą jedną prostą linię.",
+            "Utrzymaj zadany czas, oddychając spokojnie.",
+            "Opuść się kontrolowanie i zmień stronę."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "gdzieCzujesz",
+          "tytul": "Gdzie czujesz",
+          "tekst": "bok tułowia od dolnej strony, a także bark podporowy."
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "opadające biodra,",
+            "biodra uciekające do tyłu (ciało wygina się w literę V),",
+            "„wiszenie” na barku zamiast odpychania się łokciem,",
+            "opadająca głowa."
+          ],
+          "numerowane": false
+        }
+      ]
+    },
+    "bird-dog": {
+      "nazwa": "Bird dog",
+      "grupa": "Rutyna „Kręgosłup 15 min”",
+      "rysunki": {
+        "": {
+          "plik": "img/bird_dog.jpg",
+          "opis": "Bird dog: klęk podparty i wyprost przeciwległej ręki i nogi"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "uczy utrzymania stabilnego kręgosłupa, gdy ręce i nogi pracują. Wzmacnia mięśnie przykręgosłupowe i pośladki. To część zestawu McGill Big 3."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "tekst": "klęk podparty. Dłonie pod barkami, kolana pod biodrami, plecy płaskie."
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Lekko usztywnij tułów.",
+            "Jednocześnie wysuń **prawą rękę** do przodu i **lewą nogę** do tyłu, czyli zawsze rękę i nogę po przeciwnych stronach. Unieś je do poziomu. Nogę prowadź piętą do tyłu, nie w górę.",
+            "Utrzymaj 8–10 s. Plecy są płaskie jak blat stołu, na którym utrzymałaby się szklanka wody.",
+            "Powoli wróć i zmień stronę."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "gdzieCzujesz",
+          "tytul": "Gdzie czujesz",
+          "tekst": "pośladek uniesionej nogi, mięśnie wzdłuż kręgosłupa, bark."
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "zbyt wysoko uniesiona noga, przez co lędźwie się wyginają,",
+            "miednica przechylająca się na bok,",
+            "zadzieranie albo opuszczanie głowy,",
+            "pośpiech."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "latwiej",
+          "tytul": "Łatwiej",
+          "tekst": "unoś najpierw samą nogę albo samą rękę."
+        }
+      ]
+    },
+    "dead-bug": {
+      "nazwa": "Dead bug",
+      "grupa": "Rutyna „Kręgosłup 15 min”",
+      "rysunki": {
+        "": {
+          "plik": "img/dead_bug.jpg",
+          "opis": "Dead bug: start, wersja łatwa i wersja pełna"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "wzmacnia głębokie mięśnie brzucha przy nieruchomym dole pleców."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa (rysunek 1)",
+          "tekst": "połóż się na plecach. Ręce wyprostowane do sufitu nad barkami. Biodra i kolana zgięte pod kątem prostym, golenie poziomo."
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch: wersja łatwa (rysunek 2)",
+          "punkty": [
+            "Z wydechem powoli opuść jedną stopę, aż pięta dotknie podłogi. Kolano zostaje zgięte.",
+            "Wróć i zmień nogę."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch: wersja pełna (rysunek 3)",
+          "punkty": [
+            "Z wydechem jednocześnie opuść jedną rękę za głowę i wyprostuj **przeciwną** nogę tuż nad podłogą, bez dotykania jej.",
+            "Wróć i zmień stronę."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Kluczowa zasada",
+          "tekst": "dolne żebra trzymaj w dół, a dół pleców nie może się odrywać od podłogi. Jeśli się odrywa, skróć zakres ruchu."
+        },
+        {
+          "rodzaj": "gdzieCzujesz",
+          "tytul": "Gdzie czujesz",
+          "tekst": "brzuch."
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "wyginanie lędźwi przy prostowaniu nogi,",
+            "pośpiech,",
+            "wstrzymywanie oddechu."
+          ],
+          "numerowane": false
+        }
+      ]
+    },
+    "zginacze-biodra": {
+      "nazwa": "Rozciąganie zginaczy biodra w półklęku",
+      "grupa": "Rutyna „Kręgosłup 15 min”",
+      "rysunki": {
+        "": {
+          "plik": "img/zginacze_biodra_polklek.jpg",
+          "opis": "Rozciąganie zginaczy biodra w półklęku"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "rozciąga mięśnie z przodu biodra, które skracają się od siedzenia i ciągną odcinek lędźwiowy."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "punkty": [
+            "Uklęknij na prawe kolano, z poduszką pod nim.",
+            "Lewa stopa stoi z przodu, lewe kolano nad kostką.",
+            "Tułów pionowo, dłonie na biodrach."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Lekko podwiń miednicę, jakbyś chciał „schować ogon”, i napnij prawy pośladek.",
+            "Utrzymując to napięcie, przesuń biodra kilka centymetrów do przodu.",
+            "Poczujesz rozciąganie z przodu prawego biodra i uda. Utrzymaj 30–45 s, spokojnie oddychając.",
+            "Zmień stronę."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "gdzieCzujesz",
+          "tytul": "Gdzie czujesz",
+          "tekst": "przód biodra po stronie klęczącej nogi. **Nie** w krzyżu."
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "wyginanie dołu pleców, przez co rozciąganie „ucieka” do lędźwi,",
+            "pochylanie tułowia do przodu,",
+            "zbyt długi wypad."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "trudniej",
+          "tytul": "Trudniej",
+          "tekst": "unieś nad głowę rękę po stronie klęczącej nogi."
+        }
+      ]
+    },
+    "skret-w-lezeniu": {
+      "nazwa": "Skręt tułowia w leżeniu",
+      "grupa": "Rutyna „Kręgosłup 15 min”",
+      "rysunki": {
+        "": {
+          "plik": "img/skret_w_lezeniu.jpg",
+          "opis": "Skręt tułowia w leżeniu, widok z góry"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "to Twoje ćwiczenie na doraźną ulgę. Rozluźnia napięte mięśnie po dniu siedzenia."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "tekst": "połóż się na plecach, nogi proste."
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Zegnij prawą nogę, przełóż kolano nad lewą nogą i prowadź je w lewo, w stronę podłogi.",
+            "Lewa dłoń leży na kolanie i delikatnie je prowadzi. Nie dociskaj.",
+            "Prawa ręka leży wyprostowana w bok na podłodze, prawa łopatka zostaje na macie. Głowę możesz obrócić w prawo.",
+            "Zatrzymaj się na ok. **60–70% pełnego zakresu**. Oddychaj spokojnie przez 20–30 s i z każdym wydechem pozwól mięśniom się rozluźnić.",
+            "Powoli wróć i zmień stronę."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "dociskanie kolana na siłę („mocny” skręt nie daje więcej niż spokojny),",
+            "odrywanie łopatki od podłogi,",
+            "szarpanie,",
+            "robienie skrętu zaraz po przebudzeniu."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "przerwijJesli",
+          "tytul": "Przerwij, jeśli",
+          "tekst": "ból schodzi do pośladka."
+        }
+      ]
+    },
+    "slizgi-nerwu": {
+      "nazwa": "Ślizgi nerwu kulszowego",
+      "grupa": "Rutyna „Kręgosłup 15 min”",
+      "rysunki": {
+        "": {
+          "plik": "img/slizgi_nerwu.jpg",
+          "opis": "Ślizgi nerwu kulszowego na krześle"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "kiedy",
+          "tytul": "Kiedy",
+          "tekst": "tylko gdy objawy schodzą na udo lub niżej albo gdy zaleci je fizjoterapeuta. Przy bólu tylko w krzyżu lub pośladku zwykle nie są potrzebne."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "tekst": "usiądź prosto na krześle, dłonie na krawędzi siedziska."
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "**Start (rysunek po lewej):** kolano zgięte, stopa na podłodze, głowa pochylona, wzrok w dół.",
+            "**Rysunek po prawej:** jednocześnie wyprostuj kolano, kierując palce stopy do siebie, i unieś głowę, patrząc w sufit.",
+            "Wróć: zginaj kolano i jednocześnie opuszczaj głowę.",
+            "Ruszaj się płynnie, ok. 2 s w każdą stronę."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Ważne",
+          "tekst": "to ślizg, a nie rozciąganie. Nie zatrzymuj się w pozycji końcowej. Ruch ma być bez bólu i mrowienia. Lekkie „ciągnięcie”, które od razu mija, jest w porządku."
+        }
+      ]
+    },
+    "wyprost-w-staniu": {
+      "nazwa": "Wyprost w staniu",
+      "grupa": "W ciągu dnia",
+      "rysunki": {
+        "": {
+          "plik": "img/wyprost_w_staniu.jpg",
+          "opis": "Wyprost w staniu: start i odchylenie"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "to szybki „reset” po siedzeniu, jeździe samochodem albo pracy w pochyleniu. Robisz go, gdy test kierunkowy pokazał, że wyprost Ci pomaga."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "tekst": "stań prosto, stopy na szerokość bioder, kolana proste. Dłonie połóż na dole pleców, tuż nad pośladkami, palcami w dół."
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Odchyl tułów do tyłu, lekko wypychając biodra do przodu. Dłonie są punktem podparcia. Ruch zachodzi w dole pleców, a nie w kolanach.",
+            "Patrz przed siebie albo lekko w górę. Nie odrzucaj głowy do tyłu.",
+            "Zostań 1–2 s i wróć do pionu.",
+            "Zrób 10 powtórzeń. Z każdym możesz odchylić się odrobinę dalej, jeśli nie boli bardziej."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "kiedy",
+          "tytul": "Kiedy",
+          "tekst": "po każdej dłuższej jeździe, co 30–45 min przy biurku i co 15–20 min pracy w warsztacie."
+        },
+        {
+          "rodzaj": "przerwijJesli",
+          "tytul": "Przerwij, jeśli",
+          "tekst": "palenie w krzyżu wyraźnie się nasila albo ból schodzi do pośladka. Wtedy zamiast wyprostów zrób 2–3 minuty marszu."
+        }
+      ]
+    },
+    "pozycje-do-spania": {
+      "nazwa": "Pozycje do spania i wstawanie z łóżka",
+      "grupa": "W ciągu dnia",
+      "rysunki": {
+        "": {
+          "plik": "img/pozycje_do_spania.jpg",
+          "opis": "Pozycje do spania: na plecach i na boku"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "inne",
+          "tytul": "",
+          "punkty": [
+            "**Na plecach:** połóż poduszkę lub zwinięty koc pod kolanami. Dół pleców się rozluźnia.",
+            "**Na boku:** kolana lekko zgięte, poduszka **między kolanami**, żeby górna noga nie opadała i nie skręcała miednicy. Poduszka pod głową wypełnia przestrzeń między barkiem a uchem.",
+            "**Na brzuchu:** tylko jeśli test kierunkowy pokazał, że wyprost Ci służy. Inaczej lepiej unikać."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Wstawanie z łóżka bez skłonu",
+          "punkty": [
+            "Zegnij kolana i obróć się na bok całym ciałem naraz.",
+            "Opuść nogi poza krawędź łóżka.",
+            "Jednocześnie odepchnij się rękami od materaca i usiądź."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "",
+          "tekst": "Przez pierwszą godzinę po wstaniu unikaj głębokich skłonów."
+        }
+      ]
+    },
+    "przysiad-do-krzesla": {
+      "nazwa": "Przysiad do krzesła z kettlem (goblet box squat)",
+      "grupa": "Trening siłowy (etapy 2–3)",
+      "rysunki": {
+        "": {
+          "plik": "img/przysiad_do_krzesla.jpg",
+          "opis": "Przysiad do krzesła z kettlem"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "wzmacnia uda i pośladki oraz uczy siadania i wstawania z prostymi plecami."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "punkty": [
+            "Stań przed krzesłem, stopy na szerokość barków, palce lekko na zewnątrz.",
+            "Kettlebell trzymaj oburącz za boki rączki („rogi”) przy mostku, łokcie skierowane w dół."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Weź wdech i lekko usztywnij brzuch.",
+            "Wypchnij biodra do tyłu i zginaj kolana, schodząc, aż pośladki **lekko dotkną** krawędzi krzesła. Nie siadaj całym ciężarem.",
+            "Klatka wysoko, plecy proste, kolana idą w kierunku palców stóp, pięty na podłodze.",
+            "Z wydechem wstań, wypychając podłogę stopami. Na górze ściśnij pośladki."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "kolana uciekające do środka,",
+            "odrywanie pięt od podłogi,",
+            "zaokrąglanie pleców na dole,",
+            "„klapnięcie” na krzesło i odbicie się od niego."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Etap 3: pełny przysiad z kettlem przy klatce, bez krzesła.",
+          "tekst": "Schodź tak głęboko, jak utrzymasz proste plecy, czyli zanim miednica zacznie się podwijać na dole."
+        }
+      ]
+    },
+    "wykrok-w-tyl": {
+      "nazwa": "Wykrok w tył",
+      "grupa": "Trening siłowy (etapy 2–3)",
+      "rysunki": {
+        "": {
+          "plik": "img/wykrok_w_tyl.jpg",
+          "opis": "Wykrok w tył"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "wzmacnia nogi i pośladki osobno, a przy tym uczy stabilności miednicy. Jest łagodniejszy dla kolan niż wykrok w przód."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "tekst": "stań prosto, stopy na szerokość bioder, dłonie na biodrach."
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Zrób duży krok jedną nogą do tyłu i stań na jej przodzie stopy.",
+            "Opuszczaj się pionowo w dół, aż tylne kolano znajdzie się tuż nad podłogą. Przednie kolano jest nad środkiem stopy, oba kolana zgięte mniej więcej pod kątem prostym.",
+            "Odepchnij się przednią piętą i wróć do postawy.",
+            "Zrób wszystkie powtórzenia jedną nogą, potem drugą."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "mocne pochylanie tułowia albo wyginanie go do tyłu,",
+            "przednie kolano uciekające do środka,",
+            "uderzanie kolanem o podłogę,",
+            "stopy ustawione w jednej linii, jak na linie, przez co trudno złapać równowagę."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "latwiej",
+          "tytul": "Łatwiej",
+          "tekst": "przytrzymaj się ręką ściany lub oparcia krzesła."
+        }
+      ]
+    },
+    "przysiad-bulgarski": {
+      "nazwa": "Przysiad bułgarski (etap 3)",
+      "grupa": "Trening siłowy (etapy 2–3)",
+      "rysunki": {
+        "": {
+          "plik": "img/przysiad_bulgarski.jpg",
+          "opis": "Przysiad bułgarski z tylną stopą na krześle"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "to mocniejsza wersja wykroku. Jedna noga wykonuje prawie całą pracę."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "punkty": [
+            "Stań plecami do krzesła, ok. jeden duży krok przed nim.",
+            "Połóż grzbiet tylnej stopy na siedzisku. Ciężar ciała jest głównie na przedniej nodze."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Opuszczaj się pionowo w dół, aż przednie udo będzie mniej więcej poziomo, a tylne kolano zbliży się do podłogi.",
+            "Wróć do góry, pchając przednią piętą.",
+            "Tułów pionowo albo lekko pochylony, plecy proste."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "stanie za blisko krzesła (kolano wychodzi daleko przed palce),",
+            "stanie za daleko (mocno rozciąga biodro i wygina lędźwie),",
+            "odpychanie się tylną nogą."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Progresja",
+          "tekst": "najpierw bez ciężaru, potem z kettlem przy klatce."
+        }
+      ]
+    },
+    "pallof-press": {
+      "nazwa": "Pallof press",
+      "grupa": "Trening siłowy (etapy 2–3)",
+      "rysunki": {
+        "": {
+          "plik": "img/pallof_press.jpg",
+          "opis": "Pallof press z gumą zaczepioną w drzwiach"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "wzmacnia mięśnie tułowia w opieraniu się skrętowi. To jedno z najbezpieczniejszych i najskuteczniejszych ćwiczeń „na brzuch” przy problemach z plecami."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "punkty": [
+            "Zaczep gumę w drzwiach (kotwą) na wysokości klatki.",
+            "Stań bokiem do drzwi tak daleko, żeby guma była napięta.",
+            "Stopy na szerokość bioder, kolana lekko ugięte. Obie dłonie trzymają gumę przy mostku."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Usztywnij brzuch.",
+            "Wypchnij dłonie **prosto przed siebie**, aż ręce będą wyprostowane przed środkiem klatki.",
+            "Utrzymaj 2 s. Guma ciągnie Cię w bok, a Ty nie dajesz się obrócić.",
+            "Powoli wróć do mostka. Po serii stań drugim bokiem."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "gdzieCzujesz",
+          "tytul": "Gdzie czujesz",
+          "tekst": "boczne i przednie mięśnie brzucha."
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "dłonie odpływające w stronę drzwi,",
+            "skręt tułowia lub bioder,",
+            "wstrzymywanie oddechu,",
+            "zbyt mocna guma, przez co nie da się utrzymać pozycji."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Etap 3: Pallof press w półklęku.",
+          "tekst": "Kolano bliższe drzwiom stawiasz na podłodze, druga stopa stoi z przodu. Tułów pionowo, pośladek klęczącej nogi napięty."
+        }
+      ]
+    },
+    "zawias-z-kijem": {
+      "nazwa": "Zawias biodrowy z kijem",
+      "grupa": "Trening siłowy (etapy 2–3)",
+      "rysunki": {
+        "": {
+          "plik": "img/zawias_z_kijem.jpg",
+          "opis": "Zawias biodrowy z kijem wzdłuż pleców"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "uczy pochylania się **z bioder** przy prostym kręgosłupie. To podstawa martwego ciągu, swingu i bezpiecznego podnoszenia, także w warsztacie i przy drewnie."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "punkty": [
+            "Połóż kij (np. od szczotki) wzdłuż pleców. Jedna ręka trzyma go za szyją, druga za lędźwiami.",
+            "Kij dotyka trzech punktów: **tyłu głowy, pleców między łopatkami i kości krzyżowej**."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Lekko ugnij kolana.",
+            "Wypychaj biodra do tyłu, jakbyś chciał zamknąć pośladkami drzwi za sobą. Tułów pochyla się wtedy sam.",
+            "Schodź, aż poczujesz napięcie z tyłu ud albo któryś z trzech punktów zacznie odrywać się od kija.",
+            "Wróć, wypychając biodra do przodu i napinając pośladki."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "kij odrywa się od głowy (zadzieranie lub opuszczanie głowy),",
+            "kij odrywa się od kości krzyżowej (zaokrąglanie lędźwi),",
+            "zginanie kolan jak w przysiadzie zamiast cofania bioder,",
+            "schodzenie za nisko."
+          ],
+          "numerowane": false
+        }
+      ]
+    },
+    "martwy-ciag-rumunski": {
+      "nazwa": "Martwy ciąg rumuński z kettlem",
+      "grupa": "Trening siłowy (etapy 2–3)",
+      "rysunki": {
+        "": {
+          "plik": "img/martwy_ciag_rumunski.jpg",
+          "opis": "Martwy ciąg rumuński z kettlem"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "wzmacnia pośladki, tył ud i mięśnie prostowniki grzbietu. Bezpośrednio przekłada się na podnoszenie rzeczy w codziennym życiu."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "tekst": "stopy na szerokość bioder. Kettlebell trzymaj oburącz przed udami, ręce proste, łopatki lekko ściągnięte."
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Weź wdech i usztywnij brzuch.",
+            "Wykonaj zawias: biodra jadą do tyłu, kolana są lekko ugięte, plecy proste.",
+            "Kettlebell zjeżdża **blisko nóg**, mniej więcej do wysokości kolan lub połowy goleni. Schodź tylko tak nisko, jak utrzymasz proste plecy.",
+            "Z wydechem pchnij biodra do przodu i na górze napnij pośladki. Nie odchylaj się do tyłu."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "gdzieCzujesz",
+          "tytul": "Gdzie czujesz",
+          "tekst": "tył ud i pośladki. Plecy pracują tylko statycznie, utrzymując pozycję."
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "zaokrąglanie pleców, żeby sięgnąć niżej,",
+            "kettlebell oddalający się od nóg,",
+            "odchylanie się do tyłu na górze,",
+            "szarpanie ciężaru."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Zasada",
+          "tekst": "ciężar dokładasz dopiero wtedy, gdy ruch z kijem wychodzi pewnie i bez bólu następnego dnia."
+        }
+      ]
+    },
+    "martwy-ciag-jednonoz": {
+      "nazwa": "Martwy ciąg rumuński na jednej nodze (etap 3)",
+      "grupa": "Trening siłowy (etapy 2–3)",
+      "rysunki": {
+        "": {
+          "plik": "img/martwy_ciag_jednonoz.jpg",
+          "opis": "Martwy ciąg rumuński na jednej nodze",
+          "uwaga": "Rysunek pokazuje tylko częściowe pochylenie, a docelowo tułów i noga są blisko poziomu, jeśli utrzymasz proste plecy."
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "wymaga więcej równowagi i stabilizacji miednicy, a pośladek nogi podporowej pracuje mocniej."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "tekst": "stań na jednej nodze z lekko ugiętym kolanem. Kettlebell trzymaj w ręce po stronie nogi, która idzie do tyłu."
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Pochylaj tułów do przodu z biodra, a wolna, wyprostowana noga jednocześnie odjeżdża do tyłu. Głowa, plecy i noga tworzą jedną linię.",
+            "Schodź, aż poczujesz napięcie z tyłu uda nogi podporowej. Rysunek pokazuje tylko częściowe pochylenie, a docelowo tułów i noga są blisko poziomu, jeśli utrzymasz proste plecy.",
+            "Biodra trzymaj na równej wysokości, nie „otwieraj” miednicy w bok.",
+            "Wróć do pionu, napinając pośladek nogi podporowej."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "obracanie miednicy (palce nogi z tyłu kierują się w bok),",
+            "zaokrąglanie pleców,",
+            "zginanie kolana podporowego jak w przysiadzie."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "latwiej",
+          "tytul": "Łatwiej",
+          "tekst": "dotykaj palcami wolnej ręki ściany albo oparcia krzesła."
+        }
+      ]
+    },
+    "swing": {
+      "nazwa": "Swing kettlebell (etap 3)",
+      "grupa": "Trening siłowy (etapy 2–3)",
+      "rysunki": {
+        "": {
+          "plik": "img/swing_kettlebell.jpg",
+          "opis": "Swing kettlebell: zamach i górna pozycja"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "kiedy",
+          "tytul": "Warunki",
+          "tekst": "etap 3, pewny zawias biodrowy w martwym ciągu rumuńskim i co najmniej 4 tygodnie bez objawów."
+        },
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "dynamicznie wzmacnia pośladki i tył ud, a przy tym bardzo dobrze spala kalorie."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "punkty": [
+            "Stopy nieco szerzej niż barki, kettlebell ok. 30 cm przed stopami.",
+            "Wykonaj zawias biodrowy i chwyć kettlebell oburącz."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "**Zamach (rysunek po lewej):** przerzuć kettlebell do tyłu, między uda, wysoko przy kroczu. Plecy proste, biodra cofnięte.",
+            "Dynamicznie wypchnij biodra do przodu i mocno napnij pośladki. Kettlebell sam poleci do wysokości klatki. Ręce są tylko „linami” i nie unoszą ciężaru.",
+            "**Góra (rysunek po prawej):** stoisz prosto jak deska, bez odchylania się do tyłu, brzuch napięty, krótki wydech.",
+            "Pozwól kettlowi opaść. Gdy przedramiona dotkną ud, znowu wykonaj zawias.",
+            "Na koniec serii zwolnij, zrób zawias i odstaw kettlebell przed siebie."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "przysiad zamiast zawiasu,",
+            "unoszenie kettla siłą rąk,",
+            "odchylanie się do tyłu w górnej pozycji,",
+            "zaokrąglanie pleców podczas zamachu,",
+            "kettlebell w zamachu nisko przy kolanach zamiast wysoko między udami."
+          ],
+          "numerowane": false
+        }
+      ]
+    },
+    "spacery-z-ciezarem": {
+      "nazwa": "Spacer walizkowy i spacer farmera",
+      "grupa": "Trening siłowy (etapy 2–3)",
+      "rysunki": {
+        "": {
+          "plik": "img/spacer_walizkowy_farmera.jpg",
+          "opis": "Spacer walizkowy i spacer farmera"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "wzmacniają tułów, który utrzymuje pionową sylwetkę pod obciążeniem, a do tego barki i chwyt. To trening noszenia zakupów, desek i drewna."
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Spacer walizkowy (rysunek po lewej)",
+          "punkty": [
+            "Weź kettlebell w jedną rękę. Ręka jest prosta, wolna ręka luźno.",
+            "Idź spokojnie, krótkimi krokami, przez zadany czas.",
+            "Tułów pionowo, barki na równej wysokości. **Nie przechylaj się** w żadną stronę.",
+            "Zmień rękę."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Spacer farmera (rysunek po prawej)",
+          "tekst": "to samo z kettlem w każdej ręce. Barki ściągnięte w dół i lekko do tyłu, wyprostowana sylwetka."
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Podnoszenie i odkładanie",
+          "tekst": "zawsze z przysiadu lub zawiasu, nigdy ze skłonu na prostych nogach."
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "przechylanie się na bok,",
+            "unoszenie barku z ciężarem,",
+            "wyginanie pleców,",
+            "szybki, „rozkołysany” chód."
+          ],
+          "numerowane": false
+        }
+      ]
+    },
+    "podciaganie": {
+      "nazwa": "Zwis i podciąganie na drążku",
+      "grupa": "Trening siłowy (etapy 2–3)",
+      "rysunki": {
+        "": {
+          "plik": "img/podciaganie.jpg",
+          "opis": "Zwis aktywny i podciąganie"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "wzmacniają najszersze mięśnie grzbietu, mięśnie między łopatkami i ramiona."
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Zwis aktywny (rysunek po lewej)",
+          "punkty": [
+            "Chwyć drążek nachwytem, nieco szerzej niż barki.",
+            "Z pełnego zwisu ściągnij łopatki w dół, tak żeby barki odsunęły się od uszu. Łokcie zostają proste.",
+            "Nogi razem, lekko z przodu, brzuch lekko napięty. Ciało się nie buja."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Podciąganie (rysunek po prawej)",
+          "punkty": [
+            "Zacznij od zwisu aktywnego.",
+            "Ciągnij łokcie w dół, w stronę żeber, aż broda znajdzie się nad drążkiem.",
+            "Opuszczaj się kontrolowanie przez 2–3 s, aż ręce będą proste."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Zejście",
+          "tekst": "zawsze stań na krześle. Nie zeskakuj, bo lądowanie obciąża kręgosłup."
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "bujanie się i kopanie nogami,",
+            "wyginanie lędźwi,",
+            "niepełny zakres ruchu,",
+            "barki przy uszach w dolnej pozycji."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Etap 3: podchwyt.",
+          "tekst": "Dłonie skierowane do siebie, chwyt nieco węższy. Mocniej pracuje biceps."
+        }
+      ]
+    },
+    "pompki": {
+      "nazwa": "Pompki na podwyższeniu i na paraletkach",
+      "grupa": "Trening siłowy (etapy 2–3)",
+      "rysunki": {
+        "": {
+          "plik": "img/pompki.jpg",
+          "opis": "Pompki na podwyższeniu i na paraletkach"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "wzmacniają klatkę, barki i triceps. Przy okazji ćwiczą tułów, który musi trzymać ciało w linii, jak w desce."
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Pompki na podwyższeniu (rysunek po lewej)",
+          "punkty": [
+            "Oprzyj dłonie na krawędzi stabilnego stołu lub blatu, nieco szerzej niż barki. Krzesło może się przesunąć.",
+            "Ciało w linii od pięt do głowy, pośladki i brzuch napięte.",
+            "Opuszczaj klatkę do krawędzi, łokcie ok. 45° od tułowia, potem wypchnij się do góry.",
+            "Im niższe podparcie, tym trudniej."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "inne",
+          "tytul": "Pompki na paraletkach (rysunek po prawej)",
+          "punkty": [
+            "Chwyć paraletki tak, żeby dłonie były równoległe, a nadgarstki proste.",
+            "Schodź do wysokości dłoni albo trochę niżej, jeśli barki na to pozwalają."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy (ważne dla pleców)",
+          "punkty": [
+            "**opadające biodra**, przez co lędźwie się wyginają,",
+            "wypięte pośladki,",
+            "łokcie rozłożone na boki pod kątem 90°,",
+            "głowa wysunięta do przodu."
+          ],
+          "numerowane": false
+        }
+      ]
+    },
+    "wioslowanie-kettlem": {
+      "nazwa": "Wiosłowanie kettlem jednorącz",
+      "grupa": "Trening siłowy (etapy 2–3)",
+      "rysunki": {
+        "": {
+          "plik": "img/wioslowanie_kettlem.jpg",
+          "opis": "Wiosłowanie kettlem jednorącz z podparciem"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "wzmacnia mięśnie grzbietu i między łopatkami, a tułów uczy się nie skręcać."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "punkty": [
+            "Oprzyj lewe kolano i lewą dłoń na ławce albo na siedzisku stabilnego krzesła. Najlepiej dosuń krzesło do ściany.",
+            "Prawa stopa stoi na podłodze.",
+            "Tułów prawie poziomo, plecy płaskie, głowa w linii z kręgosłupem.",
+            "Kettlebell w prawej ręce, ręka prosto w dół."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Ciągnij łokieć w górę i do tyłu, **w stronę biodra**, blisko tułowia.",
+            "Na górze ściągnij łopatkę.",
+            "Powoli opuść kettlebell do prostej ręki.",
+            "Po serii zmień stronę."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "skręcanie tułowia przy podciąganiu,",
+            "szarpanie ciężaru,",
+            "ciągnięcie kettla do barku zamiast do biodra,",
+            "zaokrąglone plecy."
+          ],
+          "numerowane": false
+        }
+      ]
+    },
+    "rozciaganie-gumy": {
+      "nazwa": "Rozciąganie gumy przed sobą (band pull-apart)",
+      "grupa": "Trening siłowy (etapy 2–3)",
+      "rysunki": {
+        "": {
+          "plik": "img/rozciaganie_gumy.jpg",
+          "opis": "Band pull-apart"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "wzmacnia tył barków i mięśnie między łopatkami. To przeciwwaga dla garbienia się przy biurku."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "tekst": "stań prosto. Trzymaj lekką gumę nachwytem, dłonie na szerokość barków, ręce proste przed sobą na wysokości barków."
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Rozciągnij gumę, prowadząc proste ręce na boki, aż dotknie klatki.",
+            "Ściągnij łopatki i utrzymaj 1 s.",
+            "Powoli wróć."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "unoszenie barków do uszu,",
+            "wypychanie żeber i wyginanie lędźwi,",
+            "uginanie łokci,",
+            "zbyt mocna guma."
+          ],
+          "numerowane": false
+        }
+      ]
+    },
+    "face-pull": {
+      "nazwa": "Face pull",
+      "grupa": "Trening siłowy (etapy 2–3)",
+      "rysunki": {
+        "": {
+          "plik": "img/face_pull.jpg",
+          "opis": "Face pull z gumą zaczepioną w drzwiach"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "wzmacnia tył barków i mięśnie stabilizujące łopatki, co pomaga w utrzymaniu wyprostowanej sylwetki."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "punkty": [
+            "Zaczep gumę w górnej części drzwi, na wysokości czoła albo trochę wyżej.",
+            "Stań przodem do drzwi i cofnij się, aż guma będzie napięta przy prostych rękach.",
+            "Kolana lekko ugięte."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "Ciągnij gumę w stronę twarzy, rozchylając dłonie na boki.",
+            "Łokcie są **wysoko i na zewnątrz**. Na końcu dłonie znajdują się przy uszach, a łopatki są ściągnięte.",
+            "Powoli wróć do prostych rąk."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "odchylanie się do tyłu,",
+            "opuszczanie łokci (wtedy to wiosłowanie, a nie face pull),",
+            "barki przy uszach."
+          ],
+          "numerowane": false
+        }
+      ]
+    },
+    "y-t-lezac": {
+      "nazwa": "Unoszenie rąk w Y i T leżąc",
+      "grupa": "Trening siłowy (etapy 2–3)",
+      "rysunki": {
+        "": {
+          "plik": "img/y_t_lezac.jpg",
+          "opis": "Unoszenie rąk w Y i T leżąc na brzuchu"
+        }
+      },
+      "sekcje": [
+        {
+          "rodzaj": "kiedy",
+          "tytul": "Warunek",
+          "tekst": "rób je tylko wtedy, gdy leżenie na brzuchu Ci nie szkodzi (patrz test kierunkowy). Inaczej zastąp je face pull."
+        },
+        {
+          "rodzaj": "poCo",
+          "tytul": "Po co",
+          "tekst": "wzmacnia dolną część mięśnia czworobocznego i mięśnie między łopatkami, czyli mięśnie „prostej postawy”."
+        },
+        {
+          "rodzaj": "pozycja",
+          "tytul": "Pozycja wyjściowa",
+          "punkty": [
+            "Połóż się na brzuchu, czoło na złożonym ręczniku, nogi luźno.",
+            "Weź hantelki 2 kg albo, na początek, ćwicz bez ciężaru."
+          ],
+          "numerowane": false
+        },
+        {
+          "rodzaj": "ruch",
+          "tytul": "Ruch",
+          "punkty": [
+            "**Y (rysunek po lewej):** ręce wyprostowane skośnie za głową, w kształcie litery Y, kciuki skierowane w górę. Unieś ręce kilka centymetrów nad podłogę, ściągając łopatki w dół i do siebie. Utrzymaj 2 s i opuść.",
+            "**T (rysunek po prawej):** ręce rozłożone na boki, w kształcie litery T, kciuki w górę. Unieś je kilka centymetrów i ściągnij łopatki. Utrzymaj 2 s i opuść."
+          ],
+          "numerowane": true
+        },
+        {
+          "rodzaj": "bledy",
+          "tytul": "Najczęstsze błędy",
+          "punkty": [
+            "unoszenie głowy i klatki zamiast samych rąk, przez co lędźwie się wyginają,",
+            "barki przy uszach,",
+            "machanie rękami zamiast spokojnego ruchu."
+          ],
+          "numerowane": false
+        }
+      ]
+    }
+  }
+}

@@ -15,6 +15,15 @@ APK release (wspólny klucz z `android/key.properties`, poza gitem; bez niego kl
 Na Windows przy błędzie Gradle „Unable to establish loopback connection” ustaw `TEMP`/`TMP`
 na zwykły katalog (np. `C:\TMP\jtmp`).
 
+## Kod
+
+| Folder | Co to jest |
+|---|---|
+| `lib/plan/` | model `plan.json` i `atlas.json` ze ścisłym odczytem (`json.dart`), sprawdzanie odwołań (`sprawdz.dart`) |
+| `lib/silnik/` | czysta logika bez Fluttera: kalendarz z etapami według kryteriów (`kalendarz.dart`), flagi ćwiczeń z wyniku testu kierunkowego i zasięgu bólu (`flagi.dart`), daty w UTC (`daty.dart`) |
+| `tool/` | `atlas_do_json.dart`: atlas ćwiczeń (Markdown) → `assets/plan/atlas.json` + rysunki |
+| `assets/plan/` | dane planu: `plan.json`, `atlas.json`, `img/` |
+
 ## Ikona
 
 `python tools/ikona.py` rysuje ikonę (kartka kalendarza z kręgosłupem) i zapisuje ją w

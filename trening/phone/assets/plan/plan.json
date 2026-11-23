@@ -1,0 +1,255 @@
+{
+  "format": "trening-plan/1",
+  "id": "ledzwia-redukcja",
+  "wersja": "2026.11.23",
+  "tytul": "Zdrowy odcinek lędźwiowy + redukcja (12 tygodni)",
+  "zastrzezenie": "Ten plan nie zastępuje lekarza ani fizjoterapeuty. Przy podejrzeniu przepukliny warto choć raz pokazać się fizjoterapeucie: sprawdzi, które ruchy łagodzą u Ciebie ból, a których lepiej unikać, i na tej podstawie dopasuje ćwiczenia.",
+  "minDniPoCofnieciu": 7,
+
+  "cwiczenia": {
+    "oddychanie-90-90": {
+      "nazwa": "Oddychanie przeponowe 90/90",
+      "jak": "Połóż się na plecach, łydki oprzyj na krześle, tak by biodra i kolana były zgięte pod kątem prostym. Wdychaj nosem „do brzucha i dolnych żeber”, wydychaj powoli ustami. Plecy luźne.",
+      "wskazowki": ["Wdech nosem do brzucha i dolnych żeber", "Wydech powoli ustami", "Plecy luźne"]
+    },
+    "wyprosty-w-lezeniu": {
+      "nazwa": "Wyprosty w leżeniu",
+      "jak": "Poleż na brzuchu, przejdź do sfinksa, potem zrób 10 powolnych wyprostów na dłoniach, biodra zostają na podłodze.",
+      "wskazowki": ["Biodra zostają na podłodze", "Pośladki rozluźnione", "Na górze wydech i 1–2 s pauzy"],
+      "tylkoGdy": ["wyprostNieSzkodzi"],
+      "pominGdy": ["zasiegSchodziNizej"],
+      "uwaga": "Zależnie od wyniku testu kierunkowego. Jeśli test wypadł źle albo ból schodzi niżej, pomiń to ćwiczenie."
+    },
+    "koci-grzbiet": {
+      "nazwa": "Koci grzbiet (kot–krowa)",
+      "jak": "W klęku podpartym zaokrąglaj i wyginaj plecy w małym, płynnym zakresie. Ma rozluźniać, nie rozciągać na siłę.",
+      "wskazowki": ["Mały, płynny zakres", "Ma rozluźniać, nie rozciągać na siłę"]
+    },
+    "mostek-biodrowy": {
+      "nazwa": "Mostek biodrowy",
+      "jak": "Na plecach, stopy na szerokość bioder. Unieś biodra, napinając pośladki, ale nie wyginaj lędźwi.",
+      "wskazowki": ["Napnij pośladki", "Nie wyginaj lędźwi", "2 s pauzy u góry"]
+    },
+    "curl-up-mcgilla": {
+      "nazwa": "Curl-up McGilla",
+      "jak": "Na plecach, jedna noga zgięta, druga prosta, dłonie pod lędźwiami, żeby zachować ich naturalne wygięcie. Unieś głowę i barki o kilka centymetrów jako jedną całość. Nie przyciągaj brody do klatki i nie zginaj lędźwi.",
+      "wskazowki": ["Głowa i barki jako jedna całość, tylko kilka centymetrów", "Nie przyciągaj brody do klatki", "Nie zginaj lędźwi"]
+    },
+    "deska-boczna/kolana": {
+      "nazwa": "Deska boczna na kolanach",
+      "jak": "Połóż się na boku, łokieć pod barkiem, kolana ugięte. Unieś biodra tak, by kolana, biodra i barki były w jednej linii.",
+      "wskazowki": ["Łokieć pod barkiem", "Kolana, biodra i barki w jednej linii"],
+      "naStrone": true
+    },
+    "bird-dog": {
+      "nazwa": "Bird dog",
+      "jak": "W klęku podpartym wyprostuj przeciwległą rękę i nogę do poziomu. Plecy płaskie jak blat stołu, miednica się nie obraca.",
+      "wskazowki": ["Przeciwległa ręka i noga do poziomu", "Plecy płaskie jak blat stołu", "Miednica się nie obraca"],
+      "naStrone": true
+    },
+    "dead-bug": {
+      "nazwa": "Dead bug, wersja łatwa",
+      "jak": "Na plecach, biodra i kolana zgięte pod kątem prostym. Powoli opuść jedną piętę do podłogi i wróć. Dolne żebra trzymaj w dół, plecy nie odrywają się od podłogi.",
+      "wskazowki": ["Powoli opuść piętę do podłogi i wróć", "Dolne żebra w dół", "Plecy nie odrywają się od podłogi"],
+      "naStrone": true
+    },
+    "zginacze-biodra": {
+      "nazwa": "Rozciąganie zginaczy biodra w półklęku",
+      "jak": "Uklęknij na jedno kolano, z poduszką pod nim. Napnij pośladek nogi z tyłu, lekko podwiń miednicę i przesuń biodra do przodu. Rozciąganie czujesz z przodu biodra, nie w krzyżu.",
+      "wskazowki": ["Napnij pośladek nogi z tyłu", "Lekko podwiń miednicę", "Czujesz przód biodra, nie krzyż"],
+      "naStrone": true
+    },
+    "skret-w-lezeniu": {
+      "nazwa": "Skręt tułowia w leżeniu",
+      "jak": "Na plecach przełóż ugiętą nogę nad drugą i przeciwną ręką prowadź kolano w stronę podłogi, druga ręka i łopatka zostają na podłodze. Rób to łagodnie, na ok. 60–70% pełnego zakresu, ze spokojnym oddechem, bez szarpania i bez dociskania kolana na siłę. Najlepiej wieczorem, nie zaraz po wstaniu.",
+      "wskazowki": ["Ok. 60–70% pełnego zakresu", "Łopatka zostaje na podłodze", "Bez szarpania i dociskania kolana"],
+      "naStrone": true,
+      "uwaga": "Ćwiczenie na doraźną ulgę: wieczorem i po dniu z dużą ilością siedzenia. Jeśli kiedyś po nim ból zejdzie do pośladka, odstaw je."
+    },
+    "slizgi-nerwu": {
+      "nazwa": "Ślizgi nerwu kulszowego",
+      "jak": "Na krześle prostuj kolano i jednocześnie unoś wzrok do sufitu, potem zginaj kolano i opuszczaj głowę. Ruch ma być lekki, bez bólu i mrowienia. To nie jest rozciąganie.",
+      "wskazowki": ["Lekki ruch, bez bólu i mrowienia", "To ślizg, nie rozciąganie"],
+      "naStrone": true,
+      "tylkoGdy": ["objawyUdoLubNizej", "slizgiOdFizjo"],
+      "uwaga": "Tylko gdy objawy schodzą na udo lub niżej albo gdy zaleci je fizjoterapeuta. Przy bólu tylko w pośladku zwykle nie są potrzebne."
+    },
+    "wyprost-w-staniu": {
+      "nazwa": "Wyprost w staniu",
+      "jak": "Dłonie na lędźwiach, delikatnie odchyl się do tyłu. Rób je tylko wtedy, gdy przynoszą ulgę.",
+      "wskazowki": ["Dłonie na lędźwiach", "Delikatnie odchyl się do tyłu", "5–10 powtórzeń"],
+      "tylkoGdy": ["wyprostPomaga"],
+      "uwaga": "Ćwiczenie na przerwy w ciągu dnia (przypomnienia), nie część sesji."
+    }
+  },
+
+  "sesje": {
+    "R": {
+      "nazwa": "Kręgosłup 15 min",
+      "minuty": 15,
+      "opis": "Codzienna rutyna etapu 1. W gorszy dzień możesz zrobić dwie krótsze wersje.",
+      "krotszaWersja": [[0, 4], [5, 10]],
+      "bloki": [
+        { "kroki": [{ "c": "oddychanie-90-90", "dawka": { "typ": "oddechy", "ile": [6, 8], "wdechS": [3, 4], "wydechS": [5, 6] } }] },
+        { "kroki": [{ "c": "wyprosty-w-lezeniu", "dawka": { "typ": "pozycje", "etapy": [
+            { "nazwa": "Sfinks", "s": [60, 120] },
+            { "nazwa": "Wyprosty na dłoniach", "powt": 10, "pauzaGoraS": [1, 2] }
+          ] } }] },
+        { "kroki": [{ "c": "koci-grzbiet", "dawka": { "typ": "powtorzenia", "ile": [8, 10] } }] },
+        { "kroki": [{ "c": "mostek-biodrowy", "dawka": { "typ": "powtorzenia", "serie": 2, "ile": 10, "pauzaGoraS": 2 } }] },
+        { "kroki": [{ "c": "curl-up-mcgilla", "dawka": { "typ": "piramida", "serie": [5, 3, 1], "trzymanieS": [8, 10], "przerwaS": 20 } }] },
+        { "kroki": [{ "c": "deska-boczna/kolana", "dawka": { "typ": "piramida", "serie": [5, 3, 1], "trzymanieS": 10, "przerwaS": 20, "naStrone": true } }] },
+        { "kroki": [{ "c": "bird-dog", "dawka": { "typ": "powtorzenia", "serie": 2, "ile": 6, "naStrone": true, "trzymanieS": 8 } }] },
+        { "kroki": [{ "c": "dead-bug", "dawka": { "typ": "powtorzenia", "serie": 2, "ile": 6, "naStrone": true } }] },
+        { "kroki": [{ "c": "zginacze-biodra", "dawka": { "typ": "trzymanie", "serie": 2, "s": [30, 45], "naStrone": true } }] },
+        { "kroki": [{ "c": "skret-w-lezeniu", "dawka": { "typ": "trzymanie", "serie": [2, 3], "s": [20, 30], "naStrone": true } }] },
+        { "kroki": [{ "c": "slizgi-nerwu", "dawka": { "typ": "powtorzenia", "ile": 10, "naStrone": true } }] }
+      ]
+    },
+    "A": { "nazwa": "Sesja A: nogi i zawias biodrowy", "minuty": 17, "wkrotce": true },
+    "B": { "nazwa": "Sesja B: grzbiet i góra ciała", "minuty": 17, "wkrotce": true },
+    "C": { "nazwa": "Sesja C: stabilizacja i regeneracja", "minuty": 15, "wkrotce": true }
+  },
+
+  "etapy": [
+    {
+      "nr": 1,
+      "nazwa": "Wyciszenie",
+      "cel": "Zmniejszyć ból i promieniowanie, nauczyć się stabilizacji.",
+      "minDni": 21,
+      "harmonogram": { "pn": "R", "wt": "R", "sr": "R", "czw": "R", "pt": "R", "sob": "R", "nd": "R" },
+      "zadania": [
+        {
+          "id": "test-kierunkowy",
+          "nazwa": "Test kierunkowy",
+          "opis": "Najlepiej wtedy, gdy pali w krzyżu, np. po jeździe albo kilku godzinach przy biurku.",
+          "tygodnie": [1, 1]
+        },
+        {
+          "id": "drazek-lekki",
+          "nazwa": "Drążek: 3 serie po 2–3 podciągnięcia",
+          "opis": "Bez bujania, schodząc z drążka na krzesło. Jeśli następnego dnia plecy są bardziej podrażnione, odłóż podciąganie do etapu 2.",
+          "coDni": 3,
+          "odDnia": 3,
+          "opcjonalne": true
+        }
+      ],
+      "spacer": [
+        { "tygodnie": [1, 1], "tekst": "2–3 razy po 10 min dziennie, np. po posiłkach albo w przerwach od pracy.", "minuty": [20, 30] },
+        { "tygodnie": [2, null], "tekst": "Łącznie 30–45 min dziennie, w całości albo w kawałkach. Tempo żwawe, ale takie, przy którym da się mówić pełnymi zdaniami.", "minuty": [30, 45], "kroki": [6000, 8000] }
+      ],
+      "kryteria": [
+        { "id": "bol-spoczynek", "tekst": "Ból w spoczynku najwyżej 2/10 przez większość dni.",
+          "auto": { "metryka": "bolRano", "max": 2, "okno": 7, "minDni": 4 } },
+        { "id": "spacer-30", "tekst": "30 min spaceru nie nasila objawów." },
+        { "id": "biurko", "tekst": "Po 2 godzinach przy biurku (z przerwami) palenie w krzyżu najwyżej 2–3/10." },
+        { "id": "stabilizacja", "tekst": "Bird dog i deska boczna na kolanach bez bólu i z kontrolą miednicy." },
+        { "id": "posladek", "tekst": "Ból nie schodzi do pośladka, a jeśli wraca, to wyraźnie rzadziej i szybciej mija.",
+          "auto": { "metryka": "dniZasiegPosladekLubNizej", "okno": 14, "warunek": "mniejNizPoprzednio" } }
+      ]
+    },
+    {
+      "nr": 2,
+      "nazwa": "Wzmacnianie",
+      "cel": "Siła pośladków, tułowia i grzbietu.",
+      "minDni": 35,
+      "harmonogram": { "pn": "A", "wt": "B", "sr": "C", "czw": "A", "pt": "B", "sob": "C", "nd": "C" },
+      "sprzet": ["gumy", "kettle12"],
+      "spacer": [
+        { "tygodnie": [1, null], "tekst": "8–10 tys. kroków dziennie, w sobotę dłuższy spacer 45–60 min.", "kroki": [8000, 10000] }
+      ],
+      "kryteria": [
+        { "id": "bez-nawrotu", "tekst": "Co najmniej 4 tygodnie bez nawrotu bólu i bez promieniowania do pośladka.",
+          "auto": { "metryka": "dniBezCzerwonejIZasieguBrak", "min": 28 } },
+        { "id": "sprawdzian-stabilizacji", "tekst": "Deska boczna na stopach 45 s na stronę, bird dog 6 × 10 s bez chwiania." },
+        { "id": "martwy-ciag", "tekst": "Martwy ciąg rumuński z 12–16 kg z poprawną techniką, bez bólu następnego dnia." }
+      ]
+    },
+    {
+      "nr": 3,
+      "nazwa": "Progresja",
+      "cel": "Większe obciążenia, więcej spalania.",
+      "minDni": 28,
+      "harmonogram": { "pn": "A", "wt": "B", "sr": "C", "czw": "A", "pt": "B", "sob": "C", "nd": "C" },
+      "sprzet": ["gumy", "kettle12", "kettle16"],
+      "spacer": [
+        { "tygodnie": [1, null], "tekst": "8–10 tys. kroków dziennie.", "kroki": [8000, 10000] }
+      ]
+    }
+  ],
+
+  "testKierunkowy": {
+    "cel": "Sprawdzasz, czy wyginanie pleców do tyłu łagodzi ból. Wyprost da się zrobić na stojąco przy biurku albo przy samochodzie, więc to dobre narzędzie na co dzień.",
+    "kiedy": "W 1. tygodniu, najlepiej wtedy, gdy pali w krzyżu, np. po jeździe albo kilku godzinach przy biurku.",
+    "kroki": [
+      { "typ": "ocena", "nazwa": "Punkt wyjścia", "opis": "Zapisz, gdzie teraz boli (krzyż, pośladek) i jak mocno, w skali 0–10." },
+      { "typ": "pozycja", "nazwa": "Leżenie na brzuchu", "opis": "Połóż się na brzuchu.", "s": [120, 180] },
+      { "typ": "pozycja", "nazwa": "Sfinks", "opis": "Oprzyj się na przedramionach.", "s": [60, 120] },
+      { "typ": "powtorzenia", "nazwa": "Wyprosty na dłoniach", "opis": "Biodra zostają na podłodze, pośladki rozluźnione. Na górze zrób wydech i zostań 1–2 sekundy. Z każdym powtórzeniem możesz unieść się odrobinę wyżej, jeśli nie boli bardziej.", "powt": 10, "pauzaGoraS": [1, 2] },
+      { "typ": "marsz", "nazwa": "Marsz", "opis": "Wstań i przejdź się.", "s": 60 },
+      { "typ": "ocena", "nazwa": "Ponowna ocena", "opis": "Znowu sprawdź, gdzie boli i jak mocno." }
+    ],
+    "wyniki": {
+      "lepiej": {
+        "gdy": "Palenie w krzyżu zmalało (albo ból z pośladka cofnął się do krzyża).",
+        "znaczenie": "Wyprost to Twój kierunek.",
+        "coRobisz": "10 wyprostów co 2–3 godziny w ciągu dnia (w leżeniu albo na stojąco przy biurku), zawsze po dłuższym siedzeniu."
+      },
+      "bezZmian": {
+        "gdy": "Bez zmian.",
+        "znaczenie": "Wynik niejasny.",
+        "coRobisz": "Zrób drugą serię 10 powtórzeń. Jeśli nadal nic się nie zmienia, zostaw wyprosty w rutynie, dopóki nie pogarszają objawów."
+      },
+      "gorzej": {
+        "gdy": "Ból w krzyżu wyraźnie się nasila, schodzi do pośladka albo pojawia się mrowienie.",
+        "znaczenie": "Wyprost na razie Ci nie służy.",
+        "coRobisz": "Pomiń wyprosty i sfinksa, zostań przy skręcie w leżeniu i reszcie rutyny, umów fizjoterapeutę."
+      }
+    },
+    "wskazowka": "Stań przed lustrem. Jeśli tułów jest wyraźnie przesunięty w bok względem miednicy, wyprosty mogą nie pomagać, dopóki fizjoterapeuta nie skoryguje tego przesunięcia."
+  },
+
+  "teksty": {
+    "czerwoneFlagi": [
+      "Drętwienie krocza, pośladków albo wewnętrznej strony ud (tzw. „strefa siodła”).",
+      "Kłopoty z oddawaniem moczu lub stolca (zatrzymanie albo nietrzymanie).",
+      "Narastające osłabienie nogi, np. opadająca stopa albo nie da się stanąć na palcach lub piętach.",
+      "Silny ból w nocy niezależnie od pozycji, gorączka, niewyjaśniony spadek wagi."
+    ],
+    "kiedyDoSpecjalisty": [
+      "Promieniowanie do pośladka nie słabnie po 3–4 tygodniach ćwiczeń.",
+      "Ból albo drętwienie poniżej kolana, które się utrzymuje lub narasta.",
+      "Brak poprawy po 4–6 tygodniach systematycznych ćwiczeń.",
+      "Nawroty mimo regularnego treningu.",
+      "Dobry pierwszy krok to fizjoterapeuta z doświadczeniem w terapii kręgosłupa, np. w metodzie McKenziego (MDT)."
+    ],
+    "gdyBolWraca": [
+      "Nie leż w łóżku przez cały dzień. Co 1–2 h zrób spacer na 5–10 min.",
+      "Pozycja ulgi: leżenie na plecach z łydkami na krześle (90/90) albo, jeśli Ci pomaga, leżenie na brzuchu.",
+      "Jeśli test kierunkowy wypadł dobrze, wróć do wyprostów w leżeniu: 10 powtórzeń co 2–3 godziny.",
+      "Ciepło: termofor albo ciepły prysznic przez 15–20 min.",
+      "Wróć do rutyny z etapu 1 w skróconej wersji, tylko z ćwiczeniami, które nie nasilają bólu.",
+      "Leki przeciwbólowe bierz tylko zgodnie z ulotką albo po konsultacji z farmaceutą lub lekarzem.",
+      "Jeśli po 1–2 tygodniach nie ma poprawy, idź do fizjoterapeuty lub lekarza."
+    ],
+    "czegoUnikac": [
+      "Brzuszków, „scyzoryków” i unoszenia prostych nóg w leżeniu na plecach.",
+      "Skłonów do palców na prostych nogach i mocnego rozciągania tylnej strony ud.",
+      "Skrętów tułowia z obciążeniem (russian twist, wymachy z rotacją). Łagodny skręt w leżeniu bez obciążenia to co innego.",
+      "Długiej pracy w pochyleniu bez przerw.",
+      "Ciężkiego martwego ciągu, skoków i biegania, dopóki ból jest niestabilny.",
+      "Zeskakiwania z drążka (schodź na krzesło) i bujania się przy podciąganiu.",
+      "Głębokich skłonów w pierwszej godzinie po wstaniu."
+    ],
+    "czegoUnikacTygodnie": [6, 8],
+    "centralizacja": [
+      "Ból cofa się w stronę kręgosłupa (z nogi do pośladka, z pośladka do krzyża): dobry znak, nawet jeśli ból w krzyżu chwilowo się nasila.",
+      "Ból rozchodzi się dalej do pośladka lub nogi albo pojawia się mrowienie: ta pozycja lub to ćwiczenie na razie nie jest dla Ciebie."
+    ],
+    "sygnalizacja": {
+      "zielona": { "bol": "0–2/10, mija po ćwiczeniach.", "coRobisz": "Kontynuuj, możesz zwiększać obciążenie." },
+      "zolta": { "bol": "3–4/10, wraca do normy w ciągu 24 h.", "coRobisz": "Kontynuuj, ale nie dokładaj obciążenia." },
+      "czerwona": { "bol": "5/10 lub więcej, trwa ponad 24 h albo promieniowanie się nasila lub schodzi niżej (pośladek, udo, łydka).", "coRobisz": "Przerwij to ćwiczenie i wróć do poprzedniego etapu." }
+    }
+  }
+}
