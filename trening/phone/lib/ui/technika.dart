@@ -40,6 +40,7 @@ class ArkuszTechniki extends StatelessWidget {
         if (r != null) ...[
           const SizedBox(height: 12),
           RysunekCwiczenia(r),
+          Text(podpisAI, style: t.bodySmall),
         ],
         if (c.cwiczenie.jak != null) ...[
           const SizedBox(height: 16),
@@ -89,6 +90,9 @@ class _Sekcja extends StatelessWidget {
   }
 }
 
+/// Rysunki atlasu powstały w Gemini; warunki Google zabraniają podawać je jako dzieło człowieka.
+const podpisAI = 'Rysunek poglądowy wygenerowany przez AI (Gemini). Obowiązuje opis.';
+
 /// Rysunek z atlasu; stuknięcie otwiera pełny ekran z przybliżaniem. Pod spodem uwaga,
 /// gdy rysunek odbiega od opisu (obowiązuje opis).
 class RysunekCwiczenia extends StatelessWidget {
@@ -109,7 +113,15 @@ class RysunekCwiczenia extends StatelessWidget {
             builder: (_) => Scaffold(
               backgroundColor: Colors.black,
               appBar: AppBar(backgroundColor: Colors.black, title: Text(r.podpis ?? r.opis)),
-              body: Center(child: InteractiveViewer(maxScale: 5, child: Image.asset(r.asset))),
+              body: Column(children: [
+                Expanded(child: Center(child: InteractiveViewer(maxScale: 5, child: Image.asset(r.asset)))),
+                SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Text('$podpisAI ${r.uwaga ?? ''}'.trim(), style: const TextStyle(color: Colors.white70)),
+                  ),
+                ),
+              ]),
             ),
           )),
           child: ClipRRect(

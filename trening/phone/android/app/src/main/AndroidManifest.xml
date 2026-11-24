@@ -3,6 +3,11 @@
          allowBackup=false: bez automatycznej kopii Google, kopia tylko przez ręczny eksport. -->
     <!-- Sygnały podczas treningu (zwykłe uprawnienie, bez pytania). -->
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Przypomnienia: powiadomienia (Android 13+ pyta o zgodę), ponowne ustawienie alarmów
+         po restarcie telefonu i pytanie o zwolnienie z oszczędzania baterii (Samsung usypia aplikacje). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <application
         android:label="Trening"
         android:name="${applicationName}"
@@ -30,6 +35,13 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <receiver android:name=".PrzypomnienieOdbiorca" android:exported="false" />
+        <receiver android:name=".StartOdbiorca" android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data

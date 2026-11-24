@@ -14,3 +14,6 @@ String iso(DateTime d) {
   String dwa(int n) => n.toString().padLeft(2, '0');
   return '${x.year}-${dwa(x.month)}-${dwa(x.day)}';
 }
+
+/// `27.11`
+String krotkaData(DateTime d) => '${d.day}.${d.month.toString().padLeft(2, '0')}';

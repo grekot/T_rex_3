@@ -12,6 +12,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  # polskie kalendarze i zegary w wyborze daty i godziny (część SDK Fluttera)
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:

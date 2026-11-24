@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'dane/aplikacja.dart';
-import 'ui/ekran_dzis.dart';
+import 'ui/ekran_glowny.dart';
+import 'ui/ekran_powitania.dart';
 
 void main() => runApp(const TreningApp());
 
@@ -23,6 +25,9 @@ class _TreningAppState extends State<TreningApp> {
     return MaterialApp(
       title: 'Trening',
       debugShowCheckedModeBanner: false,
+      locale: const Locale('pl'),
+      supportedLocales: const [Locale('pl')],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF1E88A8), brightness: Brightness.dark),
         useMaterial3: true,
@@ -41,7 +46,12 @@ class _TreningAppState extends State<TreningApp> {
             );
           }
           if (!s.hasData) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-          return EkranDzis(dane: s.data!);
+          final dane = s.data!;
+          return ListenableBuilder(
+            listenable: dane,
+            builder: (context, _) =>
+                dane.stan.powitanieZrobione ? EkranGlowny(dane: dane) : EkranPowitania(dane: dane),
+          );
         },
       ),
     );

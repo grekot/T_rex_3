@@ -8,6 +8,7 @@ import '../plan/model.dart';
 import '../silnik/flagi.dart';
 import '../trening/test_kierunkowy.dart';
 import '../urzadzenie.dart';
+import 'ocena.dart';
 import 'technika.dart';
 import 'tekst_md.dart';
 
@@ -172,35 +173,15 @@ class _EkranTestuState extends State<EkranTestu> {
   }
 
   List<Widget> _ocena(TextTheme t, _Ocena o, {required bool mrowienie}) => [
-        Text('Ból w krzyżu: ${o.bol}/10', style: t.titleLarge),
-        Slider(
-          value: o.bol.toDouble(),
-          max: 10,
-          divisions: 10,
-          label: '${o.bol}',
-          onChanged: (v) => setState(() => o.bol = v.round()),
+        PoleOceny(
+          etykieta: 'Ból w krzyżu',
+          bol: o.bol,
+          zasieg: o.zasieg,
+          mrowienie: mrowienie ? o.mrowienie : null,
+          onBol: (v) => setState(() => o.bol = v),
+          onZasieg: (v) => setState(() => o.zasieg = v),
+          onMrowienie: (v) => setState(() => o.mrowienie = v),
         ),
-        Text('Gdzie kończy się ból?', style: t.titleMedium),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final z in Zasieg.values)
-              ChoiceChip(
-                label: Text(nazwaZasiegu(z)),
-                selected: o.zasieg == z,
-                onSelected: (_) => setState(() => o.zasieg = z),
-              ),
-          ],
-        ),
-        if (mrowienie)
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            value: o.mrowienie,
-            onChanged: (v) => setState(() => o.mrowienie = v ?? false),
-            title: const Text('Pojawiło się mrowienie albo drętwienie'),
-          ),
       ];
 
   List<Widget> _timer(TextTheme t, KrokTestu k) {

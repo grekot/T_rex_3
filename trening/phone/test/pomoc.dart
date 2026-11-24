@@ -6,6 +6,7 @@ import 'package:trening/dane/magazyn.dart';
 import 'package:trening/dane/stan.dart';
 import 'package:trening/plan/atlas.dart';
 import 'package:trening/plan/model.dart';
+import 'package:trening/przypomnienia/harmonogram.dart';
 
 final planTestowy = Plan.zJson(jsonDecode(File('assets/plan/plan.json').readAsStringSync()));
 final atlasTestowy = Atlas.zJson(jsonDecode(File('assets/plan/atlas.json').readAsStringSync()));
@@ -38,10 +39,17 @@ class Zegar {
   void przesun(Duration d) => teraz = teraz.add(d);
 }
 
-DaneAplikacji daneTestowe(DateTime Function() zegar, {Stan? stan}) => DaneAplikacji(
+/// Dane po ekranie powitania (start 23.11.2026). [planista] zbiera zaplanowane przypomnienia.
+DaneAplikacji daneTestowe(
+  DateTime Function() zegar, {
+  Stan? stan,
+  Future<void> Function(List<Przypomnienie>)? planista,
+}) =>
+    DaneAplikacji(
       plan: planTestowy,
       atlas: atlasTestowy,
-      stan: stan ?? Stan(),
+      stan: stan ?? (Stan()..powitanieZrobione = true),
       magazyn: MagazynWPamieci(),
       zegar: zegar,
+      planista: planista,
     );

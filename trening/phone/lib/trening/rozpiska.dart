@@ -5,6 +5,7 @@ library;
 
 import '../plan/atlas.dart';
 import '../plan/model.dart';
+import '../silnik/daty.dart';
 import '../silnik/flagi.dart';
 
 enum Strona { lewa, prawa }
@@ -116,10 +117,13 @@ class FazaPrzerwa extends Faza {
 }
 
 class PominieteCwiczenie {
-  PominieteCwiczenie(this.cwiczenie, this.powod);
+  PominieteCwiczenie(this.cwiczenie, this.powod, {this.wstrzymaneDo});
 
   final CwiczeniePlanu cwiczenie;
   final String powod;
+
+  /// Wstrzymane przez Ciebie po bólu (do tego dnia włącznie); można przywrócić.
+  final DateTime? wstrzymaneDo;
 }
 
 class Rozpiska {
@@ -146,7 +150,15 @@ String _powodPominiecia(CwiczeniePlanu c, Set<String> flagi) {
 }
 
 /// Rozpisuje [sesja] na fazy. [czesc]: numer części „dwóch krótszych wersji” (0 albo 1), null = całość.
-Rozpiska rozpisz(Plan plan, Atlas atlas, Sesja sesja, Set<String> flagi, {int? czesc}) {
+/// [wstrzymane]: ćwiczenia wstrzymane po bólu (id ćwiczenia planu → ostatni dzień), już przefiltrowane na dziś.
+Rozpiska rozpisz(
+  Plan plan,
+  Atlas atlas,
+  Sesja sesja,
+  Set<String> flagi, {
+  int? czesc,
+  Map<String, DateTime> wstrzymane = const {},
+}) {
   var bloki = [for (var i = 0; i < sesja.bloki.length; i++) i];
   if (czesc != null) {
     final (od, do_) = sesja.krotszaWersja[czesc];
@@ -162,6 +174,14 @@ Rozpiska rozpisz(Plan plan, Atlas atlas, Sesja sesja, Set<String> flagi, {int? c
     final indeksy = <int>[];
     for (final krok in blok.kroki) {
       final c = plan.cwiczenia[krok.cwiczenie]!;
+      final wstrzymaneDo = wstrzymane[c.id];
+      if (wstrzymaneDo != null) {
+        if (!pominiete.any((p) => p.cwiczenie.id == c.id)) {
+          pominiete.add(PominieteCwiczenie(c, 'Wstrzymane do ${krotkaData(wstrzymaneDo)}: bolało.',
+              wstrzymaneDo: wstrzymaneDo));
+        }
+        continue;
+      }
       if (!cwiczenieAktywne(c, flagi)) {
         pominiete.add(PominieteCwiczenie(c, _powodPominiecia(c, flagi)));
         continue;

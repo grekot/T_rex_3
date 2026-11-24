@@ -8,6 +8,7 @@ import '../trening/przebieg.dart';
 import '../trening/rozpiska.dart';
 import '../trening/sygnaly_urzadzenia.dart';
 import '../urzadzenie.dart';
+import 'ocena.dart';
 import 'tekst_md.dart';
 import 'technika.dart';
 
@@ -116,12 +117,13 @@ class _EkranTreninguState extends State<EkranTreningu> {
       child: Scaffold(
         appBar: AppBar(
           title: Text(widget.rozpiska.sesja.nazwa),
+          actions: [PrzyciskBezpieczenstwa(dane: widget.dane, przed: p.koniec ? null : p.pauzuj)],
           bottom: PreferredSize(
             preferredSize: const Size.fromHeight(4),
             child: LinearProgressIndicator(value: p.postep),
           ),
         ),
-        body: SafeArea(child: p.koniec ? _Koniec(p: p) : _Faza(p: p, dane: widget.dane)),
+        body: SafeArea(child: p.koniec ? _Koniec(p: p, dane: widget.dane) : _Faza(p: p, dane: widget.dane)),
       ),
     );
   }
@@ -377,35 +379,43 @@ class _Przyciski extends StatelessWidget {
 }
 
 class _Koniec extends StatelessWidget {
-  const _Koniec({required this.p});
+  const _Koniec({required this.p, required this.dane});
 
   final Przebieg p;
+  final DaneAplikacji dane;
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context).textTheme;
     final w = p.wynik();
     final minuty = w.koniec.difference(w.start).inMinutes;
+    final zapisany = w.wykonane.isNotEmpty || w.ukonczony;
     return ListView(
       padding: const EdgeInsets.all(24),
       children: [
-        Icon(Icons.check_circle, size: 96, color: Theme.of(context).colorScheme.primary),
-        const SizedBox(height: 12),
-        Text(w.ukonczony ? 'Brawo, trening zrobiony!' : 'Trening przerwany', style: t.headlineMedium, textAlign: TextAlign.center),
+        Icon(Icons.check_circle, size: 72, color: Theme.of(context).colorScheme.primary),
         const SizedBox(height: 8),
+        Text(w.ukonczony ? 'Brawo, trening zrobiony!' : 'Trening przerwany', style: t.headlineMedium, textAlign: TextAlign.center),
+        const SizedBox(height: 4),
         Text('Czas: $minuty min · ćwiczeń: ${w.wykonane.length}', style: t.titleMedium, textAlign: TextAlign.center),
         if (w.bolesne.isNotEmpty) ...[
           const SizedBox(height: 16),
           Text('Bolało przy:', style: t.titleMedium),
           for (final id in w.bolesne) Punkt(p.rozpiska.cwiczenia.firstWhere((c) => c.id == id).cwiczenie.nazwa),
-          const SizedBox(height: 8),
-          Text('Zgodnie z sygnalizacją świetlną: przerwij to ćwiczenie. Jeśli ból jest silny albo schodzi niżej, '
-              'zajrzyj na ekran bezpieczeństwa.', style: t.bodyMedium),
         ],
         const SizedBox(height: 16),
-        Text('Ocena bólu po treningu i okienko w kalendarzu przyjdą w wersji 0.1.', style: t.bodySmall),
-        const SizedBox(height: 24),
-        FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Wróć')),
+        if (zapisany)
+          PanelOceny(
+            dane: dane,
+            data: w.start,
+            cwiczenia: {
+              for (final c in p.rozpiska.cwiczenia)
+                if (w.wykonane.contains(c.id) || w.bolesne.contains(c.id)) c.id,
+            }.toList(),
+            bolesne: w.bolesne,
+          ),
+        const SizedBox(height: 16),
+        OutlinedButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Wróć')),
       ],
     );
   }

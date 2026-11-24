@@ -2,7 +2,8 @@
 
 Aplikacja na telefon (Android), która prowadzi przez 12-tygodniowy plan treningowy:
 zdrowy odcinek lędźwiowy i redukcja wagi. Okienko kalendarza na każdy dzień, prowadzenie
-treningu krok po kroku, ocena bólu po treningu, przypomnienia.
+treningu krok po kroku, ocena bólu po treningu z sygnalizacją świetlną, poranne pytania,
+przypomnienia.
 
 | Folder | Co to jest |
 |---|---|
@@ -26,7 +27,7 @@ treningu krok po kroku, ocena bólu po treningu, przypomnienia.
 |---|---|---|
 | `phone/assets/plan/plan.json` | ćwiczenia z dawkami, sesje, etapy (harmonogram, zadania, spacer, kryteria przejścia), test kierunkowy, teksty bezpieczeństwa | ręcznie, z planu treningowego |
 | `phone/assets/plan/atlas.json` | technika ćwiczeń: sekcje opisu, rysunki, uwagi do rysunków | generowany z atlasu ćwiczeń |
-| `phone/assets/plan/img/*.jpg` | 29 rysunków z atlasu (Gemini) | kopiowane z atlasu |
+| `phone/assets/plan/img/*.jpg` | 29 rysunków z atlasu, wygenerowanych w Gemini | kopiowane z atlasu |
 
 - Identyfikator ćwiczenia to kotwica atlasu (`bird-dog`). Wariant rysunku idzie po ukośniku
   (`deska-boczna/kolana`).
@@ -41,6 +42,22 @@ treningu krok po kroku, ocena bólu po treningu, przypomnienia.
   (`plan_test.dart`) sprawdzają format, odwołania do atlasu i rysunków, harmonogramy i flagi.
   Nieznane pole w JSON-ie to błąd (literówka nie przejdzie po cichu).
 - Opis formatu: komentarze w `phone/lib/plan/model.dart` i `atlas.dart`.
+
+### Rysunki z Gemini
+
+Sprawdzone 24.11.2026 przed wydaniem 0.1 (rysunki trafiają do publicznego repozytorium i do APK):
+
+- [Warunki korzystania z usług Google](https://policies.google.com/terms?hl=pl) (obowiązują od
+  30.07.2026), „Treści w usługach Google”: Google nie zgłasza praw własności do treści
+  wygenerowanych w jego usługach. Zabronione jest m.in. wprowadzanie innych w błąd, że treści
+  od generatywnej AI utworzył człowiek.
+- [Zasady dotyczące niedozwolonych zastosowań generatywnej AI](https://policies.google.com/terms/generative-ai/use-policy?hl=pl)
+  (modyfikacja 17.12.2024): poglądowe rysunki ćwiczeń nie podpadają pod żadną kategorię; zakaz
+  „fałszywego przedstawiania pochodzenia wygenerowanych treści jako wytworzonych wyłącznie przez
+  człowieka”.
+- **Wniosek:** można je publikować. Aplikacja podpisuje je jako „wygenerowane przez AI (Gemini)”
+  (arkusz „Technika”, pełny ekran rysunku, „Więcej → O aplikacji”). Rysunki są poglądowe, a
+  obowiązuje opis. Prawo autorskie do obrazów z AI jest niepewne, ale nam to nie przeszkadza.
 
 ## Wydanie
 
@@ -59,7 +76,7 @@ git tag trening-v0.0.1 && git push origin trening-v0.0.1
 | 0.0.1 | szkielet, ikona, sprawdzenie ścieżki wydań |
 | (M1) | `plan.json` etapu 1, atlas jako dane, silnik: kalendarz z etapami według kryteriów, flagi ćwiczeń; bez zmian w interfejsie |
 | (M2) | ekran Dziś, prowadzenie rutyny krok po kroku (rysunek, skrót techniki, arkusz „Technika”, liczniki, timery, przerwy, dźwięki, „Boli: pomiń”, dwie krótsze wersje), test kierunkowy, ekran bezpieczeństwa, zapis `stan.json` |
-| 0.1 | etap 1: kalendarz, rutyna 15 min, test kierunkowy, ocena bólu, przypomnienia |
+| 0.1 | etap 1 (M3): ekran powitania z datą startu, kalendarz z okienkami (drzwiczki, stany, kropki stref, odznaczanie wstecz, dzień wolny), ocena bólu po treningu i poranny check-in z sygnalizacją świetlną, wstrzymanie bolesnego ćwiczenia, zalecenie fizjoterapeuty, ekran bezpieczeństwa z 112, przypomnienia (trening, przerwy, wyprosty, „Pali dziś w krzyżu”), instrukcja dla Samsunga |
 | 0.2 | etapy 2–3: sesje A/B/C, kryteria przejścia, dziennik tygodniowy |
 | 1.0 | eksport danych, głos (opcja) |
 | 1.1 | Health Connect: kroki z Zepp, waga z Wagi |
