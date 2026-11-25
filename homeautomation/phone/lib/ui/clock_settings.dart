@@ -1930,6 +1930,7 @@ class _ClockRadioPageState extends State<ClockRadioPage> with _ClockConfig {
       builder: (_) => _StationDialog(
         station: index == null ? null : list[index],
         withLogo: clockHasRadioScreen(cfg),
+        aac: clockHasRadioTone(cfg),
         browser: _browser,
       ),
     );
@@ -2045,7 +2046,10 @@ class _ClockRadioPageState extends State<ClockRadioPage> with _ClockConfig {
     final showS = _showS ?? ((r['showS'] as num?)?.toDouble() ?? 10).clamp(0, 120).toDouble();
     return page('Radio', [
       if (stations.isEmpty)
-        const Text('Dodaj stację (strumień MP3), żeby włączyć radio. Bez stacji zegar nie pokazuje radia.')
+        Text(
+          'Dodaj stację (strumień ${clockHasRadioTone(cfg) ? 'MP3, AAC albo HLS' : 'MP3'}), żeby włączyć radio. '
+          'Bez stacji zegar nie pokazuje radia.',
+        )
       else
         ..._control(stations),
       Text(
@@ -2066,7 +2070,11 @@ class _ClockRadioPageState extends State<ClockRadioPage> with _ClockConfig {
             onPressed: c.canControl ? () => send({'radioStation': s.name}) : null,
           ),
           title: Text(s.name),
-          subtitle: Text(s.url, maxLines: 1, overflow: TextOverflow.ellipsis),
+          subtitle: Text(
+            s.tone.isEmpty ? s.url : '${s.url}\nKorektor: ${clockTonePresets[s.tone] ?? s.tone}',
+            maxLines: s.tone.isEmpty ? 1 : 2,
+            overflow: TextOverflow.ellipsis,
+          ),
           selected: on && current == s.name,
           onTap: () => _edit(i),
           trailing: IconButton(
@@ -2087,6 +2095,18 @@ class _ClockRadioPageState extends State<ClockRadioPage> with _ClockConfig {
         ),
       ),
       const SectionHeader('Ustawienia'),
+      // Korektor (fw 0.11.0): osobny ekran - preset, pasma, preset na stację
+      if (clockHasRadioTone(cfg))
+        ListTile(
+          key: const Key('clockRadioSound'),
+          contentPadding: EdgeInsets.zero,
+          leading: const Icon(Icons.equalizer),
+          title: const Text('Dźwięk (korektor)'),
+          subtitle: Text(clockTonePresets[(r['tone'] as Map)['preset']] ?? 'Płasko'),
+          trailing: const Icon(Icons.chevron_right),
+          onTap: () =>
+              Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ClockSoundPage(controller: c))),
+        ),
       ListTile(
         contentPadding: EdgeInsets.zero,
         title: const Text('Wyłącz po wyciszeniu'),
@@ -2185,13 +2205,170 @@ class _ClockRadioPageState extends State<ClockRadioPage> with _ClockConfig {
   }
 }
 
+/// Dźwięk radia zegara (fw 0.11.0, Config `radio.tone`): preset korektora dla wszystkich stacji, pasma ustawienia
+/// własnego i filtr 80 Hz, preset stacji (`stations[].tone`). Zegar przenika filtry - zmiana słychać od razu, bez
+/// trzasku.
+class ClockSoundPage extends StatefulWidget {
+  const ClockSoundPage({super.key, required this.controller});
+
+  final DeviceController<Object?, Object?> controller;
+
+  @override
+  State<ClockSoundPage> createState() => _ClockSoundPageState();
+}
+
+class _ClockSoundPageState extends State<ClockSoundPage> with _ClockConfig {
+  @override
+  DeviceController<Object?, Object?> get c => widget.controller;
+
+  /// Pasma w trakcie przesuwania suwaka (zapis po puszczeniu).
+  final _drag = <String, double>{};
+
+  Map get _tone => obj('radio')['tone'] is Map ? obj('radio')['tone'] as Map : const {};
+
+  Future<void> _preset(String p) => setIn('radio', {
+    'tone': {...clockToneJson(p, clockToneCustom(_tone))},
+  });
+
+  /// Suwak albo filtr: zawsze ustawienie własne, od pasm, które słychać (z presetu - jego wartości).
+  Future<void> _band(String key, Object value) {
+    final m = clockToneJson('custom', clockToneBands(_tone))..[key] = value;
+    return setIn('radio', {'tone': m});
+  }
+
+  Future<void> _stationTone(int i, String tone) {
+    final list = clockStationsFrom(obj('radio'));
+    final s = list[i];
+    list[i] = (name: s.name, url: s.url, logo: s.logo, tone: tone);
+    return setIn('radio', {
+      'stations': [for (final x in list) clockStationJson(x)],
+    });
+  }
+
+  static double _value(ClockToneBands b, String key) => switch (key) {
+    'bass' => b.bass,
+    'warm' => b.warm,
+    'presence' => b.presence,
+    _ => b.treble,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    if (!clockHasRadioTone(cfg)) {
+      return page('Dźwięk', const [Text('Korektor wymaga firmware zegara 0.11.0 lub nowszego.')]);
+    }
+    final small = Theme.of(context).textTheme.bodySmall;
+    final tone = _tone;
+    final preset = clockTonePresets.containsKey(tone['preset']) ? tone['preset'] as String : 'flat';
+    final bands = clockToneBands(tone);
+    final stations = clockStationsFrom(obj('radio'));
+    final current = c.stateJson?['radioStation'] as String?;
+    final own = stations.where((s) => s.name == current && s.tone.isNotEmpty).firstOrNull;
+    return page('Dźwięk', [
+      Text('Korektor dla wszystkich stacji. Zmiana słychać od razu.', style: small),
+      if (own != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            'Teraz gra ${own.name} z własnym ustawieniem „${clockTonePresets[own.tone] ?? own.tone}” (niżej).',
+            key: const Key('clockToneOwnNote'),
+            style: small,
+          ),
+        ),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 4,
+        children: [
+          for (final MapEntry(key: k, value: label) in clockTonePresets.entries)
+            ChoiceChip(
+              key: Key('clockTonePreset-$k'),
+              label: Text(label),
+              selected: preset == k,
+              onSelected: (_) => _preset(k),
+            ),
+        ],
+      ),
+      Padding(
+        padding: const EdgeInsets.only(top: 6),
+        child: Text(clockTonePresetHints[preset] ?? '', key: const Key('clockToneHint'), style: small),
+      ),
+      const SectionHeader('Pasma'),
+      if (preset != 'custom')
+        Text('Przesunięcie suwaka przełącza na „Własny”, od wartości tego ustawienia.', style: small),
+      SwitchListTile(
+        key: const Key('clockToneHp'),
+        contentPadding: EdgeInsets.zero,
+        title: const Text('Filtr 80 Hz'),
+        subtitle: const Text('Odcina najniższy bas, którego małe głośniki nie oddają - mniej zniekształceń'),
+        value: bands.hp,
+        onChanged: (v) => _band('hp', v),
+      ),
+      for (final (key, name, filter) in clockToneBandInfo) ...[
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          title: Text('$name: ${clockDbText(_drag[key] ?? _value(bands, key))}'),
+          subtitle: Text(filter),
+        ),
+        Slider(
+          key: Key('clockToneBand-$key'),
+          value: _drag[key] ?? _value(bands, key),
+          min: clockToneMinDb,
+          max: clockToneMaxDb,
+          divisions: 36,
+          label: clockDbText(_drag[key] ?? _value(bands, key)),
+          onChanged: (v) => setState(() => _drag[key] = (v * 2).round() / 2),
+          onChangeEnd: (v) async {
+            await _band(key, (v * 2).round() / 2);
+            if (mounted) setState(() => _drag.remove(key));
+          },
+        ),
+      ],
+      if (stations.isNotEmpty) ...[
+        const SectionHeader('Korektor stacji'),
+        Text(
+          'Stacja z własnym ustawieniem gra z nim zamiast ustawienia dla wszystkich (np. „Miękki” dla RMF FM).',
+          style: small,
+        ),
+        for (final (i, s) in stations.indexed)
+          ListTile(
+            key: Key('clockStationToneRow-$i'),
+            contentPadding: EdgeInsets.zero,
+            title: Text(s.name),
+            selected: s.name == current,
+            trailing: DropdownButton<String>(
+              key: Key('clockStationTone-$i'),
+              value: s.tone.isEmpty || clockTonePresets.containsKey(s.tone) ? s.tone : '',
+              items: [
+                const DropdownMenuItem(value: '', child: Text('Jak wszystkie')),
+                for (final MapEntry(key: k, value: label) in clockTonePresets.entries)
+                  DropdownMenuItem(value: k, child: Text(label)),
+              ],
+              onChanged: (v) => _stationTone(i, v ?? ''),
+            ),
+          ),
+      ],
+      const SizedBox(height: 12),
+      Text(
+        'Korekcja głośnika (Radio → Ustawienia) działa niezależnie, po korektorze. Zegar z dwoma większymi '
+        'głośnikami (V2) zwykle gra najlepiej z korekcją „Wyłączona”.',
+        style: small,
+      ),
+    ]);
+  }
+}
+
 /// Edycja stacji: nazwa, adres strumienia MP3, (zegar z ekranem radia) logo; „Szukaj stacji” w katalogu
 /// radio-browser.info wypełnia wszystko. Logo tylko sprawdzone (PNG / JPG do 64 KB). Zwraca stację albo null.
 class _StationDialog extends StatefulWidget {
-  const _StationDialog({this.station, this.withLogo = false, required this.browser});
+  const _StationDialog({this.station, this.withLogo = false, this.aac = false, required this.browser});
 
   final ClockStation? station;
   final bool withLogo;
+
+  /// Zegar gra AAC i HLS (fw 0.11.0).
+  final bool aac;
   final RadioBrowser browser;
 
   @override
@@ -2238,7 +2415,7 @@ class _StationDialogState extends State<_StationDialog> {
       });
       if (c.error != null) return;
     }
-    if (mounted) Navigator.pop(context, (name: name, url: url, logo: logo));
+    if (mounted) Navigator.pop(context, (name: name, url: url, logo: logo, tone: widget.station?.tone ?? ''));
   }
 
   void _setLogo(LogoCandidate? l) => setState(() {
@@ -2302,7 +2479,7 @@ class _StationDialogState extends State<_StationDialog> {
   Future<void> _searchStation() async {
     final st = await showDialog<RbStation>(
       context: context,
-      builder: (_) => _StationSearchDialog(browser: widget.browser, query: _name.text.trim()),
+      builder: (_) => _StationSearchDialog(browser: widget.browser, query: _name.text.trim(), aac: widget.aac),
     );
     if (st == null || !mounted) return;
     setState(() {
@@ -2350,7 +2527,7 @@ class _StationDialogState extends State<_StationDialog> {
               controller: _url,
               keyboardType: TextInputType.url,
               decoration: InputDecoration(
-                labelText: 'Adres strumienia (MP3)',
+                labelText: widget.aac ? 'Adres strumienia (MP3, AAC, HLS .m3u8)' : 'Adres strumienia (MP3)',
                 errorText: _tried ? clockFeedUrlError(_url.text.trim()) : null,
               ),
               onChanged: (_) => setState(() {}),
@@ -2435,12 +2612,14 @@ class _StationDialogState extends State<_StationDialog> {
   }
 }
 
-/// Wyszukiwanie stacji po nazwie w radio-browser.info; domyślnie tylko MP3 (zegar nie gra AAC).
+/// Wyszukiwanie stacji po nazwie w radio-browser.info; domyślnie tylko formaty, które zegar zagra (MP3; od fw 0.11.0
+/// także AAC i HLS).
 class _StationSearchDialog extends StatefulWidget {
-  const _StationSearchDialog({required this.browser, required this.query});
+  const _StationSearchDialog({required this.browser, required this.query, this.aac = false});
 
   final RadioBrowser browser;
   final String query;
+  final bool aac;
 
   @override
   State<_StationSearchDialog> createState() => _StationSearchDialogState();
@@ -2477,7 +2656,9 @@ class _StationSearchDialogState extends State<_StationSearchDialog> {
   @override
   Widget build(BuildContext context) {
     final all = _found ?? const <RbStation>[];
-    final shown = _mp3Only ? all.where((s) => s.mp3).toList() : all;
+    bool ok(RbStation s) => s.playableOn(aac: widget.aac);
+    final shown = _mp3Only ? all.where(ok).toList() : all;
+    final formats = widget.aac ? 'MP3, AAC i HLS' : 'MP3';
     final hidden = all.length - shown.length;
     return AlertDialog(
       title: const Text('Szukaj stacji'),
@@ -2506,7 +2687,7 @@ class _StationSearchDialogState extends State<_StationSearchDialog> {
               key: const Key('clockStationMp3Only'),
               contentPadding: EdgeInsets.zero,
               dense: true,
-              title: const Text('Tylko MP3 (zegar gra tylko MP3)'),
+              title: Text(widget.aac ? 'Tylko formaty zegara ($formats)' : 'Tylko MP3 (zegar gra tylko MP3)'),
               value: _mp3Only,
               onChanged: (v) => setState(() => _mp3Only = v),
             ),
@@ -2517,7 +2698,7 @@ class _StationSearchDialogState extends State<_StationSearchDialog> {
                 child: Text(
                   all.isEmpty
                       ? 'Nic nie znaleziono w katalogu radio-browser.info (albo brak połączenia).'
-                      : 'Znalezione stacje nadają w innym formacie niż MP3 ($hidden) - zegar ich nie zagra.',
+                      : 'Znalezione stacje nadają w innym formacie niż $formats ($hidden) - zegar ich nie zagra.',
                   key: const Key('clockStationSearchEmpty'),
                 ),
               ),
@@ -2545,12 +2726,13 @@ class _StationSearchDialogState extends State<_StationSearchDialog> {
                         subtitle: Text(
                           [
                             if (s.countryCode.isNotEmpty) s.countryCode else if (s.country.isNotEmpty) s.country,
-                            if (s.codec.isNotEmpty) s.codec,
+                            if (s.codec.isNotEmpty && s.codec.toUpperCase() != 'UNKNOWN') s.codec,
+                            if (s.hls) 'HLS',
                             if (s.bitrate > 0) '${s.bitrate} kb/s',
-                            if (!s.mp3) 'zegar nie zagra (${s.codec.isEmpty ? 'nieznany format' : s.codec})',
+                            if (!ok(s)) 'zegar nie zagra (${s.codec.isEmpty ? 'nieznany format' : s.codec})',
                           ].join(' · '),
                         ),
-                        enabled: s.mp3,
+                        enabled: ok(s),
                         onTap: () => Navigator.pop(context, s),
                       ),
                   ],

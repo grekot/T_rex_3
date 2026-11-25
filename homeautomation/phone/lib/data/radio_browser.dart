@@ -30,6 +30,7 @@ class RbStation {
     this.bitrate = 0,
     this.homepage = '',
     this.favicon = '',
+    this.hls = false,
   });
 
   factory RbStation.fromJson(Map j) {
@@ -44,14 +45,28 @@ class RbStation {
       bitrate: (j['bitrate'] as num?)?.toInt() ?? 0,
       homepage: str('homepage'),
       favicon: str('favicon'),
+      hls: j['hls'] == 1 || j['hls'] == true,
     );
   }
 
   final String name, url, country, countryCode, codec, homepage, favicon;
   final int bitrate;
 
-  /// Zegar gra tylko MP3 (minimp3; AAC bez dekodera z licencją zgodną z repo).
+  /// Strumień HLS (`.m3u8`, katalog: `hls: 1`).
+  final bool hls;
+
   bool get mp3 => codec.toUpperCase() == 'MP3';
+
+  /// Zegar zagra: MP3 zawsze; od fw 0.11.0 ([aac]) także AAC / AAC+ (HE-AAC) przez ICY i HLS (Polskie Radio).
+  /// OGG, Opus, FLAC - nie.
+  bool playableOn({required bool aac}) {
+    if (mp3) return true;
+    if (!aac) return false;
+    final c = codec.toUpperCase();
+    if (c == 'AAC' || c == 'AAC+' || c == 'HE-AAC') return true;
+    final m3u8 = Uri.tryParse(url)?.path.toLowerCase().endsWith('.m3u8') ?? false;
+    return (hls || m3u8) && (c.isEmpty || c == 'UNKNOWN');
+  }
 }
 
 enum LogoFormat { png, jpeg }

@@ -422,24 +422,107 @@ bool clockHasRadio(Map<String, dynamic>? cfg) => cfg?['radio'] is Map;
 bool clockHasRadioScreen(Map<String, dynamic>? cfg) =>
     cfg?['radio'] is Map && (cfg!['radio'] as Map).containsKey('showS');
 
-/// Stacja radia (`radio.stations[]`): nazwa 1-24 B, strumień MP3 http/https, logo (adres PNG/JPG, '' = bez logo).
-typedef ClockStation = ({String name, String url, String logo});
+/// Stacja radia (`radio.stations[]`): nazwa 1-24 B, strumień http/https (MP3; od fw 0.11.0 także AAC i HLS),
+/// logo (adres PNG/JPG, '' = bez logo), preset korektora stacji (`tone`, fw 0.11.0; '' = jak wszystkie).
+typedef ClockStation = ({String name, String url, String logo, String tone});
 
 List<ClockStation> clockStationsFrom(Object? radio) {
   final s = radio is Map ? radio['stations'] : null;
   return [
     for (final x in (s is List ? s : const []))
       if (x is Map && x['name'] is String && x['url'] is String)
-        (name: x['name'] as String, url: x['url'] as String, logo: x['logo'] is String ? x['logo'] as String : ''),
+        (
+          name: x['name'] as String,
+          url: x['url'] as String,
+          logo: x['logo'] is String ? x['logo'] as String : '',
+          tone: x['tone'] is String ? x['tone'] as String : '',
+        ),
   ];
 }
 
-/// Stacja do Config: `logo` tylko, gdy jest (starszy firmware zna tylko `name` i `url`).
+/// Stacja do Config: `logo` i `tone` tylko, gdy są (starszy firmware zna tylko `name` i `url`).
 Map<String, dynamic> clockStationJson(ClockStation s) => {
   'name': s.name,
   'url': s.url,
   if (s.logo.isNotEmpty) 'logo': s.logo,
+  if (s.tone.isNotEmpty) 'tone': s.tone,
 };
+
+/// Zegar z AAC, HLS i korektorem (fw 0.11.0: Config `radio.tone`). Starszy gra tylko MP3.
+bool clockHasRadioTone(Map<String, dynamic>? cfg) => cfg?['radio'] is Map && (cfg!['radio'] as Map)['tone'] is Map;
+
+/// Pasma korektora zegara (`radio.tone`, fw 0.11.0): filtr 80 Hz i cztery pasma w dB (-12…+6, krok 0,5).
+typedef ClockToneBands = ({bool hp, double bass, double warm, double presence, double treble});
+
+const clockToneMinDb = -12.0, clockToneMaxDb = 6.0;
+
+/// Presety korektora (jak w firmware, `lib/DeskCore/src/ToneEq.cpp`; odsłuchy zegara V2 2026-11-24).
+const clockTonePresets = {
+  'flat': 'Płasko',
+  'soft': 'Miękki (RMF)',
+  'warm': 'Ciepły',
+  'small': 'Małe głośniki',
+  'voice': 'Mowa',
+  'custom': 'Własny',
+};
+
+const clockTonePresetHints = {
+  'flat': 'Bez korektora - dźwięk jak ze stacji',
+  'soft': 'Łagodniejsza góra i środek - dla stacji z ostrą obróbką (RMF FM, Radio ZET)',
+  'warm': 'Więcej basu i ciepła, delikatnie przygaszona góra',
+  'small': 'Mocniejszy bas i trochę góry (loudness) - małe głośniki przy cichym graniu',
+  'voice': 'Mniej basu, wyraźniejsza mowa - wiadomości, audycje',
+  'custom': 'Własne ustawienie pasm (suwaki niżej)',
+};
+
+const _toneFlat = (hp: false, bass: 0.0, warm: 0.0, presence: 0.0, treble: 0.0);
+const clockTonePresetBands = <String, ClockToneBands>{
+  'flat': _toneFlat,
+  'soft': (hp: true, bass: 2.0, warm: 1.0, presence: -3.5, treble: -4.0),
+  'warm': (hp: true, bass: 3.0, warm: 2.0, presence: -1.5, treble: -2.5),
+  'small': (hp: true, bass: 4.5, warm: 0.5, presence: 0.0, treble: 1.5),
+  'voice': (hp: true, bass: -1.5, warm: -1.0, presence: 2.0, treble: 1.0),
+};
+
+/// Pasma: klucz Config, nazwa, filtr.
+const clockToneBandInfo = [
+  ('bass', 'Bas', 'półka 120 Hz'),
+  ('warm', 'Ciepło', '400 Hz'),
+  ('presence', 'Środek', '3 kHz - ostrość'),
+  ('treble', 'Góra', 'półka 8 kHz'),
+];
+
+/// Ustawienie własne z Config `radio.tone` (pola `hp`, `bass`…).
+ClockToneBands clockToneCustom(Map tone) {
+  double db(String k) => ((tone[k] as num?)?.toDouble() ?? 0).clamp(clockToneMinDb, clockToneMaxDb).toDouble();
+  return (hp: tone['hp'] == true, bass: db('bass'), warm: db('warm'), presence: db('presence'), treble: db('treble'));
+}
+
+/// Pasma, które słychać: preset albo (custom) ustawienie własne.
+ClockToneBands clockToneBands(Map tone) {
+  final p = tone['preset'];
+  return p == 'custom' ? clockToneCustom(tone) : clockTonePresetBands[p] ?? _toneFlat;
+}
+
+/// Config `radio.tone` z pasmami (zawsze całe ustawienie własne).
+Map<String, dynamic> clockToneJson(String preset, ClockToneBands b) => {
+  'preset': preset,
+  'hp': b.hp,
+  'bass': b.bass,
+  'warm': b.warm,
+  'presence': b.presence,
+  'treble': b.treble,
+};
+
+/// „+2 dB”, „−3,5 dB”, „0 dB”.
+String clockDbText(double v) {
+  final s = (v == v.roundToDouble() ? v.abs().toStringAsFixed(0) : v.abs().toStringAsFixed(1)).replaceAll('.', ',');
+  return '${v > 0
+      ? '+'
+      : v < 0
+      ? '−'
+      : ''}$s dB';
+}
 
 /// Adres logo: pusty (bez logo) albo jak adres strumienia.
 String? clockLogoUrlError(String url) => url.isEmpty ? null : clockFeedUrlError(url);

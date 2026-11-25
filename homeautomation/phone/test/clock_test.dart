@@ -817,7 +817,19 @@ void main() {
       }),
       false,
     );
-    expect(clockStationJson((name: 'A', url: 'https://a.pl/s', logo: '')), {'name': 'A', 'url': 'https://a.pl/s'});
+    expect(clockStationJson((name: 'A', url: 'https://a.pl/s', logo: '', tone: '')), {
+      'name': 'A',
+      'url': 'https://a.pl/s',
+    });
+    expect(clockStationJson((name: 'A', url: 'https://a.pl/s', logo: '', tone: 'soft'))['tone'], 'soft');
+    expect(
+      clockStationsFrom({
+        'stations': [
+          {'name': 'A', 'url': 'https://a.pl/s', 'tone': 'voice'},
+        ],
+      }).single.tone,
+      'voice',
+    );
     expect(
       clockStationsFrom({
         'stations': [
@@ -829,6 +841,19 @@ void main() {
     expect(clockLogoWarning('https://a.pl/favicon.ico'), isNotNull);
     expect(clockLogoWarning('https://a.pl/logo.JPG'), isNull);
     expect(clockScreens['radio'], 'Radio');
+    // Korektor (fw 0.11.0)
+    expect(
+      clockHasRadioTone({
+        'radio': {'tone': {}},
+      }),
+      true,
+    );
+    expect(clockHasRadioTone({'radio': {}}), false);
+    expect(clockToneBands({'preset': 'soft'}), clockTonePresetBands['soft']);
+    expect(clockToneBands({'preset': 'custom', 'bass': 9, 'hp': true}).bass, 6.0);
+    expect(clockToneBands({'preset': 'x'}), clockTonePresetBands['flat']);
+    expect(clockToneJson('custom', clockTonePresetBands['voice']!)['presence'], 2.0);
+    expect((clockDbText(2), clockDbText(-3.5), clockDbText(0)), ('+2 dB', '−3,5 dB', '0 dB'));
   });
 
   testWidgets('po ręcznej zmianie ekranu: do środkowego przycisku / 5 min, błąd atrapy, ukryte bez holdS', (
@@ -1043,7 +1068,7 @@ void main() {
   testWidgets('Szukaj stacji: filtr MP3, wypełnienie nazwy (limit), strumienia i logo ze strony stacji', (
     tester,
   ) async {
-    final fake = FakeClock();
+    final fake = FakeClock()..radio!.remove('tone'); // firmware sprzed 0.11.0: tylko MP3
     final (hub, conns, _) = await _home(clock: fake);
     final conn = conns['zegar-ab12cd']!;
     final c = hub.controller('zegar-ab12cd')!;
@@ -1201,8 +1226,165 @@ void main() {
     final s = RbStation.fromJson({'name': 'A', 'url': 'http://a/x', 'url_resolved': 'http://a/y', 'codec': 'mp3'});
     expect((s.url, s.mp3), ('http://a/y', true));
     expect(RbStation.fromJson({'name': 'B', 'url': 'http://b', 'codec': 'AAC+'}).mp3, false);
+    // fw 0.11.0: AAC, AAC+ i HLS; OGG / FLAC nadal nie
+    RbStation rb2(String codec, {Object? hls, String url = 'http://b/s'}) =>
+        RbStation.fromJson({'name': 'B', 'url': url, 'codec': codec, 'hls': ?hls});
+    expect(rb2('AAC+').playableOn(aac: false), false);
+    expect(rb2('MP3').playableOn(aac: false), true);
+    expect(rb2('AAC+').playableOn(aac: true), true);
+    expect(rb2('AAC').playableOn(aac: true), true);
+    expect(rb2('UNKNOWN', hls: 1).playableOn(aac: true), true);
+    expect(rb2('', url: 'https://stream13.polskieradio.pl/pr3/pr3.sdp/playlist.m3u8').playableOn(aac: true), true);
+    expect(rb2('OGG').playableOn(aac: true), false);
+    expect(rb2('FLAC', hls: 1).playableOn(aac: true), false);
+    expect(rb2('UNKNOWN').playableOn(aac: true), false);
     expect(clockTrimName('Radio Nowy Świat - Muzyka i Rozmowy').length <= 24, true);
     expect(utf8.encode(clockTrimName('ŚŚŚŚŚŚŚŚŚŚŚŚŚŚŚ')).length, 24);
+  });
+
+  testWidgets('dźwięk: preset, suwak przełącza na własny, filtr 80 Hz, preset stacji; bez tone - starszy fw', (
+    tester,
+  ) async {
+    final fake = FakeClock();
+    fake.radio!['stations'] = [
+      {'name': 'RMF FM', 'url': 'http://195.150.20.242:8000/rmf_fm'},
+      {'name': 'Trójka', 'url': 'https://stream13.polskieradio.pl/pr3/pr3.sdp/playlist.m3u8'},
+    ];
+    final (hub, conns, _) = await _home(clock: fake);
+    final conn = conns['zegar-ab12cd']!;
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    await tester.pumpWidget(_app(ClockRadioPage(controller: c)));
+    await tester.pumpAndSettle();
+    await _scrollTo(tester, find.byKey(const Key('clockRadioSound')));
+    expect(find.text('Płasko'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('clockRadioSound')));
+    await tester.pumpAndSettle();
+    expect(find.byType(ClockSoundPage), findsOneWidget);
+
+    // Preset: zapis z ustawieniem własnym bez zmian
+    await tester.tap(find.byKey(const Key('clockTonePreset-soft')));
+    await tester.pumpAndSettle();
+    Map tone() => fake.radio!['tone'] as Map;
+    expect(tone()['preset'], 'soft');
+    expect(tone()['bass'], 0);
+    expect(find.text(clockTonePresetHints['soft']!), findsOneWidget);
+    expect(tester.widget<SwitchListTile>(find.byKey(const Key('clockToneHp'))).value, true);
+    await _scrollTo(tester, find.text('Środek: −3,5 dB')); // suwaki pokazują pasma presetu
+
+    // Suwak: własny od pasm presetu
+    await _scrollTo(tester, find.byKey(const Key('clockToneBand-treble')));
+    await tester.drag(find.byKey(const Key('clockToneBand-treble')), const Offset(-2000, 0));
+    await tester.pumpAndSettle();
+    expect(tone()['preset'], 'custom');
+    expect(tone()['treble'], -12);
+    expect(tone()['presence'], -3.5);
+    expect(tone()['hp'], true);
+    expect(find.text('Góra: −12 dB'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('clockToneHp')),
+      -300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockToneHp')));
+    await tester.pumpAndSettle();
+    expect((tone()['hp'], tone()['preset']), (false, 'custom'));
+
+    // Preset stacji
+    await _scrollTo(tester, find.byKey(const Key('clockStationTone-0')));
+    await tester.tap(find.byKey(const Key('clockStationTone-0')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Miękki (RMF)').last);
+    await tester.pumpAndSettle();
+    final st = (conn.sent.last['radio'] as Map)['stations'] as List;
+    expect(st[0], {'name': 'RMF FM', 'url': 'http://195.150.20.242:8000/rmf_fm', 'tone': 'soft'});
+    expect((st[1] as Map).containsKey('tone'), false);
+    expect(
+      fake.applySet({
+        'radio': {
+          'tone': {'bass': 7},
+        },
+      }),
+      {'radio.tone.bass': 'range'},
+    );
+    expect(describeErrors({'radio.tone.bass': 'range'}), startsWith('Korektor - bas'));
+    hub.dispose();
+
+    // Firmware sprzed 0.11.0: bez wpisu „Dźwięk”
+    final old = FakeClock()..radio!.remove('tone');
+    old.radio!['stations'] = [
+      {'name': 'RMF FM', 'url': 'http://195.150.20.242:8000/rmf_fm'},
+    ];
+    final (hub2, _, _) = await _home(clock: old);
+    final c2 = hub2.controller('zegar-ab12cd')!;
+    await tester.runAsync(c2.connect);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(_app(ClockRadioPage(controller: c2)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('clockRadioSound')), findsNothing);
+    hub2.dispose();
+  });
+
+  testWidgets('Szukaj stacji (fw 0.11.0): AAC i HLS do wyboru, OGG ukryty', (tester) async {
+    final fake = FakeClock();
+    final (hub, conns, _) = await _home(clock: fake);
+    final conn = conns['zegar-ab12cd']!;
+    final c = hub.controller('zegar-ab12cd')!;
+    await tester.runAsync(c.connect);
+    final client = MockClient((req) async {
+      if (req.url.path == '/json/stations/search') {
+        return http.Response.bytes(
+          utf8.encode(
+            jsonEncode([
+              {
+                'name': 'Polskie Radio Program III',
+                'url_resolved': 'https://stream13.polskieradio.pl/pr3/pr3.sdp/playlist.m3u8',
+                'codec': 'UNKNOWN',
+                'hls': 1,
+              },
+              {'name': 'Trójka AAC', 'url_resolved': 'https://t.pl/aac', 'codec': 'AAC+', 'bitrate': 64},
+              {'name': 'Trójka OGG', 'url_resolved': 'https://t.pl/ogg', 'codec': 'OGG', 'bitrate': 128},
+            ]),
+          ),
+          200,
+        );
+      }
+      return http.Response('[]', 200);
+    });
+    await tester.pumpWidget(
+      _app(
+        ClockRadioPage(
+          controller: c,
+          browser: RadioBrowser(client: client),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('clockStationAdd')));
+    await tester.pumpAndSettle();
+    expect(find.text('Adres strumienia (MP3, AAC, HLS .m3u8)'), findsOneWidget);
+    await tester.tap(find.byKey(const Key('clockStationSearch')));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('clockStationQuery')), 'Trójka');
+    await tester.tap(find.byKey(const Key('clockStationQueryGo')));
+    await tester.pumpAndSettle();
+    expect(find.text('Tylko formaty zegara (MP3, AAC i HLS)'), findsOneWidget);
+    expect(find.text('Trójka AAC'), findsOneWidget);
+    expect(find.text('Trójka OGG'), findsNothing);
+    expect(find.text('Ukryte inne formaty: 1'), findsOneWidget);
+    expect(find.text('HLS'), findsOneWidget);
+    await tester.tap(find.text('Polskie Radio Program III'));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<TextField>(find.byKey(const Key('clockStationUrl'))).controller!.text,
+      'https://stream13.polskieradio.pl/pr3/pr3.sdp/playlist.m3u8',
+    );
+    await tester.tap(find.byKey(const Key('clockStationSave')));
+    await tester.pumpAndSettle();
+    final st = ((conn.sent.last['radio'] as Map)['stations'] as List).single as Map;
+    expect(st['url'], 'https://stream13.polskieradio.pl/pr3/pr3.sdp/playlist.m3u8');
+    hub.dispose();
   });
 
   testWidgets('dymki: wiadomość na zegar z ikoną i odpowiedzią, spotkanie; zegar bez dymków bez przycisków', (

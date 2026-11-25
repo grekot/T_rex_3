@@ -83,7 +83,17 @@ class FakeClock extends FakeDevice {
              }
            : null,
        radio = withRadio
-           ? {'stations': <dynamic>[], 'muteOffMin': 10, 'maxW': 0.8, 'resume': false, 'showS': 10, 'eq': 'music'}
+           ? {
+               'stations': <dynamic>[],
+               'muteOffMin': 10,
+               'maxW': 0.8,
+               'resume': false,
+               'showS': 10,
+               'eq': 'music',
+               'stereo': false,
+               // fw 0.11.0: korektor, AAC i HLS
+               'tone': {'preset': 'flat', 'hp': false, 'bass': 0, 'warm': 0, 'presence': 0, 'treble': 0},
+             }
            : null,
        themePacks = withThemePacks ? [] : null {
     cloudCapable = false;
@@ -521,6 +531,8 @@ class FakeClock extends FakeDevice {
     return null;
   }
 
+  static const _tonePresets = ['flat', 'soft', 'warm', 'small', 'voice', 'custom'];
+
   /// Błędy `radio` jak w kontrakcie (stacja: nazwa 1-24 B, `url` i opcjonalne `logo` http(s) ≤ 256 B bez spacji,
   /// `showS` 0-120).
   Map<String, String> _radioErrors(Map r) {
@@ -532,7 +544,9 @@ class FakeClock extends FakeDevice {
         (s['name'] as String).isNotEmpty &&
         utf8.encode(s['name'] as String).length <= 24 &&
         urlOk(s['url']) &&
-        (s['logo'] == null || s['logo'] == '' || urlOk(s['logo']));
+        (s['logo'] == null || s['logo'] == '' || urlOk(s['logo'])) &&
+        (s['tone'] == null || s['tone'] == '' || _tonePresets.contains(s['tone']));
+    final tone = r['tone'];
     return {
       if (r.containsKey('stations'))
         if (st is! List || !st.every(stationOk))
@@ -545,6 +559,13 @@ class FakeClock extends FakeDevice {
       if (r.containsKey('resume') && r['resume'] is! bool) 'radio.resume': 'value',
       if (r.containsKey('showS') && !(r['showS'] is int && _num(r['showS'], 0, 120))) 'radio.showS': 'range',
       if (r.containsKey('eq') && !const ['off', 'voice', 'music'].contains(r['eq'])) 'radio.eq': 'value',
+      if (r.containsKey('tone') && tone is! Map) 'radio.tone': 'value',
+      if (tone is Map) ...{
+        if (tone.containsKey('preset') && !_tonePresets.contains(tone['preset'])) 'radio.tone.preset': 'value',
+        if (tone.containsKey('hp') && tone['hp'] is! bool) 'radio.tone.hp': 'value',
+        for (final k in const ['bass', 'warm', 'presence', 'treble'])
+          if (tone.containsKey(k) && !_num(tone[k], -12, 6)) 'radio.tone.$k': 'range',
+      },
     };
   }
 
