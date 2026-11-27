@@ -1,0 +1,42 @@
+name: Release MapyChodzone
+
+# Tag `mapychodzone-vX.Y.Z` → APK release aplikacji MapyChodzone (mapychodzone/phone) przez wspólny
+# workflow sklepu rodzinnego (grekot/App_storage): podpis wspólnym kluczem, APK arm64-v8a,
+# stała nazwa mapychodzone.apk + app.json + icon.png w GitHub Release tego repo.
+# Wersja = tag bez prefiksu `mapychodzone-v`. versionCode = (run_number + 10), a przy
+# --split-per-abi Flutter dodaje 2000 dla arm64 – więcej niż lokalne buildy 1.0.0+1.
+# MapyChodzone nie używa Firebase (dane tylko na telefonie), więc bez firebase_options_path.
+# Paczki map nie są w APK: aplikacja pobiera je z wydań grekot/mapychodzone-dane.
+on:
+  push:
+    tags: ['mapychodzone-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - id: v
+        run: echo "version=${GITHUB_REF_NAME#mapychodzone-v}" >> "$GITHUB_OUTPUT"
+
+  android:
+    needs: meta
+    uses: grekot/App_storage/.github/workflows/flutter-android-release.yml@main
+    with:
+      app_dir: mapychodzone/phone
+      asset_name: mapychodzone
+      version: ${{ needs.meta.outputs.version }}
+      tag: ${{ github.ref_name }}
+      release_name: MapyChodzone ${{ needs.meta.outputs.version }}
+      target_abi: arm64
+      version_code_offset: 10
+    secrets:
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

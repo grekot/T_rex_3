@@ -1,0 +1,4 @@
+# Pliki BRoutera i dane testowe bez zamiany końców linii (dokładnie te same bajty co w źródle).
+assets/brouter/* -text
+test/dane/* -text
+*.pbf binary

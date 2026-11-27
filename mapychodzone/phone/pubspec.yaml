@@ -1,0 +1,35 @@
+name: mapychodzone
+description: "MapyChodzone - piesza mapa turystyczna offline: szlaki, trasy, wędrówki"
+publish_to: 'none'
+
+# versionName i versionCode ustawia wydanie z tagu mapychodzone-vX.Y.Z
+# (przy --split-per-abi Flutter dodaje 2000 dla arm64).
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.11.5
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Mapa wektorowa (MapLibre Native); 0.27.x to ostatnia linia dla Fluttera 3.41
+  # (0.28 wymaga Fluttera 3.44). Paczki regionów jako lokalne pliki PMTiles.
+  maplibre_gl: 0.27.1
+  # SHA-256 pobranych paczek
+  crypto: ^3.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    # BRouter: profil pieszy i słownik tagów (lookups.dat)
+    - assets/brouter/
+    # fonty (glify PBF) i ikony mapy (sprite) z protomaps/basemaps-assets
+    - assets/mapa/sprite/
+    - assets/mapa/glify/NotoSans-Regular/
+    - assets/mapa/glify/NotoSans-Medium/
+    - assets/mapa/glify/NotoSans-Italic/

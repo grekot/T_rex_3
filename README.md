@@ -21,6 +21,7 @@ Każda aplikacja ma własny folder i buduje się niezależnie.
 | [waga](waga/README.md)              | Waga – poranne ważenie: start od ostatniego pomiaru, −/+ 0,1 kg, wykres 14 dni, historia (offline; telefon z wykresem i Health Connect w planie) |
 | [zdjecia](zdjecia/README.md)        | Zdjęcia – najciekawsze zdjęcia z galerii telefonu na zegarku (etap próbny: most 127.0.0.1, pomiar przesyłu) |
 | [homeautomation](homeautomation/README.md) | HomeAutomation – dom: termostat (ESP32, kocioł gazowy) i kolejne urządzenia (światła); w domu bezpośrednio przez Wi-Fi, spoza domu przez Firebase, dodawanie przez Bluetooth, pokoje, powiadomienia o awariach |
+| [mapychodzone](mapychodzone/README.md) | MapyChodzone – piesza mapa turystyczna offline na telefon: szlaki PTTK, trasy po ścieżkach (BRouter), profil wysokości; paczki map z [mapychodzone-dane](https://github.com/grekot/mapychodzone-dane) |
 | [wspolne](wspolne/README.md)        | kod Fluttera wspólny dla Zakupów i Powrotu (konto, znajomi, udostępnianie) – nie jest osobną aplikacją |
 
 ## Zegarek

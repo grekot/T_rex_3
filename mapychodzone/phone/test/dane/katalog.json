@@ -1,0 +1,39 @@
+{
+  "wersja": 1,
+  "wydanie": "dane-2026-11-26",
+  "zbudowano": "2026-11-27T08:11:09.208Z",
+  "daneOsm": "2026-11-26",
+  "styl": {
+    "plik": "styl.json",
+    "rozmiar": 67644,
+    "sha256": "7601c09fc348b342a98858acbfb1cd47d52b204eb14ea0e6b48bfa55ad3c1b66"
+  },
+  "rd5Zrodlo": "https://brouter.de/brouter/segments4/",
+  "regiony": [
+    {
+      "id": "wyspowy-gorce",
+      "nazwa": "Beskid Makowski, Wyspowy i Gorce",
+      "opis": "",
+      "bbox": [
+        19.55,
+        49.45,
+        20.75,
+        49.95
+      ],
+      "mapa": {
+        "plik": "wyspowy-gorce.pmtiles",
+        "rozmiar": 69783648,
+        "sha256": "812d39a289866b442831dd0a022772921801970a227d491573bcce55556adac0"
+      },
+      "szlaki": {
+        "plik": "wyspowy-gorce-szlaki.geojson",
+        "rozmiar": 7575725,
+        "sha256": "4c68b10203bf792a5ce8d5f41659f055eca3334cd71fb129a470b82aad4fd7aa"
+      },
+      "rd5": [
+        "E15_N45",
+        "E20_N45"
+      ]
+    }
+  ]
+}
