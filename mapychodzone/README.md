@@ -3,7 +3,7 @@
 Piesza mapa turystyczna **offline** na Androida (nazwa to gra słów: mapy piesze, do chodzenia).
 Plan i decyzje: `C:\TMP\My_GIT\MapyChodzone\plan_aplikacji.md` (poza repozytorium).
 
-Stan: **0.0.2** (27.11.2026): jeden region testowy (Beskid Makowski, Wyspowy i Gorce).
+Stan: **0.0.3** (27.11.2026): jeden region testowy (Beskid Makowski, Wyspowy i Gorce).
 
 ## Co umie
 
@@ -14,10 +14,12 @@ Stan: **0.0.2** (27.11.2026): jeden region testowy (Beskid Makowski, Wyspowy i G
   (najważniejsze od zoomu 8), schroniska, przełęcze, wiaty, źródła,
 - pozycja GPS z kierunkiem (po zgodzie na lokalizację),
 - **trasa** liczona offline przez BRouter (profil `hiking-mountain`) w trzech trybach:
-  Szlakami, Ze skrótami, Najkrócej (`hiking_routes_preference` 5 / 1 / 0),
+  Szlakami, Ze skrótami, Najkrócej (`hiking_routes_preference` 5 / 1 / 0; Najkrócej bez kary
+  za trudność ścieżki), opcjonalnie **bez stromych podejść** (koszt podejść ponad 15 %),
 - przytrzymanie palca: start, cel, potem **prowadź tędy** (punkt „przez”, nie jest celem),
-  **przystanek** (cel pośredni, dzieli trasę na odcinki) albo nowy cel; dotknięcie punktu –
-  zmiana rodzaju lub usunięcie; punkty przy nazwanych obiektach dostają ich nazwę,
+  **przystanek** (cel pośredni, dzieli trasę na odcinki) albo nowy cel; przeciągnięcie punktu
+  przesuwa go, dotknięcie – zmiana rodzaju lub usunięcie; punkty przy nazwanych obiektach
+  dostają ich nazwę,
 - **powrót tą samą drogą** (ślad tam + ten sam ślad odwrócony),
 - panel: długość, podejścia, zejścia, czas wg DIN 33466, profil wysokości, odcinki.
 

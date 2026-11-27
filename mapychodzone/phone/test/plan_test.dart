@@ -82,7 +82,31 @@ void main() {
 
     test('tryby trasy przekazują BRouterowi siłę trzymania się szlaków', () {
       expect(TrybTrasy.szlakami.parametryBRoutera, {'hiking_routes_preference': '5.0'});
-      expect(TrybTrasy.najkrocej.parametryBRoutera, {'hiking_routes_preference': '0.0'});
+      // najkrócej: bez kary za trudność ścieżki (inaczej omijał krótkie podejście T3 na Modyń)
+      expect(TrybTrasy.najkrocej.parametryBRoutera, {'hiking_routes_preference': '0.0', 'SAC_K1': '0', 'SAC_K2': '0'});
+    });
+
+    test('unikanie stromych dokłada koszt podejść ponad 15 %, bez kary za zejścia', () {
+      expect(parametryTrasy(TrybTrasy.szlakami), {'hiking_routes_preference': '5.0'});
+      final p = parametryTrasy(TrybTrasy.szlakiISkroty, unikajStromych: true);
+      expect(p['hiking_routes_preference'], '1.0');
+      expect(p['consider_elevation'], '1');
+      expect(p['uphillcutoffvalue'], '15');
+      expect(p['downhillcostvalue'], '0');
+    });
+
+    test('przesunięcie punktu: rodzaj zostaje, nazwa z nowego miejsca', () {
+      final plan = const PlanTrasy()
+          .dodajNaKoncu(20.0, 49.5, nazwa: 'Koninki')
+          .dodajNaKoncu(20.2, 49.5)
+          .wstaw(20.1, 49.51, RodzajPunktu.przystanek, nazwa: 'Schronisko');
+      final po = plan.przesun(1, 20.12, 49.52);
+      expect(po.punkty.map((p) => p.rodzaj), [RodzajPunktu.start, RodzajPunktu.przystanek, RodzajPunktu.cel]);
+      expect(po.punkty[1].lon, 20.12);
+      expect(po.punkty[1].nazwa, isNull);
+      expect(po.punkty[0].nazwa, 'Koninki');
+      expect(plan.przesun(0, 20.01, 49.5, nazwa: 'Start').punkty.first.rodzaj, RodzajPunktu.start);
+      expect(identical(plan.przesun(5, 0, 0), plan), isTrue);
     });
   });
 

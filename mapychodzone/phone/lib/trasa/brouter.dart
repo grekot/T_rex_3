@@ -19,7 +19,11 @@ class BRouter {
   final Magazyn magazyn;
 
   /// [punkty]: (lon, lat) w kolejności start, punkty pośrednie, cel.
-  Future<Trasa> oblicz(List<(double, double)> punkty, {TrybTrasy tryb = TrybTrasy.szlakami}) async {
+  Future<Trasa> oblicz(
+    List<(double, double)> punkty, {
+    TrybTrasy tryb = TrybTrasy.szlakami,
+    bool unikajStromych = false,
+  }) async {
     try {
       final geojson = await _kanal.invokeMethod<String>('oblicz', {
         'segmenty': magazyn.segmenty,
@@ -27,7 +31,7 @@ class BRouter {
         'punkty': [
           for (final (lon, lat) in punkty) [lon, lat],
         ],
-        'parametry': tryb.parametryBRoutera,
+        'parametry': parametryTrasy(tryb, unikajStromych: unikajStromych),
         'czasMs': 60000,
       });
       return Trasa.zGeojsonBRoutera(geojson!);

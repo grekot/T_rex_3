@@ -32,10 +32,11 @@ enum TrybTrasy {
   /// Woli szlaki, ale skraca drogami leśnymi i ścieżkami (2 razy drożej poza szlakiem).
   szlakiISkroty('Szlaki i skróty', 1),
 
-  /// Najkrótsza rozsądna trasa pieszo, bez premii za szlaki.
-  najkrocej('Najkrócej', 0);
+  /// Najkrótsza trasa pieszo: bez premii za szlaki i bez kary za trudność ścieżki
+  /// (w profilu ścieżka T3 kosztuje 2,56 razy więcej, więc trasa omijała skróty na szczyt).
+  najkrocej('Najkrócej', 0, bezKaryZaTrudnosc: true);
 
-  const TrybTrasy(this.etykieta, this.preferencjaSzlakow);
+  const TrybTrasy(this.etykieta, this.preferencjaSzlakow, {this.bezKaryZaTrudnosc = false});
 
   final String etykieta;
 
@@ -43,8 +44,31 @@ enum TrybTrasy {
   /// koszt odcinków poza szlakiem × (1 + wartość).
   final double preferencjaSzlakow;
 
-  Map<String, String> get parametryBRoutera => {'hiking_routes_preference': '$preferencjaSzlakow'};
+  /// Zeruje kary profilu za ścieżki trudniejsze lub łatwiejsze od T1 (`SAC_K1`, `SAC_K2`).
+  /// Limit trudności profilu (powyżej T3 praktycznie zakaz) zostaje.
+  final bool bezKaryZaTrudnosc;
+
+  Map<String, String> get parametryBRoutera => {
+        'hiking_routes_preference': '$preferencjaSzlakow',
+        if (bezKaryZaTrudnosc) ...{'SAC_K1': '0', 'SAC_K2': '0'},
+      };
 }
+
+/// Opcja „unikaj stromych podejść”: każdy metr podejścia ponad nachylenie 15 % kosztuje
+/// jak 120 m marszu po płaskim. Zejścia bez dodatkowego kosztu. Sprawdzone na trasach
+/// w Beskidzie Wyspowym i Gorcach: największe nachylenie na 100 m spada z ok. 35–45 % do ok. 22–29 %.
+const parametryUnikaniaStromych = {
+  'consider_elevation': '1',
+  'uphillcutoffvalue': '15',
+  'uphillcostvalue': '120',
+  'downhillcostvalue': '0',
+};
+
+/// Wszystkie parametry profilu BRoutera dla wybranego trybu i opcji.
+Map<String, String> parametryTrasy(TrybTrasy tryb, {bool unikajStromych = false}) => {
+      ...tryb.parametryBRoutera,
+      if (unikajStromych) ...parametryUnikaniaStromych,
+    };
 
 /// Kolejne punkty trasy. Niezmienny: każda operacja zwraca nowy plan.
 class PlanTrasy {
@@ -131,6 +155,14 @@ class PlanTrasy {
     if (nowe.isEmpty) return const PlanTrasy();
     nowe[0] = nowe.first.jako(RodzajPunktu.start);
     if (nowe.length >= 2) nowe[nowe.length - 1] = nowe.last.jako(RodzajPunktu.cel);
+    return PlanTrasy(nowe);
+  }
+
+  /// Przesuwa punkt w nowe miejsce. Rodzaj zostaje, nazwa jest z nowego miejsca (albo żadna).
+  PlanTrasy przesun(int indeks, double lon, double lat, {String? nazwa}) {
+    if (indeks < 0 || indeks >= punkty.length) return this;
+    final nowe = [...punkty];
+    nowe[indeks] = PunktPlanu(lon, lat, punkty[indeks].rodzaj, nazwa: nazwa);
     return PlanTrasy(nowe);
   }
 

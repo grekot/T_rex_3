@@ -26,10 +26,12 @@ class PanelTrasy extends StatelessWidget {
     required this.odcinki,
     required this.tryb,
     required this.powrot,
+    required this.unikajStromych,
     required this.liczy,
     required this.blad,
     required this.onTryb,
     required this.onPowrot,
+    required this.onUnikajStromych,
     required this.onCofnij,
     required this.onWyczysc,
   });
@@ -41,10 +43,14 @@ class PanelTrasy extends StatelessWidget {
 
   /// Trasa wraca do startu tą samą drogą.
   final bool powrot;
+
+  /// BRouter omija podejścia stromsze niż ok. 15 %.
+  final bool unikajStromych;
   final bool liczy;
   final String? blad;
   final ValueChanged<TrybTrasy> onTryb;
   final ValueChanged<bool> onPowrot;
+  final ValueChanged<bool> onUnikajStromych;
   final VoidCallback onCofnij;
   final VoidCallback onWyczysc;
 
@@ -65,8 +71,9 @@ class PanelTrasy extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: SegmentedButton<TrybTrasy>(
+                  // bez ikon: z ikoną „Szlakami” łamało się na dwie linie
                   segments: const [
-                    ButtonSegment(value: TrybTrasy.szlakami, label: Text('Szlakami'), icon: Icon(Icons.signpost_outlined)),
+                    ButtonSegment(value: TrybTrasy.szlakami, label: Text('Szlakami')),
                     ButtonSegment(value: TrybTrasy.szlakiISkroty, label: Text('Ze skrótami')),
                     ButtonSegment(value: TrybTrasy.najkrocej, label: Text('Najkrócej')),
                   ],
@@ -76,14 +83,27 @@ class PanelTrasy extends StatelessWidget {
                   onSelectionChanged: (s) => onTryb(s.first),
                 ),
               ),
-              SwitchListTile(
-                dense: true,
-                contentPadding: EdgeInsets.zero,
-                visualDensity: VisualDensity.compact,
-                secondary: const Icon(Icons.u_turn_left),
-                title: const Text('Powrót tą samą drogą'),
-                value: powrot,
-                onChanged: onPowrot,
+              const SizedBox(height: 4),
+              Wrap(
+                spacing: 8,
+                runSpacing: 0,
+                children: [
+                  FilterChip(
+                    avatar: powrot ? null : const Icon(Icons.u_turn_left, size: 18),
+                    label: const Text('Powrót tą samą drogą'),
+                    selected: powrot,
+                    visualDensity: VisualDensity.compact,
+                    onSelected: onPowrot,
+                  ),
+                  FilterChip(
+                    avatar: unikajStromych ? null : const Icon(Icons.trending_up, size: 18),
+                    label: const Text('Unikaj stromych'),
+                    tooltip: 'Omija podejścia stromsze niż ok. 15 %',
+                    selected: unikajStromych,
+                    visualDensity: VisualDensity.compact,
+                    onSelected: onUnikajStromych,
+                  ),
+                ],
               ),
               if (liczy) const LinearProgressIndicator(),
               if (blad != null)
@@ -115,7 +135,7 @@ class PanelTrasy extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'Przytrzymaj palec na mapie: prowadź tędy, przystanek albo nowy cel. '
-                  'Dotknij punktu, żeby go zmienić lub usunąć.',
+                  'Przeciągnij punkt, żeby go przesunąć; dotknij, żeby zmienić lub usunąć.',
                   style: teksty.bodySmall,
                 ),
               ],

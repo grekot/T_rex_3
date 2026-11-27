@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../dane/katalog.dart';
@@ -22,8 +23,10 @@ const _pustyGeojson = <String, dynamic>{'type': 'FeatureCollection', 'features':
 /// Mapa offline regionu z planowaniem trasy.
 ///
 /// Przytrzymanie palca: start, potem cel, potem wybór – punkt „przez” (prowadź tędy),
-/// przystanek (cel pośredni) albo nowy cel. Dotknięcie punktu: zmiana rodzaju albo usunięcie.
-/// BRouter liczy trasę offline w wybranym trybie (szlakami, ze skrótami, najkrócej).
+/// przystanek (cel pośredni) albo nowy cel. Przeciągnięcie punktu przesuwa go,
+/// dotknięcie: zmiana rodzaju albo usunięcie.
+/// BRouter liczy trasę offline w wybranym trybie (szlakami, ze skrótami, najkrócej),
+/// opcjonalnie omijając strome podejścia.
 class EkranMapy extends StatefulWidget {
   const EkranMapy({super.key, required this.magazyn, required this.katalog, required this.region});
 
@@ -48,6 +51,13 @@ class _EkranMapyState extends State<EkranMapy> {
   PlanTrasy _plan = const PlanTrasy();
   TrybTrasy _tryb = TrybTrasy.szlakami;
   bool _powrot = false;
+  bool _unikajStromych = false;
+
+  /// Punkt planu przeciągany palcem i jego bieżące położenie na mapie.
+  int? _przeciagany;
+  LatLng? _gdziePrzeciagany;
+  bool _rysujePunkty = false;
+  bool _punktyDoOdswiezenia = false;
 
   /// Trasa „tam” z BRoutera; pokazywana [_trasa] to ona albo ona z powrotem.
   Trasa? _trasaTam;
@@ -63,6 +73,12 @@ class _EkranMapyState extends State<EkranMapy> {
     _wczytajStyl();
     _wczytajPunkty();
     _zapytajOLokalizacje();
+  }
+
+  @override
+  void dispose() {
+    _mapa?.onFeatureDrag.remove(_przeciaganie);
+    super.dispose();
   }
 
   Future<void> _wczytajStyl() async {
@@ -127,8 +143,12 @@ class _EkranMapyState extends State<EkranMapy> {
         circleStrokeColor: ['match', ['get', 'r'], 'przystanek', _kolorTrasy, 'przez', '#555555', '#ffffff'],
         circleStrokeWidth: 3,
       ),
-      enableInteraction: false,
+      // warstwa „interaktywna”: maplibre_gl pozwala przeciągać jej obiekty z właściwością draggable
+      enableInteraction: true,
     );
+    c.onFeatureDrag
+      ..remove(_przeciaganie)
+      ..add(_przeciaganie);
     await c.addSymbolLayer(
       'punkty-trasy',
       'punkty-trasy-numery',
@@ -146,27 +166,104 @@ class _EkranMapyState extends State<EkranMapy> {
     await _odswiezWarstwy();
   }
 
-  Future<void> _odswiezWarstwy() async {
-    final c = _mapa;
-    if (c == null || !_stylGotowy) return;
-    await c.setGeoJsonSource('punkty-trasy', {
+  Map<String, dynamic> get _punktyGeojson {
+    final gdzie = _gdziePrzeciagany;
+    return {
       'type': 'FeatureCollection',
       'features': [
         for (final (i, p) in _plan.punkty.indexed)
           {
             'type': 'Feature',
+            'id': 'p$i',
             'properties': <String, dynamic>{
               'r': p.rodzaj.name,
               'nr': _plan.numerPrzystanku(i)?.toString() ?? '',
+              'draggable': true,
             },
             'geometry': {
               'type': 'Point',
-              'coordinates': [p.lon, p.lat],
+              'coordinates': i == _przeciagany && gdzie != null ? [gdzie.longitude, gdzie.latitude] : [p.lon, p.lat],
             },
           },
       ],
-    });
+    };
+  }
+
+  /// Rysuje punkty planu. Przy przeciąganiu zdarzenia przychodzą szybciej, niż mapa nadąża:
+  /// gdy rysowanie trwa, zapamiętujemy tylko, że trzeba narysować jeszcze raz.
+  Future<void> _odswiezPunkty() async {
+    final c = _mapa;
+    if (c == null || !_stylGotowy) return;
+    if (_rysujePunkty) {
+      _punktyDoOdswiezenia = true;
+      return;
+    }
+    _rysujePunkty = true;
+    try {
+      do {
+        _punktyDoOdswiezenia = false;
+        await c.setGeoJsonSource('punkty-trasy', _punktyGeojson);
+      } while (_punktyDoOdswiezenia);
+    } finally {
+      _rysujePunkty = false;
+    }
+  }
+
+  Future<void> _odswiezWarstwy() async {
+    final c = _mapa;
+    if (c == null || !_stylGotowy) return;
+    await _odswiezPunkty();
     await c.setGeoJsonSource('trasa', _trasa?.geojson ?? _pustyGeojson);
+  }
+
+  /// Przeciąganie punktu trasy palcem (obsługuje je maplibre_gl dla obiektów z `draggable`).
+  void _przeciaganie(
+    Point<double> ekran,
+    LatLng skad,
+    LatLng gdzie,
+    LatLng przesuniecie,
+    String id,
+    Annotation? adnotacja,
+    DragEventType zdarzenie,
+  ) {
+    final i = _indeksPunktu(id);
+    if (i == null) return;
+    switch (zdarzenie) {
+      case DragEventType.start:
+        HapticFeedback.selectionClick();
+        _przeciagany = i;
+        _gdziePrzeciagany = gdzie;
+      case DragEventType.drag:
+        _przeciagany = i;
+        _gdziePrzeciagany = gdzie;
+        _odswiezPunkty();
+      case DragEventType.end:
+        _przeciagany = null;
+        _gdziePrzeciagany = null;
+        _upusc(i, gdzie);
+    }
+  }
+
+  int? _indeksPunktu(String id) {
+    if (!id.startsWith('p')) return null;
+    final i = int.tryParse(id.substring(1));
+    return i != null && i >= 0 && i < _plan.dlugosc ? i : null;
+  }
+
+  void _upusc(int i, LatLng p) {
+    if (!widget.region.zawiera(p.longitude, p.latitude)) {
+      _komunikat('Ten punkt leży poza pobranym regionem.');
+      _odswiezPunkty();
+      return;
+    }
+    final (x, y, nazwa) = _przyciagnij(p);
+    _ustawPlan(_plan.przesun(i, x, y, nazwa: nazwa));
+  }
+
+  /// Przy nazwanym obiekcie (np. schronisku) punkt trafia dokładnie w niego i dostaje jego nazwę.
+  (double, double, String?) _przyciagnij(LatLng p) {
+    final obiekt = _nazwane?.najblizszy(p.longitude, p.latitude);
+    return obiekt == null ? (p.longitude, p.latitude, null) : (obiekt.lon, obiekt.lat, obiekt.opis);
   }
 
   void _ustawPlan(PlanTrasy plan) {
@@ -188,10 +285,7 @@ class _EkranMapyState extends State<EkranMapy> {
       _komunikat('Ten punkt leży poza pobranym regionem.');
       return;
     }
-    final obiekt = _nazwane?.najblizszy(lon, lat);
-    // przy nazwanym obiekcie punkt trafia dokładnie w niego (np. w schronisko)
-    final (x, y) = obiekt == null ? (lon, lat) : (obiekt.lon, obiekt.lat);
-    final nazwa = obiekt?.opis;
+    final (x, y, nazwa) = _przyciagnij(p);
     if (_plan.dlugosc < 2) {
       _ustawPlan(_plan.dodajNaKoncu(x, y, nazwa: nazwa));
       return;
@@ -261,7 +355,10 @@ class _EkranMapyState extends State<EkranMapy> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(title: Text(nazwaPunktu(_plan, i, powrot: _powrot), style: Theme.of(ctx).textTheme.titleMedium)),
+            ListTile(
+              title: Text(nazwaPunktu(_plan, i, powrot: _powrot), style: Theme.of(ctx).textTheme.titleMedium),
+              subtitle: const Text('Żeby przesunąć punkt, przeciągnij go palcem po mapie.'),
+            ),
             if (posredni && p.rodzaj == RodzajPunktu.przez)
               ListTile(
                 leading: const Icon(Icons.flag_outlined),
@@ -327,6 +424,11 @@ class _EkranMapyState extends State<EkranMapy> {
     _przelicz();
   }
 
+  void _zmienUnikanieStromych(bool unikaj) {
+    setState(() => _unikajStromych = unikaj);
+    _przelicz();
+  }
+
   Future<void> _przelicz() async {
     final numer = ++_numerObliczenia;
     await _odswiezWarstwy();
@@ -334,7 +436,7 @@ class _EkranMapyState extends State<EkranMapy> {
     setState(() => _liczy = true);
     final plan = _plan;
     try {
-      final trasa = await _brouter.oblicz(plan.wspolrzedne, tryb: _tryb);
+      final trasa = await _brouter.oblicz(plan.wspolrzedne, tryb: _tryb, unikajStromych: _unikajStromych);
       if (numer != _numerObliczenia || !mounted) return;
       setState(() {
         _ustawTrase(trasa);
@@ -427,6 +529,8 @@ class _EkranMapyState extends State<EkranMapy> {
               onStyleLoadedCallback: _poZaladowaniuStylu,
               onMapLongClick: (_, p) => _przytrzymanie(p),
               onMapClick: _klikniecie,
+              // dotknięcie punktu trasy (warstwa interaktywna) też ma otworzyć jego menu
+              featureTapsTriggersMapClick: true,
               onCameraTrackingDismissed: () => setState(() => _sledzi = false),
             )
           else
@@ -480,10 +584,12 @@ class _EkranMapyState extends State<EkranMapy> {
                   odcinki: _odcinki,
                   tryb: _tryb,
                   powrot: _powrot,
+                  unikajStromych: _unikajStromych,
                   liczy: _liczy,
                   blad: _bladTrasy,
                   onTryb: _zmienTryb,
                   onPowrot: _zmienPowrot,
+                  onUnikajStromych: _zmienUnikanieStromych,
                   onCofnij: () => _ustawPlan(_plan.cofnij()),
                   onWyczysc: _wyczysc,
                 ),
