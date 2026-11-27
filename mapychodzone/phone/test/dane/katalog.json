@@ -1,12 +1,13 @@
 {
   "wersja": 1,
-  "wydanie": "dane-2026-11-26",
-  "zbudowano": "2026-11-27T08:11:09.208Z",
+  "format": 2,
+  "wydanie": "dane-2026-11-27",
+  "zbudowano": "2026-11-27T09:01:25.335Z",
   "daneOsm": "2026-11-26",
   "styl": {
     "plik": "styl.json",
-    "rozmiar": 67644,
-    "sha256": "7601c09fc348b342a98858acbfb1cd47d52b204eb14ea0e6b48bfa55ad3c1b66"
+    "rozmiar": 74609,
+    "sha256": "9c169785e52017e26dfae96d1c2468384c372798892652212e572a3c93a6cc04"
   },
   "rd5Zrodlo": "https://brouter.de/brouter/segments4/",
   "regiony": [
@@ -29,6 +30,11 @@
         "plik": "wyspowy-gorce-szlaki.geojson",
         "rozmiar": 7575725,
         "sha256": "4c68b10203bf792a5ce8d5f41659f055eca3334cd71fb129a470b82aad4fd7aa"
+      },
+      "punkty": {
+        "plik": "wyspowy-gorce-punkty.geojson",
+        "rozmiar": 267465,
+        "sha256": "bf489d161ceae80f327799e03822748ee014f578c0352cc57123edffcf2cda6d"
       },
       "rd5": [
         "E15_N45",

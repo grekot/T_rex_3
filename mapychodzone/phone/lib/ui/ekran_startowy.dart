@@ -31,7 +31,7 @@ class _EkranStartowyState extends State<EkranStartowy> {
       final region = magazyn.gotowyRegion();
       final Widget cel = (katalog != null && region != null)
           ? EkranMapy(magazyn: magazyn, katalog: katalog, region: region)
-          : EkranPobierania(magazyn: magazyn);
+          : EkranPobierania(magazyn: magazyn, aktualizacja: katalog != null && !katalog.aktualny);
       Navigator.of(context).pushReplacement(MaterialPageRoute<void>(builder: (_) => cel));
     } on Object catch (e) {
       setState(() => _blad = '$e');

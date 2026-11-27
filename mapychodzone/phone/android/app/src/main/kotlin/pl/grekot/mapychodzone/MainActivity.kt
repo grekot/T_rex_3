@@ -59,6 +59,7 @@ class MainActivity : FlutterActivity() {
                     val segmenty = call.argument<String>("segmenty")
                     val profil = call.argument<String>("profil")
                     val punkty = call.argument<List<List<Double>>>("punkty")
+                    val parametry = call.argument<Map<String, String>>("parametry") ?: emptyMap()
                     val czasMs = (call.argument<Int>("czasMs") ?: 60_000).toLong()
                     if (segmenty == null || profil == null || punkty == null) {
                         result.error("argumenty", "Brak segmentów, profilu albo punktów", null)
@@ -66,7 +67,7 @@ class MainActivity : FlutterActivity() {
                     }
                     watekTras.execute {
                         try {
-                            val geojson = Trasy.oblicz(segmenty, profil, punkty, czasMs)
+                            val geojson = Trasy.oblicz(segmenty, profil, punkty, parametry, czasMs)
                             glowny.post { result.success(geojson) }
                         } catch (e: Throwable) {
                             glowny.post { result.error("brouter", e.message ?: e.javaClass.simpleName, null) }

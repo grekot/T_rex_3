@@ -72,23 +72,26 @@ class Magazyn {
     }
   }
 
-  /// Czy region ma na telefonie wszystko: mapę, szlaki, styl i dane tras.
+  /// Czy region ma na telefonie wszystko: mapę, szlaki, punkty, styl i dane tras.
   bool regionGotowy(Katalog k, RegionPaczki r) {
     bool jest(String sciezka, [int? rozmiar]) {
       final f = File(sciezka);
       return f.existsSync() && (rozmiar == null || f.lengthSync() == rozmiar);
     }
 
+    final punkty = r.punkty;
     return jest(plikStylu, k.styl.rozmiar) &&
         jest(plikMapy(r.mapa.plik), r.mapa.rozmiar) &&
         jest(plikMapy(r.szlaki.plik), r.szlaki.rozmiar) &&
+        (punkty == null || jest(plikMapy(punkty.plik), punkty.rozmiar)) &&
         r.rd5.every((n) => jest(plikRd5(n)));
   }
 
   /// Pierwszy region z zapisanego katalogu, który jest kompletny na telefonie.
+  /// Null także wtedy, gdy katalog ma starszy format niż wymaga aplikacja (trzeba dociągnąć dane).
   RegionPaczki? gotowyRegion() {
     final k = wczytajKatalog();
-    if (k == null) return null;
+    if (k == null || !k.aktualny) return null;
     for (final r in k.regiony) {
       if (regionGotowy(k, r)) return r;
     }

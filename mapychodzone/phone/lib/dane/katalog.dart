@@ -4,6 +4,10 @@ library;
 
 const repozytoriumDanych = 'https://github.com/grekot/mapychodzone-dane';
 
+/// Format paczek, który ta wersja aplikacji umie pokazać (2 = z warstwą punktów i znacznikiem
+/// {PUNKTY} w stylu). Starszy katalog na telefonie trzeba zaktualizować.
+const wymaganyFormatPaczek = 2;
+
 /// Najnowszy katalog. Pliki paczek pobieramy potem z konkretnego wydania ([Katalog.wydanie]),
 /// żeby nowe wydanie opublikowane w trakcie pobierania nie pomieszało plików.
 const adresKatalogu = '$repozytoriumDanych/releases/latest/download/katalog.json';
@@ -30,6 +34,7 @@ class RegionPaczki {
     required this.bbox,
     required this.mapa,
     required this.szlaki,
+    this.punkty,
     required this.rd5,
   });
 
@@ -41,6 +46,9 @@ class RegionPaczki {
   final List<double> bbox;
   final PlikPaczki mapa;
   final PlikPaczki szlaki;
+
+  /// Szczyty, schroniska, przełęcze… (od formatu 2).
+  final PlikPaczki? punkty;
 
   /// Pliki danych tras BRouter (np. `E20_N45`) potrzebne w tym regionie.
   final List<String> rd5;
@@ -58,6 +66,7 @@ class RegionPaczki {
         bbox: (j['bbox'] as List).map((e) => (e as num).toDouble()).toList(),
         mapa: PlikPaczki.zJson(j['mapa'] as Map<String, dynamic>),
         szlaki: PlikPaczki.zJson(j['szlaki'] as Map<String, dynamic>),
+        punkty: j['punkty'] == null ? null : PlikPaczki.zJson(j['punkty'] as Map<String, dynamic>),
         rd5: (j['rd5'] as List).cast<String>(),
       );
 }
@@ -65,6 +74,7 @@ class RegionPaczki {
 class Katalog {
   const Katalog({
     required this.wersja,
+    this.format = 1,
     required this.wydanie,
     required this.daneOsm,
     required this.styl,
@@ -73,6 +83,11 @@ class Katalog {
   });
 
   final int wersja;
+
+  /// Format paczek (patrz [wymaganyFormatPaczek]).
+  final int format;
+
+  bool get aktualny => format >= wymaganyFormatPaczek;
 
   /// Tag wydania w repozytorium danych, np. `dane-2026-11-26`.
   final String wydanie;
@@ -104,6 +119,7 @@ class Katalog {
     final daneOsm = j['daneOsm'] as String;
     return Katalog(
       wersja: wersja,
+      format: (j['format'] as num?)?.toInt() ?? 1,
       wydanie: (j['wydanie'] as String?) ?? 'dane-$daneOsm',
       daneOsm: daneOsm,
       styl: PlikPaczki.zJson(j['styl'] as Map<String, dynamic>),

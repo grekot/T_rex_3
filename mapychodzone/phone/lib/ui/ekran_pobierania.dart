@@ -10,9 +10,12 @@ import 'ekran_mapy.dart';
 
 /// Pobranie regionu: mapa (PMTiles), szlaki (GeoJSON), styl i dane tras BRouter (*.rd5).
 class EkranPobierania extends StatefulWidget {
-  const EkranPobierania({super.key, required this.magazyn});
+  const EkranPobierania({super.key, required this.magazyn, this.aktualizacja = false});
 
   final Magazyn magazyn;
+
+  /// Na telefonie są dane w starszym formacie: ta wersja aplikacji potrzebuje nowszych.
+  final bool aktualizacja;
 
   @override
   State<EkranPobierania> createState() => _EkranPobieraniaState();
@@ -78,13 +81,23 @@ class _EkranPobieraniaState extends State<EkranPobierania> {
       _Zadanie('Styl mapy', k.adres(k.styl.plik), m.plikStylu, rozmiar: k.styl.rozmiar, sha256: k.styl.sha256),
       _Zadanie('Szlaki', k.adres(r.szlaki.plik), m.plikMapy(r.szlaki.plik),
           rozmiar: r.szlaki.rozmiar, sha256: r.szlaki.sha256),
+      if (r.punkty case final p?)
+        _Zadanie('Szczyty i schroniska', k.adres(p.plik), m.plikMapy(p.plik), rozmiar: p.rozmiar, sha256: p.sha256),
       _Zadanie('Mapa', k.adres(r.mapa.plik), m.plikMapy(r.mapa.plik), rozmiar: r.mapa.rozmiar, sha256: r.mapa.sha256),
       for (final n in r.rd5) _Zadanie('Dane tras $n', k.adresRd5(n), m.plikRd5(n)),
     ].where((z) => brak(z.cel, z.rozmiar)).toList();
   }
 
   int _rozmiarRegionu(Katalog k, RegionPaczki r) =>
-      k.styl.rozmiar + r.mapa.rozmiar + r.szlaki.rozmiar + r.rd5.fold(0, (s, n) => s + (_rozmiaryRd5[n] ?? 0));
+      k.styl.rozmiar +
+      r.mapa.rozmiar +
+      r.szlaki.rozmiar +
+      (r.punkty?.rozmiar ?? 0) +
+      r.rd5.fold(0, (s, n) => s + (_rozmiaryRd5[n] ?? 0));
+
+  /// Ile zostało do pobrania (pliki, których nie ma albo się zmieniły; dane tras bez rozmiaru).
+  int _doPobrania(Katalog k, RegionPaczki r) =>
+      _zadania(k, r).fold(0, (s, z) => s + (z.rozmiar ?? _rozmiaryRd5[z.nazwa.split(' ').last] ?? 0));
 
   Future<void> _pobierz(Katalog k, RegionPaczki r) async {
     setState(() {
@@ -134,8 +147,11 @@ class _EkranPobieraniaState extends State<EkranPobierania> {
         padding: const EdgeInsets.all(16),
         children: [
           Text(
-            'Mapa działa bez internetu. Najpierw pobierz region: mapę, szlaki i dane do wyznaczania tras. '
-            'To kilkaset MB, najlepiej przez Wi-Fi.',
+            widget.aktualizacja
+                ? 'Ta wersja aplikacji ma nowe warstwy mapy (szczyty, schroniska, przełęcze). '
+                    'Dociągnij je: pobiorą się tylko zmienione pliki.'
+                : 'Mapa działa bez internetu. Najpierw pobierz region: mapę, szlaki i dane do wyznaczania tras. '
+                    'To kilkaset MB, najlepiej przez Wi-Fi.',
             style: teksty.bodyMedium,
           ),
           const SizedBox(height: 16),
@@ -163,6 +179,13 @@ class _EkranPobieraniaState extends State<EkranPobierania> {
                       ),
                       Text('Razem ok. ${megabajty(_rozmiarRegionu(k, r))} · dane OSM z ${k.daneOsm}',
                           style: teksty.bodySmall),
+                      if (!_pobiera)
+                        Text(
+                          _zadania(k, r).isEmpty
+                              ? 'Wszystko pobrane.'
+                              : 'Do pobrania: ${megabajty(_doPobrania(k, r))}',
+                          style: teksty.bodySmall?.copyWith(fontWeight: FontWeight.bold),
+                        ),
                       const SizedBox(height: 12),
                       if (_pobiera) ...[
                         LinearProgressIndicator(value: _postep),
@@ -171,8 +194,10 @@ class _EkranPobieraniaState extends State<EkranPobierania> {
                       ] else
                         FilledButton.icon(
                           onPressed: () => _pobierz(k, r),
-                          icon: const Icon(Icons.download),
-                          label: const Text('Pobierz region'),
+                          icon: Icon(_zadania(k, r).isEmpty ? Icons.map : Icons.download),
+                          label: Text(_zadania(k, r).isEmpty
+                              ? 'Otwórz mapę'
+                              : (widget.aktualizacja ? 'Zaktualizuj region' : 'Pobierz region')),
                         ),
                     ],
                   ),

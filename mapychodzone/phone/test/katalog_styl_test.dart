@@ -23,10 +23,10 @@ void main() {
     });
 
     test('adresy plików z konkretnego wydania', () {
-      expect(k.wydanie, 'dane-2026-11-26');
+      expect(k.wydanie, 'dane-2026-11-27');
       expect(
         k.adres('wyspowy-gorce.pmtiles'),
-        'https://github.com/grekot/mapychodzone-dane/releases/download/dane-2026-11-26/wyspowy-gorce.pmtiles',
+        'https://github.com/grekot/mapychodzone-dane/releases/download/dane-2026-11-27/wyspowy-gorce.pmtiles',
       );
       expect(k.adresRd5('E20_N45'), 'https://brouter.de/brouter/segments4/E20_N45.rd5');
     });
@@ -38,13 +38,14 @@ void main() {
 
   group('styl', () {
     const szablon = '{"glyphs":"{GLIFY}/{fontstack}/{range}.pbf","sprite":"{SPRITE}/light",'
-        '"sources":{"protomaps":{"url":"pmtiles://{PACZKA}"},"szlaki":{"data":"{SZLAKI}"}}}';
+        '"sources":{"protomaps":{"url":"pmtiles://{PACZKA}"},"szlaki":{"data":"{SZLAKI}"},"punkty":{"data":"{PUNKTY}"}}}';
 
     test('podmienia znaczniki na file:// i zostawia {fontstack}/{range}', () {
       final s = przygotujStyl(
         szablon,
         paczka: '/data/user/0/pl.grekot.mapychodzone/files/mapy/r.pmtiles',
         szlaki: '/d/szlaki.geojson',
+        punkty: '/d/punkty.geojson',
         glify: '/d/glify',
         sprite: '/d/sprite',
       );
@@ -54,11 +55,19 @@ void main() {
       expect(j['sources']['protomaps']['url'],
           'pmtiles://file:///data/user/0/pl.grekot.mapychodzone/files/mapy/r.pmtiles');
       expect(j['sources']['szlaki']['data'], 'file:///d/szlaki.geojson');
+      expect(j['sources']['punkty']['data'], 'file:///d/punkty.geojson');
     });
 
     test('odrzuca ścieżki względne', () {
       expect(
-        () => przygotujStyl(szablon, paczka: 'r.pmtiles', szlaki: '/s', glify: '/g', sprite: '/p'),
+        () => przygotujStyl(szablon, paczka: 'r.pmtiles', szlaki: '/s', punkty: '/u', glify: '/g', sprite: '/p'),
+        throwsArgumentError,
+      );
+    });
+
+    test('styl z punktami wymaga pliku punktów', () {
+      expect(
+        () => przygotujStyl(szablon, paczka: '/r.pmtiles', szlaki: '/s', punkty: null, glify: '/g', sprite: '/p'),
         throwsArgumentError,
       );
     });

@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 
 import '../dane/magazyn.dart';
+import 'plan.dart';
 import 'trasa.dart';
 
 class BladTrasy implements Exception {
@@ -18,7 +19,7 @@ class BRouter {
   final Magazyn magazyn;
 
   /// [punkty]: (lon, lat) w kolejności start, punkty pośrednie, cel.
-  Future<Trasa> oblicz(List<(double, double)> punkty) async {
+  Future<Trasa> oblicz(List<(double, double)> punkty, {TrybTrasy tryb = TrybTrasy.szlakami}) async {
     try {
       final geojson = await _kanal.invokeMethod<String>('oblicz', {
         'segmenty': magazyn.segmenty,
@@ -26,6 +27,7 @@ class BRouter {
         'punkty': [
           for (final (lon, lat) in punkty) [lon, lat],
         ],
+        'parametry': tryb.parametryBRoutera,
         'czasMs': 60000,
       });
       return Trasa.zGeojsonBRoutera(geojson!);

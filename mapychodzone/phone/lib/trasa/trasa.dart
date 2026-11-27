@@ -64,6 +64,18 @@ class Trasa {
         ],
       };
 
+  /// Trasa tam i z powrotem dokładnie tą samą drogą: do śladu dochodzi ten sam ślad w odwrotnej
+  /// kolejności (bez drugiego liczenia w BRouterze, więc powrót na pewno idzie tędy samo).
+  Trasa zPowrotem() {
+    if (punkty.length < 2) return this;
+    final wynik = [...punkty];
+    for (final p in punkty.reversed.skip(1)) {
+      final ost = wynik.last;
+      wynik.add(PunktTrasy(p.lon, p.lat, p.wysokosc, ost.odStartu + odlegloscM(ost.lat, ost.lon, p.lat, p.lon)));
+    }
+    return Trasa(wynik);
+  }
+
   /// Wynik BRoutera (FormatJson): FeatureCollection z jedną linią `[lon, lat, wysokość]`.
   factory Trasa.zGeojsonBRoutera(String tekst) {
     final json = jsonDecode(tekst) as Map<String, dynamic>;
