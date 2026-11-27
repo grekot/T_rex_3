@@ -509,6 +509,13 @@ class _EkranMapyState extends State<EkranMapy> {
         _bladTrasy = e.komunikat;
         _liczy = false;
       });
+    } on Object catch (e) {
+      // np. brak pliku terenu na serwerze: komunikat zamiast kręcącego się paska
+      if (numer != _numerObliczenia || !mounted) return;
+      setState(() {
+        _bladTrasy = 'Nie udało się wyznaczyć trasy: $e';
+        _liczy = false;
+      });
     }
     await _odswiezWarstwy();
   }

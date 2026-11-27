@@ -325,29 +325,39 @@ class _Kopiec {
   }
 }
 
-/// Upraszcza drogę (indeksy komórek) do odcinków prostych (Douglas–Peucker, [tolerancja] w komórkach).
-/// Odcinek prosty jest dozwolony tylko, gdy nie przechodzi przez komórki zakazane ani wyraźnie
-/// droższe niż najdroższa komórka oryginalnego kawałka drogi (nie skraca przez stromiznę).
-List<int> uproscDroge(SiatkaKosztow s, List<int> droga, {double tolerancja = 1.5}) {
+/// Upraszcza drogę (indeksy komórek) do odcinków prostych: kawałek drogi zastępujemy prostą,
+/// gdy nie jest od niego droższa (bez przeszkód, nie przez stromiznę, której droga unikała);
+/// inaczej dzielimy go w punkcie najdalszym od prostej (jak Douglas–Peucker) i sprawdzamy połówki.
+List<int> uproscDroge(SiatkaKosztow s, List<int> droga) {
   if (droga.length < 3) return droga;
   final w = s.w;
   final zostaw = Uint8List(droga.length);
   zostaw[0] = zostaw[droga.length - 1] = 1;
 
+  double m(int i) => s.mnoznik[i].isFinite ? s.mnoznik[i] : 5;
+
+  /// Skrót prostą z a do b: bez komórek zakazanych i nie droższy (odległość × mnożnik terenu)
+  /// niż kawałek drogi z A*, który zastępuje. Schodki siatki 8 kierunków się prostują,
+  /// a skrót przez stromiznę, której droga unikała, nie przechodzi.
   bool prostaDozwolona(int a, int b) {
-    var maxOryginal = 0.0;
-    for (var k = a; k <= b; k++) {
-      maxOryginal = math.max(maxOryginal, s.mnoznik[droga[k]].isFinite ? s.mnoznik[droga[k]] : 5);
+    var oryginal = 0.0;
+    for (var k = a; k < b; k++) {
+      final i = droga[k], j = droga[k + 1];
+      final d = (i % w != j % w && i ~/ w != j ~/ w) ? math.sqrt2 : 1.0;
+      oryginal += d * (m(i) + m(j)) / 2;
     }
     final ax = droga[a] % w + 0.5, ay = droga[a] ~/ w + 0.5;
     final bx = droga[b] % w + 0.5, by = droga[b] ~/ w + 0.5;
-    final kroki = (math.max((bx - ax).abs(), (by - ay).abs()) * 2).ceil();
-    for (var k = 1; k < kroki; k++) {
-      final x = (ax + (bx - ax) * k / kroki).floor(), y = (ay + (by - ay) * k / kroki).floor();
-      final m = s.mnoznik[y * w + x];
-      if (!m.isFinite || m > maxOryginal * 1.15) return false;
+    final dl = math.sqrt((bx - ax) * (bx - ax) + (by - ay) * (by - ay));
+    final kroki = math.max(1, (dl * 2).ceil());
+    var prosta = 0.0;
+    for (var k = 0; k < kroki; k++) {
+      final t = (k + 0.5) / kroki;
+      final i = (ay + (by - ay) * t).floor() * w + (ax + (bx - ax) * t).floor();
+      if (!s.mnoznik[i].isFinite && i != droga[a] && i != droga[b]) return false;
+      prosta += dl / kroki * m(i);
     }
-    return true;
+    return prosta <= oryginal * 1.02;
   }
 
   final stos = [(0, droga.length - 1)];
@@ -368,7 +378,7 @@ List<int> uproscDroge(SiatkaKosztow s, List<int> droga, {double tolerancja = 1.5
         gdzie = k;
       }
     }
-    if (max > tolerancja || !prostaDozwolona(a, b)) {
+    if (!prostaDozwolona(a, b)) {
       zostaw[gdzie] = 1;
       stos
         ..add((a, gdzie))

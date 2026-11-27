@@ -22,10 +22,10 @@ class PMTiles {
     final magia = String.fromCharCodes(Uint8List.sublistView(b, 0, 7));
     if (magia != 'PMTiles' || b.getUint8(7) != 3) throw const FormatException('To nie jest PMTiles v3');
     return _naglowek = _Naglowek(
-      katalogOd: b.getUint64(8, Endian.little),
-      katalogDl: b.getUint64(16, Endian.little),
-      liscieOd: b.getUint64(40, Endian.little),
-      daneOd: b.getUint64(56, Endian.little),
+      katalogOd: _u64(b, 8),
+      katalogDl: _u64(b, 16),
+      liscieOd: _u64(b, 40),
+      daneOd: _u64(b, 56),
       kompresjaKatalogow: b.getUint8(97),
       kompresjaKafli: b.getUint8(98),
       minZoom: b.getUint8(100),
@@ -61,11 +61,14 @@ class PMTiles {
   }
 
   static Uint8List _rozpakuj(Uint8List dane, int kompresja) => switch (kompresja) {
-        0 || 1 => dane, // nieznana / brak
-        2 => Uint8List.fromList(const GZipDecoder().decodeBytes(dane)),
-        _ => throw FormatException('Nieobsługiwana kompresja PMTiles: $kompresja'),
-      };
+    0 || 1 => dane, // nieznana / brak
+    2 => Uint8List.fromList(const GZipDecoder().decodeBytes(dane)),
+    _ => throw FormatException('Nieobsługiwana kompresja PMTiles: $kompresja'),
+  };
 }
+
+/// Liczba 64-bitowa (little endian) jako dwie 32-bitowe: ByteData.getUint64 nie działa w przeglądarce.
+int _u64(ByteData b, int od) => b.getUint32(od, Endian.little) + b.getUint32(od + 4, Endian.little) * 0x100000000;
 
 class _Naglowek {
   const _Naglowek({

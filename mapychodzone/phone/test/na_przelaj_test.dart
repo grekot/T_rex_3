@@ -7,6 +7,7 @@ import 'package:mapychodzone/teren/model_terenu.dart';
 import 'package:mapychodzone/teren/pmtiles.dart';
 import 'package:mapychodzone/trasa/na_przelaj.dart';
 import 'package:mapychodzone/trasa/trasa.dart';
+import 'package:mapychodzone/ui/panel_trasy.dart';
 
 /// Fragment terenu spod Turbacza (z12, 4 kafelki) wycięty z wyspowy-gorce-teren.pmtiles.
 PMTiles _turbacz() {
@@ -76,6 +77,20 @@ void main() {
     final droga = szukajDrogi(s, 20 * w + 10, 20 * w + 50)!;
     // nie przechodzi przez stromą ściankę w środku pasa
     expect(droga.every((i) => s.kat[i] < 35), isTrue);
+  });
+
+  test('ukośna droga po schodkach siatki prostuje się do jednego odcinka', () {
+    const w = 80, h = 80;
+    final s = _siatka(w, h);
+    // kierunek ok. 27° od poziomu: A* idzie schodkami (ukos + w bok), prosta jest tańsza
+    final droga = szukajDrogi(s, 10 * w + 5, 40 * w + 65)!;
+    expect(droga.length, greaterThan(50));
+    expect(uproscDroge(s, droga), [10 * w + 5, 40 * w + 65]);
+  });
+
+  test('odmiana: odcinek, odcinki, odcinków', () {
+    expect([1, 3, 5, 12, 22, 25].map(odmianaOdcinkow).toList(),
+        ['odcinek', 'odcinki', 'odcinków', 'odcinków', 'odcinki', 'odcinków']);
   });
 
   test('azymut: północ 0°, wschód ok. 90°, odcinek w drugą stronę +180°', () {

@@ -314,6 +314,13 @@ class _WierszPunktu extends StatelessWidget {
   }
 }
 
+/// „1 odcinek”, „3 odcinki”, „5 odcinków”, „22 odcinki”.
+String odmianaOdcinkow(int n) {
+  if (n == 1) return 'odcinek';
+  final j = n % 10, d = n % 100;
+  return j >= 2 && j <= 4 && (d < 12 || d > 14) ? 'odcinki' : 'odcinków';
+}
+
 /// Odcinki proste trasy na przełaj: azymut i długość, do marszu z kompasem.
 class _Azymuty extends StatelessWidget {
   const _Azymuty(this.odcinki);
@@ -326,7 +333,7 @@ class _Azymuty extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 6),
-        Text('Na azymut (${odcinki.length} ${odcinki.length == 1 ? 'odcinek' : 'odcinków'})', style: teksty.labelLarge),
+        Text('Na azymut (${odcinki.length} ${odmianaOdcinkow(odcinki.length)})', style: teksty.labelLarge),
         Text(
           'Azymuty geograficzne. Na kompasie ok. ${deklinacjaMagnetyczna.round()}° mniej (deklinacja). '
           'Trasa z modelu terenu (siatka ok. 25 m) omija urwiska, wodę i strome stoki, ale drobnych progów '
