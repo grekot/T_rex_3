@@ -1,19 +1,23 @@
-import 'dart:io';
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:maplibre_gl/maplibre_gl.dart';
 
 import '../dane/katalog.dart';
 import '../dane/magazyn.dart';
+import '../dane/zrodlo.dart';
+import '../pamiec/pamiec.dart';
 import '../mapa/punkty_nazwane.dart';
 import '../mapa/styl.dart';
+import '../teren/model_terenu.dart';
+import '../teren/pmtiles.dart';
 import '../trasa/brouter.dart';
+import '../trasa/na_przelaj.dart';
 import '../trasa/plan.dart';
 import '../trasa/trasa.dart';
 import '../urzadzenie.dart';
-import 'ekran_pobierania.dart';
+import 'ekran_regionow.dart';
 import 'o_aplikacji.dart';
 import 'panel_trasy.dart';
 
@@ -23,14 +27,15 @@ const _pustyGeojson = <String, dynamic>{'type': 'FeatureCollection', 'features':
 /// Mapa offline regionu z planowaniem trasy.
 ///
 /// Przytrzymanie palca: start, potem cel, potem wybór – punkt „przez” (prowadź tędy),
-/// przystanek (cel pośredni) albo nowy cel. Przeciągnięcie punktu przesuwa go,
-/// dotknięcie: zmiana rodzaju albo usunięcie.
-/// BRouter liczy trasę offline w wybranym trybie (szlakami, ze skrótami, najkrócej),
+/// przystanek (cel pośredni) albo nowy cel. W przeglądarce zamiast przytrzymania: podwójne kliknięcie.
+/// Punkty trasy: lista w panelu albo dotknięcie punktu – zmiana rodzaju, usunięcie
+/// albo „postaw w nowym miejscu” (następne dotknięcie mapy przenosi punkt).
+/// BRouter liczy trasę (w telefonie offline, w przeglądarce przez brouter.de) w wybranym trybie (szlakami, ze skrótami, najkrócej),
 /// opcjonalnie omijając strome podejścia.
 class EkranMapy extends StatefulWidget {
-  const EkranMapy({super.key, required this.magazyn, required this.katalog, required this.region});
+  const EkranMapy({super.key, required this.dane, required this.katalog, required this.region});
 
-  final Magazyn magazyn;
+  final ZrodloDanych dane;
   final Katalog katalog;
   final RegionPaczki region;
 
@@ -39,7 +44,6 @@ class EkranMapy extends StatefulWidget {
 }
 
 class _EkranMapyState extends State<EkranMapy> {
-  late final BRouter _brouter = BRouter(widget.magazyn);
   MapLibreMapController? _mapa;
   String? _styl;
   String? _bladStylu;
@@ -53,9 +57,8 @@ class _EkranMapyState extends State<EkranMapy> {
   bool _powrot = false;
   bool _unikajStromych = false;
 
-  /// Punkt planu przeciągany palcem i jego bieżące położenie na mapie.
-  int? _przeciagany;
-  LatLng? _gdziePrzeciagany;
+  /// Punkt planu czekający na nowe miejsce (następne dotknięcie albo przytrzymanie mapy).
+  int? _przenoszony;
   bool _rysujePunkty = false;
   bool _punktyDoOdswiezenia = false;
 
@@ -72,28 +75,31 @@ class _EkranMapyState extends State<EkranMapy> {
     super.initState();
     _wczytajStyl();
     _wczytajPunkty();
-    _zapytajOLokalizacje();
-  }
-
-  @override
-  void dispose() {
-    _mapa?.onFeatureDrag.remove(_przeciaganie);
-    super.dispose();
+    // w przeglądarce pytanie o lokalizację dopiero po dotknięciu „moja pozycja”
+    if (!kIsWeb) _zapytajOLokalizacje();
   }
 
   Future<void> _wczytajStyl() async {
     try {
-      final m = widget.magazyn;
-      final szablon = await File(m.plikStylu).readAsString();
+      final d = widget.dane;
+      final szablon = await d.tekst(widget.katalog.styl.plik);
       final punkty = widget.region.punkty;
       setState(() {
         _styl = przygotujStyl(
           szablon,
-          paczka: m.plikMapy(widget.region.mapa.plik),
-          szlaki: m.plikMapy(widget.region.szlaki.plik),
-          punkty: punkty == null ? null : m.plikMapy(punkty.plik),
-          glify: m.glify,
-          sprite: m.sprite,
+          paczka: d.adres(widget.region.mapa.plik),
+          szlaki: d.adres(widget.region.szlaki.plik),
+          punkty: punkty == null ? null : d.adres(punkty.plik),
+          poziomice: switch (widget.region.poziomice) {
+            final p? => d.adres(p.plik),
+            null => null,
+          },
+          teren: switch (widget.region.teren) {
+            final p? => d.adres(p.plik),
+            null => null,
+          },
+          glify: d.adresGlifow,
+          sprite: d.adresSprite,
         );
       });
     } on Object catch (e) {
@@ -105,7 +111,7 @@ class _EkranMapyState extends State<EkranMapy> {
     final p = widget.region.punkty;
     if (p == null) return;
     try {
-      final tekst = await File(widget.magazyn.plikMapy(p.plik)).readAsString();
+      final tekst = await widget.dane.tekst(p.plik);
       _nazwane = PunktyNazwane.zGeojson(tekst);
     } on Object {
       // bez nazw przystanki dostaną tylko numery
@@ -124,7 +130,13 @@ class _EkranMapyState extends State<EkranMapy> {
     await c.addLineLayer(
       'trasa',
       'trasa-obrys',
-      const LineLayerProperties(lineColor: '#ffffff', lineWidth: 8, lineOpacity: 0.9, lineJoin: 'round', lineCap: 'round'),
+      const LineLayerProperties(
+        lineColor: '#ffffff',
+        lineWidth: 8,
+        lineOpacity: 0.9,
+        lineJoin: 'round',
+        lineCap: 'round',
+      ),
       enableInteraction: false,
     );
     await c.addLineLayer(
@@ -138,17 +150,35 @@ class _EkranMapyState extends State<EkranMapy> {
       'punkty-trasy',
       'punkty-trasy-kolka',
       const CircleLayerProperties(
-        circleRadius: ['match', ['get', 'r'], 'przez', 5.5, 8.5],
-        circleColor: ['match', ['get', 'r'], 'start', '#2e7d32', 'cel', '#c62828', '#ffffff'],
-        circleStrokeColor: ['match', ['get', 'r'], 'przystanek', _kolorTrasy, 'przez', '#555555', '#ffffff'],
+        circleRadius: [
+          'match',
+          ['get', 'r'],
+          'przez',
+          5.5,
+          8.5,
+        ],
+        circleColor: [
+          'match',
+          ['get', 'r'],
+          'start',
+          '#2e7d32',
+          'cel',
+          '#c62828',
+          '#ffffff',
+        ],
+        circleStrokeColor: [
+          'match',
+          ['get', 'r'],
+          'przystanek',
+          _kolorTrasy,
+          'przez',
+          '#555555',
+          '#ffffff',
+        ],
         circleStrokeWidth: 3,
       ),
-      // warstwa „interaktywna”: maplibre_gl pozwala przeciągać jej obiekty z właściwością draggable
-      enableInteraction: true,
+      enableInteraction: false,
     );
-    c.onFeatureDrag
-      ..remove(_przeciaganie)
-      ..add(_przeciaganie);
     await c.addSymbolLayer(
       'punkty-trasy',
       'punkty-trasy-numery',
@@ -167,7 +197,6 @@ class _EkranMapyState extends State<EkranMapy> {
   }
 
   Map<String, dynamic> get _punktyGeojson {
-    final gdzie = _gdziePrzeciagany;
     return {
       'type': 'FeatureCollection',
       'features': [
@@ -175,22 +204,18 @@ class _EkranMapyState extends State<EkranMapy> {
           {
             'type': 'Feature',
             'id': 'p$i',
-            'properties': <String, dynamic>{
-              'r': p.rodzaj.name,
-              'nr': _plan.numerPrzystanku(i)?.toString() ?? '',
-              'draggable': true,
-            },
+            'properties': <String, dynamic>{'r': p.rodzaj.name, 'nr': _plan.numerPrzystanku(i)?.toString() ?? ''},
             'geometry': {
               'type': 'Point',
-              'coordinates': i == _przeciagany && gdzie != null ? [gdzie.longitude, gdzie.latitude] : [p.lon, p.lat],
+              'coordinates': [p.lon, p.lat],
             },
           },
       ],
     };
   }
 
-  /// Rysuje punkty planu. Przy przeciąganiu zdarzenia przychodzą szybciej, niż mapa nadąża:
-  /// gdy rysowanie trwa, zapamiętujemy tylko, że trzeba narysować jeszcze raz.
+  /// Rysuje punkty planu. Gdy rysowanie jeszcze trwa, zapamiętujemy tylko, że trzeba
+  /// narysować jeszcze raz (zmiany mogą przychodzić szybciej, niż mapa nadąża).
   Future<void> _odswiezPunkty() async {
     final c = _mapa;
     if (c == null || !_stylGotowy) return;
@@ -216,49 +241,19 @@ class _EkranMapyState extends State<EkranMapy> {
     await c.setGeoJsonSource('trasa', _trasa?.geojson ?? _pustyGeojson);
   }
 
-  /// Przeciąganie punktu trasy palcem (obsługuje je maplibre_gl dla obiektów z `draggable`).
-  void _przeciaganie(
-    Point<double> ekran,
-    LatLng skad,
-    LatLng gdzie,
-    LatLng przesuniecie,
-    String id,
-    Annotation? adnotacja,
-    DragEventType zdarzenie,
-  ) {
-    final i = _indeksPunktu(id);
-    if (i == null) return;
-    switch (zdarzenie) {
-      case DragEventType.start:
-        HapticFeedback.selectionClick();
-        _przeciagany = i;
-        _gdziePrzeciagany = gdzie;
-      case DragEventType.drag:
-        _przeciagany = i;
-        _gdziePrzeciagany = gdzie;
-        _odswiezPunkty();
-      case DragEventType.end:
-        _przeciagany = null;
-        _gdziePrzeciagany = null;
-        _upusc(i, gdzie);
-    }
-  }
-
-  int? _indeksPunktu(String id) {
-    if (!id.startsWith('p')) return null;
-    final i = int.tryParse(id.substring(1));
-    return i != null && i >= 0 && i < _plan.dlugosc ? i : null;
-  }
-
-  void _upusc(int i, LatLng p) {
+  /// Stawia przenoszony punkt [i] w miejscu [p] (przyciąga się do nazwanego obiektu w pobliżu).
+  void _postawPunkt(int i, LatLng p) {
+    setState(() => _przenoszony = null);
     if (!widget.region.zawiera(p.longitude, p.latitude)) {
       _komunikat('Ten punkt leży poza pobranym regionem.');
-      _odswiezPunkty();
       return;
     }
+    if (i >= _plan.dlugosc) return;
     final (x, y, nazwa) = _przyciagnij(p);
     _ustawPlan(_plan.przesun(i, x, y, nazwa: nazwa));
   }
+
+  void _przenies(int i) => setState(() => _przenoszony = i);
 
   /// Przy nazwanym obiekcie (np. schronisku) punkt trafia dokładnie w niego i dostaje jego nazwę.
   (double, double, String?) _przyciagnij(LatLng p) {
@@ -269,6 +264,7 @@ class _EkranMapyState extends State<EkranMapy> {
   void _ustawPlan(PlanTrasy plan) {
     setState(() {
       _plan = plan;
+      _przenoszony = null;
       _bladTrasy = null;
       if (plan.dlugosc < 2) {
         _trasaTam = null;
@@ -279,7 +275,32 @@ class _EkranMapyState extends State<EkranMapy> {
     _przelicz();
   }
 
+  /// W przeglądarce mapa (element HTML pod Flutterem) dostaje też kliknięcia w panel, przyciski
+  /// i menu. Dlatego każde dotknięcie nakładki zapisuje czas, a mapa ignoruje kliknięcia
+  /// tuż po nim (zdarzenie „click” przychodzi po puszczeniu przycisku, „dblclick” po drugim).
+  DateTime _dotykNakladki = DateTime(2000);
+  bool _arkuszOtwarty = false;
+
+  bool get _klikDlaNakladki =>
+      _arkuszOtwarty || DateTime.now().difference(_dotykNakladki) < const Duration(milliseconds: 500);
+
+  Widget _nakladka({required Widget child}) =>
+      Listener(onPointerDown: (_) => _dotykNakladki = DateTime.now(), child: child);
+
+  Future<T?> _arkusz<T>(WidgetBuilder builder) async {
+    _arkuszOtwarty = true;
+    try {
+      return await showModalBottomSheet<T>(context: context, builder: builder);
+    } finally {
+      // kliknięcie, które zamknęło arkusz, dociera do mapy chwilę później
+      _arkuszOtwarty = false;
+      _dotykNakladki = DateTime.now();
+    }
+  }
+
   Future<void> _przytrzymanie(LatLng p) async {
+    if (_klikDlaNakladki) return;
+    if (_przenoszony case final i?) return _postawPunkt(i, p);
     final lon = p.longitude, lat = p.latitude;
     if (!widget.region.zawiera(lon, lat)) {
       _komunikat('Ten punkt leży poza pobranym regionem.');
@@ -290,9 +311,8 @@ class _EkranMapyState extends State<EkranMapy> {
       _ustawPlan(_plan.dodajNaKoncu(x, y, nazwa: nazwa));
       return;
     }
-    final wybor = await showModalBottomSheet<String>(
-      context: context,
-      builder: (ctx) => SafeArea(
+    final wybor = await _arkusz<String>(
+      (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -327,8 +347,10 @@ class _EkranMapyState extends State<EkranMapy> {
     });
   }
 
-  /// Dotknięcie mapy: jeśli blisko punktu trasy – menu tego punktu.
+  /// Dotknięcie mapy: stawia przenoszony punkt, a jeśli blisko punktu trasy – menu tego punktu.
   Future<void> _klikniecie(Point<double> ekran, LatLng p) async {
+    if (_klikDlaNakladki) return;
+    if (_przenoszony case final i?) return _postawPunkt(i, p);
     final c = _mapa;
     if (c == null || _plan.pusty) return;
     final naEkranie = await c.toScreenLocationBatch([for (final q in _plan.punkty) LatLng(q.lat, q.lon)]);
@@ -349,15 +371,19 @@ class _EkranMapyState extends State<EkranMapy> {
   Future<void> _menuPunktu(int i) async {
     final p = _plan.punkty[i];
     final posredni = i > 0 && i < _plan.dlugosc - 1;
-    final wybor = await showModalBottomSheet<String>(
-      context: context,
-      builder: (ctx) => SafeArea(
+    final wybor = await _arkusz<String>(
+      (ctx) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               title: Text(nazwaPunktu(_plan, i, powrot: _powrot), style: Theme.of(ctx).textTheme.titleMedium),
-              subtitle: const Text('Żeby przesunąć punkt, przeciągnij go palcem po mapie.'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.edit_location_alt_outlined),
+              title: const Text('Postaw w nowym miejscu'),
+              subtitle: const Text('Potem dotknij mapy tam, gdzie ma być punkt.'),
+              onTap: () => Navigator.pop(ctx, 'przenies'),
             ),
             if (posredni && p.rodzaj == RodzajPunktu.przez)
               ListTile(
@@ -386,6 +412,8 @@ class _EkranMapyState extends State<EkranMapy> {
         _ustawPlan(_plan.zmienRodzaj(i, RodzajPunktu.przystanek));
       case 'przez':
         _ustawPlan(_plan.zmienRodzaj(i, RodzajPunktu.przez));
+      case 'przenies':
+        _przenies(i);
       case 'usun':
         _ustawPlan(_plan.usun(i));
     }
@@ -395,6 +423,7 @@ class _EkranMapyState extends State<EkranMapy> {
     _numerObliczenia++;
     setState(() {
       _plan = const PlanTrasy();
+      _przenoszony = null;
       _trasaTam = null;
       _trasa = null;
       _odcinki = const [];
@@ -429,6 +458,30 @@ class _EkranMapyState extends State<EkranMapy> {
     _przelicz();
   }
 
+  /// Model terenu i przeszkody regionu do trasy na przełaj (wczytywane przy pierwszym użyciu).
+  ModelTerenu? _model;
+  Przeszkody? _przeszkody;
+
+  Future<Trasa> _trasaNaPrzelaj(List<(double, double)> punkty) async {
+    final r = widget.region;
+    final teren = r.teren;
+    if (teren == null) {
+      throw BladPrzelaju('Ten region nie ma jeszcze modelu terenu. Zaktualizuj go w „Regionach map”.');
+    }
+    final d = widget.dane;
+    _model ??= ModelTerenu(PMTiles((od, dl) => d.zakres(teren.plik, od, dl)));
+    if (_przeszkody == null) {
+      final p = r.przeszkody;
+      _przeszkody = p == null ? Przeszkody.pusty : Przeszkody.zGeojson(await d.tekst(p.plik));
+    }
+    return trasaNaPrzelaj(
+      punkty,
+      model: _model!,
+      przeszkody: _przeszkody!,
+      ustawienia: _unikajStromych ? const UstawieniaPrzelaju.lagodnie() : const UstawieniaPrzelaju(),
+    );
+  }
+
   Future<void> _przelicz() async {
     final numer = ++_numerObliczenia;
     await _odswiezWarstwy();
@@ -436,10 +489,18 @@ class _EkranMapyState extends State<EkranMapy> {
     setState(() => _liczy = true);
     final plan = _plan;
     try {
-      final trasa = await _brouter.oblicz(plan.wspolrzedne, tryb: _tryb, unikajStromych: _unikajStromych);
+      final trasa = _tryb.poDrogach
+          ? await widget.dane.trasownik.oblicz(plan.wspolrzedne, tryb: _tryb, unikajStromych: _unikajStromych)
+          : await _trasaNaPrzelaj(plan.wspolrzedne);
       if (numer != _numerObliczenia || !mounted) return;
       setState(() {
         _ustawTrase(trasa);
+        _liczy = false;
+      });
+    } on BladPrzelaju catch (e) {
+      if (numer != _numerObliczenia || !mounted) return;
+      setState(() {
+        _bladTrasy = e.komunikat;
         _liczy = false;
       });
     } on BladTrasy catch (e) {
@@ -470,37 +531,70 @@ class _EkranMapyState extends State<EkranMapy> {
       ..showSnackBar(SnackBar(content: Text(tekst)));
   }
 
+  /// Regiony, na które można przełączyć mapę: w telefonie pobrane, w przeglądarce wszystkie z serwera.
+  List<RegionPaczki> get _inneRegiony => [
+    for (final r in switch (widget.dane) {
+      final Magazyn m => m.gotoweRegiony(widget.katalog),
+      _ => widget.katalog.regiony,
+    })
+      if (r.id != widget.region.id) r,
+  ];
+
+  Future<void> _przelaczRegion(RegionPaczki r) async {
+    if (widget.dane case final Magazyn m) await m.ustawAktywny(r.id);
+    zapiszUstawienie('region', r.id);
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (_) => EkranMapy(dane: widget.dane, katalog: widget.katalog, region: r),
+      ),
+    );
+  }
+
   void _menu() {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.map_outlined),
-              title: Text(widget.region.nazwa),
-              subtitle: Text('Dane OSM z ${widget.katalog.daneOsm}'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.download),
-              title: const Text('Regiony map'),
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.of(context).push(MaterialPageRoute<void>(
-                  builder: (_) => EkranPobierania(magazyn: widget.magazyn),
-                ));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.info_outline),
-              title: const Text('O aplikacji i licencje'),
-              onTap: () {
-                Navigator.pop(ctx);
-                pokazOAplikacji(context);
-              },
-            ),
-          ],
+    _arkusz<void>(
+      // przy kilku regionach lista jest dłuższa niż arkusz: przewijana
+      (ctx) => SafeArea(
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.map_outlined),
+                title: Text(widget.region.nazwa),
+                subtitle: Text('Dane OSM z ${widget.katalog.daneOsm}'),
+              ),
+              for (final inny in _inneRegiony)
+                ListTile(
+                  leading: const Icon(Icons.swap_horiz),
+                  title: Text('Przełącz na: ${inny.nazwa}'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _przelaczRegion(inny);
+                  },
+                ),
+              if (widget.dane case final Magazyn magazyn)
+                ListTile(
+                  leading: const Icon(Icons.download),
+                  title: const Text('Regiony map'),
+                  subtitle: const Text('Pobieranie, aktualizacja i usuwanie'),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    Navigator.of(
+                      context,
+                    ).pushReplacement(MaterialPageRoute<void>(builder: (_) => EkranRegionow(magazyn: magazyn)));
+                  },
+                ),
+              ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: const Text('O aplikacji i licencje'),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  pokazOAplikacji(context);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -518,7 +612,8 @@ class _EkranMapyState extends State<EkranMapy> {
               styleString: styl,
               initialCameraPosition: CameraPosition(target: LatLng(r.srodekLat, r.srodekLon), zoom: 11),
               minMaxZoomPreference: const MinMaxZoomPreference(7, 18),
-              compassEnabled: true,
+              // w przeglądarce kompas MapLibre wchodził pod przycisk pozycji (bez marginesów na webie)
+              compassEnabled: !kIsWeb,
               compassViewPosition: CompassViewPosition.topRight,
               compassViewMargins: const Point(16, 96),
               attributionButtonPosition: AttributionButtonPosition.bottomLeft,
@@ -529,7 +624,6 @@ class _EkranMapyState extends State<EkranMapy> {
               onStyleLoadedCallback: _poZaladowaniuStylu,
               onMapLongClick: (_, p) => _przytrzymanie(p),
               onMapClick: _klikniecie,
-              // dotknięcie punktu trasy (warstwa interaktywna) też ma otworzyć jego menu
               featureTapsTriggersMapClick: true,
               onCameraTrackingDismissed: () => setState(() => _sledzi = false),
             )
@@ -540,10 +634,8 @@ class _EkranMapyState extends State<EkranMapy> {
               alignment: Alignment.topLeft,
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: FloatingActionButton.small(
-                  heroTag: 'menu',
-                  onPressed: _menu,
-                  child: const Icon(Icons.menu),
+                child: _nakladka(
+                  child: FloatingActionButton.small(heroTag: 'menu', onPressed: _menu, child: const Icon(Icons.menu)),
                 ),
               ),
             ),
@@ -553,10 +645,12 @@ class _EkranMapyState extends State<EkranMapy> {
               alignment: Alignment.topRight,
               child: Padding(
                 padding: const EdgeInsets.all(12),
-                child: FloatingActionButton.small(
-                  heroTag: 'pozycja',
-                  onPressed: _mojaPozycja,
-                  child: Icon(_sledzi ? Icons.my_location : Icons.location_searching),
+                child: _nakladka(
+                  child: FloatingActionButton.small(
+                    heroTag: 'pozycja',
+                    onPressed: _mojaPozycja,
+                    child: Icon(_sledzi ? Icons.my_location : Icons.location_searching),
+                  ),
                 ),
               ),
             ),
@@ -569,7 +663,7 @@ class _EkranMapyState extends State<EkranMapy> {
                   padding: const EdgeInsets.only(bottom: 36),
                   child: Chip(
                     avatar: const Icon(Icons.touch_app, size: 18),
-                    label: const Text('Przytrzymaj palec na mapie, aby zacząć trasę'),
+                    label: Text('$gestDodawania na mapie, aby zacząć trasę'),
                   ),
                 ),
               ),
@@ -578,20 +672,28 @@ class _EkranMapyState extends State<EkranMapy> {
             Align(
               alignment: Alignment.bottomCenter,
               child: SafeArea(
-                child: PanelTrasy(
-                  plan: _plan,
-                  trasa: _trasa,
-                  odcinki: _odcinki,
-                  tryb: _tryb,
-                  powrot: _powrot,
-                  unikajStromych: _unikajStromych,
-                  liczy: _liczy,
-                  blad: _bladTrasy,
-                  onTryb: _zmienTryb,
-                  onPowrot: _zmienPowrot,
-                  onUnikajStromych: _zmienUnikanieStromych,
-                  onCofnij: () => _ustawPlan(_plan.cofnij()),
-                  onWyczysc: _wyczysc,
+                // przeglądarka: kliknięcia w panel nie mogą trafiać do mapy pod nim
+                child: _nakladka(
+                  child: PanelTrasy(
+                    plan: _plan,
+                    trasa: _trasa,
+                    odcinki: _odcinki,
+                    tryb: _tryb,
+                    powrot: _powrot,
+                    unikajStromych: _unikajStromych,
+                    liczy: _liczy,
+                    blad: _bladTrasy,
+                    onTryb: _zmienTryb,
+                    onPowrot: _zmienPowrot,
+                    onUnikajStromych: _zmienUnikanieStromych,
+                    przenoszony: _przenoszony,
+                    onPunkt: _menuPunktu,
+                    onPrzenies: _przenies,
+                    onUsun: (i) => _ustawPlan(_plan.usun(i)),
+                    onAnulujPrzenoszenie: () => setState(() => _przenoszony = null),
+                    onCofnij: () => _ustawPlan(_plan.cofnij()),
+                    onWyczysc: _wyczysc,
+                  ),
                 ),
               ),
             ),

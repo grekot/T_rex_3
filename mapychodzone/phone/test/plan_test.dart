@@ -81,18 +81,32 @@ void main() {
     });
 
     test('tryby trasy przekazują BRouterowi siłę trzymania się szlaków', () {
-      expect(TrybTrasy.szlakami.parametryBRoutera, {'hiking_routes_preference': '5.0'});
+      expect(TrybTrasy.szlakami.parametryBRoutera, {'hiking_routes_preference': '5.0', 'SAC_scale_limit': '6'});
       // najkrócej: bez kary za trudność ścieżki (inaczej omijał krótkie podejście T3 na Modyń)
-      expect(TrybTrasy.najkrocej.parametryBRoutera, {'hiking_routes_preference': '0.0', 'SAC_K1': '0', 'SAC_K2': '0'});
+      expect(TrybTrasy.najkrocej.parametryBRoutera,
+          {'hiking_routes_preference': '0.0', 'SAC_scale_limit': '6', 'SAC_K1': '0', 'SAC_K2': '0'});
     });
 
     test('unikanie stromych dokłada koszt podejść ponad 15 %, bez kary za zejścia', () {
-      expect(parametryTrasy(TrybTrasy.szlakami), {'hiking_routes_preference': '5.0'});
+      expect(parametryTrasy(TrybTrasy.szlakami), {'hiking_routes_preference': '5.0', 'SAC_scale_limit': '6'});
       final p = parametryTrasy(TrybTrasy.szlakiISkroty, unikajStromych: true);
       expect(p['hiking_routes_preference'], '1.0');
       expect(p['consider_elevation'], '1');
       expect(p['uphillcutoffvalue'], '15');
       expect(p['downhillcostvalue'], '0');
+    });
+
+    test('z unikaniem stromych tryb porównuje się z trybami bliżej szlaków', () {
+      // bez unikania: tylko wybrany tryb
+      for (final t in TrybTrasy.values) {
+        expect(trybyDoPorownania(t), [t]);
+      }
+      // z unikaniem: Najkrócej nie może wyjść dłuższa niż Ze skrótami i Szlakami (Modyń: 2,44 vs 1,88 km)
+      expect(trybyDoPorownania(TrybTrasy.najkrocej, unikajStromych: true),
+          [TrybTrasy.najkrocej, TrybTrasy.szlakami, TrybTrasy.szlakiISkroty]);
+      expect(trybyDoPorownania(TrybTrasy.szlakiISkroty, unikajStromych: true),
+          [TrybTrasy.szlakiISkroty, TrybTrasy.szlakami]);
+      expect(trybyDoPorownania(TrybTrasy.szlakami, unikajStromych: true), [TrybTrasy.szlakami]);
     });
 
     test('przesunięcie punktu: rodzaj zostaje, nazwa z nowego miejsca', () {

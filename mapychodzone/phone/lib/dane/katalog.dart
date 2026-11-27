@@ -5,8 +5,9 @@ library;
 const repozytoriumDanych = 'https://github.com/grekot/mapychodzone-dane';
 
 /// Format paczek, który ta wersja aplikacji umie pokazać (2 = z warstwą punktów i znacznikiem
-/// {PUNKTY} w stylu). Starszy katalog na telefonie trzeba zaktualizować.
-const wymaganyFormatPaczek = 2;
+/// {PUNKTY} w stylu, 3 = do tego poziomice i model terenu do cieniowania, znaczniki {POZIOMICE} i {TEREN}). Starszy katalog na telefonie
+/// trzeba zaktualizować.
+const wymaganyFormatPaczek = 3;
 
 /// Najnowszy katalog. Pliki paczek pobieramy potem z konkretnego wydania ([Katalog.wydanie]),
 /// żeby nowe wydanie opublikowane w trakcie pobierania nie pomieszało plików.
@@ -35,6 +36,9 @@ class RegionPaczki {
     required this.mapa,
     required this.szlaki,
     this.punkty,
+    this.poziomice,
+    this.teren,
+    this.przeszkody,
     required this.rd5,
   });
 
@@ -50,8 +54,20 @@ class RegionPaczki {
   /// Szczyty, schroniska, przełęcze… (od formatu 2).
   final PlikPaczki? punkty;
 
+  /// Poziomice (PMTiles z DEM Copernicus GLO-30, od formatu 3).
+  final PlikPaczki? poziomice;
+
+  /// Model terenu do cieniowania rzeźby (PMTiles, PNG terrarium, od formatu 3).
+  final PlikPaczki? teren;
+
+  /// Przeszkody do trasy na przełaj: urwiska, woda, piargi, parki narodowe (GeoJSON, od formatu 3).
+  final PlikPaczki? przeszkody;
+
   /// Pliki danych tras BRouter (np. `E20_N45`) potrzebne w tym regionie.
   final List<String> rd5;
+
+  /// Pliki regionu z wydania (bez stylu i danych tras, które są wspólne).
+  List<PlikPaczki> get pliki => [mapa, szlaki, ?punkty, ?poziomice, ?teren, ?przeszkody];
 
   double get srodekLon => (bbox[0] + bbox[2]) / 2;
   double get srodekLat => (bbox[1] + bbox[3]) / 2;
@@ -67,6 +83,9 @@ class RegionPaczki {
         mapa: PlikPaczki.zJson(j['mapa'] as Map<String, dynamic>),
         szlaki: PlikPaczki.zJson(j['szlaki'] as Map<String, dynamic>),
         punkty: j['punkty'] == null ? null : PlikPaczki.zJson(j['punkty'] as Map<String, dynamic>),
+        poziomice: j['poziomice'] == null ? null : PlikPaczki.zJson(j['poziomice'] as Map<String, dynamic>),
+        teren: j['teren'] == null ? null : PlikPaczki.zJson(j['teren'] as Map<String, dynamic>),
+        przeszkody: j['przeszkody'] == null ? null : PlikPaczki.zJson(j['przeszkody'] as Map<String, dynamic>),
         rd5: (j['rd5'] as List).cast<String>(),
       );
 }

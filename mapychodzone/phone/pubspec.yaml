@@ -17,6 +17,12 @@ dependencies:
   maplibre_gl: 0.27.1
   # SHA-256 pobranych paczek
   crypto: ^3.0.6
+  # wersja przeglądarkowa: pliki z serwera i trasy z brouter.de
+  http: ^1.6.0
+  # localStorage w przeglądarce (ostatni region)
+  web: ^1.1.1
+  image: ^4.13.1
+  archive: ^4.7.1
 
 dev_dependencies:
   flutter_test:

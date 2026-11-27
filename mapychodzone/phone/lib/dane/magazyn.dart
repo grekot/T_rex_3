@@ -3,7 +3,9 @@ import 'dart:io';
 
 import 'package:flutter/services.dart';
 
+import '../trasa/brouter.dart';
 import 'katalog.dart';
+import 'zrodlo.dart';
 
 /// Pliki aplikacji w prywatnym katalogu telefonu:
 ///
@@ -14,7 +16,7 @@ import 'katalog.dart';
 ///   brouter/profile/*.brf, lookups.dat  (kopia z assets)
 ///   zasoby/glify/<font>/<zakres>.pbf, zasoby/sprite/light*.json|png  (kopia z assets)
 /// ```
-class Magazyn {
+class Magazyn implements ZrodloDanych {
   Magazyn(this.katalog);
 
   /// Zmienić, gdy zmienią się pliki w assets/brouter albo assets/mapa (wymusza ponowną kopię).
@@ -30,9 +32,42 @@ class Magazyn {
   String get sprite => '$katalog/zasoby/sprite';
 
   String get plikKatalogu => '$mapy/katalog.json';
+
+  /// Id regionu otwieranego na starcie (ostatnio oglądany).
+  String get plikAktywnego => '$mapy/aktywny.txt';
   String get plikStylu => '$mapy/styl.json';
   String plikMapy(String nazwa) => '$mapy/$nazwa';
   String plikRd5(String nazwa) => '$segmenty/$nazwa.rd5';
+
+  @override
+  Future<String> tekst(String plik) => File(plikMapy(plik)).readAsString();
+
+  @override
+  Future<Uint8List> zakres(String plik, int od, int dlugosc) async {
+    final f = await File(plikMapy(plik)).open();
+    try {
+      await f.setPosition(od);
+      return await f.read(dlugosc);
+    } finally {
+      await f.close();
+    }
+  }
+
+  // MapLibre Native czyta pliki przez file:///… (ścieżki bezwzględne)
+  @override
+  String adres(String plik) => 'file://${plikMapy(plik)}';
+
+  @override
+  String get adresGlifow => 'file://$glify';
+
+  @override
+  String get adresSprite => 'file://$sprite';
+
+  @override
+  bool get pobieranieRegionow => true;
+
+  @override
+  late final Trasownik trasownik = BRouter(this);
 
   /// Kopiuje fonty, sprite'y i profil BRoutera z assets do katalogu aplikacji,
   /// bo MapLibre i BRouter czytają zwykłe pliki (file://), nie assets APK.
@@ -79,22 +114,62 @@ class Magazyn {
       return f.existsSync() && (rozmiar == null || f.lengthSync() == rozmiar);
     }
 
-    final punkty = r.punkty;
     return jest(plikStylu, k.styl.rozmiar) &&
-        jest(plikMapy(r.mapa.plik), r.mapa.rozmiar) &&
-        jest(plikMapy(r.szlaki.plik), r.szlaki.rozmiar) &&
-        (punkty == null || jest(plikMapy(punkty.plik), punkty.rozmiar)) &&
+        r.pliki.every((p) => jest(plikMapy(p.plik), p.rozmiar)) &&
         r.rd5.every((n) => jest(plikRd5(n)));
   }
 
-  /// Pierwszy region z zapisanego katalogu, który jest kompletny na telefonie.
+  /// Czy na telefonie leży cokolwiek z regionu (np. starsza wersja do aktualizacji).
+  bool regionCzesciowo(RegionPaczki r) => r.pliki.any((p) => File(plikMapy(p.plik)).existsSync());
+
+  /// Regiony z katalogu, które są kompletne na telefonie.
+  List<RegionPaczki> gotoweRegiony(Katalog k) => [
+        for (final r in k.regiony)
+          if (regionGotowy(k, r)) r,
+      ];
+
+  String? get aktywnyRegion {
+    final f = File(plikAktywnego);
+    return f.existsSync() ? f.readAsStringSync().trim() : null;
+  }
+
+  Future<void> ustawAktywny(String id) async {
+    await File(plikAktywnego).parent.create(recursive: true);
+    await File(plikAktywnego).writeAsString(id, flush: true);
+  }
+
+  /// Region do otwarcia na starcie: aktywny, jeśli jest kompletny, inaczej pierwszy kompletny.
   /// Null także wtedy, gdy katalog ma starszy format niż wymaga aplikacja (trzeba dociągnąć dane).
   RegionPaczki? gotowyRegion() {
     final k = wczytajKatalog();
     if (k == null || !k.aktualny) return null;
-    for (final r in k.regiony) {
-      if (regionGotowy(k, r)) return r;
+    final gotowe = gotoweRegiony(k);
+    for (final r in gotowe) {
+      if (r.id == aktywnyRegion) return r;
     }
-    return null;
+    return gotowe.firstOrNull;
+  }
+
+  /// Miejsce zajmowane przez pliki regionu (bez wspólnych danych tras).
+  int zajeteMiejsce(RegionPaczki r) => r.pliki.fold(0, (s, p) {
+        final f = File(plikMapy(p.plik));
+        return s + (f.existsSync() ? f.lengthSync() : 0);
+      });
+
+  /// Usuwa pliki regionu. Dane tras (*.rd5) zostają, jeśli potrzebuje ich inny region,
+  /// który jest na telefonie (choćby częściowo).
+  Future<void> usunRegion(Katalog k, RegionPaczki r) async {
+    for (final p in r.pliki) {
+      final f = File(plikMapy(p.plik));
+      if (f.existsSync()) await f.delete();
+    }
+    final potrzebne = {
+      for (final inny in k.regiony)
+        if (inny.id != r.id && regionCzesciowo(inny)) ...inny.rd5,
+    };
+    for (final n in r.rd5) {
+      final f = File(plikRd5(n));
+      if (!potrzebne.contains(n) && f.existsSync()) await f.delete();
+    }
   }
 }

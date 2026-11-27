@@ -34,7 +34,13 @@ enum TrybTrasy {
 
   /// Najkrótsza trasa pieszo: bez premii za szlaki i bez kary za trudność ścieżki
   /// (w profilu ścieżka T3 kosztuje 2,56 razy więcej, więc trasa omijała skróty na szczyt).
-  najkrocej('Najkrócej', 0, bezKaryZaTrudnosc: true);
+  najkrocej('Najkrócej', 0, bezKaryZaTrudnosc: true),
+
+  /// Na przełaj, po azymucie: bez BRoutera, z modelu terenu i przeszkód OSM (trasa/na_przelaj.dart).
+  azymut('Azymut', -1);
+
+  /// Czy trasę liczy BRouter (po drogach i ścieżkach z mapy).
+  bool get poDrogach => this != azymut;
 
   const TrybTrasy(this.etykieta, this.preferencjaSzlakow, {this.bezKaryZaTrudnosc = false});
 
@@ -44,12 +50,16 @@ enum TrybTrasy {
   /// koszt odcinków poza szlakiem × (1 + wartość).
   final double preferencjaSzlakow;
 
+  /// Najwyższy dozwolony stopień trudności ścieżki (profil domyślnie: 3, czyli T4+ zakazane).
+  static const limitTrudnosci = 6;
+
   /// Zeruje kary profilu za ścieżki trudniejsze lub łatwiejsze od T1 (`SAC_K1`, `SAC_K2`).
-  /// Limit trudności profilu (powyżej T3 praktycznie zakaz) zostaje.
   final bool bezKaryZaTrudnosc;
 
   Map<String, String> get parametryBRoutera => {
         'hiking_routes_preference': '$preferencjaSzlakow',
+        // szlaki T4–T6 dozwolone (decyzja 27.11; Tatry: Orla Perć, Rysy), aplikacja ostrzega
+        'SAC_scale_limit': '$limitTrudnosci',
         if (bezKaryZaTrudnosc) ...{'SAC_K1': '0', 'SAC_K2': '0'},
       };
 }
@@ -69,6 +79,21 @@ Map<String, String> parametryTrasy(TrybTrasy tryb, {bool unikajStromych = false}
       ...tryb.parametryBRoutera,
       if (unikajStromych) ...parametryUnikaniaStromych,
     };
+
+/// Tryby, które trzeba policzyć dla wybranego trybu; aplikacja bierze najkrótszy wynik.
+///
+/// Bez unikania stromych wystarcza sam wybrany tryb. Z unikaniem kara za strome podejścia
+/// waży więcej niż długość: Szlakami nie zejdzie ze szlaku (poza nim 6 razy drożej), więc
+/// zostaje przy stromym szlaku, a Najkrócej znajdzie łagodny, ale dłuższy objazd.
+/// Przykład (Modyń od północy): Szlakami 1,88 km, Najkrócej 2,44 km. Dlatego tryb mniej
+/// przywiązany do szlaków porównuje się z bardziej przywiązanymi: Najkrócej nigdy nie jest
+/// dłuższa od Ze skrótami i Szlakami, a Ze skrótami od Szlakami.
+List<TrybTrasy> trybyDoPorownania(TrybTrasy tryb, {bool unikajStromych = false}) => [
+      tryb,
+      if (unikajStromych)
+        for (final t in TrybTrasy.values)
+          if (t.preferencjaSzlakow > tryb.preferencjaSzlakow) t,
+    ];
 
 /// Kolejne punkty trasy. Niezmienny: każda operacja zwraca nowy plan.
 class PlanTrasy {

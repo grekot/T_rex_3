@@ -12,6 +12,8 @@ void pokazOAplikacji(BuildContext context) {
         'Dane mapy i szlaków: © OpenStreetMap contributors, licencja ODbL '
         '(openstreetmap.org/copyright).\n\n'
         'Mapa bazowa: Protomaps Basemap (dane OSM).\n\n'
+        'Poziomice i cieniowanie terenu: Copernicus DEM GLO-30 © DLR e.V. 2010-2014 i © Airbus Defence and Space GmbH '
+        '2014-2018, udostępnione w ramach programu Copernicus przez Unię Europejską i ESA.\n\n'
         'Trasy: BRouter (licencja MIT), dane tras z brouter.de (OSM, wysokości SRTM).\n\n'
         'Czas przejścia: norma DIN 33466 (4 km/h, 300 m/h w górę, 500 m/h w dół).\n\n'
         'Fonty Noto Sans (SIL Open Font License), ikony mapy: Protomaps basemaps-assets (MIT), '

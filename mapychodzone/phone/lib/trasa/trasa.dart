@@ -10,9 +10,19 @@ class PunktTrasy {
   final double odStartu;
 }
 
+/// Prosty odcinek trasy na przełaj: azymut geograficzny (0–360°) i długość (m).
+class OdcinekAzymutu {
+  const OdcinekAzymutu(this.azymut, this.dlugosc);
+  final double azymut;
+  final double dlugosc;
+
+  /// Ten sam odcinek przechodzony w drugą stronę.
+  OdcinekAzymutu get odwrotny => OdcinekAzymutu((azymut + 180) % 360, dlugosc);
+}
+
 /// Wyznaczona trasa z BRoutera i liczby, które pokazujemy: długość, podejścia, zejścia, czas.
 class Trasa {
-  Trasa(this.punkty)
+  Trasa(this.punkty, {this.trudnyTeren = const {}, this.uwagi = const [], this.azymuty = const []})
       : dlugosc = punkty.isEmpty ? 0 : punkty.last.odStartu,
         _przewyzszenia = sumaPrzewyzszen([
           for (final p in punkty)
@@ -20,6 +30,16 @@ class Trasa {
         ]);
 
   final List<PunktTrasy> punkty;
+
+  /// Metry trasy w trudnym terenie według skali SAC (4 = T4 … 6 = T6), z danych OSM (`sac_scale`).
+  /// Pusta mapa: trasa nie wychodzi ponad T3.
+  final Map<int, double> trudnyTeren;
+
+  /// Ostrzeżenia do pokazania pod trasą (np. park narodowy, bród).
+  final List<String> uwagi;
+
+  /// Trasa na przełaj: kolejne odcinki proste z azymutem (pusta dla tras z BRoutera).
+  final List<OdcinekAzymutu> azymuty;
 
   /// Metry.
   final double dlugosc;
@@ -73,7 +93,12 @@ class Trasa {
       final ost = wynik.last;
       wynik.add(PunktTrasy(p.lon, p.lat, p.wysokosc, ost.odStartu + odlegloscM(ost.lat, ost.lon, p.lat, p.lon)));
     }
-    return Trasa(wynik);
+    return Trasa(
+      wynik,
+      trudnyTeren: {for (final e in trudnyTeren.entries) e.key: e.value * 2},
+      uwagi: uwagi,
+      azymuty: [...azymuty, for (final o in azymuty.reversed) o.odwrotny],
+    );
   }
 
   /// Wynik BRoutera (FormatJson): FeatureCollection z jedną linią `[lon, lat, wysokość]`.
@@ -93,8 +118,50 @@ class Trasa {
       if (i > 0) suma += odlegloscM(punkty.last.lat, punkty.last.lon, lat, lon);
       punkty.add(PunktTrasy(lon, lat, h, suma));
     }
-    return Trasa(punkty);
+    final wlasciwosci = (cechy.first as Map<String, dynamic>)['properties'];
+    final komunikaty = wlasciwosci is Map ? wlasciwosci['messages'] : null;
+    return Trasa(punkty, trudnyTeren: komunikaty is List ? trudnyTerenZKomunikatow(komunikaty) : const {});
   }
+}
+
+/// Stopień trudności SAC (1–6) z tagu OSM `sac_scale`; null dla nieznanych.
+int? stopienSac(String sacScale) => switch (sacScale) {
+      'hiking' => 1,
+      'mountain_hiking' => 2,
+      'demanding_mountain_hiking' => 3,
+      'alpine_hiking' => 4,
+      'demanding_alpine_hiking' => 5,
+      'difficult_alpine_hiking' => 6,
+      _ => null,
+    };
+
+/// Metry trasy w terenie T4+ z tabeli `messages` BRoutera: pierwszy wiersz to nagłówki
+/// (m.in. „Distance” i „WayTags”), kolejne to odcinki dróg z ich tagami OSM.
+Map<int, double> trudnyTerenZKomunikatow(List komunikaty) {
+  if (komunikaty.length < 2 || komunikaty.first is! List) return const {};
+  final naglowki = (komunikaty.first as List).map((e) => '$e').toList();
+  final iDl = naglowki.indexOf('Distance');
+  final iTagi = naglowki.indexOf('WayTags');
+  if (iDl < 0 || iTagi < 0) return const {};
+  final wynik = <int, double>{};
+  for (final w in komunikaty.skip(1)) {
+    if (w is! List || w.length <= math.max(iDl, iTagi)) continue;
+    final sac = RegExp(r'sac_scale=([a-z_]+)').firstMatch('${w[iTagi]}')?.group(1);
+    final stopien = sac == null ? null : stopienSac(sac);
+    if (stopien == null || stopien < 4) continue;
+    wynik[stopien] = (wynik[stopien] ?? 0) + (double.tryParse('${w[iDl]}') ?? 0);
+  }
+  return wynik;
+}
+
+/// Ostrzeżenie o trudnym terenie albo null, gdy trasa nie wychodzi ponad T3.
+String? ostrzezenieTrudnosci(Map<int, double> trudnyTeren) {
+  final metry = trudnyTeren.values.fold<double>(0, (a, b) => a + b);
+  if (metry < 1) return null;
+  final stopnie = trudnyTeren.keys.toList()..sort();
+  final zakres = stopnie.first == stopnie.last ? 'T${stopnie.first}' : 'T${stopnie.first}–T${stopnie.last}';
+  return '${opisDlugosci(metry)} trasy to trudny teren $zakres (ekspozycja, łańcuchy, wspinaczka). '
+      'Sprawdź warunki i czy to szlak dla Ciebie.';
 }
 
 /// Odległość po kuli (haversine), w metrach.
@@ -140,6 +207,13 @@ Duration czasPrzejscia({
   final godziny = math.max(poziomo, pionowo) + math.min(poziomo, pionowo) / 2;
   return Duration(minutes: (godziny * 60).round());
 }
+
+/// Deklinacja magnetyczna w polskich górach w 2026 r.: ok. 6–7° na wschód (Sudety ok. 5,5°,
+/// Bieszczady ok. 7,5°). Kompas pokazuje azymut magnetyczny: geograficzny minus deklinacja.
+const deklinacjaMagnetyczna = 6.5;
+
+/// „137°” – azymut geograficzny zaokrąglony do stopnia.
+String opisAzymutu(double azymut) => '${azymut.round() % 360}°';
 
 /// „12,4 km” albo „850 m”.
 String opisDlugosci(double metry) {

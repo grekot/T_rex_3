@@ -1,9 +1,13 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:maplibre_gl/maplibre_gl.dart';
 
 import 'ui/ekran_startowy.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  // przeglądarka: web/index.html sam ładuje MapLibre GL JS i rejestruje protokół pmtiles://
+  if (kIsWeb) MapLibreMap.webLibrarySource = const MapLibreJsSource.preloaded();
   runApp(const MapyChodzone());
 }
 
