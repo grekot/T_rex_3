@@ -7,6 +7,9 @@ import 'package:maplibre_gl/maplibre_gl.dart';
 import '../dane/katalog.dart';
 import '../dane/magazyn.dart';
 import '../dane/zrodlo.dart';
+import '../konto/konto.dart';
+import '../konto/trasy_w_chmurze.dart';
+import '../konto/zapisana_trasa.dart';
 import '../pamiec/pamiec.dart';
 import '../mapa/punkty_nazwane.dart';
 import '../mapa/styl.dart';
@@ -17,6 +20,7 @@ import '../trasa/na_przelaj.dart';
 import '../trasa/plan.dart';
 import '../trasa/trasa.dart';
 import '../urzadzenie.dart';
+import 'ekran_moich_tras.dart';
 import 'ekran_regionow.dart';
 import 'o_aplikacji.dart';
 import 'panel_trasy.dart';
@@ -32,12 +36,16 @@ const _pustyGeojson = <String, dynamic>{'type': 'FeatureCollection', 'features':
 /// albo „postaw w nowym miejscu” (następne dotknięcie mapy przenosi punkt).
 /// BRouter liczy trasę (w telefonie offline, w przeglądarce przez brouter.de) w wybranym trybie (szlakami, ze skrótami, najkrócej),
 /// opcjonalnie omijając strome podejścia.
+/// Po zalogowaniu trasę można zapisać na koncie i otworzyć w telefonie albo w przeglądarce („Moje trasy”).
 class EkranMapy extends StatefulWidget {
-  const EkranMapy({super.key, required this.dane, required this.katalog, required this.region});
+  const EkranMapy({super.key, required this.dane, required this.katalog, required this.region, this.otworz});
 
   final ZrodloDanych dane;
   final Katalog katalog;
   final RegionPaczki region;
+
+  /// Zapisana trasa do pokazania od razu (otwarta z „Moich tras” w innym regionie).
+  final ZapisanaTrasa? otworz;
 
   @override
   State<EkranMapy> createState() => _EkranMapyState();
@@ -70,9 +78,20 @@ class _EkranMapyState extends State<EkranMapy> {
   String? _bladTrasy;
   int _numerObliczenia = 0;
 
+  /// Trasa z konta, którą teraz pokazujemy i zmieniamy („Zapisz zmiany” ją nadpisze).
+  ZapisanaTrasa? _zapisana;
+
+  /// Kamera ma objąć całą trasę, gdy mapa będzie gotowa.
+  bool _dopasujKamere = false;
+  TrasyWChmurze? _repo;
+
   @override
   void initState() {
     super.initState();
+    if (widget.otworz case final t?) {
+      _wczytajZapisana(t);
+      _dopasujKamere = true;
+    }
     _wczytajStyl();
     _wczytajPunkty();
     // w przeglądarce pytanie o lokalizację dopiero po dotknięciu „moja pozycja”
@@ -194,6 +213,7 @@ class _EkranMapyState extends State<EkranMapy> {
     );
     setState(() => _stylGotowy = true);
     await _odswiezWarstwy();
+    if (_dopasujKamere) await _pokazCalaTrase();
   }
 
   Map<String, dynamic> get _punktyGeojson {
@@ -279,24 +299,30 @@ class _EkranMapyState extends State<EkranMapy> {
   /// i menu. Dlatego każde dotknięcie nakładki zapisuje czas, a mapa ignoruje kliknięcia
   /// tuż po nim (zdarzenie „click” przychodzi po puszczeniu przycisku, „dblclick” po drugim).
   DateTime _dotykNakladki = DateTime(2000);
-  bool _arkuszOtwarty = false;
+
+  /// Ile okien (arkuszy, dialogów, ekranów) leży teraz nad mapą. Licznik, nie flaga: pozycja menu
+  /// zamyka arkusz i od razu otwiera następne okno, a arkusz kończy się dopiero po chwili.
+  int _otwarteOkna = 0;
 
   bool get _klikDlaNakladki =>
-      _arkuszOtwarty || DateTime.now().difference(_dotykNakladki) < const Duration(milliseconds: 500);
+      _otwarteOkna > 0 || DateTime.now().difference(_dotykNakladki) < const Duration(milliseconds: 500);
 
   Widget _nakladka({required Widget child}) =>
       Listener(onPointerDown: (_) => _dotykNakladki = DateTime.now(), child: child);
 
-  Future<T?> _arkusz<T>(WidgetBuilder builder) async {
-    _arkuszOtwarty = true;
+  Future<T> _okno<T>(Future<T> Function() otworz) async {
+    _otwarteOkna++;
     try {
-      return await showModalBottomSheet<T>(context: context, builder: builder);
+      return await otworz();
     } finally {
-      // kliknięcie, które zamknęło arkusz, dociera do mapy chwilę później
-      _arkuszOtwarty = false;
+      // kliknięcie, które zamknęło okno, dociera do mapy chwilę później
+      _otwarteOkna--;
       _dotykNakladki = DateTime.now();
     }
   }
+
+  Future<T?> _arkusz<T>(WidgetBuilder builder) =>
+      _okno(() => showModalBottomSheet<T>(context: context, builder: builder));
 
   Future<void> _przytrzymanie(LatLng p) async {
     if (_klikDlaNakladki) return;
@@ -429,6 +455,7 @@ class _EkranMapyState extends State<EkranMapy> {
       _odcinki = const [];
       _bladTrasy = null;
       _liczy = false;
+      _zapisana = null;
     });
     _odswiezWarstwy();
   }
@@ -547,13 +574,157 @@ class _EkranMapyState extends State<EkranMapy> {
       if (r.id != widget.region.id) r,
   ];
 
-  Future<void> _przelaczRegion(RegionPaczki r) async {
+  Future<void> _przelaczRegion(RegionPaczki r, {ZapisanaTrasa? otworz}) async {
     if (widget.dane case final Magazyn m) await m.ustawAktywny(r.id);
     zapiszUstawienie('region', r.id);
     if (!mounted) return;
     Navigator.of(context).pushReplacement(
       MaterialPageRoute<void>(
-        builder: (_) => EkranMapy(dane: widget.dane, katalog: widget.katalog, region: r),
+        builder: (_) => EkranMapy(dane: widget.dane, katalog: widget.katalog, region: r, otworz: otworz),
+      ),
+    );
+  }
+
+  // ---- konto i zapisane trasy ----
+
+  TrasyWChmurze? get _chmura {
+    final u = Konto.uzytkownik;
+    if (u == null) return null;
+    if (_repo?.uid != u.uid) {
+      _repo = TrasyWChmurze(u.uid, u.email ?? '')
+        ..onBladZapisu = (e) {
+          if (mounted) _komunikat('Serwer nie przyjął zapisu trasy: $e');
+        };
+    }
+    return _repo;
+  }
+
+  /// Repozytorium tras zalogowanego użytkownika; gdy nikt nie jest zalogowany – najpierw logowanie.
+  Future<TrasyWChmurze?> _kontoTras() async {
+    if (!Konto.dostepne) return null;
+    if (Konto.uzytkownik == null) {
+      final zalogowany = await _okno(() => zaloguj(context));
+      if (!zalogowany || !mounted) return null;
+    }
+    return _chmura;
+  }
+
+  Future<void> _zaloguj() async {
+    if (await _kontoTras() != null && mounted) {
+      _komunikat('Zalogowano: ${Konto.uzytkownik?.email ?? ''}. Trasę zapiszesz przyciskiem „Zapisz” w panelu trasy.');
+    }
+  }
+
+  Future<void> _wyloguj() async {
+    await Konto.wyloguj();
+    if (mounted) _komunikat('Wylogowano. Zapisane trasy zostają na koncie.');
+  }
+
+  Future<void> _zapisz() async {
+    final tam = _trasaTam;
+    if (tam == null || _liczy || _bladTrasy != null) {
+      _komunikat('Najpierw trasa musi się policzyć.');
+      return;
+    }
+    final chmura = await _kontoTras();
+    if (chmura == null || !mounted) return;
+    final z = _zapisana;
+    final wynik = await _okno(
+      () => oknoZapisu(context, nazwa: z?.nazwa ?? proponowanaNazwa(_plan, DateTime.now()), zapisana: z != null),
+    );
+    if (wynik == null || !mounted) return;
+    final (nazwa, jakoNowa) = wynik;
+    final t = ZapisanaTrasa(
+      id: jakoNowa ? null : z?.id,
+      nazwa: nazwa,
+      region: widget.region.id,
+      plan: _plan,
+      tryb: _tryb,
+      powrot: _powrot,
+      unikajStromych: _unikajStromych,
+      tam: tam,
+    );
+    try {
+      final id = await chmura.zapisz(t);
+      if (!mounted) return;
+      setState(() => _zapisana = t.zmien(id: id));
+      _komunikat('Zapisano „$nazwa”. Znajdziesz ją w „Moich trasach” w telefonie i w przeglądarce.');
+    } on Object catch (e) {
+      if (mounted) _komunikat('Nie udało się zapisać trasy: $e');
+    }
+  }
+
+  Future<void> _mojeTrasy() async {
+    final chmura = await _kontoTras();
+    if (chmura == null || !mounted) return;
+    final id = await _okno(
+      () => Navigator.of(context).push<String>(
+        MaterialPageRoute(builder: (_) => EkranMoichTras(chmura: chmura, katalog: widget.katalog)),
+      ),
+    );
+    if (id == null || !mounted) return;
+    final ZapisanaTrasa? t;
+    try {
+      t = await chmura.wczytaj(id);
+    } on Object catch (e) {
+      if (mounted) _komunikat('Nie udało się wczytać trasy: $e');
+      return;
+    }
+    if (t == null || !mounted) return;
+    if (t.region == widget.region.id) return _otworz(t);
+    final r = widget.katalog.region(t.region);
+    if (r == null) {
+      _komunikat('Trasa „${t.nazwa}” jest z regionu, którego nie ma w katalogu map.');
+    } else if (!_inneRegiony.any((x) => x.id == r.id)) {
+      _komunikat('Trasa „${t.nazwa}” leży w regionie ${r.nazwa}. Pobierz go w „Regionach map”.');
+    } else {
+      await _przelaczRegion(r, otworz: t);
+    }
+  }
+
+  void _wczytajZapisana(ZapisanaTrasa t) {
+    _numerObliczenia++;
+    _plan = t.plan;
+    _tryb = t.tryb;
+    _powrot = t.powrot;
+    _unikajStromych = t.unikajStromych;
+    _przenoszony = null;
+    _bladTrasy = null;
+    _liczy = false;
+    _zapisana = t;
+    _ustawTrase(t.tam);
+  }
+
+  /// Pokazuje zapisaną trasę bez ponownego liczenia (ślad jest w zapisie).
+  Future<void> _otworz(ZapisanaTrasa t) async {
+    setState(() => _wczytajZapisana(t));
+    await _odswiezWarstwy();
+    await _pokazCalaTrase();
+  }
+
+  Future<void> _pokazCalaTrase() async {
+    final c = _mapa, t = _trasa;
+    if (c == null || !_stylGotowy || t == null || t.punkty.isEmpty) {
+      _dopasujKamere = true;
+      return;
+    }
+    _dopasujKamere = false;
+    var s = t.punkty.first.lat, n = s, w = t.punkty.first.lon, e = w;
+    for (final p in t.punkty) {
+      s = min(s, p.lat);
+      n = max(n, p.lat);
+      w = min(w, p.lon);
+      e = max(e, p.lon);
+    }
+    // panel trasy zajmuje do połowy ekranu od dołu
+    final dol = MediaQuery.sizeOf(context).height * 0.5 + 16;
+    await c.animateCamera(
+      CameraUpdate.newLatLngBounds(
+        LatLngBounds(southwest: LatLng(s, w), northeast: LatLng(n, e)),
+        left: 40,
+        top: 72,
+        right: 40,
+        bottom: dol,
       ),
     );
   }
@@ -571,6 +742,37 @@ class _EkranMapyState extends State<EkranMapy> {
                 title: Text(widget.region.nazwa),
                 subtitle: Text('Dane OSM z ${widget.katalog.daneOsm}'),
               ),
+              if (Konto.dostepne) ...[
+                if (Konto.uzytkownik case final u?) ...[
+                  ListTile(
+                    leading: const Icon(Icons.bookmarks_outlined),
+                    title: const Text('Moje trasy'),
+                    subtitle: const Text('Zapisane na koncie: w telefonie i w przeglądarce'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _mojeTrasy();
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.logout),
+                    title: const Text('Wyloguj'),
+                    subtitle: Text(u.email ?? ''),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _wyloguj();
+                    },
+                  ),
+                ] else
+                  ListTile(
+                    leading: const Icon(Icons.login),
+                    title: const Text('Zaloguj się'),
+                    subtitle: const Text('Zapisywanie tras: wspólne dla telefonu i przeglądarki'),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _zaloguj();
+                    },
+                  ),
+              ],
               for (final inny in _inneRegiony)
                 ListTile(
                   leading: const Icon(Icons.swap_horiz),
@@ -700,6 +902,8 @@ class _EkranMapyState extends State<EkranMapy> {
                     onAnulujPrzenoszenie: () => setState(() => _przenoszony = null),
                     onCofnij: () => _ustawPlan(_plan.cofnij()),
                     onWyczysc: _wyczysc,
+                    nazwaZapisanej: _zapisana?.nazwa,
+                    onZapisz: Konto.dostepne ? _zapisz : null,
                   ),
                 ),
               ),

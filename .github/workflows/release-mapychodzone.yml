@@ -5,7 +5,8 @@ name: Release MapyChodzone
 # stała nazwa mapychodzone.apk + app.json + icon.png w GitHub Release tego repo.
 # Wersja = tag bez prefiksu `mapychodzone-v`. versionCode = (run_number + 10), a przy
 # --split-per-abi Flutter dodaje 2000 dla arm64 – więcej niż lokalne buildy 1.0.0+1.
-# MapyChodzone nie używa Firebase (dane tylko na telefonie), więc bez firebase_options_path.
+# Firebase (konto i trasy zapisane w Firestore, projekt zakupy-8ec54): lib/firebase_options.dart z sekretu
+# FIREBASE_OPTIONS_MAPYCHODZONE_B64 (base64 pliku z tool/configure.mjs); bez sekretu APK działa bez konta.
 # Paczki map nie są w APK: aplikacja pobiera je z wydań grekot/mapychodzone-dane.
 on:
   push:
@@ -34,9 +35,11 @@ jobs:
       release_name: MapyChodzone ${{ needs.meta.outputs.version }}
       target_abi: arm64
       version_code_offset: 10
+      firebase_options_path: mapychodzone/phone/lib/firebase_options.dart
     secrets:
       KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
       KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
       KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
       KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      FIREBASE_OPTIONS_DART_B64: ${{ secrets.FIREBASE_OPTIONS_MAPYCHODZONE_B64 }}
       FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}

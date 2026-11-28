@@ -44,6 +44,8 @@ class PanelTrasy extends StatelessWidget {
     required this.onAnulujPrzenoszenie,
     required this.onCofnij,
     required this.onWyczysc,
+    this.nazwaZapisanej,
+    this.onZapisz,
   });
 
   final PlanTrasy plan;
@@ -73,6 +75,12 @@ class PanelTrasy extends StatelessWidget {
   final VoidCallback onCofnij;
   final VoidCallback onWyczysc;
 
+  /// Nazwa trasy z konta, gdy pokazujemy zapisaną trasę.
+  final String? nazwaZapisanej;
+
+  /// Zapis trasy na koncie; null, gdy ta wersja aplikacji nie ma konta (bez Firebase).
+  final VoidCallback? onZapisz;
+
   @override
   Widget build(BuildContext context) {
     final teksty = Theme.of(context).textTheme;
@@ -87,6 +95,19 @@ class PanelTrasy extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (nazwaZapisanej case final nazwa?)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 6),
+                  child: Row(
+                    children: [
+                      Icon(Icons.bookmark, size: 18, color: Theme.of(context).colorScheme.primary),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(nazwa, style: teksty.titleSmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      ),
+                    ],
+                  ),
+                ),
               SizedBox(
                 width: double.infinity,
                 child: SegmentedButton<TrybTrasy>(
@@ -204,6 +225,12 @@ class PanelTrasy extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
+                  if (onZapisz != null)
+                    TextButton.icon(
+                      onPressed: t != null && !liczy && blad == null ? onZapisz : null,
+                      icon: Icon(nazwaZapisanej == null ? Icons.bookmark_add_outlined : Icons.bookmark_outlined),
+                      label: const Text('Zapisz'),
+                    ),
                   TextButton.icon(onPressed: onCofnij, icon: const Icon(Icons.undo), label: const Text('Cofnij')),
                   TextButton.icon(onPressed: onWyczysc, icon: const Icon(Icons.close), label: const Text('Wyczyść')),
                 ],

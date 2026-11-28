@@ -3,8 +3,9 @@
 Piesza mapa turystyczna **offline** na Androida (nazwa to gra słów: mapy piesze, do chodzenia).
 Plan i decyzje: `C:\TMP\My_GIT\MapyChodzone\plan_aplikacji.md` (poza repozytorium).
 
-Stan: **0.0.4** (27.11.2026): 7 regionów z polskimi górami (dane w formacie 3: poziomice, cieniowanie,
-przeszkody), trasa na przełaj, wersja przeglądarkowa na https://mapychodzone.web.app.
+Stan: **0.0.5** (28.11.2026): konto i trasy zapisane na koncie, wspólne dla telefonu i strony.
+0.0.4: 7 regionów z polskimi górami (dane w formacie 3: poziomice, cieniowanie, przeszkody),
+trasa na przełaj, wersja przeglądarkowa na https://mapychodzone.web.app.
 
 ## Co umie
 
@@ -29,7 +30,10 @@ przeszkody), trasa na przełaj, wersja przeglądarkowa na https://mapychodzone.w
   z „postaw w nowym miejscu” i „usuń”; dotknięcie punktu – zmiana rodzaju, przeniesienie,
   usunięcie; punkty przy nazwanych obiektach dostają ich nazwę,
 - **powrót tą samą drogą** (ślad tam + ten sam ślad odwrócony),
-- panel: długość, podejścia, zejścia, czas wg DIN 33466, profil wysokości, odcinki.
+- panel: długość, podejścia, zejścia, czas wg DIN 33466, profil wysokości, odcinki,
+- **konto (dobrowolne)**: to samo co w Zakupach, Powrocie i Wadze (Firebase `zakupy-8ec54`, ekran z pakietu
+  `wspolne`); „Zapisz” w panelu trasy i **Moje trasy** w menu – trasy w Firestore `trasy/{id}` z gotowym
+  śladem, wspólne dla telefonu i strony (w telefonie działają też bez sieci).
 
 ## Budowa
 
@@ -40,13 +44,18 @@ phone\build_apk.cmd
 APK: `phone\build\app\outputs\flutter-apk\app-arm64-v8a-release.apk`.
 Wydanie do Sklepu rodzinnego: tag `mapychodzone-vX.Y.Z` → `.github/workflows/release-mapychodzone.yml`.
 
-Wersja przeglądarkowa: `phoneuild_web.cmd` (Flutter web + dane z `mapychodzone-daneuild`),
+Wersja przeglądarkowa: `phone\build_web.cmd` (Flutter web + dane z `mapychodzone-dane\build`),
 test `node tool\web.mjs serwer 8090`, wydanie `npx firebase-tools deploy --only hosting`
 (Firebase Hosting, projekt `zakupy-8ec54`, strona `mapychodzone`). W przeglądarce trasy liczy
 brouter.de, a przytrzymanie palca to podwójne kliknięcie.
 
+Firebase: `node tool\configure.mjs` zapisuje `lib/firebase_options.dart` (poza repozytorium) z
+`android/app/google-services.json` i `tool/firebase-web.json`; CI bierze go z sekretu
+`FIREBASE_OPTIONS_MAPYCHODZONE_B64`. Bez pliku aplikacja działa bez konta. Test z emulatorami Firebase:
+`flutter build web --dart-define=EMULATOR=localhost` (Auth 9099, Firestore 8080).
+
 Testy: `flutter test` w `phone` (trasa i DIN, katalog paczek, styl, magazyn regionów, PMTiles,
-trasa na przełaj).
+trasa na przełaj, zapisana trasa).
 
 ## Układ kodu (`phone/lib`)
 
@@ -57,7 +66,8 @@ trasa na przełaj).
 | `teren/` | czytnik PMTiles, model terenu z kafelków PNG terrarium |
 | `trasa/` | BRouter (kanał `Trasy.kt` albo brouter.de), trasa na przełaj, model trasy, czas DIN 33466 |
 | `pamiec/` | ostatni region w przeglądarce (localStorage) |
-| `ui/` | ekrany: start, regiony, mapa z panelem trasy |
+| `konto/` | Firebase, zapisana trasa (ślad jako tekst), repozytorium tras w Firestore |
+| `ui/` | ekrany: start, regiony, mapa z panelem trasy, Moje trasy i logowanie |
 
 Android: `MainActivity.kt` (kanały `urzadzenie` i `trasy`), `Trasy.kt` (BRouter),
 `android/app/libs/brouter-1.7.10-ro.jar`.
