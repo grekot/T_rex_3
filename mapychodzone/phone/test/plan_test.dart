@@ -51,30 +51,69 @@ void main() {
       expect(plan.punkty.map((p) => p.lon), [20.0, 20.1, 20.15, 20.2]);
     });
 
-    test('wstawianie po trasie: decyduje najbliższy kawałek policzonej trasy', () {
-      final trasa = trasaProsta(201); // 20,0 … 20,2
+    // Trasa użytkownika z 28.11 (Kotówka → Ćwilin, „Skróty”): punkty „przez” zapisały się w kolejności
+    // 1, 2, 3, 4, 5, 6, 7, 8, a trasa wracała pod górę do 7 i schodziła znowu (3,66 km zamiast 2,87 km).
+    // Logiczna kolejność schodzenia: 1, 2, 3, 7, 6, 5, 4, 8.
+    test(
+      'wstawianie punktów „przez” pod Ćwilinem: kolejność jak przy schodzeniu, niezależnie od kolejności klikania',
+      () {
+        const p = {
+          1: (20.18048, 49.69844),
+          2: (20.18192, 49.69632),
+          3: (20.18222, 49.69521),
+          4: (20.18484, 49.68943),
+          5: (20.18286, 49.68959),
+          6: (20.18034, 49.68961),
+          7: (20.18192, 49.692),
+          8: (20.18672, 49.68899),
+        };
+        const logiczna = [1, 2, 3, 7, 6, 5, 4, 8];
+        for (final klikanie in const [
+          [1, 2, 3, 4, 5, 6, 7, 8],
+          [1, 2, 3, 7, 6, 5, 4, 8],
+          [4, 5, 6, 8, 1, 2, 3, 7],
+          [8, 6, 1, 3, 4, 2, 7, 5],
+        ]) {
+          var plan = const PlanTrasy().dodajNaKoncu(20.17873, 49.6998).dodajNaKoncu(20.19143, 49.68876);
+          for (final k in klikanie) {
+            plan = plan.wstaw(p[k]!.$1, p[k]!.$2, RodzajPunktu.przez);
+          }
+          final kolejnosc = [
+            for (final q in plan.punkty.sublist(1, plan.dlugosc - 1))
+              p.entries.firstWhere((e) => e.value.$1 == q.lon && e.value.$2 == q.lat).key,
+          ];
+          expect(kolejnosc, logiczna, reason: 'klikanie $klikanie');
+        }
+      },
+    );
+
+    test('zmiana kolejności: start i cel zawsze na końcach, „przez” zostaje „przez”', () {
       final plan = const PlanTrasy()
-          .dodajNaKoncu(20.0, 49.5)
-          .dodajNaKoncu(20.1, 49.5)
-          .dodajNaKoncu(20.2, 49.5)
-          .wstaw(20.05, 49.5005, RodzajPunktu.przez, trasa: trasa);
-      expect(plan.punkty.map((p) => p.lon), [20.0, 20.05, 20.1, 20.2]);
+          .dodajNaKoncu(20.0, 49.5, nazwa: 'A')
+          .dodajNaKoncu(20.3, 49.5, nazwa: 'D')
+          .wstaw(20.1, 49.5, RodzajPunktu.przez, nazwa: 'B')
+          .wstaw(20.2, 49.5, RodzajPunktu.przystanek, nazwa: 'C');
+      String opis(PlanTrasy p) => [for (final q in p.punkty) '${q.nazwa}:${q.rodzaj.name}'].join(' ');
+      expect(opis(plan), 'A:start B:przez C:przystanek D:cel');
+      // „przez” w dół o jedno miejsce
+      expect(opis(plan.zmienKolejnosc(1, 2)), 'A:start C:przystanek B:przez D:cel');
+      // cel na początek: staje się startem, dawny start – przystankiem, ostatni punkt – celem
+      expect(opis(plan.zmienKolejnosc(3, 0)), 'D:start A:przystanek B:przez C:cel');
+      // start na koniec
+      expect(opis(plan.zmienKolejnosc(0, 3)), 'B:start C:przystanek D:przystanek A:cel');
+      // bez zmian i poza zakresem
+      expect(identical(plan.zmienKolejnosc(2, 2), plan), isTrue);
+      expect(identical(plan.zmienKolejnosc(0, 9), plan), isTrue);
+      expect(plan.zmienKolejnosc(1, 2).indeksyCelow, [1, 3]);
     });
 
     test('usunięcie startu: następny punkt zostaje startem', () {
-      final plan = const PlanTrasy()
-          .dodajNaKoncu(20.0, 49.5)
-          .dodajNaKoncu(20.1, 49.5)
-          .dodajNaKoncu(20.2, 49.5)
-          .usun(0);
+      final plan = const PlanTrasy().dodajNaKoncu(20.0, 49.5).dodajNaKoncu(20.1, 49.5).dodajNaKoncu(20.2, 49.5).usun(0);
       expect(plan.punkty.map((p) => p.rodzaj), [RodzajPunktu.start, RodzajPunktu.cel]);
     });
 
     test('zmiana rodzaju tylko dla punktów pośrednich', () {
-      final plan = const PlanTrasy()
-          .dodajNaKoncu(20.0, 49.5)
-          .dodajNaKoncu(20.1, 49.5)
-          .dodajNaKoncu(20.2, 49.5);
+      final plan = const PlanTrasy().dodajNaKoncu(20.0, 49.5).dodajNaKoncu(20.1, 49.5).dodajNaKoncu(20.2, 49.5);
       expect(plan.zmienRodzaj(1, RodzajPunktu.przez).punkty[1].rodzaj, RodzajPunktu.przez);
       expect(plan.zmienRodzaj(0, RodzajPunktu.przez).punkty[0].rodzaj, RodzajPunktu.start);
       expect(plan.zmienRodzaj(2, RodzajPunktu.przez).punkty[2].rodzaj, RodzajPunktu.cel);
@@ -83,8 +122,12 @@ void main() {
     test('tryby trasy przekazują BRouterowi siłę trzymania się szlaków', () {
       expect(TrybTrasy.szlakami.parametryBRoutera, {'hiking_routes_preference': '5.0', 'SAC_scale_limit': '6'});
       // najkrócej: bez kary za trudność ścieżki (inaczej omijał krótkie podejście T3 na Modyń)
-      expect(TrybTrasy.najkrocej.parametryBRoutera,
-          {'hiking_routes_preference': '0.0', 'SAC_scale_limit': '6', 'SAC_K1': '0', 'SAC_K2': '0'});
+      expect(TrybTrasy.najkrocej.parametryBRoutera, {
+        'hiking_routes_preference': '0.0',
+        'SAC_scale_limit': '6',
+        'SAC_K1': '0',
+        'SAC_K2': '0',
+      });
     });
 
     test('unikanie stromych dokłada koszt podejść ponad 15 %, bez kary za zejścia', () {
@@ -102,10 +145,15 @@ void main() {
         expect(trybyDoPorownania(t), [t]);
       }
       // z unikaniem: Najkrócej nie może wyjść dłuższa niż Ze skrótami i Szlakami (Modyń: 2,44 vs 1,88 km)
-      expect(trybyDoPorownania(TrybTrasy.najkrocej, unikajStromych: true),
-          [TrybTrasy.najkrocej, TrybTrasy.szlakami, TrybTrasy.szlakiISkroty]);
-      expect(trybyDoPorownania(TrybTrasy.szlakiISkroty, unikajStromych: true),
-          [TrybTrasy.szlakiISkroty, TrybTrasy.szlakami]);
+      expect(trybyDoPorownania(TrybTrasy.najkrocej, unikajStromych: true), [
+        TrybTrasy.najkrocej,
+        TrybTrasy.szlakami,
+        TrybTrasy.szlakiISkroty,
+      ]);
+      expect(trybyDoPorownania(TrybTrasy.szlakiISkroty, unikajStromych: true), [
+        TrybTrasy.szlakiISkroty,
+        TrybTrasy.szlakami,
+      ]);
       expect(trybyDoPorownania(TrybTrasy.szlakami, unikajStromych: true), [TrybTrasy.szlakami]);
     });
 
@@ -130,10 +178,14 @@ void main() {
       final plan = const PlanTrasy()
           .dodajNaKoncu(20.0, 49.5)
           .dodajNaKoncu(20.2, 49.5)
-          .wstaw(20.05, 49.5, RodzajPunktu.przez, trasa: trasa)
-          .wstaw(20.12, 49.5, RodzajPunktu.przystanek, trasa: trasa);
-      expect(plan.punkty.map((p) => p.rodzaj),
-          [RodzajPunktu.start, RodzajPunktu.przez, RodzajPunktu.przystanek, RodzajPunktu.cel]);
+          .wstaw(20.05, 49.5, RodzajPunktu.przez)
+          .wstaw(20.12, 49.5, RodzajPunktu.przystanek);
+      expect(plan.punkty.map((p) => p.rodzaj), [
+        RodzajPunktu.start,
+        RodzajPunktu.przez,
+        RodzajPunktu.przystanek,
+        RodzajPunktu.cel,
+      ]);
       final o = odcinki(trasa, plan);
       expect(o.length, 2);
       expect(o[0].odIndeksu, 0);
@@ -150,7 +202,9 @@ void main() {
       final tam = trasaProsta(101).punkty;
       final punkty = [...tam];
       for (final p in tam.reversed.skip(1)) {
-        punkty.add(PunktTrasy(p.lon, p.lat, p.wysokosc, punkty.last.odStartu + odlegloscM(49.5, punkty.last.lon, 49.5, p.lon)));
+        punkty.add(
+          PunktTrasy(p.lon, p.lat, p.wysokosc, punkty.last.odStartu + odlegloscM(49.5, punkty.last.lon, 49.5, p.lon)),
+        );
       }
       final trasa = Trasa(punkty);
       final plan = PlanTrasy([
@@ -163,10 +217,12 @@ void main() {
   });
 
   test('nazwy z warstwy punktów: najbliższy obiekt, szczyt przed wiatą', () {
-    final n = PunktyNazwane.zGeojson('{"type":"FeatureCollection","features":['
-        '{"type":"Feature","properties":{"t":"wiata","n":"Wiata","r":4},"geometry":{"type":"Point","coordinates":[20.1001,49.5]}},'
-        '{"type":"Feature","properties":{"t":"szczyt","n":"Turbacz","e":1310,"r":1},"geometry":{"type":"Point","coordinates":[20.1003,49.5]}},'
-        '{"type":"Feature","properties":{"t":"zrodlo","r":4},"geometry":{"type":"Point","coordinates":[20.1,49.5]}}]}');
+    final n = PunktyNazwane.zGeojson(
+      '{"type":"FeatureCollection","features":['
+      '{"type":"Feature","properties":{"t":"wiata","n":"Wiata","r":4},"geometry":{"type":"Point","coordinates":[20.1001,49.5]}},'
+      '{"type":"Feature","properties":{"t":"szczyt","n":"Turbacz","e":1310,"r":1},"geometry":{"type":"Point","coordinates":[20.1003,49.5]}},'
+      '{"type":"Feature","properties":{"t":"zrodlo","r":4},"geometry":{"type":"Point","coordinates":[20.1,49.5]}}]}',
+    );
     expect(n.najblizszy(20.1, 49.5)?.opis, 'Turbacz (1310 m)');
     expect(n.najblizszy(20.2, 49.5), isNull);
   });
@@ -199,7 +255,7 @@ void main() {
       final plan = const PlanTrasy()
           .dodajNaKoncu(20.0, 49.5)
           .dodajNaKoncu(20.2, 49.5)
-          .wstaw(20.1, 49.5, RodzajPunktu.przystanek, trasa: tam);
+          .wstaw(20.1, 49.5, RodzajPunktu.przystanek);
       final o = odcinki(tam, plan, powrot: true);
       expect(o.length, 3);
       expect(o.last.powrot, isTrue);

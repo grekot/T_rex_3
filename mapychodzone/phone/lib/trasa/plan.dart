@@ -57,11 +57,11 @@ enum TrybTrasy {
   final bool bezKaryZaTrudnosc;
 
   Map<String, String> get parametryBRoutera => {
-        'hiking_routes_preference': '$preferencjaSzlakow',
-        // szlaki T4–T6 dozwolone (decyzja 27.11; Tatry: Orla Perć, Rysy), aplikacja ostrzega
-        'SAC_scale_limit': '$limitTrudnosci',
-        if (bezKaryZaTrudnosc) ...{'SAC_K1': '0', 'SAC_K2': '0'},
-      };
+    'hiking_routes_preference': '$preferencjaSzlakow',
+    // szlaki T4–T6 dozwolone (decyzja 27.11; Tatry: Orla Perć, Rysy), aplikacja ostrzega
+    'SAC_scale_limit': '$limitTrudnosci',
+    if (bezKaryZaTrudnosc) ...{'SAC_K1': '0', 'SAC_K2': '0'},
+  };
 }
 
 /// Opcja „unikaj stromych podejść”: każdy metr podejścia ponad nachylenie 15 % kosztuje
@@ -76,9 +76,9 @@ const parametryUnikaniaStromych = {
 
 /// Wszystkie parametry profilu BRoutera dla wybranego trybu i opcji.
 Map<String, String> parametryTrasy(TrybTrasy tryb, {bool unikajStromych = false}) => {
-      ...tryb.parametryBRoutera,
-      if (unikajStromych) ...parametryUnikaniaStromych,
-    };
+  ...tryb.parametryBRoutera,
+  if (unikajStromych) ...parametryUnikaniaStromych,
+};
 
 /// Tryby, które trzeba policzyć dla wybranego trybu; aplikacja bierze najkrótszy wynik.
 ///
@@ -89,11 +89,11 @@ Map<String, String> parametryTrasy(TrybTrasy tryb, {bool unikajStromych = false}
 /// przywiązany do szlaków porównuje się z bardziej przywiązanymi: Najkrócej nigdy nie jest
 /// dłuższa od Ze skrótami i Szlakami, a Ze skrótami od Szlakami.
 List<TrybTrasy> trybyDoPorownania(TrybTrasy tryb, {bool unikajStromych = false}) => [
-      tryb,
-      if (unikajStromych)
-        for (final t in TrybTrasy.values)
-          if (t.preferencjaSzlakow > tryb.preferencjaSzlakow) t,
-    ];
+  tryb,
+  if (unikajStromych)
+    for (final t in TrybTrasy.values)
+      if (t.preferencjaSzlakow > tryb.preferencjaSzlakow) t,
+];
 
 /// Kolejne punkty trasy. Niezmienny: każda operacja zwraca nowy plan.
 class PlanTrasy {
@@ -106,9 +106,9 @@ class PlanTrasy {
 
   /// Punkty, do których prowadzi nawigacja i na których dzielą się odcinki (bez startu).
   List<int> get indeksyCelow => [
-        for (var i = 1; i < punkty.length; i++)
-          if (punkty[i].jestCelem) i,
-      ];
+    for (var i = 1; i < punkty.length; i++)
+      if (punkty[i].jestCelem) i,
+  ];
 
   /// Numer przystanku do podpisu na mapie (1, 2, …), null dla innych rodzajów.
   int? numerPrzystanku(int indeks) {
@@ -130,14 +130,18 @@ class PlanTrasy {
     return PlanTrasy(nowe);
   }
 
-  /// Wstawia punkt pośredni ([RodzajPunktu.przez] albo [RodzajPunktu.przystanek]) między
-  /// punkty, gdzie najmniej wydłuża trasę. Gdy jest policzona [trasa], decyduje odcinek trasy
-  /// najbliższy nowemu punktowi; bez niej – najmniejszy objazd w linii prostej.
-  PlanTrasy wstaw(double lon, double lat, RodzajPunktu rodzaj, {String? nazwa, Trasa? trasa}) {
+  /// Wstawia punkt pośredni ([RodzajPunktu.przez] albo [RodzajPunktu.przystanek]) między te dwa
+  /// sąsiednie punkty, przy których najmniej wydłuża trasę w linii prostej
+  /// (odl(A, nowy) + odl(nowy, B) − odl(A, B)), jak w OsmAnd.
+  ///
+  /// Wcześniej decydował najbliższy kawałek policzonej trasy, ale przy kilku punktach „przez”
+  /// trasa ma zakręty i odnogi do poprzednich punktów, więc najbliższy kawałek należał często do
+  /// innego odcinka: punkty ustawiały się w złej kolejności i trasa chodziła tam i z powrotem
+  /// (Kotówka → Ćwilin, 28.11: 3,66 km zamiast 2,87 km, test w plan_test.dart).
+  PlanTrasy wstaw(double lon, double lat, RodzajPunktu rodzaj, {String? nazwa}) {
     assert(rodzaj == RodzajPunktu.przez || rodzaj == RodzajPunktu.przystanek);
     if (punkty.length < 2) return dodajNaKoncu(lon, lat, nazwa: nazwa);
-    final miejsce = (trasa != null ? _miejscePoTrasie(lon, lat, trasa) : null) ?? _miejsceNajmniejszyObjazd(lon, lat);
-    final nowe = [...punkty]..insert(miejsce, PunktPlanu(lon, lat, rodzaj, nazwa: nazwa));
+    final nowe = [...punkty]..insert(_miejsceNajmniejszyObjazd(lon, lat), PunktPlanu(lon, lat, rodzaj, nazwa: nazwa));
     return PlanTrasy(nowe);
   }
 
@@ -146,7 +150,10 @@ class PlanTrasy {
     var najmniej = double.infinity;
     for (var i = 0; i + 1 < punkty.length; i++) {
       final a = punkty[i], b = punkty[i + 1];
-      final objazd = odlegloscM(a.lat, a.lon, lat, lon) + odlegloscM(lat, lon, b.lat, b.lon) - odlegloscM(a.lat, a.lon, b.lat, b.lon);
+      final objazd =
+          odlegloscM(a.lat, a.lon, lat, lon) +
+          odlegloscM(lat, lon, b.lat, b.lon) -
+          odlegloscM(a.lat, a.lon, b.lat, b.lon);
       if (objazd < najmniej) {
         najmniej = objazd;
         najlepsze = i + 1;
@@ -155,24 +162,25 @@ class PlanTrasy {
     return najlepsze;
   }
 
-  int? _miejscePoTrasie(double lon, double lat, Trasa trasa) {
-    if (trasa.punkty.isEmpty) return null;
-    final indeksy = indeksyNaTrasie(trasa, punkty);
-    if (indeksy == null) return null;
-    var najblizszy = 0;
-    var min = double.infinity;
-    for (var j = 0; j < trasa.punkty.length; j++) {
-      final p = trasa.punkty[j];
-      final d = odlegloscM(p.lat, p.lon, lat, lon);
-      if (d < min) {
-        min = d;
-        najblizszy = j;
-      }
+  /// Przenosi punkt z miejsca [z] na miejsce [na] (indeks po przeniesieniu). Pierwszy punkt jest
+  /// zawsze startem, ostatni celem; dawny start albo cel w środku listy zostaje przystankiem
+  /// (był celem, więc dalej dzieli trasę), a punkty „przez” i przystanki zachowują rodzaj.
+  PlanTrasy zmienKolejnosc(int z, int na) {
+    if (z == na || z < 0 || na < 0 || z >= punkty.length || na >= punkty.length) return this;
+    final nowe = [...punkty];
+    nowe.insert(na, nowe.removeAt(z));
+    for (var i = 0; i < nowe.length; i++) {
+      final p = nowe[i];
+      final rodzaj = i == 0
+          ? RodzajPunktu.start
+          : i == nowe.length - 1
+          ? RodzajPunktu.cel
+          : (p.rodzaj == RodzajPunktu.start || p.rodzaj == RodzajPunktu.cel)
+          ? RodzajPunktu.przystanek
+          : p.rodzaj;
+      if (rodzaj != p.rodzaj) nowe[i] = p.jako(rodzaj);
     }
-    for (var i = 0; i + 1 < indeksy.length; i++) {
-      if (najblizszy <= indeksy[i + 1]) return i + 1;
-    }
-    return punkty.length - 1;
+    return PlanTrasy(nowe);
   }
 
   PlanTrasy usun(int indeks) {
@@ -283,13 +291,15 @@ List<Odcinek> odcinki(Trasa trasa, PlanTrasy plan, {bool powrot = false}) {
       for (final p in kawalek)
         if (p.wysokosc != null) p.wysokosc!,
     ]);
-    wynik.add(Odcinek(
-      odIndeksu: poczatek,
-      doIndeksu: k,
-      dlugosc: trasa.punkty[b].odStartu - trasa.punkty[a].odStartu,
-      podejscia: gora,
-      zejscia: dol,
-    ));
+    wynik.add(
+      Odcinek(
+        odIndeksu: poczatek,
+        doIndeksu: k,
+        dlugosc: trasa.punkty[b].odStartu - trasa.punkty[a].odStartu,
+        podejscia: gora,
+        zejscia: dol,
+      ),
+    );
     poczatek = k;
   }
   if (powrot && wynik.isNotEmpty) {
@@ -297,14 +307,16 @@ List<Odcinek> odcinki(Trasa trasa, PlanTrasy plan, {bool powrot = false}) {
       for (final p in trasa.punkty.reversed)
         if (p.wysokosc != null) p.wysokosc!,
     ]);
-    wynik.add(Odcinek(
-      odIndeksu: plan.dlugosc - 1,
-      doIndeksu: 0,
-      dlugosc: trasa.dlugosc,
-      podejscia: gora,
-      zejscia: dol,
-      powrot: true,
-    ));
+    wynik.add(
+      Odcinek(
+        odIndeksu: plan.dlugosc - 1,
+        doIndeksu: 0,
+        dlugosc: trasa.dlugosc,
+        podejscia: gora,
+        zejscia: dol,
+        powrot: true,
+      ),
+    );
   }
   return wynik;
 }

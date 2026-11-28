@@ -406,8 +406,8 @@ class _EkranMapyState extends State<EkranMapy> {
   void _dodajPunkt(String? wybor, double x, double y, String? nazwa) {
     if (wybor == null) return;
     _ustawPlan(switch (wybor) {
-      'przez' => _plan.wstaw(x, y, RodzajPunktu.przez, nazwa: nazwa, trasa: _trasaTam),
-      'przystanek' => _plan.wstaw(x, y, RodzajPunktu.przystanek, nazwa: nazwa, trasa: _trasaTam),
+      'przez' => _plan.wstaw(x, y, RodzajPunktu.przez, nazwa: nazwa),
+      'przystanek' => _plan.wstaw(x, y, RodzajPunktu.przystanek, nazwa: nazwa),
       'nowyStart' => _plan.przesun(0, x, y, nazwa: nazwa),
       _ => _plan.dodajNaKoncu(x, y, nazwa: nazwa),
     });
@@ -1084,6 +1084,10 @@ class _EkranMapyState extends State<EkranMapy> {
                         onPrzenies: _przenies,
                         onUsun: (i) => _ustawPlan(_plan.usun(i)),
                         onAnulujPrzenoszenie: () => setState(() => _przenoszony = null),
+                        onKolejnosc: (z, na) {
+                          _podswietl(null);
+                          _ustawPlan(_plan.zmienKolejnosc(z, na));
+                        },
                         onCofnij: () => _ustawPlan(_plan.cofnij()),
                         onWyczysc: _wyczysc,
                         nazwaZapisanej: _zapisana?.nazwa,

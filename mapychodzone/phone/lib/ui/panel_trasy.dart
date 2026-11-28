@@ -54,6 +54,7 @@ class PanelTrasy extends StatefulWidget {
     this.onZwin,
     this.podswietlony,
     this.onPodswietl,
+    this.onKolejnosc,
   });
 
   final PlanTrasy plan;
@@ -96,6 +97,9 @@ class PanelTrasy extends StatefulWidget {
   /// Punkt wskazany kursorem na liście (przeglądarka); [onPodswietl] z null, gdy kursor zszedł z listy.
   final int? podswietlony;
   final ValueChanged<int?>? onPodswietl;
+
+  /// Przeciągnięcie punktu na liście za uchwyt: z miejsca na miejsce (indeks po przeniesieniu).
+  final void Function(int z, int na)? onKolejnosc;
 
   @override
   State<PanelTrasy> createState() => _PanelTrasyState();
@@ -194,8 +198,19 @@ class _PanelTrasyState extends State<PanelTrasy> {
       if (plan.dlugosc > 1) ...[
         const SizedBox(height: 6),
         Text('Punkty trasy', style: teksty.labelLarge),
-        for (var i = 0; i < plan.dlugosc; i++)
-          _WierszPunktu(
+        // kolejność zmienia się przeciągnięciem za uchwyt po prawej (mysz i palec)
+        ReorderableListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          buildDefaultDragHandles: false,
+          itemCount: plan.dlugosc,
+          onReorder: (z, na) {
+            // ReorderableListView podaje miejsce przed usunięciem przenoszonego punktu
+            if (na > z) na--;
+            w.onKolejnosc?.call(z, na);
+          },
+          itemBuilder: (context, i) => _WierszPunktu(
+            key: ObjectKey(plan.punkty[i]),
             plan: plan,
             indeks: i,
             powrot: w.powrot,
@@ -205,7 +220,9 @@ class _PanelTrasyState extends State<PanelTrasy> {
             onPrzenies: () => w.onPrzenies(i),
             onUsun: () => w.onUsun(i),
             onKursor: w.onPodswietl == null ? null : (nad) => w.onPodswietl!(nad ? i : null),
+            przeciaganie: w.onKolejnosc != null,
           ),
+        ),
         const SizedBox(height: 4),
         Text(
           kIsWeb
@@ -404,9 +421,10 @@ class _Przenoszenie extends StatelessWidget {
   }
 }
 
-/// Punkt trasy na liście: ikona rodzaju, nazwa, przenieś, usuń.
+/// Punkt trasy na liście: ikona rodzaju, nazwa, przenieś, usuń, uchwyt do zmiany kolejności.
 class _WierszPunktu extends StatelessWidget {
   const _WierszPunktu({
+    super.key,
     required this.plan,
     required this.indeks,
     required this.powrot,
@@ -416,6 +434,7 @@ class _WierszPunktu extends StatelessWidget {
     required this.onPrzenies,
     required this.onUsun,
     this.onKursor,
+    this.przeciaganie = false,
   });
 
   final PlanTrasy plan;
@@ -431,6 +450,9 @@ class _WierszPunktu extends StatelessWidget {
 
   /// Kursor wszedł na wiersz (true) albo z niego zszedł (false).
   final ValueChanged<bool>? onKursor;
+
+  /// Uchwyt ☰ do przeciągania (wiersz w ReorderableListView).
+  final bool przeciaganie;
 
   @override
   Widget build(BuildContext context) {
@@ -479,6 +501,17 @@ class _WierszPunktu extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
                 onPressed: onUsun,
               ),
+              if (przeciaganie)
+                ReorderableDragStartListener(
+                  index: indeks,
+                  child: const Tooltip(
+                    message: 'Przeciągnij, aby zmienić kolejność',
+                    child: MouseRegion(
+                      cursor: SystemMouseCursors.grab,
+                      child: Padding(padding: EdgeInsets.all(8), child: Icon(Icons.drag_handle)),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),

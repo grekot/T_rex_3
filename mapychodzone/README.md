@@ -3,7 +3,9 @@
 Piesza mapa turystyczna **offline** na Androida (nazwa to gra słów: mapy piesze, do chodzenia).
 Plan i decyzje: `C:\TMP\My_GIT\MapyChodzone\plan_aplikacji.md` (poza repozytorium).
 
-Stan: **0.0.6** (28.11.2026): przytrzymanie palca pokazuje kółko i menu rodzaju punktu, zwijany panel trasy
+Stan: **0.0.7** (28.11.2026): kolejność punktów zmieniana przeciąganiem za uchwyt na liście; nowy punkt
+„przez” trafia tam, gdzie najmniej wydłuża trasę (wcześniej przy kilku punktach ustawiał się w złej kolejności).
+0.0.6: przytrzymanie palca pokazuje kółko i menu rodzaju punktu, zwijany panel trasy
 z osobno przewijaną listą punktów; w przeglądarce mysz jak w programach do map (lewy = menu punktu,
 prawy = przesuwanie, kółko nad panelem przewija panel), podświetlanie punktu z listy na mapie.
 0.0.5: konto i trasy zapisane na koncie, wspólne dla telefonu i strony.
