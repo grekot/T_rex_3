@@ -2,12 +2,38 @@
   "hosting": {
     "site": "mapychodzone",
     "public": "build/web",
-    "ignore": ["firebase.json", "**/.*"],
+    "ignore": [
+      "firebase.json",
+      "**/.*"
+    ],
     "headers": [
-      { "source": "/index.html", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
-      { "source": "/flutter_bootstrap.js", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
-      { "source": "/dane/katalog.json", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
-      { "source": "/dane/**", "headers": [{ "key": "Cache-Control", "value": "public, max-age=3600" }] }
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/dane/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public, max-age=3600"
+          }
+        ]
+      },
+      {
+        "source": "/dane/katalog.json",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
     ]
   }
 }
