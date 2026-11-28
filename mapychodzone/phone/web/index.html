@@ -19,21 +19,26 @@
   <!--
     Mysz na mapie (jak w programach do map na komputerze):
     - kursor to zwykła strzałka,
-    - prawy przycisk + przeciąganie przesuwa mapę (kursor: rączka),
-    - lewy przycisk nie przesuwa mapy: kliknięcie otwiera w aplikacji menu „jaki punkt postawić”,
-    - podwójne kliknięcie nic nie robi (wcześniej dodawało punkt i przybliżało mapę),
+    - lewy przycisk + przeciąganie przesuwa mapę (kursor: rączka); kliknięcie lewym w punkt trasy
+      otwiera menu tego punktu,
+    - prawy przycisk otwiera w aplikacji menu „jaki punkt postawić” w klikniętym miejscu: zdarzenie
+      „contextmenu” zamieniamy na „dblclick” mapy, które wtyczka maplibre_gl podaje aplikacji jako
+      onMapLongClick (tak jak przytrzymanie palca w telefonie); mapa się przy tym nie obraca,
+    - podwójne kliknięcie nic nie robi (ani punktu, ani przybliżenia),
     - kółko przybliża mapę, chyba że kursor jest nad panelem lub przyciskiem aplikacji: wtedy
       przewija się tylko panel. Flutter podaje prostokąty swoich nakładek (mapyChodzone.prostokaty)
       i czy jest otwarte okno nad całą mapą (mapyChodzone.okno); Flutter nie widzi ruchu kursora
-      nad samą mapą, więc pozycję sprawdzamy tutaj.
+      nad samą mapą, więc pozycję sprawdzamy tutaj. Nad nakładkami lewy przycisk też nie
+      przesuwa mapy, a prawy nie otwiera menu.
     Mapa (element HTML) leży pod Flutterem i dostaje zdarzenia także spod paneli, dlatego
     filtrujemy je tu, zanim dotrą do MapLibre. Flutter używa zdarzeń „pointer” i „wheel”,
     których nie zatrzymujemy, więc panel dalej działa.
-    Dotyk (telefon w przeglądarce) zostaje bez zmian: MapLibre obsługuje go osobno.
+    Dotyk (telefon w przeglądarce): przesuwanie bez zmian, przytrzymanie palca daje „contextmenu”,
+    czyli też menu punktu.
   -->
   <style>
     .maplibregl-canvas-container.maplibregl-interactive { cursor: default; }
-    .maplibregl-canvas-container.maplibregl-interactive.mapy-przesuwanie { cursor: grabbing; }
+    .maplibregl-canvas-container.maplibregl-interactive:active { cursor: grabbing; }
     /* Podpis źródeł mapy (element HTML mapy) leży nad aplikacją i zasłaniał przyciski panelu trasy:
        w lewym górnym rogu, pod przyciskiem menu. */
     .maplibregl-ctrl-bottom-left { top: 60px; bottom: auto; }
@@ -48,30 +53,19 @@
 
     function obsluzMysz(mapa) {
       const kontener = mapa.getContainer();
-      const plotno = mapa.getCanvasContainer();
-      let ciagnie = null;
       kontener.addEventListener('mousedown', (e) => {
-        if (e.button === 0) {
-          e.stopPropagation(); // lewy: bez przesuwania; „click” i tak dotrze do MapLibre
-        } else if (e.button === 2) {
-          e.stopPropagation(); // prawy: bez obracania mapy
-          e.preventDefault();
-          if (nadNakladka(e)) return;
-          ciagnie = { x: e.clientX, y: e.clientY };
-          plotno.classList.add('mapy-przesuwanie');
-        }
+        // lewy nad panelem: bez przesuwania mapy pod spodem
+        if (e.button === 0 && nadNakladka(e)) e.stopPropagation();
+        // prawy: bez obracania mapy (menu otwiera „contextmenu”)
+        if (e.button === 2) e.stopPropagation();
       }, true);
-      window.addEventListener('mousemove', (e) => {
-        if (!ciagnie) return;
-        mapa.panBy([ciagnie.x - e.clientX, ciagnie.y - e.clientY], { duration: 0 });
-        ciagnie = { x: e.clientX, y: e.clientY };
-      });
-      window.addEventListener('mouseup', (e) => {
-        if (e.button !== 2 || !ciagnie) return;
-        ciagnie = null;
-        plotno.classList.remove('mapy-przesuwanie');
-      });
-      kontener.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); }, true);
+      kontener.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (nadNakladka(e)) return;
+        mapa.fire(new maplibregl.MapMouseEvent('dblclick', mapa, e));
+      }, true);
+      // prawdziwe podwójne kliknięcie nie dociera do MapLibre: bez przybliżania i bez punktu
       kontener.addEventListener('dblclick', (e) => e.stopPropagation(), true);
       // przed obsługą kółka w MapLibre: nad panelem mapa się nie przybliża
       kontener.addEventListener('wheel', (e) => {

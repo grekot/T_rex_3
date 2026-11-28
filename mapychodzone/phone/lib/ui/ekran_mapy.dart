@@ -32,9 +32,9 @@ const _pustyGeojson = <String, dynamic>{'type': 'FeatureCollection', 'features':
 
 /// Mapa offline regionu z planowaniem trasy.
 ///
-/// Przytrzymanie palca (w przeglądarce kliknięcie lewym przyciskiem): w tym miejscu pojawia się
+/// Przytrzymanie palca (w przeglądarce kliknięcie prawym przyciskiem): w tym miejscu pojawia się
 /// kółko i menu z rodzajem punktu – start, cel, punkt „przez” (prowadź tędy), przystanek (cel
-/// pośredni) albo nowy cel. W przeglądarce prawy przycisk przesuwa mapę (web/index.html).
+/// pośredni) albo nowy cel. W przeglądarce lewy przycisk przesuwa mapę (web/index.html).
 /// Punkty trasy: lista w panelu albo dotknięcie punktu – zmiana rodzaju, usunięcie
 /// albo „postaw w nowym miejscu” (następne dotknięcie mapy przenosi punkt).
 /// BRouter liczy trasę (w telefonie offline, w przeglądarce przez brouter.de) w wybranym trybie (szlakami, ze skrótami, najkrócej),
@@ -391,11 +391,13 @@ class _EkranMapyState extends State<EkranMapy> {
   Future<T?> _arkusz<T>(WidgetBuilder builder) =>
       _okno(() => showModalBottomSheet<T>(context: context, builder: builder));
 
-  /// Przytrzymanie palca (telefon): kółko w tym miejscu i menu z rodzajem punktu, jak kliknięcie w przeglądarce.
+  /// Przytrzymanie palca (telefon) albo prawy przycisk myszy (przeglądarka: web/index.html zamienia
+  /// „contextmenu” na „dblclick”, który wtyczka podaje jako długie dotknięcie): kółko w tym miejscu
+  /// i menu z rodzajem punktu.
   Future<void> _przytrzymanie(Point<double> ekran, LatLng p) async {
     if (_klikDlaNakladki) return;
     if (_przenoszony case final i?) return _postawPunkt(i, p);
-    HapticFeedback.mediumImpact();
+    if (!kIsWeb) HapticFeedback.mediumImpact();
     await _menuMapy(ekran, p);
   }
 
@@ -431,14 +433,12 @@ class _EkranMapyState extends State<EkranMapy> {
   }
 
   /// Dotknięcie mapy: stawia przenoszony punkt, a jeśli blisko punktu trasy – menu tego punktu.
-  /// W przeglądarce kliknięcie w puste miejsce otwiera menu „jaki punkt postawić”.
   Future<void> _klikniecie(Point<double> ekran, LatLng p) async {
     if (_klikDlaNakladki) return;
     if (_przenoszony case final i?) return _postawPunkt(i, p);
     final trafiony = await _punktPod(ekran);
     if (!mounted) return;
     if (trafiony != null) return _menuPunktu(trafiony);
-    if (kIsWeb) await _menuMapy(ekran, p);
   }
 
   /// Kółko w miejscu, gdzie stanie nowy punkt (null = schowaj).
@@ -1002,7 +1002,7 @@ class _EkranMapyState extends State<EkranMapy> {
                   onMapCreated: (c) => _mapa = c,
                   onStyleLoadedCallback: _poZaladowaniuStylu,
                   // w przeglądarce punkt stawia menu po kliknięciu (_menuMapy)
-                  onMapLongClick: kIsWeb ? null : _przytrzymanie,
+                  onMapLongClick: _przytrzymanie,
                   onMapClick: _klikniecie,
                   featureTapsTriggersMapClick: true,
                   onCameraTrackingDismissed: () => setState(() => _sledzi = false),
@@ -1052,8 +1052,8 @@ class _EkranMapyState extends State<EkranMapy> {
                                 ? '$gestDodawania na mapie, aby zacząć trasę'
                                 // wąski ekran (telefon w przeglądarce): bez myszy, krótko
                                 : MediaQuery.sizeOf(context).width < 600
-                                ? 'Kliknij mapę, aby zacząć trasę'
-                                : 'Kliknij mapę, aby zacząć trasę. Prawy przycisk przesuwa mapę.',
+                                ? 'Przytrzymaj palec na mapie, aby zacząć trasę'
+                                : 'Kliknij mapę prawym przyciskiem, aby zacząć trasę. Lewy przesuwa mapę.',
                           ),
                         ),
                       ),

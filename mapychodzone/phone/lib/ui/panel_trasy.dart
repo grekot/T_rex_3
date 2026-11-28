@@ -7,7 +7,7 @@ import 'profil_wysokosci.dart';
 
 /// Gest dodawania punktu: w telefonie przytrzymanie, w przeglądarce podwójne kliknięcie
 /// (maplibre_gl na webie zamienia „długie dotknięcie” na dblclick).
-const gestDodawania = kIsWeb ? 'Kliknij dwukrotnie' : 'Przytrzymaj palec';
+const gestDodawania = kIsWeb ? 'Kliknij prawym przyciskiem' : 'Przytrzymaj palec';
 
 /// Nazwa punktu planu do wyświetlenia: nazwa z mapy albo „Start”, „Przystanek 2”, „Cel”.
 String nazwaPunktu(PlanTrasy plan, int i, {bool powrot = false}) {
@@ -209,8 +209,8 @@ class _PanelTrasyState extends State<PanelTrasy> {
         const SizedBox(height: 4),
         Text(
           kIsWeb
-              ? 'Kliknij mapę: prowadź tędy, przystanek albo nowy cel. Punkt przeniesiesz albo usuniesz '
-                    'z listy powyżej lub klikając go na mapie. Prawy przycisk myszy przesuwa mapę.'
+              ? 'Kliknij mapę prawym przyciskiem: prowadź tędy, przystanek albo nowy cel. Punkt przeniesiesz '
+                    'albo usuniesz z listy powyżej lub klikając go na mapie. Lewy przycisk przesuwa mapę.'
               : '$gestDodawania na mapie: prowadź tędy, przystanek albo nowy cel. '
                     'Punkt przeniesiesz albo usuniesz z listy powyżej lub dotykając go na mapie.',
           style: teksty.bodySmall,
@@ -312,7 +312,7 @@ class _PanelTrasyState extends State<PanelTrasy> {
                     else if (plan.dlugosc == 1 && !w.liczy)
                       Text(
                         kIsWeb
-                            ? 'Start ustawiony. Kliknij mapę w miejscu celu.'
+                            ? 'Start ustawiony. Kliknij prawym przyciskiem w miejscu celu.'
                             : 'Start ustawiony. $gestDodawania na mapie w miejscu celu.',
                         style: teksty.bodyMedium,
                       ),
@@ -393,7 +393,7 @@ class _Przenoszenie extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              '${kIsWeb ? 'Kliknij' : 'Dotknij'} mapy w nowym miejscu: $opis',
+              '${kIsWeb ? 'Kliknij mapę' : 'Dotknij mapy'} w nowym miejscu: $opis',
               style: TextStyle(color: kolory.onPrimaryContainer),
             ),
           ),
