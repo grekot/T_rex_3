@@ -16,10 +16,80 @@
   -->
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@6.4.1/dist/maplibre-gl.css">
   <script src="https://unpkg.com/pmtiles@4.3.0/dist/pmtiles.js"></script>
+  <!--
+    Mysz na mapie (jak w programach do map na komputerze):
+    - kursor to zwykła strzałka,
+    - prawy przycisk + przeciąganie przesuwa mapę (kursor: rączka),
+    - lewy przycisk nie przesuwa mapy: kliknięcie otwiera w aplikacji menu „jaki punkt postawić”,
+    - podwójne kliknięcie nic nie robi (wcześniej dodawało punkt i przybliżało mapę),
+    - kółko przybliża mapę, chyba że kursor jest nad panelem lub przyciskiem aplikacji: wtedy
+      przewija się tylko panel. Flutter podaje prostokąty swoich nakładek (mapyChodzone.prostokaty)
+      i czy jest otwarte okno nad całą mapą (mapyChodzone.okno); Flutter nie widzi ruchu kursora
+      nad samą mapą, więc pozycję sprawdzamy tutaj.
+    Mapa (element HTML) leży pod Flutterem i dostaje zdarzenia także spod paneli, dlatego
+    filtrujemy je tu, zanim dotrą do MapLibre. Flutter używa zdarzeń „pointer” i „wheel”,
+    których nie zatrzymujemy, więc panel dalej działa.
+    Dotyk (telefon w przeglądarce) zostaje bez zmian: MapLibre obsługuje go osobno.
+  -->
+  <style>
+    .maplibregl-canvas-container.maplibregl-interactive { cursor: default; }
+    .maplibregl-canvas-container.maplibregl-interactive.mapy-przesuwanie { cursor: grabbing; }
+    /* Podpis źródeł mapy (element HTML mapy) leży nad aplikacją i zasłaniał przyciski panelu trasy:
+       w lewym górnym rogu, pod przyciskiem menu. */
+    .maplibregl-ctrl-bottom-left { top: 60px; bottom: auto; }
+  </style>
   <script type="module">
     import * as maplibregl from 'https://unpkg.com/maplibre-gl@6.4.1/dist/maplibre-gl.mjs';
     maplibregl.addProtocol('pmtiles', new pmtiles.Protocol().tile);
-    globalThis.maplibregl = maplibregl;
+
+    const stan = (globalThis.mapyChodzone = { okno: false, prostokaty: [], mapa: null });
+    const nadNakladka = (e) =>
+      stan.okno || stan.prostokaty.some(([l, t, r, b]) => e.clientX >= l && e.clientX <= r && e.clientY >= t && e.clientY <= b);
+
+    function obsluzMysz(mapa) {
+      const kontener = mapa.getContainer();
+      const plotno = mapa.getCanvasContainer();
+      let ciagnie = null;
+      kontener.addEventListener('mousedown', (e) => {
+        if (e.button === 0) {
+          e.stopPropagation(); // lewy: bez przesuwania; „click” i tak dotrze do MapLibre
+        } else if (e.button === 2) {
+          e.stopPropagation(); // prawy: bez obracania mapy
+          e.preventDefault();
+          if (nadNakladka(e)) return;
+          ciagnie = { x: e.clientX, y: e.clientY };
+          plotno.classList.add('mapy-przesuwanie');
+        }
+      }, true);
+      window.addEventListener('mousemove', (e) => {
+        if (!ciagnie) return;
+        mapa.panBy([ciagnie.x - e.clientX, ciagnie.y - e.clientY], { duration: 0 });
+        ciagnie = { x: e.clientX, y: e.clientY };
+      });
+      window.addEventListener('mouseup', (e) => {
+        if (e.button !== 2 || !ciagnie) return;
+        ciagnie = null;
+        plotno.classList.remove('mapy-przesuwanie');
+      });
+      kontener.addEventListener('contextmenu', (e) => { e.preventDefault(); e.stopPropagation(); }, true);
+      kontener.addEventListener('dblclick', (e) => e.stopPropagation(), true);
+      // przed obsługą kółka w MapLibre: nad panelem mapa się nie przybliża
+      kontener.addEventListener('wheel', (e) => {
+        if (nadNakladka(e)) mapa.scrollZoom.disable();
+        else if (!mapa.scrollZoom.isEnabled()) mapa.scrollZoom.enable();
+      }, { capture: true, passive: true });
+    }
+
+    // Wtyczka maplibre_gl tworzy mapę przez globalne maplibregl.Map: podstawiamy klasę, która
+    // po utworzeniu mapy dokłada obsługę myszy.
+    class MapaMapyChodzone extends maplibregl.Map {
+      constructor(opcje) {
+        super(opcje);
+        stan.mapa = this;
+        obsluzMysz(this);
+      }
+    }
+    globalThis.maplibregl = { ...maplibregl, Map: MapaMapyChodzone };
   </script>
 </head>
 <body>
